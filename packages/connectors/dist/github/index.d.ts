@@ -1,8 +1,8 @@
 export * from './types.js';
 export type { GitHubClient } from './client.js';
-export { OctokitGitHubClient } from './octokit-client.js';
+export { OctokitGitHubClient } from './OctokitGitHubClient.js';
 export type { GitHubAppCredentials, InstallationToken } from './installation-auth.js';
 export { mintInstallationToken } from './installation-auth.js';
-export { GitHubConnector } from './connector.js';
+export { GitHubConnector } from './GitHubConnector.js';
 export { extractExplicitLinks, normalizeCommit, normalizeIssueComment, normalizeIssueCommentEvent, normalizePullRequest, normalizePullRequestEvent, normalizePullRequestTransition, normalizePushEvent, pullRequestContainerId, repoToResource, userToActor, } from './normalize.js';
 //# sourceMappingURL=index.d.ts.map

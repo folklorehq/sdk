@@ -2,7 +2,7 @@
 import type { ConnectorContext, WebhookEvent } from '../connector.js';
 import type { NormalizedRecords } from '../normalized.js';
 import { registerBuiltinConnectors } from './builtin.js';
-import { ConnectorRegistry, type PullConnectorDeps } from './connector-registry.js';
+import { ConnectorRegistry, type PullConnectorDeps } from './ConnectorRegistry.js';
 
 const defaultRegistry = new ConnectorRegistry();
 registerBuiltinConnectors(defaultRegistry);
@@ -28,5 +28,5 @@ export function listPullConnectorKinds(): string[] {
   return defaultRegistry.listPullKinds();
 }
 
-export type { PullConnectorDeps, ConnectorRegistration } from './connector-registry.js';
-export { ConnectorRegistry } from './connector-registry.js';
+export type { PullConnectorDeps, ConnectorRegistration } from './ConnectorRegistry.js';
+export { ConnectorRegistry } from './ConnectorRegistry.js';

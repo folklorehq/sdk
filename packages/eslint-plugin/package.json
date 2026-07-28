@@ -1,0 +1,18 @@
+{
+  "name": "@folklore/eslint-plugin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test": "node --test",
+    "check-types": "echo \"@folklore/eslint-plugin: plain JS, nothing to type-check\""
+  },
+  "peerDependencies": {
+    "eslint": "^9.0.0"
+  }
+}

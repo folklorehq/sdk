@@ -1,6 +1,6 @@
-export { TeeEndpointBackend } from './tee-endpoint.js';
-export { OpenAICompatBackend } from './openai-compat.js';
-export { StubInferenceBackend } from './stub.js';
+export { TeeEndpointBackend } from './TeeEndpointBackend.js';
+export { OpenAICompatBackend } from './OpenAICompatBackend.js';
+export { StubInferenceBackend } from './StubInferenceBackend.js';
 export { RoutingInferenceBackend, tieredTaskModels } from './model-router.js';
 export { createInferenceBackend } from './factory.js';
 export { DEFAULT_VERIFIED_MODELS, parseModelAllowlist } from './model-allowlist.js';

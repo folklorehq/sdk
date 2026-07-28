@@ -1,0 +1,1 @@
+{"version":3,"file":"recovery-file.d.ts","sourceRoot":"","sources":["../src/recovery-file.ts"],"names":[],"mappings":"AACA,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,aAAa,CAAC;AAEpD,MAAM,WAAW,mBAAmB;IAClC,OAAO,CAAC,EAAE,MAAM,CAAC;IACjB,WAAW,CAAC,EAAE,IAAI,CAAC;CACpB;AAMD,wBAAgB,yBAAyB,CACvC,QAAQ,EAAE,gBAAgB,EAC1B,OAAO,GAAE,mBAAwB,GAChC,MAAM,CAqBR"}

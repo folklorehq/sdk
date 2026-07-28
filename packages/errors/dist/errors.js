@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { AppError } from './app-error.js';
+import { AppError } from './AppError.js';
 /** Input failed validation (bad request shape, invalid field). */
 export class ValidationError extends AppError {
     constructor(message, options = {}) {

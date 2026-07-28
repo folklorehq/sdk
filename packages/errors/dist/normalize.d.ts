@@ -1,4 +1,4 @@
-import { AppError } from './app-error.js';
+import { AppError } from './AppError.js';
 /** Type guard: is this one of our structured application errors? */
 export declare function isAppError(value: unknown): value is AppError;
 /** Coerce any thrown value into an `AppError`, wrapping non-`AppError`s in `InternalError` with the original as `cause`. */

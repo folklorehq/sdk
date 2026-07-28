@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-export { LinearConnector } from './connector.js';
-export { LinearSdkClient } from './sdk-client.js';
+export { LinearConnector } from './LinearConnector.js';
+export { LinearSdkClient } from './LinearSdkClient.js';
 export type { LinearApiClient } from './client.js';
 export {
   normalizeLinearIssueEvent,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TeeEndpointBackend } from '../src/tee-endpoint.js';
+import { TeeEndpointBackend } from '../src/TeeEndpointBackend.js';
 
 const BASE_URL = 'https://inference.example.com';
 
