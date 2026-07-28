@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: apache/age:release_PG16_1.6.0
+    container_name: folklore-sdk-pg
+    command: ['postgres', '-c', 'shared_preload_libraries=age']
+    environment:
+      POSTGRES_USER: folklore
+      POSTGRES_PASSWORD: folklore
+      POSTGRES_DB: folklore
+    ports: ['5432:5432']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U folklore']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    container_name: folklore-sdk-redis
+    command: redis-server --appendonly yes
+    ports: ['6379:6379']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      timeout: 3s
+      retries: 30

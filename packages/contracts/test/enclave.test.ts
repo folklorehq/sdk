@@ -1,0 +1,544 @@
+// SPDX-License-Identifier: Apache-2.0
+import { describe, expect, it } from 'vitest';
+import {
+  DEFAULT_SYNTHESIS_INPUT_TOKEN_BUDGET,
+  knowledgeNeighborhoodSchema,
+  processedFactSchema,
+  pullCompleteSignalSchema,
+  pullDueMessageSchema,
+  synthesisQueueRequestSchema,
+  synthesisRequestSchema,
+  teamOnboardingSynthesisRequestSchema,
+  teamOnboardingSynthesisResultSchema,
+  themeSynthesisRequestSchema,
+  themeSynthesisResultSchema,
+  wikiSynthesisResultSchema,
+  type KnowledgeSkeleton,
+  type PullCompleteSignal,
+  type PullDueMessage,
+  type SynthesisRequest,
+  type ThemeSynthesisRequest,
+  type WikiSynthesisResult,
+} from '../src/enclave.js';
+
+describe('processedFactSchema', () => {
+  const valid = {
+    factId: 'f1',
+    orgId: 'org-1',
+    sourceKind: 'github',
+    sourceFactId: 'github:pr:opened:1',
+    occurredAt: '2026-01-01T00:00:00.000Z',
+    bodyS3Key: 'facts/org-1/f1',
+    bodyHash: 'abc',
+    kind: 'content',
+    containerRefs: [],
+    explicitLinks: [],
+    extractedEntities: ['@alice'],
+    containerSeeds: [{ sourceContainerId: 'gh:pr:1', label: 'github_pr', shape: 'stateful' }],
+    hnswNeighbors: [{ factId: 'f2', similarity: 0.9 }],
+  };
+
+  it('accepts the canonical enclave shape', () => {
+    expect(processedFactSchema.parse(valid)).toMatchObject({ factId: 'f1', kind: 'content' });
+  });
+
+  it('rejects an unknown fact kind', () => {
+    expect(() => processedFactSchema.parse({ ...valid, kind: 'mutation' })).toThrow();
+  });
+
+  it('requires extractedEntities', () => {
+    const { extractedEntities: _omit, ...withoutEntities } = valid;
+    expect(() => processedFactSchema.parse(withoutEntities)).toThrow();
+  });
+
+  it('round-trips content-free metrics', () => {
+    const parsed = processedFactSchema.parse({
+      ...valid,
+      metrics: [{ key: 'github.pr.additions', value: 12, unit: 'lines' }],
+    });
+    expect(parsed.metrics).toEqual([{ key: 'github.pr.additions', value: 12, unit: 'lines' }]);
+  });
+
+  it('defaults metrics to [] when an older enclave omits it', () => {
+    expect(processedFactSchema.parse(valid).metrics).toEqual([]);
+  });
+});
+
+describe('wikiSynthesisResultSchema', () => {
+  it('accepts an enclave wiki_synthesis payload with encrypted blocks', () => {
+    const parsed = wikiSynthesisResultSchema.parse({
+      type: 'wiki_synthesis',
+      requestId: 'req-1',
+      themeId: 'theme-1',
+      orgId: 'org-1',
+      articles: [{ audienceId: null, content: 'ZW5j', contentFormat: 'esdk-v1', factCount: 3 }],
+      blocks: [
+        {
+          type: 'summary',
+          sensitivityLevel: 'team_scoped',
+          audienceId: null,
+          factIds: ['f1'],
+          body: { format: 'esdk-v1', ciphertext: 'YmxvY2s=' },
+        },
+      ],
+      citedFactIds: ['f1'],
+    });
+    expect(parsed.blocks[0]?.body.format).toBe('esdk-v1');
+  });
+
+  it('defaults richBlockCounts to an empty array when a legacy enclave omits it', () => {
+    const parsed = wikiSynthesisResultSchema.parse({
+      type: 'wiki_synthesis',
+      requestId: 'req-1',
+      themeId: 'theme-1',
+      orgId: 'org-1',
+      articles: [],
+      blocks: [],
+      citedFactIds: [],
+    });
+    expect(parsed.richBlockCounts).toEqual([]);
+  });
+
+  it('carries the content-free per-kind rich-block tally', () => {
+    const parsed = wikiSynthesisResultSchema.parse({
+      type: 'wiki_synthesis',
+      requestId: 'req-1',
+      themeId: 'theme-1',
+      orgId: 'org-1',
+      articles: [],
+      blocks: [],
+      citedFactIds: [],
+      richBlockCounts: [
+        { kind: 'diagram', seen: 3, dropped: 1 },
+        { kind: 'chart', seen: 2, dropped: 1, repaired: 1 },
+      ],
+    });
+    expect(parsed.richBlockCounts).toEqual([
+      { kind: 'diagram', seen: 3, dropped: 1, repaired: 0 },
+      { kind: 'chart', seen: 2, dropped: 1, repaired: 1 },
+    ]);
+  });
+
+  it('rejects a rich-block tally with an unknown kind or a fractional count', () => {
+    const base = {
+      type: 'wiki_synthesis',
+      requestId: 'req-1',
+      themeId: 'theme-1',
+      orgId: 'org-1',
+      articles: [],
+      blocks: [],
+      citedFactIds: [],
+    };
+    expect(() =>
+      wikiSynthesisResultSchema.parse({
+        ...base,
+        richBlockCounts: [{ kind: 'flowchart', seen: 1, dropped: 0 }],
+      }),
+    ).toThrow();
+    expect(() =>
+      wikiSynthesisResultSchema.parse({
+        ...base,
+        richBlockCounts: [{ kind: 'chart', seen: 1.5, dropped: 0 }],
+      }),
+    ).toThrow();
+  });
+});
+
+describe('themeSynthesisResultSchema', () => {
+  it('accepts a theme_synthesis payload', () => {
+    const parsed = themeSynthesisResultSchema.parse({
+      type: 'theme_synthesis',
+      requestId: 'req-1',
+      orgId: 'org-1',
+      themes: [
+        {
+          themeId: 't1',
+          name: 'Checkout Incident',
+          kind: 'topic',
+          team: 'payments',
+          importance: 0.9,
+          tags: ['incident'],
+          containerIds: ['c1'],
+          facts: [{ factId: 'f1', score: 0.92 }],
+        },
+      ],
+      related: [{ fromThemeId: 't1', toThemeId: 't2', similarity: 0.8 }],
+      aggregates: [
+        {
+          aggregateThemeId: 'agg-1',
+          name: 'Initiative: Checkout Reliability',
+          tags: ['initiative'],
+          importance: 0.9,
+          children: [{ childThemeId: 't1', weight: 1 }],
+        },
+      ],
+    });
+    expect(parsed.themes[0]?.kind).toBe('topic');
+    // docType/confidence default in for an older enclave that omits them (ADL #46).
+    expect(parsed.themes[0]?.docType).toBe('concept');
+    expect(parsed.themes[0]?.docTypeConfidence).toBe(0);
+    expect(parsed.aggregates[0]?.children[0]?.childThemeId).toBe('t1');
+  });
+
+  it('defaults aggregates to an empty array when omitted', () => {
+    const parsed = themeSynthesisResultSchema.parse({
+      type: 'theme_synthesis',
+      requestId: 'req-1',
+      orgId: 'org-1',
+      themes: [],
+      related: [],
+    });
+    expect(parsed.aggregates).toEqual([]);
+  });
+});
+
+describe('synthesisRequestSchema', () => {
+  const valid = {
+    type: 'wiki_synthesis',
+    requestId: 'req-1',
+    themeId: 'theme-1',
+    orgId: 'org-1',
+    themeName: 'Checkout Rate-Limit Incident',
+    themeType: 'incident',
+    parentThemeCount: 0,
+    factRefs: [
+      {
+        factId: 'f1',
+        s3Key: 'facts/org-1/f1',
+        occurredAt: '2026-01-01T00:00:00.000Z',
+        kind: 'content',
+        score: 0.7,
+      },
+    ],
+    relatedThemes: [{ themeId: 't2', name: 'Payments', similarity: 0.8 }],
+    contributorCount: 3,
+    audiences: [{ id: null, name: 'All Members', publicEligible: false }],
+  };
+
+  it('accepts the producer wiki_synthesis request shape', () => {
+    expect(synthesisRequestSchema.parse(valid)).toMatchObject({
+      type: 'wiki_synthesis',
+      themeId: 'theme-1',
+    });
+  });
+
+  it('rejects a request missing the type discriminant', () => {
+    const { type: _omit, ...withoutType } = valid;
+    expect(() => synthesisRequestSchema.parse(withoutType)).toThrow();
+  });
+
+  it('defaults the adaptive-selection fields when a legacy producer omits them', () => {
+    const parsed = synthesisRequestSchema.parse(valid);
+    expect(parsed.newlyAssociatedFactIds).toEqual([]);
+    expect(parsed.inputTokenBudget).toBe(DEFAULT_SYNTHESIS_INPUT_TOKEN_BUDGET);
+    expect(parsed.knowledgeSkeleton).toBeUndefined();
+  });
+
+  it('carries the content-free knowledge skeleton and trigger facts', () => {
+    const parsed = synthesisRequestSchema.parse({
+      ...valid,
+      newlyAssociatedFactIds: ['f1'],
+      inputTokenBudget: 12_000,
+      knowledgeSkeleton: {
+        node: { themeId: 'theme-1', tags: ['incident'] },
+        neighbors: [
+          { themeId: 't2', tags: ['decision'], edge: 'RELATED_TO', weight: 0.8, hops: 1 },
+          { themeId: 't3', tags: ['initiative'], edge: 'PARENT', weight: 0.5, hops: 1 },
+        ],
+        entities: [{ entityId: 'e1', kind: 'repo' }],
+      },
+    });
+    expect(parsed.newlyAssociatedFactIds).toEqual(['f1']);
+    expect(parsed.inputTokenBudget).toBe(12_000);
+    expect(parsed.knowledgeSkeleton?.neighbors[1]?.edge).toBe('PARENT');
+  });
+
+  it('rejects a knowledge-skeleton neighbor with more than 2 hops or an unknown edge', () => {
+    const skeleton = {
+      node: { themeId: 'theme-1', tags: [] },
+      neighbors: [{ themeId: 't2', tags: [], edge: 'RELATED_TO', weight: 0.5, hops: 3 }],
+      entities: [],
+    };
+    expect(() => synthesisRequestSchema.parse({ ...valid, knowledgeSkeleton: skeleton })).toThrow();
+    expect(() =>
+      synthesisRequestSchema.parse({
+        ...valid,
+        knowledgeSkeleton: {
+          ...skeleton,
+          neighbors: [{ ...skeleton.neighbors[0], hops: 1, edge: 'SUPERSEDES' }],
+        },
+      }),
+    ).toThrow();
+  });
+});
+
+describe('knowledgeNeighborhoodSchema', () => {
+  it('accepts the hydrated cross-wiki neighborhood shape', () => {
+    const parsed = knowledgeNeighborhoodSchema.parse({
+      node: { themeId: 'theme-1', canonicalName: 'Checkout', tags: ['incident'], summary: 'x' },
+      neighbors: [
+        {
+          themeId: 't2',
+          canonicalName: 'Payments',
+          tags: ['decision'],
+          edge: 'RELATED_TO',
+          weight: 0.8,
+          oneLineSummary: 'The payments subsystem.',
+        },
+      ],
+      entities: [{ entityId: 'e1', canonicalName: 'payments-api', kind: 'repo' }],
+    });
+    expect(parsed.neighbors[0]?.canonicalName).toBe('Payments');
+  });
+});
+
+describe('themeSynthesisRequestSchema', () => {
+  it('accepts the producer theme_synthesis request shape', () => {
+    const parsed = themeSynthesisRequestSchema.parse({
+      type: 'theme_synthesis',
+      requestId: 'req-1',
+      orgId: 'org-1',
+      containers: [
+        {
+          containerId: 'c1',
+          label: 'github_pr',
+          team: 'payments',
+          factRefs: [
+            { factId: 'f1', s3Key: 'facts/org-1/f1', occurredAt: '2026-01-01T00:00:00.000Z' },
+          ],
+        },
+      ],
+    });
+    expect(parsed.containers[0]?.containerId).toBe('c1');
+  });
+});
+
+describe('teamOnboardingSynthesisRequestSchema (ADL #68)', () => {
+  const valid = {
+    type: 'team_onboarding_synthesis',
+    requestId: 'req-1',
+    orgId: 'org-1',
+    teamId: 'team-1',
+    teamName: 'Payments',
+    themes: [
+      {
+        themeId: 't1',
+        name: 'Checkout Rate-Limit Incident',
+        themeType: 'incident',
+        factRefs: [
+          {
+            factId: 'f1',
+            s3Key: 'facts/org-1/f1',
+            occurredAt: '2026-01-01T00:00:00.000Z',
+            kind: 'content',
+            score: 0.7,
+          },
+        ],
+      },
+    ],
+    audiences: [{ id: null, name: 'All Members', publicEligible: false }],
+  };
+
+  it('accepts a cross-theme team onboarding request and defaults the adaptive fields', () => {
+    const parsed = teamOnboardingSynthesisRequestSchema.parse(valid);
+    expect(parsed.teamId).toBe('team-1');
+    expect(parsed.themes[0]?.factRefs[0]?.sensitivityLevel).toBe('team_scoped');
+    expect(parsed.newlyAssociatedFactIds).toEqual([]);
+    expect(parsed.inputTokenBudget).toBe(DEFAULT_SYNTHESIS_INPUT_TOKEN_BUDGET);
+  });
+
+  it('is routable through the synthesis queue discriminated union', () => {
+    const parsed = synthesisQueueRequestSchema.parse(valid);
+    expect(parsed.type).toBe('team_onboarding_synthesis');
+  });
+
+  it('rejects a request whose fact ref carries no s3Key', () => {
+    const bad = {
+      ...valid,
+      themes: [
+        {
+          ...valid.themes[0],
+          factRefs: [{ factId: 'f1', occurredAt: 'x', kind: 'content', score: 1 }],
+        },
+      ],
+    };
+    expect(() => teamOnboardingSynthesisRequestSchema.parse(bad)).toThrow();
+  });
+});
+
+describe('teamOnboardingSynthesisResultSchema (ADL #68)', () => {
+  it('accepts a result with esdk-encrypted blocks and never carries prose', () => {
+    const parsed = teamOnboardingSynthesisResultSchema.parse({
+      type: 'team_onboarding_synthesis',
+      requestId: 'req-1',
+      orgId: 'org-1',
+      teamId: 'team-1',
+      teamName: 'Payments',
+      articles: [{ audienceId: null, content: 'ZW5j', contentFormat: 'esdk-v1', factCount: 4 }],
+      blocks: [
+        {
+          type: 'summary',
+          sensitivityLevel: 'team_scoped',
+          audienceId: null,
+          factIds: ['f1'],
+          body: { format: 'esdk-v1', ciphertext: 'YmxvY2s=' },
+        },
+      ],
+      citedFactIds: ['f1'],
+    });
+    expect(parsed.blocks[0]?.body.format).toBe('esdk-v1');
+  });
+});
+
+describe('pullDueMessageSchema', () => {
+  it('accepts the content-free pull-due signal (ADL #42)', () => {
+    const parsed = pullDueMessageSchema.parse({
+      type: 'pull-due',
+      tenant_id: 'org-1',
+      sourceId: 'src-1',
+      kind: 'github',
+    });
+    expect(parsed.kind).toBe('github');
+  });
+
+  it('defaults the backfill marker to false when omitted (ADL #29)', () => {
+    const parsed = pullDueMessageSchema.parse({
+      type: 'pull-due',
+      tenant_id: 'org-1',
+      sourceId: 'src-1',
+      kind: 'github',
+    });
+    expect(parsed.backfill).toBe(false);
+  });
+
+  it('carries an explicit backfill marker', () => {
+    const parsed = pullDueMessageSchema.parse({
+      type: 'pull-due',
+      tenant_id: 'org-1',
+      sourceId: 'src-1',
+      kind: 'github',
+      backfill: true,
+    });
+    expect(parsed.backfill).toBe(true);
+  });
+});
+
+describe('pullCompleteSignalSchema', () => {
+  const valid = {
+    type: 'pull-complete',
+    orgId: 'org-1',
+    sourceKind: 'github',
+    sourceId: 'src-1',
+    completedAt: '2026-01-01T00:00:00.000Z',
+  };
+
+  it('accepts the content-free completion signal (ADL #38)', () => {
+    expect(pullCompleteSignalSchema.parse(valid).sourceKind).toBe('github');
+  });
+
+  it('rejects a non-ISO completedAt', () => {
+    expect(() => pullCompleteSignalSchema.parse({ ...valid, completedAt: 'yesterday' })).toThrow();
+  });
+});
+
+// Drift guard: these mirror the enclave's local `interface`s verbatim (ADL #35 keeps
+// `enclave/src` off `@folklore/contracts`). A change to either schema breaks compilation
+// here, forcing the enclave mirror to be updated in lockstep.
+type Equal<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type Expect<T extends true> = T;
+
+type EnclaveKnowledgeSkeleton = {
+  node: { themeId: string; tags: string[] };
+  neighbors: {
+    themeId: string;
+    tags: string[];
+    edge: 'RELATED_TO' | 'PARENT' | 'CHILD';
+    weight: number;
+    hops: number;
+  }[];
+  entities: { entityId: string; kind: string }[];
+};
+
+type EnclaveSynthesisRequest = {
+  type: 'wiki_synthesis';
+  requestId: string;
+  themeId: string;
+  orgId: string;
+  themeName: string;
+  themeType: string;
+  parentThemeCount: number;
+  factRefs: { factId: string; s3Key: string; occurredAt: string; kind: string; score: number }[];
+  relatedThemes: { themeId: string; name: string; similarity: number }[];
+  contributorCount: number;
+  audiences: { id: string | null; name: string; publicEligible: boolean }[];
+  newlyAssociatedFactIds: string[];
+  inputTokenBudget: number;
+  knowledgeSkeleton?: EnclaveKnowledgeSkeleton;
+};
+
+type _KnowledgeSkeletonPinned = Expect<Equal<KnowledgeSkeleton, EnclaveKnowledgeSkeleton>>;
+
+type EnclaveWikiSynthesisResult = {
+  type: 'wiki_synthesis';
+  requestId: string;
+  themeId: string;
+  orgId: string;
+  articles: {
+    audienceId: string | null;
+    content: string;
+    contentFormat: 'esdk-v1' | 'plaintext';
+    factCount: number;
+  }[];
+  blocks: {
+    type: string;
+    sensitivityLevel: 'public' | 'team_scoped' | 'restricted' | 'confidential';
+    audienceId: string | null;
+    factIds: string[];
+    body: { format: 'esdk-v1'; ciphertext: string };
+  }[];
+  citedFactIds: string[];
+  richBlockCounts: {
+    kind: 'diagram' | 'graph' | 'chart' | 'code' | 'embed';
+    seen: number;
+    dropped: number;
+    repaired: number;
+  }[];
+};
+
+type _WikiSynthesisResultPinned = Expect<Equal<WikiSynthesisResult, EnclaveWikiSynthesisResult>>;
+
+type EnclaveThemeSynthesisRequest = {
+  type: 'theme_synthesis';
+  requestId: string;
+  orgId: string;
+  containers: {
+    containerId: string;
+    label: string;
+    team: string;
+    factRefs: { factId: string; s3Key: string; occurredAt: string }[];
+  }[];
+};
+
+type EnclavePullDueMessage = {
+  type: 'pull-due';
+  tenant_id: string;
+  sourceId: string;
+  kind: string;
+  backfill: boolean;
+};
+
+type EnclavePullCompleteSignal = {
+  type: 'pull-complete';
+  orgId: string;
+  sourceKind: string;
+  sourceId: string;
+  completedAt: string;
+};
+
+type _SynthesisRequestPinned = Expect<Equal<SynthesisRequest, EnclaveSynthesisRequest>>;
+type _ThemeSynthesisRequestPinned = Expect<
+  Equal<ThemeSynthesisRequest, EnclaveThemeSynthesisRequest>
+>;
+type _PullDueMessagePinned = Expect<Equal<PullDueMessage, EnclavePullDueMessage>>;
+type _PullCompleteSignalPinned = Expect<Equal<PullCompleteSignal, EnclavePullCompleteSignal>>;

@@ -1,0 +1,50 @@
+{
+  "name": "@folklore/utils",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./random": {
+      "development": "./src/random.ts",
+      "types": "./dist/random.d.ts",
+      "default": "./dist/random.js"
+    },
+    "./text": {
+      "development": "./src/text.ts",
+      "types": "./dist/text.d.ts",
+      "default": "./dist/text.js"
+    },
+    "./async": {
+      "development": "./src/async.ts",
+      "types": "./dist/async.d.ts",
+      "default": "./dist/async.js"
+    },
+    "./tenant": {
+      "development": "./src/tenant.ts",
+      "types": "./dist/tenant.d.ts",
+      "default": "./dist/tenant.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "devDependencies": {
+    "@folklore/tsconfig": "workspace:*",
+    "@types/node": "^22.7.5",
+    "eslint": "^9.13.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

@@ -1,0 +1,20 @@
+-- Reduced single-tenant graph schema for the public SDK mirror.
+-- Relational tables live in @folklore/local-db (local_facts, local_containers, local_themes).
+-- Graph nodes and edges live in Apache AGE graph "folklore" (schemaless — properties set at write time).
+--
+-- Node labels
+--   Fact       { id, orgId, occurredAt }
+--   Container  { id, orgId, label }
+--   Theme      { id, orgId, name, description?, status?, merged_into? }
+--
+-- Edge types
+--   (Fact)-[:SCORED_FOR { score, orgId }]->(Theme)
+--   (Fact)-[:BELONGS_TO]->(Container)
+--   (Theme)-[:RELATED_TO { confidence, orgId, relationship_type }]-(Theme)
+--   (Theme)-[:PART_OF { weight }]->(Theme)
+--   (Container)-[:GROUPED_INTO { confidence }]->(Theme)
+--
+-- Bootstrap (run once per database):
+--   CREATE EXTENSION IF NOT EXISTS age;
+--   LOAD 'age';
+--   SELECT ag_catalog.create_graph('folklore');

@@ -1,0 +1,1 @@
+{"version":3,"file":"age-drizzle.d.ts","sourceRoot":"","sources":["../src/age-drizzle.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,GAAG,EAAE,MAAM,aAAa,CAAC;AAClC,OAAO,KAAK,EAAE,YAAY,EAAE,MAAM,oBAAoB,CAAC;AAwBvD,wBAAgB,yBAAyB,CAAC,EAAE,EAAE;IAC5C,OAAO,EAAE,CAAC,KAAK,EAAE,UAAU,CAAC,OAAO,GAAG,CAAC,KAAK,OAAO,CAAC,OAAO,CAAC,CAAC;CAC9D,GAAG,YAAY,CAiBf"}

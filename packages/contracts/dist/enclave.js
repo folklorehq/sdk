@@ -1,0 +1,372 @@
+// SPDX-License-Identifier: Apache-2.0
+import { z } from 'zod';
+import { factMetricSchema } from './metrics.js';
+import { richBlockKindSchema } from './wiki.js';
+const WIKI_CONTENT_FORMAT = 'esdk-v1';
+export const factKindSchema = z.enum(['content', 'transition']);
+export const containerSeedSchema = z.object({
+    sourceContainerId: z.string(),
+    label: z.string(),
+    shape: z.string(),
+});
+export const hnswNeighborSchema = z.object({
+    factId: z.string(),
+    similarity: z.number(),
+});
+// ADL #6 — content-free sensitivity label. A bare enum only: never carries a reason, snippet,
+// or matched keyword, so it does not smuggle content across the trust boundary (ADL #12/#18).
+export const sensitivityLevelSchema = z.enum([
+    'public',
+    'team_scoped',
+    'restricted',
+    'confidential',
+]);
+// The outbound destination kinds (ADL #65). Lives here so both the enclave↔worker `export-due`
+// signal and the `WikiExportTarget` port share one definition instead of an inline re-declaration.
+export const wikiExportTargetKindSchema = z.enum(['notion', 'clickup']);
+export const processedFactSchema = z.object({
+    factId: z.string(),
+    orgId: z.string(),
+    sourceKind: z.string(),
+    sourceFactId: z.string(),
+    occurredAt: z.string(),
+    bodyS3Key: z.string(),
+    bodyHash: z.string(),
+    kind: factKindSchema,
+    containerRefs: z.array(z.string()),
+    explicitLinks: z.array(z.string()),
+    sourceThreadId: z.string().optional(),
+    extractedEntities: z.array(z.string()),
+    containerSeeds: z.array(containerSeedSchema),
+    hnswNeighbors: z.array(hnswNeighborSchema),
+    // Fail-closed: an older enclave that omits the label lands on team_scoped, never public.
+    sensitivityLevel: sensitivityLevelSchema.default('team_scoped'),
+    // Content-free numeric upstream signals (ADL #72) — closed-vocab scalars only; never a path or
+    // diff. Defaults to [] so an older enclave that omits it still parses.
+    metrics: z.array(factMetricSchema).default([]),
+});
+export const encryptedBodySchema = z.object({
+    format: z.literal(WIKI_CONTENT_FORMAT),
+    ciphertext: z.string(),
+});
+export const encryptedBlockSchema = z.object({
+    type: z.string(),
+    sensitivityLevel: sensitivityLevelSchema,
+    audienceId: z.string().nullable(),
+    factIds: z.array(z.string()),
+    body: encryptedBodySchema,
+});
+export const wikiArticleSchema = z.object({
+    audienceId: z.string().nullable(),
+    content: z.string(),
+    contentFormat: z.enum([WIKI_CONTENT_FORMAT, 'plaintext']),
+    factCount: z.number(),
+});
+// Content-free rich-block emit-vs-drop tally per kind (ADL #18): how many fenced diagram/graph/
+// chart/code/embed candidates the synthesizer parsed vs. dropped on failed validation, and how
+// many of the dropped were recovered by the structured-repair pass (`repaired`, graph/chart only).
+// Counts only — no block body, code, or caption ever crosses (ADL #12/#35). The worker emits the
+// `wiki.rich_blocks.synthesized` ops event from these (the enclave has no PostHog egress).
+export const richBlockKindCountSchema = z.object({
+    kind: richBlockKindSchema,
+    seen: z.number().int().nonnegative(),
+    dropped: z.number().int().nonnegative(),
+    repaired: z.number().int().nonnegative().default(0),
+});
+export const wikiSynthesisResultSchema = z.object({
+    type: z.literal('wiki_synthesis'),
+    requestId: z.string(),
+    themeId: z.string(),
+    orgId: z.string(),
+    articles: z.array(wikiArticleSchema),
+    blocks: z.array(encryptedBlockSchema),
+    citedFactIds: z.array(z.string()),
+    richBlockCounts: z.array(richBlockKindCountSchema).default([]),
+});
+// Per-fact relevance to the theme (container-cosine to the cluster centroid, ADL #34/#46) — the
+// SCORED_FOR edge weight. Lets read-time fact ordering (wiki synthesis packing) rank by real
+// relevance instead of the prior constant 1.0. Content-free scalar; no body or name crosses.
+export const themeFactScoreSchema = z.object({
+    factId: z.string(),
+    score: z.number(),
+});
+export const synthesizedThemeSchema = z.object({
+    themeId: z.string(),
+    name: z.string(),
+    kind: z.enum(['topic', 'ceremony']),
+    team: z.string(),
+    importance: z.number(),
+    tags: z.array(z.string()),
+    containerIds: z.array(z.string()),
+    facts: z.array(themeFactScoreSchema),
+    // Hybrid doc-type classification (ADL #46): the content-free type label that selects the wiki
+    // section skeleton + its 0–1 confidence. Defaulted for an older enclave that omits it.
+    docType: z.string().default('concept'),
+    docTypeConfidence: z.number().min(0).max(1).default(0),
+});
+export const relatedThemeEdgeSchema = z.object({
+    fromThemeId: z.string(),
+    toThemeId: z.string(),
+    similarity: z.number(),
+});
+// Content-free theme-merge signals (ADL #56): the three similarity channels that produced a
+// candidate. `judge` is null when the LLM same-concept judge was not run for the pair (the
+// cheap embedding+overlap pre-score fell below the judge trigger). Ids + scores only — no
+// theme name, summary, or fact body ever crosses this boundary (ADL #12/#18/#35).
+export const themeMergeSignalsSchema = z.object({
+    cosine: z.number(),
+    jaccard: z.number(),
+    judge: z.number().nullable(),
+});
+// Stage A (detection) only ever emits these two on the wire: `auto` ≥ auto-threshold (Stage B merges
+// it), `pending` ≥ review-threshold (Stage B surfaces it for human review). The terminal dispositions
+// (auto_merged/approved/rejected/skipped) are DB-only and never cross the enclave→worker boundary.
+export const themeMergeCandidateStatusSchema = z.enum(['pending', 'auto']);
+// Detected duplicate-theme pair (ADL #56). `themeIdA < themeIdB` is canonicalized enclave-side
+// so the (a, b) pair is stable and the worker can upsert idempotently.
+export const themeMergeCandidateSchema = z.object({
+    themeIdA: z.string(),
+    themeIdB: z.string(),
+    mergeScore: z.number(),
+    signals: themeMergeSignalsSchema,
+    status: themeMergeCandidateStatusSchema,
+});
+// Aggregate theme (ADL #10/#46) — an Initiative rolled up from strongly-related leaf themes. The
+// enclave computes the clustering + name in-TEE (ADL #12); only ids, the cleartext label, tags, and
+// child weights cross. `aggregateThemeId` is deterministic (seeded on the lowest child id) so
+// re-running the same batch is idempotent.
+export const aggregateThemeChildSchema = z.object({
+    childThemeId: z.string(),
+    weight: z.number(),
+});
+export const aggregateThemeSchema = z.object({
+    aggregateThemeId: z.string(),
+    name: z.string(),
+    tags: z.array(z.string()),
+    importance: z.number(),
+    children: z.array(aggregateThemeChildSchema),
+});
+export const themeSynthesisResultSchema = z.object({
+    type: z.literal('theme_synthesis'),
+    requestId: z.string(),
+    orgId: z.string(),
+    themes: z.array(synthesizedThemeSchema),
+    related: z.array(relatedThemeEdgeSchema),
+    mergeCandidates: z.array(themeMergeCandidateSchema).default([]),
+    aggregates: z.array(aggregateThemeSchema).default([]),
+});
+export const synthesisFactRefSchema = z.object({
+    factId: z.string(),
+    s3Key: z.string(),
+    occurredAt: z.string(),
+    kind: z.string(),
+    score: z.number(),
+    // Content-free connector identity (github/slack/…) so the enclave prompt can show provenance
+    // and a source-mix summary. Optional — an older worker that omits it degrades gracefully.
+    sourceKind: z.string().optional(),
+    // ADL #6 — lets the enclave drop facts above the target audience's max before they enter
+    // the prompt/citations, and floor cited blocks. Fail-closed default for older workers.
+    sensitivityLevel: sensitivityLevelSchema.default('team_scoped'),
+});
+export const synthesisRelatedThemeSchema = z.object({
+    themeId: z.string(),
+    name: z.string(),
+    similarity: z.number(),
+});
+// Cross-wiki knowledge-graph framework (ADL #46). Two shapes, split by the trust boundary:
+//   • KnowledgeSkeleton — the CONTENT-FREE graph neighborhood the worker assembles from AGE
+//     (ids + typed edges + weights + tags only) and carries in a SynthesisRequest. No names,
+//     no summaries — those are audience-gated derived knowledge (ADL #6), hydrated enclave-side.
+//   • KnowledgeNeighborhood — the HYDRATED shape the enclave builds by joining the skeleton
+//     with names it already holds; it feeds the "Knowledge Graph Context" prompt block.
+export const knowledgeEdgeKindSchema = z.enum(['RELATED_TO', 'PARENT', 'CHILD']);
+export const knowledgeSkeletonNeighborSchema = z.object({
+    themeId: z.string(),
+    tags: z.array(z.string()),
+    edge: knowledgeEdgeKindSchema,
+    weight: z.number(),
+    hops: z.number().int().min(1).max(2),
+});
+export const knowledgeSkeletonEntitySchema = z.object({
+    entityId: z.string(),
+    kind: z.string(),
+});
+export const knowledgeSkeletonSchema = z.object({
+    node: z.object({ themeId: z.string(), tags: z.array(z.string()) }),
+    neighbors: z.array(knowledgeSkeletonNeighborSchema),
+    entities: z.array(knowledgeSkeletonEntitySchema),
+});
+export const knowledgeNeighborhoodNeighborSchema = z.object({
+    themeId: z.string(),
+    canonicalName: z.string(),
+    tags: z.array(z.string()),
+    edge: knowledgeEdgeKindSchema,
+    weight: z.number(),
+    oneLineSummary: z.string(),
+});
+export const knowledgeNeighborhoodEntitySchema = z.object({
+    entityId: z.string(),
+    canonicalName: z.string(),
+    kind: z.string(),
+});
+export const knowledgeNeighborhoodSchema = z.object({
+    node: z.object({
+        themeId: z.string(),
+        canonicalName: z.string(),
+        tags: z.array(z.string()),
+        summary: z.string(),
+    }),
+    neighbors: z.array(knowledgeNeighborhoodNeighborSchema),
+    entities: z.array(knowledgeNeighborhoodEntitySchema),
+});
+// GLM 5.2 has a 1M-token window, so input capacity is effectively free; latency and cost are
+// the real limit. The enclave packs decrypted facts up to this budget (env/Pulumi-configurable).
+export const DEFAULT_SYNTHESIS_INPUT_TOKEN_BUDGET = 50_000;
+export const synthesisAudienceSchema = z.object({
+    id: z.string().nullable(),
+    name: z.string(),
+    publicEligible: z.boolean(),
+    // ADL #6 — highest fact sensitivity to pack into this audience's body. Fail-closed default.
+    maxSensitivity: sensitivityLevelSchema.default('team_scoped'),
+});
+export const synthesisRequestSchema = z.object({
+    type: z.literal('wiki_synthesis'),
+    requestId: z.string(),
+    themeId: z.string(),
+    orgId: z.string(),
+    themeName: z.string(),
+    themeType: z.string(),
+    parentThemeCount: z.number(),
+    factRefs: z.array(synthesisFactRefSchema),
+    relatedThemes: z.array(synthesisRelatedThemeSchema),
+    contributorCount: z.number(),
+    audiences: z.array(synthesisAudienceSchema),
+    // Facts whose association to this theme just changed and triggered the re-synth — the
+    // enclave ALWAYS includes them in the budget, never lets a dedup/rerank drop them.
+    newlyAssociatedFactIds: z.array(z.string()).default([]),
+    // The in-enclave input-token budget for fact packing (adaptive selection replaces a fixed
+    // fact count). Content-free; env/Pulumi configurable per deployment.
+    inputTokenBudget: z.number().int().positive().default(DEFAULT_SYNTHESIS_INPUT_TOKEN_BUDGET),
+    // Content-free graph neighborhood (ids/edges/weights/tags) the worker assembled from AGE;
+    // the enclave hydrates it into a KnowledgeNeighborhood for the cross-wiki prompt block.
+    knowledgeSkeleton: knowledgeSkeletonSchema.optional(),
+});
+export const themeContainerFactRefSchema = z.object({
+    factId: z.string(),
+    s3Key: z.string(),
+    occurredAt: z.string(),
+    // Already-extracted content-free structured ids (fact_content.extracted_entities, ADL #12) —
+    // fed into merge-detection's entity-Jaccard signal (ADL #56). Enters the enclave; never leaves.
+    entities: z.array(z.string()).default([]),
+});
+export const themeContainerRefSchema = z.object({
+    containerId: z.string(),
+    label: z.string(),
+    team: z.string(),
+    factRefs: z.array(themeContainerFactRefSchema),
+});
+export const themeSynthesisRequestSchema = z.object({
+    type: z.literal('theme_synthesis'),
+    requestId: z.string(),
+    orgId: z.string(),
+    containers: z.array(themeContainerRefSchema),
+});
+// Cross-theme team-onboarding synthesis (ADL #68 / onboarding-wikis Part C). One team theme on the
+// wire: its id, cleartext label, section-selecting type, and the content-free fact refs (S3 key +
+// metadata) the enclave decrypts. No prose crosses — identical discipline to `synthesisFactRefSchema`.
+export const teamOnboardingThemeSchema = z.object({
+    themeId: z.string(),
+    name: z.string(),
+    themeType: z.string(),
+    factRefs: z.array(synthesisFactRefSchema),
+});
+// A single "how this team operates" article synthesized across ALL of a team's themes (the current
+// model is single-theme — every SynthesisRequest is one theme). Content-free: only ids, the team
+// name/label, and fact refs cross; decryption + drafting stay in-enclave (ADL #12/#41).
+export const teamOnboardingSynthesisRequestSchema = z.object({
+    type: z.literal('team_onboarding_synthesis'),
+    requestId: z.string(),
+    orgId: z.string(),
+    teamId: z.string(),
+    teamName: z.string(),
+    themes: z.array(teamOnboardingThemeSchema),
+    audiences: z.array(synthesisAudienceSchema),
+    newlyAssociatedFactIds: z.array(z.string()).default([]),
+    inputTokenBudget: z.number().int().positive().default(DEFAULT_SYNTHESIS_INPUT_TOKEN_BUDGET),
+});
+export const synthesisQueueRequestSchema = z.discriminatedUnion('type', [
+    synthesisRequestSchema,
+    themeSynthesisRequestSchema,
+    teamOnboardingSynthesisRequestSchema,
+]);
+// The enclave→worker result of a team-onboarding synthesis. Reuses the wiki article/block shapes
+// (ESDK ciphertext bound to the row identity); the worker persists it as a team-scoped wiki_pages
+// row (theme_id null, team_id set) and never decrypts the bodies (ADL #12/#41).
+export const teamOnboardingSynthesisResultSchema = z.object({
+    type: z.literal('team_onboarding_synthesis'),
+    requestId: z.string(),
+    orgId: z.string(),
+    teamId: z.string(),
+    teamName: z.string(),
+    articles: z.array(wikiArticleSchema),
+    blocks: z.array(encryptedBlockSchema),
+    citedFactIds: z.array(z.string()),
+});
+// Content-free enclave→worker completion signal (ADL #18/#38): a scheduled pull cycle
+// finished cleanly, so the worker can advance connector_sync_state.last_successful_sync_at
+// (the enclave has no DB access — ADL #38 — so the write stays worker-side). Carries only
+// metadata (org, source kind/id, timestamp); never fact content.
+export const pullCompleteSignalSchema = z.object({
+    type: z.literal('pull-complete'),
+    orgId: z.string(),
+    sourceKind: z.string(),
+    sourceId: z.string(),
+    completedAt: z.string().datetime(),
+});
+export const pullDueMessageSchema = z.object({
+    type: z.literal('pull-due'),
+    tenant_id: z.string(),
+    sourceId: z.string(),
+    kind: z.string(),
+    // Content-free onboarding-backfill marker (ADL #29/#42): true forces the enclave to
+    // re-pull the fixed 12-month window from its start; the window itself is enforced
+    // enclave-side, never carried on the wire.
+    backfill: z.boolean().default(false),
+});
+// Content-free "export-due" signal (ADL #65), the outbound mirror of `pull-due`: the worker
+// scheduler lists due export targets and signals the enclave, which alone can decrypt the wiki
+// blocks and write them out. Ids only — never prose, never the destination token (ADL #12/#18/#42).
+// The ceiling + above-public acknowledgement are authoritative in the audited `export_targets` row
+// and read there by the enclave, so they are deliberately NOT on the wire (never trust it for that).
+export const exportDueMessageSchema = z
+    .object({
+    type: z.literal('export-due'),
+    tenant_id: z.string(),
+    themeId: z.string(),
+    targetId: z.string(),
+    kind: wikiExportTargetKindSchema,
+})
+    .strict();
+// Content-free enclave→worker completion signal (ADL #18/#38/#65): a page was written out, so the
+// worker advances the target's externalPageRef + lastContentHash (the enclave has no DB access).
+// `externalPageRef` is a destination-side page id (Notion/ClickUp), not customer content.
+export const exportCompleteSignalSchema = z
+    .object({
+    type: z.literal('export-complete'),
+    orgId: z.string(),
+    targetId: z.string(),
+    externalWorkspaceRef: z.string(),
+    externalPageRef: z.string(),
+    contentHash: z.string(),
+    exportedAt: z.string().datetime(),
+})
+    .strict();
+// The control plane mints a scoped GitHub installation token and returns it ECIES-sealed to the
+// requesting deployment's enclave public key (S1, ADL #42) — plaintext exists only momentarily in
+// the minter and then inside the enclave, never on the wire in the clear. `encryptedToken` is a
+// JSON-serialized ECIES message decryptable only by that enclave's ingest private key.
+export const encryptedInstallationTokenSchema = z.object({
+    encryptedToken: z.string(),
+    expiresAt: z.string(),
+});
+//# sourceMappingURL=enclave.js.map
