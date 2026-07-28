@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import {
+  emailDeliverySchema,
+  orgInviteContextSchema,
   provisionOperationSchema,
   provisioningStatusSchema,
   provisioningStateSchema,
@@ -31,6 +33,46 @@ describe('recoveryKeyRegistrationInputSchema', () => {
     expect(
       recoveryKeyRegistrationInputSchema.safeParse({ ...input, phrase: 'customer recovery words' })
         .success,
+    ).toBe(false);
+  });
+});
+
+describe('emailDeliverySchema', () => {
+  it('keeps invite email delivery metadata content-free and strict', () => {
+    expect(emailDeliverySchema.parse({ status: 'sent', provider: 'resend' })).toEqual({
+      status: 'sent',
+      provider: 'resend',
+    });
+    expect(
+      emailDeliverySchema.safeParse({
+        status: 'failed',
+        reason: 'provider_error',
+        message: 'upstream body',
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe('orgInviteContextSchema', () => {
+  it('describes the public context needed to render an org invite', () => {
+    expect(
+      orgInviteContextSchema.parse({
+        orgName: 'Acme',
+        email: 'dana@acme.com',
+        role: 'admin',
+        status: 'pending',
+        isExpired: false,
+      }),
+    ).toMatchObject({ orgName: 'Acme', role: 'admin', isExpired: false });
+    expect(
+      orgInviteContextSchema.safeParse({
+        orgName: 'Acme',
+        email: 'dana@acme.com',
+        role: 'owner',
+        status: 'pending',
+        isExpired: false,
+        acceptUrl: 'https://console.test/invite?token=abc',
+      }).success,
     ).toBe(false);
   });
 });

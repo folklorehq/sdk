@@ -16,6 +16,24 @@ export type AccessGrantScope = z.infer<typeof accessGrantScopeSchema>;
 export const inviteStatusSchema = z.enum(['pending', 'accepted', 'revoked']);
 export type InviteStatus = z.infer<typeof inviteStatusSchema>;
 
+export const emailDeliverySchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('sent'), provider: z.literal('resend') }).strict(),
+  z.object({ status: z.literal('logged'), reason: z.literal('resend_unconfigured') }).strict(),
+  z.object({ status: z.literal('failed'), reason: z.literal('provider_error') }).strict(),
+]);
+export type EmailDelivery = z.infer<typeof emailDeliverySchema>;
+
+export const orgInviteContextSchema = z
+  .object({
+    orgName: z.string(),
+    email: z.string(),
+    role: membershipRoleSchema,
+    status: inviteStatusSchema,
+    isExpired: z.boolean(),
+  })
+  .strict();
+export type OrgInviteContext = z.infer<typeof orgInviteContextSchema>;
+
 export const provisioningStateSchema = z.enum(['pending', 'provisioning', 'provisioned', 'failed']);
 export type ProvisioningState = z.infer<typeof provisioningStateSchema>;
 
