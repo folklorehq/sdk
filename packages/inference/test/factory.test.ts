@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import { createInferenceBackend } from '../src/factory.js';
-import { StubInferenceBackend } from '../src/stub.js';
-import { OpenAICompatBackend } from '../src/openai-compat.js';
-import { TeeEndpointBackend } from '../src/tee-endpoint.js';
+import { StubInferenceBackend } from '../src/StubInferenceBackend.js';
+import { OpenAICompatBackend } from '../src/OpenAICompatBackend.js';
+import { TeeEndpointBackend } from '../src/TeeEndpointBackend.js';
 
 describe('createInferenceBackend()', () => {
   it('throws when no mode is set (fail loud, no silent stub/local fallback)', () => {

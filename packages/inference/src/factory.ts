@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { TelemetryClient } from '@folklore/telemetry';
 import type { InferenceBackend, InferenceResponseVerifier } from './ports.js';
-import { TeeEndpointBackend } from './tee-endpoint.js';
-import { OpenAICompatBackend } from './openai-compat.js';
-import { StubInferenceBackend } from './stub.js';
+import { TeeEndpointBackend } from './TeeEndpointBackend.js';
+import { OpenAICompatBackend } from './OpenAICompatBackend.js';
+import { StubInferenceBackend } from './StubInferenceBackend.js';
 import { RoutingInferenceBackend, type TaskModelMap } from './model-router.js';
 import { AciReceiptVerifier } from './aci-verifier.js';
 

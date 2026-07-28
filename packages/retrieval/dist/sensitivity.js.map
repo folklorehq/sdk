@@ -1,1 +1,0 @@
-{"version":3,"file":"sensitivity.js","sourceRoot":"","sources":["../src/sensitivity.ts"],"names":[],"mappings":"AAGA,MAAM,iBAAiB,GAAqC;IAC1D,MAAM,EAAE,CAAC;IACT,WAAW,EAAE,CAAC;IACd,UAAU,EAAE,CAAC;IACb,YAAY,EAAE,CAAC;CAChB,CAAC;AAQF,MAAM,UAAU,mBAAmB,CAAC,KAAuB,EAAE,GAAqB;IAChF,OAAO,iBAAiB,CAAC,KAAK,CAAC,IAAI,iBAAiB,CAAC,GAAG,CAAC,CAAC;AAC5D,CAAC"}

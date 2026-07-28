@@ -4,7 +4,7 @@ export {
   type AppErrorOptions,
   type ErrorCategory,
   type ErrorTelemetry,
-} from './app-error.js';
+} from './AppError.js';
 export {
   ValidationError,
   NotFoundError,

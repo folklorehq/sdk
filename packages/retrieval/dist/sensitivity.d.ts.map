@@ -1,1 +1,0 @@
-{"version":3,"file":"sensitivity.d.ts","sourceRoot":"","sources":["../src/sensitivity.ts"],"names":[],"mappings":"AACA,MAAM,MAAM,gBAAgB,GAAG,QAAQ,GAAG,aAAa,GAAG,YAAY,GAAG,cAAc,CAAC;AASxF,MAAM,WAAW,cAAc;IAC7B,WAAW,EAAE,MAAM,EAAE,CAAC;IACtB,kBAAkB,EAAE,MAAM,EAAE,CAAC;IAC7B,cAAc,EAAE,gBAAgB,CAAC;CAClC;AAED,wBAAgB,mBAAmB,CAAC,KAAK,EAAE,gBAAgB,EAAE,GAAG,EAAE,gBAAgB,GAAG,OAAO,CAE3F"}
