@@ -1,4 +1,4 @@
-import { AppError, type AppErrorOptions } from './app-error.js';
+import { AppError, type AppErrorOptions } from './AppError.js';
 /** Input failed validation (bad request shape, invalid field). */
 export declare class ValidationError extends AppError {
     constructor(message: string, options?: AppErrorOptions);

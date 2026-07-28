@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { AppError } from './app-error.js';
+import { AppError } from './AppError.js';
 import { InternalError } from './errors.js';
 /** Type guard: is this one of our structured application errors? */
 export function isAppError(value) {

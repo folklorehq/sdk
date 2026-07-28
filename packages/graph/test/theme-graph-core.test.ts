@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it, vi } from 'vitest';
-import { ThemeGraphCore } from '../src/theme-graph-core.js';
+import { ThemeGraphCore } from '../src/ThemeGraphCore.js';
 
 describe('ThemeGraphCore', () => {
   it('linkFactToTheme issues MERGE cypher with score param', async () => {

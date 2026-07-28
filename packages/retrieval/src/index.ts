@@ -15,10 +15,10 @@ export {
   saveVectorIndex,
   type VectorEntry,
   type VectorSearchHit,
-} from './memory-index.js';
+} from './MemoryVectorIndex.js';
 export {
   LocalFactRetriever,
   type LocalFactBodyLoader,
   type LocalFactMetadataLoader,
   type LocalFactRetrieverDeps,
-} from './local-retriever.js';
+} from './LocalFactRetriever.js';

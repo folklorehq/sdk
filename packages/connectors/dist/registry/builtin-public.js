@@ -1,16 +1,16 @@
-import { GitHubConnector } from '../github/connector.js';
-import { OctokitGitHubClient } from '../github/octokit-client.js';
-import { SlackConnector } from '../slack/connector.js';
-import { HttpSlackClient } from '../slack/http-client.js';
-import { LinearConnector } from '../linear/connector.js';
-import { LinearSdkClient } from '../linear/sdk-client.js';
-import { JiraConnector } from '../jira/connector.js';
-import { JiraHttpClient } from '../jira/http-client.js';
-import { NotionConnector } from '../notion/connector.js';
-import { NotionClient } from '../notion/notion-client.js';
-import { IntercomConnector } from '../intercom/connector.js';
-import { IntercomSdkClient } from '../intercom/http-client.js';
-import { MeetingConnector } from '../meeting/connector.js';
+import { GitHubConnector } from '../github/GitHubConnector.js';
+import { OctokitGitHubClient } from '../github/OctokitGitHubClient.js';
+import { SlackConnector } from '../slack/SlackConnector.js';
+import { HttpSlackClient } from '../slack/HttpSlackClient.js';
+import { LinearConnector } from '../linear/LinearConnector.js';
+import { LinearSdkClient } from '../linear/LinearSdkClient.js';
+import { JiraConnector } from '../jira/JiraConnector.js';
+import { JiraHttpClient } from '../jira/JiraHttpClient.js';
+import { NotionConnector } from '../notion/NotionConnector.js';
+import { NotionClient } from '../notion/NotionClient.js';
+import { IntercomConnector } from '../intercom/IntercomConnector.js';
+import { IntercomSdkClient } from '../intercom/IntercomSdkClient.js';
+import { MeetingConnector } from '../meeting/MeetingConnector.js';
 function webhookOnly(ConnectorClass) {
     return (ctx) => new ConnectorClass(ctx, null);
 }

@@ -5,4 +5,4 @@ export {
   type LocalContainerInput,
   type LocalFactInput,
   type LocalThemeInput,
-} from './store.js';
+} from './LocalFactStore.js';

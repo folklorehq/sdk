@@ -1,5 +1,5 @@
 import { registerBuiltinConnectors } from './builtin.js';
-import { ConnectorRegistry } from './connector-registry.js';
+import { ConnectorRegistry } from './ConnectorRegistry.js';
 const defaultRegistry = new ConnectorRegistry();
 registerBuiltinConnectors(defaultRegistry);
 export function getDefaultConnectorRegistry() {
@@ -14,5 +14,5 @@ export function createPullConnector(kind, deps) {
 export function listPullConnectorKinds() {
     return defaultRegistry.listPullKinds();
 }
-export { ConnectorRegistry } from './connector-registry.js';
+export { ConnectorRegistry } from './ConnectorRegistry.js';
 //# sourceMappingURL=index.js.map

@@ -1,6 +1,6 @@
 export * from './normalized.js';
 export * from './connector.js';
-export { BaseConnector } from './base-connector.js';
+export { BaseConnector } from './BaseConnector.js';
 export { isCreateEvent } from './pull-classification.js';
 export { normalizeWebhookEvent } from './webhook-normalizer.js';
 export { ConnectorRegistry, createPullConnector, getDefaultConnectorRegistry, listPullConnectorKinds, type ConnectorRegistration, type PullConnectorDeps, } from './registry/index.js';

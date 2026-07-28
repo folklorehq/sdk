@@ -1,5 +1,5 @@
-export { NotionConnector } from './connector.js';
-export { NotionClient } from './notion-client.js';
+export { NotionConnector } from './NotionConnector.js';
+export { NotionClient } from './NotionClient.js';
 export type { NotionApiClient } from './client.js';
 export { normalizeNotionPageEvent, normalizeNotionCommentEvent, notionPageContainerId, } from './normalize.js';
 export type { NotionPage, NotionPageEvent, NotionCommentEvent } from './types.js';

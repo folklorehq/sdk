@@ -1,3 +1,3 @@
 // SPDX-License-Identifier: Apache-2.0
-export { MeetingConnector } from './connector.js';
+export { MeetingConnector } from './MeetingConnector.js';
 //# sourceMappingURL=index.js.map

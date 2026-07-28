@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { MemoryVectorIndex } from '../src/memory-index.js';
+import { MemoryVectorIndex } from '../src/MemoryVectorIndex.js';
 
 describe('MemoryVectorIndex', () => {
   it('ranks closer vectors higher', () => {
