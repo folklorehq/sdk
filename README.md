@@ -8,7 +8,6 @@ Open-source connector SDK and shared types for building knowledge-ingestion pipe
 pnpm install
 pnpm build
 pnpm test
-docker compose -f deploy/docker/docker-compose.yml up -d   # optional local Postgres + Redis
 ```
 
 ## Layout
@@ -21,17 +20,20 @@ docker compose -f deploy/docker/docker-compose.yml up -d   # optional local Post
 | `packages/utils` | Pure helpers (hashing, vector math) |
 | `packages/contracts` | Zod wire DTOs |
 | `packages/connectors` | Connector SDK + reference sources (GitHub, Slack, Linear, Jira, Notion, Intercom, meeting) |
-| `packages/retrieval` | Fact retrieval ports + local reference retriever |
-| `packages/local-db` | Trimmed Postgres schema for local `folklore ingest` / `query` |
-| `packages/inference` | Inference backend port, stub + OpenAI-compat adapters |
-| `packages/graph` | `ThemeGraph` port + `LocalThemeGraph` (Apache AGE via plain Postgres) |
-| `packages/cli` | `folklore` developer CLI (`init`, `ingest`, `query`, `connector test`, `verify-attestation`) |
+| `packages/inference` | Inference backend port + verified-model allowlist helpers |
+| `packages/cli` | `folklore` CLI (`init`, `connector test`, `verify-attestation`) |
+| `packages/recovery` | Browser-safe recovery keygen (BIP39 → X25519) |
+| `packages/eslint-plugin` | ESLint rules including `no-content-in-sinks` |
+| `packages/leak-guard` | Content-leak testing harness (sentinels, deep scan, recording sinks) |
 | `examples/custom-connector` | Third-party connector walkthrough |
-| `examples/corpus.json` | Sample normalized corpus for local ingest/query |
+| `examples/ecies-vectors.json` | Known-answer vector for the ingest ECIES scheme |
 
 See [docs/connectors-authoring.md](docs/connectors-authoring.md) for how to add a source.
 
 Enclave attestation code lives in [folklorehq/enclave](https://github.com/folklorehq/enclave).
+
+Ranking, retrieval, knowledge-graph construction, synthesis prompts, and the hosted product
+remain private — this repo is the connector and trust-tooling surface only.
 
 ## License
 

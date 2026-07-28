@@ -17,11 +17,6 @@
   "dependencies": {
     "@folklore/connectors": "workspace:*",
     "@folklore/core": "workspace:*",
-    "@folklore/graph": "workspace:*",
-    "@folklore/inference": "workspace:*",
-    "@folklore/local-db": "workspace:*",
-    "@folklore/retrieval": "workspace:*",
-    "@folklore/utils": "workspace:*",
     "commander": "^13.1.0",
     "zod": "^3.24.1"
   },

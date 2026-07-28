@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { OpenAICompatBackend } from '../src/openai-compat.js';
+import { OpenAICompatBackend } from '../src/OpenAICompatBackend.js';
 
 const BASE_URL = 'http://vllm:8000';
 

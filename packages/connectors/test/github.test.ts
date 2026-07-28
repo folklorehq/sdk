@@ -2,7 +2,7 @@
 import { PinoLogger } from '@folklore/logger';
 import { describe, expect, it } from 'vitest';
 import type { ConnectorContext } from '../src/index.js';
-import { GitHubConnector } from '../src/github/connector.js';
+import { GitHubConnector } from '../src/github/GitHubConnector.js';
 import type { GitHubClient } from '../src/github/client.js';
 import {
   extractExplicitLinks,

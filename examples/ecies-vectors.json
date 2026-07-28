@@ -1,0 +1,10 @@
+{
+  "scheme": "folklore-ingest-v1",
+  "description": "Known-answer vector for the ingest ECIES scheme (ephemeral X25519 \u2192 HKDF-SHA256 \u2192 AES-256-GCM). Same bytes as the public enclave and ingest-proxy tests.",
+  "recipientPrivHex": "3844d07cc230289eb190ff7730d8247abb9b22f721101cee95d17e79034b114f",
+  "recipientPubHex": "66b4c01078fad1d9612fc0ff56ec9bd42d22046adcec4f063ce931d9895d7b3d",
+  "ephemeralPubHex": "0ef6f071c20adfa72939b03d40d8f2db15a00652b994a6143c975b06c98cff17",
+  "nonceHex": "0102030405060708090a0b0c",
+  "plaintext": "{\"folklore-ingest-known-answer\":\"v1\",\"n\":42}",
+  "ciphertextHex": "5fa2c3279e83c89f49ccfc8439e58832aa5c28eb0709c760c73a0eabc56d6bb7ea37b216c9a378ddf4cf055c78f715c5e7e6ca41d9e929fb27bcbe88"
+}
