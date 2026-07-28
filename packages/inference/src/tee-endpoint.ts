@@ -17,7 +17,7 @@ export interface TeeEndpointConfig {
   generateModel?: string;
   /** Verified-model allowlist. Default: {@link DEFAULT_VERIFIED_MODELS}. Off-list models are rejected before sending. */
   modelAllowlist?: readonly string[];
-  /** Proves each response came from a verified TEE upstream via its ACI receipt (ADL #30/#40). */
+  /** Proves each response came from a verified TEE upstream via its ACI receipt. */
   responseVerifier?: InferenceResponseVerifier;
   /** Request timeout in milliseconds. Default: 60000 (remote endpoints are slower). */
   timeoutMs?: number;

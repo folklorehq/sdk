@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
-// Rich wiki content blocks (ADL #26). Shared, frozen shape: synthesis (@folklore/wiki
+// Rich wiki content blocks. Shared, frozen shape: synthesis (@folklore/wiki
 // + enclave) emits these and the box renders them from this single definition — never a
 // re-declared mirror. A block's outer `type` is `${kind}:${id}` so a page may hold many
 // of one kind; the body carries `kind` again for renderer dispatch on the read side.
@@ -19,7 +19,7 @@ export const diagramBlockSchema = z
   .strict();
 export type DiagramBlock = z.infer<typeof diagramBlockSchema>;
 
-// Structured graph (ADL #63, extended #66) — the in-house representation for authored/whiteboard
+// Structured graph — the in-house representation for authored/whiteboard
 // diagrams and synthesis-emitted flows: nodes/edges are the source of truth (rendered by us,
 // positions persist), so there is no Mermaid text round-trip. The superset enums + optional fields
 // let one block hold flow, sequence, class, ER, or state diagrams; `diagramType` defaults to 'flow'
@@ -51,7 +51,7 @@ const MAX_GRAPH_NODE_MEMBERS = 30;
 const MAX_GRAPH_MEMBER_CHARS = 120;
 
 // A class attribute/method or ER column; `text` is customer/LLM-derived content, redacted on the
-// same footing as node/edge labels (ADL #12).
+// same footing as node/edge labels.
 export const graphMemberSchema = z
   .object({
     text: z.string().max(MAX_GRAPH_MEMBER_CHARS),
@@ -415,7 +415,7 @@ export const richBlockBodySchema = z.discriminatedUnion('kind', [
 export type RichBlockBody = z.infer<typeof richBlockBodySchema>;
 
 // The wiki page-read contract (apps/api `GET /api/v1/wiki/:themeId`). `content` is rendered,
-// permission-filtered GFM (render-on-read, ADL #12/#26) — distinct from the structured
+// permission-filtered GFM (render-on-read) — distinct from the structured
 // synthesis block bodies above; `updatedAt` is the JSON-wire ISO string.
 export const wikiPageBlockSchema = z
   .object({
@@ -425,7 +425,7 @@ export const wikiPageBlockSchema = z
     lockedBy: z.string().nullable(),
     version: z.number(),
     generatedBy: z.string().nullable(),
-    // Content-free sha256 fingerprints (ADL #12/#45): `promptHash` of the prompt that generated
+    // Content-free sha256 fingerprints: `promptHash` of the prompt that generated
     // the block, `outputHash` of its output. Null on human-authored blocks. Bind a quality-feedback
     // correction to the exact generated output it critiques; exposing hashes leaks nothing.
     promptHash: z.string().nullable(),
@@ -470,7 +470,7 @@ export const wikiPageResponseSchema = z
   .strict();
 export type WikiPageResponse = z.infer<typeof wikiPageResponseSchema>;
 
-// The wiki quality-feedback aggregate (apps/api `GET /api/v1/wiki/quality`, ADL #45 flywheel).
+// The wiki quality-feedback aggregate (apps/api `GET /api/v1/wiki/quality` flywheel).
 // COUNTS + content-free sha256 hashes ONLY — never the sealed correction ciphertext or any
 // decrypted correction text. This is the re-synthesis signal, not a way to read corrections.
 export const wikiQualityBlockSchema = z
@@ -490,7 +490,7 @@ export const wikiQualityResponseSchema = z
   .strict();
 export type WikiQualityResponse = z.infer<typeof wikiQualityResponseSchema>;
 
-// The one shape of the wiki-edit-mining signal that MAY cross the trust boundary (ADL #12/#18):
+// The one shape of the wiki-edit-mining signal that MAY cross the trust boundary:
 // content-free aggregates of a human's draft→edit delta. The delta is computed inside the enclave;
 // the before/after prose stays sealed on-box, and only these counts/ratios are eligible to ride
 // the check-in channel for fleet-level synthesis-quality monitoring. NO prose fields here, ever.
@@ -498,12 +498,12 @@ export const wikiEditKindSchema = z.enum(['touch_up', 'trim', 'expand', 'rewrite
 export type WikiEditKind = z.infer<typeof wikiEditKindSchema>;
 
 // Which comment field a sealed body is: `anchor` = the anchored wiki excerpt, `reply` = a reply
-// body. Bound into the seal AAD (api↔enclave) so one cannot be relocated as the other (ADL #12).
+// body. Bound into the seal AAD (api↔enclave) so one cannot be relocated as the other.
 export const wikiCommentFieldSchema = z.enum(['anchor', 'reply']);
 export type WikiCommentField = z.infer<typeof wikiCommentFieldSchema>;
 
 // Wire DTOs for the wiki-comments read path (dates JSON-serialized to ISO). `authorName` is the
-// content-free display name resolved from the RLS-gated users table (ADL #6) so the box shows the
+// content-free display name resolved from the RLS-gated users table so the box shows the
 // real author, never a raw id or email — falls back to a neutral label when unresolvable.
 export const wikiCommentThreadSchema = z
   .object({

@@ -5,7 +5,7 @@ export class OctokitGitHubClient {
     constructor(token) {
         this.octokit = new Octokit({ auth: token });
     }
-    // GitHub App installation tokens (ADL #42) can only enumerate their own repos via
+    // GitHub App installation tokens can only enumerate their own repos via
     // `/installation/repositories` — `/user/repos` (listForAuthenticatedUser) 403s for them.
     async listRepositories() {
         const repos = await this.octokit.paginate(this.octokit.rest.apps.listReposAccessibleToInstallation, { per_page: 100 });

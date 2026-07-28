@@ -25,9 +25,9 @@ export interface OpenAICompatConfig {
   timeoutMs?: number;
   /** Human label used in error messages. Default: 'OpenAI-compatible endpoint'. */
   label?: string;
-  /** When set, reject any embed/generate/stream whose model is not listed — before sending (ADL #30/#40). */
+  /** When set, reject any embed/generate/stream whose model is not listed — before sending. */
   modelAllowlist?: readonly string[];
-  /** When set, prove each response came from a verified TEE upstream via its ACI receipt (ADL #30/#40). */
+  /** When set, prove each response came from a verified TEE upstream via its ACI receipt. */
   responseVerifier?: InferenceResponseVerifier;
   telemetry?: TelemetryClient;
 }
@@ -59,7 +59,7 @@ interface OpenAIChatStreamChunk {
   choices: Array<{ delta: { content?: string }; finish_reason: string | null }>;
 }
 
-/** Technology-agnostic OpenAI-compatible client; carries no TEE attestation — use `TeeEndpointBackend` when that's needed (ADL #15/#16/#19). */
+/** Technology-agnostic OpenAI-compatible client; carries no TEE attestation — use `TeeEndpointBackend` when that's needed. */
 export class OpenAICompatBackend implements InferenceBackend {
   protected readonly baseUrl: string;
   protected readonly apiKey: string | undefined;
@@ -318,7 +318,7 @@ export class OpenAICompatBackend implements InferenceBackend {
   }
 
   // Fail-closed model guard: a config typo or an unverified-model swap throws before any
-  // customer content is sent, never after (ADL #30/#40). The model id is config, not content.
+  // customer content is sent, never after. The model id is config, not content.
   private assertModelAllowed(model: string): void {
     if (this.modelAllowlist && !this.modelAllowlist.includes(model)) {
       this.telemetry?.track('inference.model_rejected', 'system', { model });

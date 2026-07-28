@@ -58,5 +58,5 @@ export class ContentFreeViolationError extends Error {}
 
 export function assertContentFree(event: string, properties: Record<string, unknown>): void {
   const violation = checkContentFree(event, properties);
-  if (violation) throw new ContentFreeViolationError(`${violation} (ADL #18)`);
+  if (violation) throw new ContentFreeViolationError(violation);
 }

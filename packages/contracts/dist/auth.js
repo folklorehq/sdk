@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 const MAX_EMAIL_LEN = 320;
-// Console magic-link sign-in request (ADL #36). Email is the only payload; the control
+// Console magic-link sign-in request. Email is the only payload; the control
 // plane mints a short-lived single-use token and emails a verification link. Content-free.
 export const magicLinkRequestSchema = z
     .object({

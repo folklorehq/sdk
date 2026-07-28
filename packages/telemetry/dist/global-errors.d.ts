@@ -6,6 +6,6 @@ export interface GlobalErrorReportingOptions {
     logger?: Logger;
     exit?: (code: number) => void;
 }
-/** Captures process-level crashes to PostHog (content-free, ADL #18) then terminates. */
+/** Captures process-level crashes to PostHog (content-free) then terminates. */
 export declare function installGlobalErrorReporting(opts: GlobalErrorReportingOptions): () => void;
 //# sourceMappingURL=global-errors.d.ts.map

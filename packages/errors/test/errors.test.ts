@@ -44,7 +44,7 @@ describe('AppError subclasses', () => {
   });
 });
 
-describe('trust boundary (ADL #18)', () => {
+describe('trust boundary', () => {
   it('toTelemetry exposes only error_type + component — never message/context', () => {
     const err = new ValidationError('user email "secret@corp.com" is invalid', {
       component: 'ingestion',

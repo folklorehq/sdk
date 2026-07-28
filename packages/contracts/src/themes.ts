@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
-/** A theme rendered as a knowledge-map node — content-free metadata only (ADL #12). */
+/** A theme rendered as a knowledge-map node — content-free metadata only. */
 export const themeGraphNodeSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -17,7 +17,7 @@ export const themeGraphNodeSchema = z.object({
 });
 export type ThemeGraphNode = z.infer<typeof themeGraphNodeSchema>;
 
-/** A scored `RELATED_TO` edge between two themes (ADL #8/#39). */
+/** A scored `RELATED_TO` edge between two themes. */
 export const themeGraphEdgeSchema = z.object({
   source: z.string(),
   target: z.string(),
@@ -32,7 +32,7 @@ export const themeGraphResponseSchema = z.object({
 });
 export type ThemeGraphResponse = z.infer<typeof themeGraphResponseSchema>;
 
-/** One pending duplicate-theme pair awaiting human disposition (ADL #56 Stage B) — ids/scores/names only; the box resolves names from its own DB, never the control plane. */
+/** One pending duplicate-theme pair awaiting human disposition — ids/scores/names only; the box resolves names from its own DB, never the control plane. */
 export const themeMergeReviewItemSchema = z.object({
   candidateId: z.string(),
   themeA: z.object({ id: z.string(), name: z.string() }),

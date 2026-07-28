@@ -28,7 +28,7 @@ export interface GitHubPullRequest {
   closed_at?: string | null;
 }
 
-/** Top-level PR diff counts from `pulls.get` — scalars only, never the filenames or patch (ADL #72). */
+/** Top-level PR diff counts from `pulls.get` — scalars only, never the filenames or patch. */
 export interface GitHubPullRequestDetail {
   additions: number;
   deletions: number;

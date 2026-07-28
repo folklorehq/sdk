@@ -32,7 +32,7 @@ export class AppError extends Error {
             Error.captureStackTrace(this, new.target);
         }
     }
-    /** Content-free classification for the control-plane check-in (ADL #18). */
+    /** Content-free classification for the control-plane check-in. */
     toTelemetry() {
         return { error_type: this.code, component: this.component ?? 'unknown' };
     }

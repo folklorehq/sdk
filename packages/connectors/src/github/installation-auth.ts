@@ -11,7 +11,7 @@ export interface InstallationToken {
   expiresAt: string;
 }
 
-// Installation tokens expire after ~1h, so mint on demand and never persist (ADL #42).
+// Installation tokens expire after ~1h, so mint on demand and never persist.
 export async function mintInstallationToken(
   credentials: GitHubAppCredentials,
   installationId: string,

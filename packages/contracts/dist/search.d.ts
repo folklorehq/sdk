@@ -1,5 +1,5 @@
 import { z } from 'zod';
-/** A single audience-gated fact hit — content-free metadata plus a decrypted snippet the caller is allowed to see (ADL #6/#34). */
+/** A single audience-gated fact hit — content-free metadata plus a decrypted snippet the caller is allowed to see. */
 export declare const searchResultSchema: z.ZodObject<{
     id: z.ZodString;
     kind: z.ZodString;

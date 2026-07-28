@@ -7,7 +7,7 @@ const SUBDOMAIN_LABEL_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
 // Hosts owned by platform infrastructure — never assignable to a tenant, so a tenant can
 // never shadow the console (apex/`www`), the box entry (`app`), or the control-plane API
-// (`api`, ADL #73; `controlplane` stays reserved for the pre-#73 domain). Extend
+// (`api`; `controlplane` stays reserved for the pre-#73 domain). Extend
 // deliberately: removing a name here frees it for tenants.
 export const RESERVED_SUBDOMAINS: ReadonlySet<string> = new Set([
   'www',

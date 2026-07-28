@@ -1,5 +1,5 @@
 import { z } from 'zod';
-/** One medium-confidence fact↔container association awaiting human disposition (ADL #24) — content-free metadata only (ADL #12). */
+/** One medium-confidence fact↔container association awaiting human disposition — content-free metadata only. */
 export declare const reviewQueueItemSchema: z.ZodObject<{
     scoreId: z.ZodString;
     factId: z.ZodString;

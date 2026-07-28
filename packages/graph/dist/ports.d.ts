@@ -1,17 +1,17 @@
-/** ThemeGraph port — the contract for writing and querying graph edges between Facts/Containers and Themes (ADL #8, #46). */
+/** ThemeGraph port — the contract for writing and querying graph edges between Facts/Containers and Themes. */
 export interface ThemeGraph {
     /** Record a scored edge from a Fact to a Theme; idempotent — re-ingesting refreshes the score rather than duplicating it. */
     linkFactToTheme(factId: string, themeId: string, score: number, orgId: string): Promise<void>;
     /** Record a directed relationship between two Themes; idempotent per (fromThemeId, toThemeId, relationshipType) triple. */
     relateThemes(fromThemeId: string, toThemeId: string, confidence: number, relationshipType: string, orgId: string): Promise<void>;
-    /** Write or refresh the GROUPED_INTO shortcut edge; only written when ≥90% of the Container's Facts point to the same Theme (ADL #8). */
+    /** Write or refresh the GROUPED_INTO shortcut edge; only written when ≥90% of the Container's Facts point to the same Theme. */
     setContainerGrouping(containerId: string, themeId: string, confidence: number): Promise<void>;
     /** Return the top Themes for a given Fact, ordered by edge score descending (default limit 10). */
     getFactThemes(factId: string, orgId: string, limit?: number): Promise<Array<{
         themeId: string;
         score: number;
     }>>;
-    /** Create or refresh a Theme node's name/description when synthesizing an aggregate theme (ADL #46 — replaces the Initiative tier). */
+    /** Create or refresh a Theme node's name/description when synthesizing an aggregate theme. */
     upsertThemeNode(themeId: string, orgId: string, name: string, description?: string): Promise<void>;
     /** Record a PART_OF edge from a child Theme to a parent Theme; idempotent — refreshes the weight on each call. */
     linkThemeToParent(childThemeId: string, parentThemeId: string, weight: number): Promise<void>;
@@ -41,7 +41,7 @@ export interface ThemeGraph {
         factId: string;
         score: number;
     }>>;
-    /** ADL #56 Stage B — re-point every edge on a merged loser Theme onto the winner; idempotent. */
+    /** Re-point every edge on a merged loser Theme onto the winner; idempotent. */
     mergeThemeEdges(loserThemeId: string, winnerThemeId: string, orgId: string): Promise<void>;
 }
 //# sourceMappingURL=ports.d.ts.map

@@ -7,7 +7,7 @@ export const accessGrantScopeSchema = z.enum(['full', 'public', 'partial']);
 export const inviteStatusSchema = z.enum(['pending', 'accepted', 'revoked']);
 /** Explicit acknowledgement captured when an admin selects the shared processing tier (shared-processing-tier §7/§8). */
 export const coProcessingConsentInputSchema = z.object({ disclosureVersion: z.string() }).strict();
-/** Registered recovery pubkey + fingerprint for provenance verification (ADL #55). */
+/** Registered recovery pubkey + fingerprint for provenance verification. */
 export const recoveryStatusSchema = z
     .object({
     publicKeyHex: z.string().nullable(),
@@ -83,7 +83,7 @@ export const connectorViewSchema = z
     status: z.literal('connected'),
 })
     .strict();
-/** Read-only Console Home aggregate: deployment status + roster/team/connector/invite counts (ADL #49). */
+/** Read-only Console Home aggregate: deployment status + roster/team/connector/invite counts. */
 export const orgOverviewSchema = z
     .object({
     org: z

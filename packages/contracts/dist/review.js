@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
-/** One medium-confidence fact↔container association awaiting human disposition (ADL #24) — content-free metadata only (ADL #12). */
+/** One medium-confidence fact↔container association awaiting human disposition — content-free metadata only. */
 export const reviewQueueItemSchema = z.object({
     scoreId: z.string(),
     factId: z.string(),

@@ -174,7 +174,7 @@ describe('themeSynthesisResultSchema', () => {
       ],
     });
     expect(parsed.themes[0]?.kind).toBe('topic');
-    // docType/confidence default in for an older enclave that omits them (ADL #46).
+    // docType/confidence default in for an older enclave that omits them.
     expect(parsed.themes[0]?.docType).toBe('concept');
     expect(parsed.themes[0]?.docTypeConfidence).toBe(0);
     expect(parsed.aggregates[0]?.children[0]?.childThemeId).toBe('t1');
@@ -313,7 +313,7 @@ describe('themeSynthesisRequestSchema', () => {
   });
 });
 
-describe('teamOnboardingSynthesisRequestSchema (ADL #68)', () => {
+describe('teamOnboardingSynthesisRequestSchema', () => {
   const valid = {
     type: 'team_onboarding_synthesis',
     requestId: 'req-1',
@@ -366,7 +366,7 @@ describe('teamOnboardingSynthesisRequestSchema (ADL #68)', () => {
   });
 });
 
-describe('teamOnboardingSynthesisResultSchema (ADL #68)', () => {
+describe('teamOnboardingSynthesisResultSchema', () => {
   it('accepts a result with esdk-encrypted blocks and never carries prose', () => {
     const parsed = teamOnboardingSynthesisResultSchema.parse({
       type: 'team_onboarding_synthesis',
@@ -391,7 +391,7 @@ describe('teamOnboardingSynthesisResultSchema (ADL #68)', () => {
 });
 
 describe('pullDueMessageSchema', () => {
-  it('accepts the content-free pull-due signal (ADL #42)', () => {
+  it('accepts the content-free pull-due signal', () => {
     const parsed = pullDueMessageSchema.parse({
       type: 'pull-due',
       tenant_id: 'org-1',
@@ -401,7 +401,7 @@ describe('pullDueMessageSchema', () => {
     expect(parsed.kind).toBe('github');
   });
 
-  it('defaults the backfill marker to false when omitted (ADL #29)', () => {
+  it('defaults the backfill marker to false when omitted', () => {
     const parsed = pullDueMessageSchema.parse({
       type: 'pull-due',
       tenant_id: 'org-1',
@@ -432,7 +432,7 @@ describe('pullCompleteSignalSchema', () => {
     completedAt: '2026-01-01T00:00:00.000Z',
   };
 
-  it('accepts the content-free completion signal (ADL #38)', () => {
+  it('accepts the content-free completion signal', () => {
     expect(pullCompleteSignalSchema.parse(valid).sourceKind).toBe('github');
   });
 
@@ -441,9 +441,8 @@ describe('pullCompleteSignalSchema', () => {
   });
 });
 
-// Drift guard: these mirror the enclave's local `interface`s verbatim (ADL #35 keeps
-// `enclave/src` off `@folklore/contracts`). A change to either schema breaks compilation
-// here, forcing the enclave mirror to be updated in lockstep.
+// Drift guard: these mirror the enclave's local `interface`s verbatim. A change to either schema
+// breaks compilation here, forcing the enclave mirror to be updated in lockstep.
 type Equal<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;

@@ -15,13 +15,13 @@ export interface OpenAICompatConfig {
     timeoutMs?: number;
     /** Human label used in error messages. Default: 'OpenAI-compatible endpoint'. */
     label?: string;
-    /** When set, reject any embed/generate/stream whose model is not listed — before sending (ADL #30/#40). */
+    /** When set, reject any embed/generate/stream whose model is not listed — before sending. */
     modelAllowlist?: readonly string[];
-    /** When set, prove each response came from a verified TEE upstream via its ACI receipt (ADL #30/#40). */
+    /** When set, prove each response came from a verified TEE upstream via its ACI receipt. */
     responseVerifier?: InferenceResponseVerifier;
     telemetry?: TelemetryClient;
 }
-/** Technology-agnostic OpenAI-compatible client; carries no TEE attestation — use `TeeEndpointBackend` when that's needed (ADL #15/#16/#19). */
+/** Technology-agnostic OpenAI-compatible client; carries no TEE attestation — use `TeeEndpointBackend` when that's needed. */
 export declare class OpenAICompatBackend implements InferenceBackend {
     protected readonly baseUrl: string;
     protected readonly apiKey: string | undefined;

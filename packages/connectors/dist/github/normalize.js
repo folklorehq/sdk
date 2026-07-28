@@ -47,7 +47,7 @@ export function repoToResource(repo) {
     return { externalId: String(repo.id), resourceType: 'repository', isPublic: !repo.private };
 }
 /**
- * A PR is a Container (stateful), seeded by a "PR opened" content Fact (ADL #1).
+ * A PR is a Container (stateful), seeded by a "PR opened" content Fact.
  */
 export function normalizePullRequest(repo, pr, metricsInput) {
     const sourceContainerId = pullRequestContainerId(repo, pr.number);
