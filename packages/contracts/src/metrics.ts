@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
-// Content-free numeric upstream signals attached to a Fact (ADL #72). Keys are a closed vocabulary
+// Content-free numeric upstream signals attached to a Fact. Keys are a closed vocabulary
 // shared by the connector (producer) and the enclave/worker (consumer) so units never drift; only
-// numeric scalars ever cross — never a filename, path, or diff/patch body (ADL #12/#18).
+// numeric scalars ever cross — never a filename, path, or diff/patch body.
 export const FACT_METRIC_KEYS = {
   prAdditions: 'github.pr.additions',
   prDeletions: 'github.pr.deletions',

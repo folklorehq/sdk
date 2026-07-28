@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createAppAuth } from '@octokit/auth-app';
-// Installation tokens expire after ~1h, so mint on demand and never persist (ADL #42).
+// Installation tokens expire after ~1h, so mint on demand and never persist.
 export async function mintInstallationToken(credentials, installationId) {
     const auth = createAppAuth({
         appId: credentials.appId,

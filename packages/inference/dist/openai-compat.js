@@ -6,7 +6,7 @@ const DEFAULT_GENERATE_MODEL = 'qwen2.5:7b';
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_LABEL = 'OpenAI-compatible endpoint';
 const STREAM_TIMEOUT_MULTIPLIER = 5;
-/** Technology-agnostic OpenAI-compatible client; carries no TEE attestation — use `TeeEndpointBackend` when that's needed (ADL #15/#16/#19). */
+/** Technology-agnostic OpenAI-compatible client; carries no TEE attestation — use `TeeEndpointBackend` when that's needed. */
 export class OpenAICompatBackend {
     baseUrl;
     apiKey;
@@ -245,7 +245,7 @@ export class OpenAICompatBackend {
         return res.status >= 200 && res.status < 300;
     }
     // Fail-closed model guard: a config typo or an unverified-model swap throws before any
-    // customer content is sent, never after (ADL #30/#40). The model id is config, not content.
+    // customer content is sent, never after. The model id is config, not content.
     assertModelAllowed(model) {
         if (this.modelAllowlist && !this.modelAllowlist.includes(model)) {
             this.telemetry?.track('inference.model_rejected', 'system', { model });

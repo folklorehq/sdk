@@ -2,7 +2,7 @@
 import { z } from 'zod';
 // Content-free per-team onboarding view (docs/product/onboarding-wikis.md Part A / Stage 1). Every
 // field is org metadata — source-kind strings, ids, team/theme labels, member display names, link
-// booleans — never customer content (ADL #12).
+// booleans — never customer content.
 export const onboardingPersonGapSchema = z
     .object({
     userId: z.string(),

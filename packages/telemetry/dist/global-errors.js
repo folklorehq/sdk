@@ -1,6 +1,6 @@
 import { toErrorReport } from '@folklore/errors';
 const FLUSH_TIMEOUT_MS = 2_000;
-/** Captures process-level crashes to PostHog (content-free, ADL #18) then terminates. */
+/** Captures process-level crashes to PostHog (content-free) then terminates. */
 export function installGlobalErrorReporting(opts) {
     const onUncaught = (err) => void reportFatal(opts, 'uncaught', err);
     const onRejection = (reason) => void reportFatal(opts, 'unhandled_rejection', reason);

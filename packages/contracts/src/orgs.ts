@@ -20,7 +20,7 @@ export type InviteStatus = z.infer<typeof inviteStatusSchema>;
 export const coProcessingConsentInputSchema = z.object({ disclosureVersion: z.string() }).strict();
 export type CoProcessingConsentInput = z.infer<typeof coProcessingConsentInputSchema>;
 
-/** Registered recovery pubkey + fingerprint for provenance verification (ADL #55). */
+/** Registered recovery pubkey + fingerprint for provenance verification. */
 export const recoveryStatusSchema = z
   .object({
     publicKeyHex: z.string().nullable(),
@@ -116,7 +116,7 @@ export const connectorViewSchema = z
   .strict();
 export type ConnectorView = z.infer<typeof connectorViewSchema>;
 
-/** Read-only Console Home aggregate: deployment status + roster/team/connector/invite counts (ADL #49). */
+/** Read-only Console Home aggregate: deployment status + roster/team/connector/invite counts. */
 export const orgOverviewSchema = z
   .object({
     org: z

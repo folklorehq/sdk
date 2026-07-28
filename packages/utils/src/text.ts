@@ -27,7 +27,7 @@ export function escapeRegExp(value: string): string {
 const MENTION_TOKEN = '[A-Za-z0-9._-]{1,64}';
 // `fk-person:<slug>` mention pills and `@handle` tokens (the latter only when not preceded by a word
 // char, so `foo@bar.com` in an address is not a mention). Returns lowercased target tokens only —
-// never the surrounding text — so it is safe to run on decrypted comment prose (ADL #12).
+// never the surrounding text — so it is safe to run on decrypted comment prose.
 const MENTION_RE = new RegExp(`fk-person:(${MENTION_TOKEN})|(?<![\\w])@(${MENTION_TOKEN})`, 'g');
 
 /** Extract lowercased mention target tokens (`@handle` / `fk-person:<slug>`) from plaintext. */

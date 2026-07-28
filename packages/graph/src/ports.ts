@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-/** ThemeGraph port — the contract for writing and querying graph edges between Facts/Containers and Themes (ADL #8, #46). */
+/** ThemeGraph port — the contract for writing and querying graph edges between Facts/Containers and Themes. */
 export interface ThemeGraph {
   /** Record a scored edge from a Fact to a Theme; idempotent — re-ingesting refreshes the score rather than duplicating it. */
   linkFactToTheme(factId: string, themeId: string, score: number, orgId: string): Promise<void>;
@@ -13,7 +13,7 @@ export interface ThemeGraph {
     orgId: string,
   ): Promise<void>;
 
-  /** Write or refresh the GROUPED_INTO shortcut edge; only written when ≥90% of the Container's Facts point to the same Theme (ADL #8). */
+  /** Write or refresh the GROUPED_INTO shortcut edge; only written when ≥90% of the Container's Facts point to the same Theme. */
   setContainerGrouping(containerId: string, themeId: string, confidence: number): Promise<void>;
 
   /** Return the top Themes for a given Fact, ordered by edge score descending (default limit 10). */
@@ -23,7 +23,7 @@ export interface ThemeGraph {
     limit?: number,
   ): Promise<Array<{ themeId: string; score: number }>>;
 
-  /** Create or refresh a Theme node's name/description when synthesizing an aggregate theme (ADL #46 — replaces the Initiative tier). */
+  /** Create or refresh a Theme node's name/description when synthesizing an aggregate theme. */
   upsertThemeNode(
     themeId: string,
     orgId: string,
@@ -70,6 +70,6 @@ export interface ThemeGraph {
     limit?: number,
   ): Promise<Array<{ factId: string; score: number }>>;
 
-  /** ADL #56 Stage B — re-point every edge on a merged loser Theme onto the winner; idempotent. */
+  /** Re-point every edge on a merged loser Theme onto the winner; idempotent. */
   mergeThemeEdges(loserThemeId: string, winnerThemeId: string, orgId: string): Promise<void>;
 }

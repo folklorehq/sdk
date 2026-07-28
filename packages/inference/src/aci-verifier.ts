@@ -5,7 +5,7 @@ import type { TelemetryClient } from '@folklore/telemetry';
 import type { InferenceResponseVerifier } from './ports.js';
 
 // Phala Attested Confidential Inference (ACI) endpoints. Same host as the inference
-// gateway, so the enclave vsock allowlist already permits them (ADL #40).
+// gateway, so the enclave vsock allowlist already permits them.
 const ACI_ATTESTATION_PATH = '/v1/aci/attestation';
 const ACI_RECEIPT_PATH_PREFIX = '/v1/aci/receipts/';
 export const ACI_RECEIPT_ID_HEADER = 'x-receipt-id';
@@ -82,7 +82,7 @@ interface PinnedAttestation {
 
 // Thrown when an inference response cannot be proven to have come from a verified TEE
 // upstream. Messages are content-free (model/session ids and reasons only) — never
-// customer content or key bytes (ADL #12/#18).
+// customer content or key bytes.
 export class InferenceAttestationError extends Error {
   constructor(reason: string) {
     super(`inference attestation failed: ${reason}`);

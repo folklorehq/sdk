@@ -6,7 +6,7 @@ export interface SyncCursor {
 }
 /** Options controlling a `pull()`: separates the pagination position (cursor) from the history horizon (`since`). */
 export interface PullOptions {
-    /** Oldest record timestamp to include; connectors MUST stop paginating once they cross this boundary (set by onboarding backfill, ADL #29). Undefined means incremental with no lower bound. */
+    /** Oldest record timestamp to include; connectors MUST stop paginating once they cross this boundary (set by onboarding backfill). Undefined means incremental with no lower bound. */
     since?: Date;
 }
 /** An inbound webhook delivery, before source-specific decoding. */

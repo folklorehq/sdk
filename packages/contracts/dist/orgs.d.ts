@@ -18,7 +18,7 @@ export declare const coProcessingConsentInputSchema: z.ZodObject<{
     disclosureVersion: string;
 }>;
 export type CoProcessingConsentInput = z.infer<typeof coProcessingConsentInputSchema>;
-/** Registered recovery pubkey + fingerprint for provenance verification (ADL #55). */
+/** Registered recovery pubkey + fingerprint for provenance verification. */
 export declare const recoveryStatusSchema: z.ZodObject<{
     publicKeyHex: z.ZodNullable<z.ZodString>;
     fingerprint: z.ZodNullable<z.ZodString>;
@@ -226,7 +226,7 @@ export declare const connectorViewSchema: z.ZodObject<{
     connectedAt: string;
 }>;
 export type ConnectorView = z.infer<typeof connectorViewSchema>;
-/** Read-only Console Home aggregate: deployment status + roster/team/connector/invite counts (ADL #49). */
+/** Read-only Console Home aggregate: deployment status + roster/team/connector/invite counts. */
 export declare const orgOverviewSchema: z.ZodObject<{
     org: z.ZodObject<{
         id: z.ZodString;

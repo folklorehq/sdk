@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
-// Enclave↔egress-proxy wire contract (ADL #54). The enclave holds the customer URL
+// Enclave↔egress-proxy wire contract. The enclave holds the customer URL
 // (it lives inside the encrypted embed block) and asks the parent-EC2 egress proxy to
 // fetch and parse it; the proxy returns only these bounded, non-executable preview fields.
 const MAX_TITLE_CHARS = 300;

@@ -37,7 +37,7 @@ export function pullRequestContainerId(repo: GitHubRepo, pullNumber: number): st
   return `${repo.full_name}#${pullNumber}`;
 }
 
-/** Diff/comment scalars for a PR-opened Fact (ADL #72). Counts only — no filename ever enters. */
+/** Diff/comment scalars for a PR-opened Fact. Counts only — no filename ever enters. */
 export interface PullRequestMetricsInput {
   additions: number;
   deletions: number;
@@ -82,7 +82,7 @@ export function repoToResource(repo: GitHubRepo): NormalizedResource {
 }
 
 /**
- * A PR is a Container (stateful), seeded by a "PR opened" content Fact (ADL #1).
+ * A PR is a Container (stateful), seeded by a "PR opened" content Fact.
  */
 export function normalizePullRequest(
   repo: GitHubRepo,

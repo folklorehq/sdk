@@ -27,7 +27,7 @@ export class PostHogTelemetryClient implements TelemetryClient {
     this.capture(TelemetryEvent.ErrorCaptured, distinctId ?? SYSTEM_ACTOR, { ...report });
   }
 
-  // Fail closed: a payload (or distinctId) that fails the content-free guard is dropped, never sent (ADL #18).
+  // Fail closed: a payload (or distinctId) that fails the content-free guard is dropped, never sent.
   private capture(event: string, distinctId: string, properties: Record<string, unknown>): void {
     if (checkDistinctId(distinctId) || checkContentFree(event, properties)) return;
     this.client.capture({ distinctId, event, properties });

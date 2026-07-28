@@ -148,7 +148,7 @@ type OpsEvents = {
   };
 };
 
-/** Content-free error taxonomy (ADL #18) — a triage trail keyed by kind + component. */
+/** Content-free error taxonomy — a triage trail keyed by kind + component. */
 type ErrorEvents = {
   'theme.graph_edge_failed': { orgId: string; kind: string };
   'theme.merge_graph_failed': { orgId: string };

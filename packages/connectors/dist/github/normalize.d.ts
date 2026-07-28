@@ -3,7 +3,7 @@ import type { GitHubCommit, GitHubIssueComment, GitHubPullRequest, GitHubRepo, G
 /** Pull URLs and `#123` issue references out of free text (ADL: explicit_links). */
 export declare function extractExplicitLinks(body: string): string[];
 export declare function pullRequestContainerId(repo: GitHubRepo, pullNumber: number): string;
-/** Diff/comment scalars for a PR-opened Fact (ADL #72). Counts only — no filename ever enters. */
+/** Diff/comment scalars for a PR-opened Fact. Counts only — no filename ever enters. */
 export interface PullRequestMetricsInput {
     additions: number;
     deletions: number;
@@ -13,7 +13,7 @@ export interface PullRequestMetricsInput {
 export declare function userToActor(user: GitHubUser, role?: 'author' | 'co_author'): NormalizedActor;
 export declare function repoToResource(repo: GitHubRepo): NormalizedResource;
 /**
- * A PR is a Container (stateful), seeded by a "PR opened" content Fact (ADL #1).
+ * A PR is a Container (stateful), seeded by a "PR opened" content Fact.
  */
 export declare function normalizePullRequest(repo: GitHubRepo, pr: GitHubPullRequest, metricsInput?: PullRequestMetricsInput): {
     container: NormalizedRecords['containers'][number];

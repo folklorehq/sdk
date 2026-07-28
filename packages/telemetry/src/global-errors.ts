@@ -15,7 +15,7 @@ export interface GlobalErrorReportingOptions {
   exit?: (code: number) => void;
 }
 
-/** Captures process-level crashes to PostHog (content-free, ADL #18) then terminates. */
+/** Captures process-level crashes to PostHog (content-free) then terminates. */
 export function installGlobalErrorReporting(opts: GlobalErrorReportingOptions): () => void {
   const onUncaught = (err: unknown): void => void reportFatal(opts, 'uncaught', err);
   const onRejection = (reason: unknown): void =>
