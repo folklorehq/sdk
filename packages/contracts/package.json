@@ -20,6 +20,11 @@
       "development": "./src/wiki.ts",
       "types": "./dist/wiki.d.ts",
       "default": "./dist/wiki.js"
+    },
+    "./enclave-attestation": {
+      "development": "./src/enclave-attestation.ts",
+      "types": "./dist/enclave-attestation.d.ts",
+      "default": "./dist/enclave-attestation.js"
     }
   },
   "scripts": {
