@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-export { JiraConnector } from './connector.js';
-export { JiraHttpClient } from './http-client.js';
+export { JiraConnector } from './JiraConnector.js';
+export { JiraHttpClient } from './JiraHttpClient.js';
 export type { JiraApiClient } from './client.js';
 export {
   normalizeJiraIssueEvent,

@@ -9,12 +9,12 @@ export {
   ContentFreeViolationError,
 } from './content-free.js';
 export { installGlobalErrorReporting, type GlobalErrorReportingOptions } from './global-errors.js';
-export { NoopTelemetryClient } from './noop.js';
-export { PostHogTelemetryClient } from './posthog.js';
+export { NoopTelemetryClient } from './NoopTelemetryClient.js';
+export { PostHogTelemetryClient } from './PostHogTelemetryClient.js';
 
 import type { TelemetryClient } from './ports.js';
-import { NoopTelemetryClient } from './noop.js';
-import { PostHogTelemetryClient } from './posthog.js';
+import { NoopTelemetryClient } from './NoopTelemetryClient.js';
+import { PostHogTelemetryClient } from './PostHogTelemetryClient.js';
 
 export function createTelemetryClient(): TelemetryClient {
   const apiKey = process.env['POSTHOG_API_KEY'];

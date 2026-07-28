@@ -1,1 +1,0 @@
-{"version":3,"file":"verify-attestation.d.ts","sourceRoot":"","sources":["../../src/commands/verify-attestation.ts"],"names":[],"mappings":"AAGA,MAAM,WAAW,+BAA+B;IAC9C,eAAe,EAAE,MAAM,CAAC;IACxB,MAAM,CAAC,EAAE,MAAM,CAAC;IAChB,OAAO,CAAC,EAAE,MAAM,CAAC;CAClB;AAED,wBAAgB,oBAAoB,CAAC,OAAO,EAAE,+BAA+B,GAAG,IAAI,CAcnF"}

@@ -7,7 +7,7 @@ import {
   normalizeSlackReaction,
   slackThreadId,
 } from '../src/slack/index.js';
-import { HttpSlackClient } from '../src/slack/http-client.js';
+import { HttpSlackClient } from '../src/slack/HttpSlackClient.js';
 import type { SlackClient } from '../src/slack/index.js';
 import type { Logger } from '@folklore/core';
 import type { SlackMessage, SlackReactionEvent } from '../src/slack/index.js';
