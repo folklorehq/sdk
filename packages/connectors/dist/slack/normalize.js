@@ -50,7 +50,7 @@ function normalizeDeletion(event) {
     };
     return { containers: [], facts: [fact] };
 }
-// A reaction is a single actor at a single moment (ADL #1) → a Fact. The emoji name is left in the
+// A reaction is a single actor at a single moment → a Fact. The emoji name is left in the
 // encrypted `raw` only; `detail` stays content-free so nothing labels shared-Postgres metadata.
 export function normalizeSlackReaction(event) {
     if (!event.user || !event.item?.channel || !event.item.ts)
@@ -71,7 +71,7 @@ export function normalizeSlackReaction(event) {
     return { containers: [], facts: [fact] };
 }
 // Slack edits/deletes arrive as `message` subtypes; an edit is a new content Fact (its new text is
-// embedded + encrypted, like Jira), a delete is its own `deleted` transition (ADL #1). Never mutate
+// embedded + encrypted, like Jira), a delete is its own `deleted` transition. Never mutate
 // the original.
 export function normalizeSlackMessage(msg) {
     if (msg.subtype === 'message_changed')

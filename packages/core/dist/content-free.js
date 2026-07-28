@@ -54,6 +54,6 @@ export class ContentFreeViolationError extends Error {
 export function assertContentFree(event, properties) {
     const violation = checkContentFree(event, properties);
     if (violation)
-        throw new ContentFreeViolationError(`${violation} (ADL #18)`);
+        throw new ContentFreeViolationError(violation);
 }
 //# sourceMappingURL=content-free.js.map

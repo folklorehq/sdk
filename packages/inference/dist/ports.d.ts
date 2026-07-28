@@ -1,4 +1,4 @@
-/** InferenceBackend port — all inference MUST happen inside the customer's box; sending fact content to an external API is structurally prohibited (ADL #15/#16/#19). */
+/** InferenceBackend port — all inference MUST happen inside the customer's box; sending fact content to an external API is structurally prohibited. */
 export interface EmbedOptions {
     /** Override the default embedding model for this call. */
     model?: string;
@@ -33,7 +33,7 @@ export interface AttestationReport {
     /** ISO 8601 timestamp of when the quote was obtained. */
     timestamp: string;
 }
-/** Proves an inference response came from a TEE-verified (confidential) upstream (ADL #30/#40). */
+/** Proves an inference response came from a TEE-verified (confidential) upstream. */
 export interface InferenceResponseVerifier {
     /** Pin + verify the gateway's ACI attestation once; throws (fail-closed) if unverifiable. */
     ensureAttested(): Promise<void>;

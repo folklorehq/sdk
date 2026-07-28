@@ -7,11 +7,11 @@ import { StubInferenceBackend } from './stub.js';
 import { RoutingInferenceBackend, type TaskModelMap } from './model-router.js';
 import { AciReceiptVerifier } from './aci-verifier.js';
 
-/** How inference is executed; no external/unattested API option and no local model runtime in prod (ADL #40). */
+/** How inference is executed; no external/unattested API option and no local model runtime in prod. */
 export type InferenceMode = 'local-openai' | 'phala-endpoint' | 'folklore-tee' | 'stub';
 
 export interface InferenceConfig {
-  /** Inference mode. Required to be explicit — an unset mode throws rather than silently degrading (ADL #40). */
+  /** Inference mode. Required to be explicit — an unset mode throws rather than silently degrading. */
   mode?: InferenceMode;
 
   embedModel?: string;
@@ -68,7 +68,7 @@ function createBaseBackend(config: InferenceConfig): InferenceBackend {
             `Set OPENAI_BASE_URL (e.g. http://vllm:8000/v1) in the environment or inference config.`,
         );
       }
-      // In-box-trust path: no allowlist / ACI receipt verifier — those pin Phala model names + attestation a local vLLM can't satisfy (ADL #40 bars a local runtime in prod anyway).
+      // In-box-trust path: no allowlist / ACI receipt verifier — those pin Phala model names + attestation a local vLLM can't satisfy.
       return new OpenAICompatBackend({
         baseUrl: config.openaiBaseUrl,
         apiKey: config.openaiApiKey,

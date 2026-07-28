@@ -66,7 +66,7 @@ function normalizeIssueCreated(event, occurredAt) {
         ],
     };
 }
-// A status change (append-only lifecycle Fact, ADL #1) only when the changelog proves one — the
+// A status change (append-only lifecycle Fact) only when the changelog proves one — the
 // current statusCategory alone can't tell a status edit from a summary/description edit.
 function normalizeStatusTransition(event, occurredAt, from, to) {
     const { issue } = event;

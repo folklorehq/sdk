@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { factMetricSchema } from '../src/metrics.js';
 
-describe('factMetricSchema — fails closed by shape (ADL #72/#12)', () => {
+describe('factMetricSchema — fails closed by shape', () => {
   it('accepts a vocab key + vocab unit', () => {
     expect(() =>
       factMetricSchema.parse({ key: 'github.pr.additions', value: 12, unit: 'lines' }),

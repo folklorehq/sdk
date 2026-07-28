@@ -43,7 +43,7 @@ describe('extractExplicitLinks', () => {
   });
 });
 
-describe('Fact vs. Container classification (ADL #1)', () => {
+describe('Fact vs. Container classification', () => {
   it('maps a PR to a stateful Container + a seed content Fact', () => {
     const { container, fact } = normalizePullRequest(repo, pr);
 
@@ -111,7 +111,7 @@ describe('Fact vs. Container classification (ADL #1)', () => {
   });
 });
 
-describe('transition Facts (ADL #1 — status is never a mutable column)', () => {
+describe('transition Facts', () => {
   it('emits a merged transition Fact on a merged-close event', () => {
     const event: PullRequestEvent = {
       action: 'closed',
@@ -128,7 +128,7 @@ describe('transition Facts (ADL #1 — status is never a mutable column)', () =>
   });
 });
 
-describe('fact_metrics (method 6, ADL #72 — content-free numeric signals)', () => {
+describe('fact_metrics (method 6, content-free numeric signals)', () => {
   it('attaches exact PR-opened diff + comment metrics', () => {
     const { fact } = normalizePullRequest(repo, pr, {
       additions: 128,

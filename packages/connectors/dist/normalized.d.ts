@@ -19,7 +19,7 @@ export interface NormalizedContent {
     body: string;
     explicitLinks: string[];
 }
-/** Content-free numeric upstream signal (ADL #72) — only scalars; never a path/filename/label. */
+/** Content-free numeric upstream signal — only scalars; never a path/filename/label. */
 export interface NormalizedMetric {
     key: string;
     value: number;
@@ -34,7 +34,7 @@ export interface NormalizedTransition {
         to?: unknown;
     };
 }
-/** One indivisible Fact (ADL #1): `content`/`transition` are mutually exclusive per `kind`; `raw` is the original payload kept only for the short rolling buffer (ADL #4). */
+/** One indivisible Fact: `content`/`transition` are mutually exclusive per `kind`; `raw` is the original payload kept only for the short rolling buffer. */
 export interface NormalizedFact {
     sourceFactId: string;
     kind: NormalizedFactKind;
@@ -50,11 +50,11 @@ export interface NormalizedFact {
     entities?: string[];
     content?: NormalizedContent;
     transition?: NormalizedTransition;
-    /** Content-free numeric attributes of the source event (ADL #72) — never a path or label. */
+    /** Content-free numeric attributes of the source event — never a path or label. */
     metrics?: NormalizedMetric[];
     raw: unknown;
 }
-/** A grouping of Facts with a lifecycle/label (ADL #3). */
+/** A grouping of Facts with a lifecycle/label. */
 export interface NormalizedContainer {
     sourceContainerId: string;
     shape: ContainerShape;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
-// Content-free external-notification wire event (ADL #12/#18/#57). The trust invariant: what
+// Content-free external-notification wire event. The trust invariant: what
 // leaves toward the sender — and onward to the email/Slack sub-processors — carries ONLY ids, an
-// enum, the cleartext page-title routing label (ADL #57), and a timestamp. NEVER the comment body,
+// enum, the cleartext page-title routing label, and a timestamp. NEVER the comment body,
 // the mention text, or any snippet. Mention detection reads decrypted comment text where it already
 // lives (apps/api, before sealing); only this content-free event crosses any boundary.
 export const notificationTypeSchema = z.enum(['mention', 'comment', 'reply']);
@@ -30,7 +30,7 @@ export const notificationEventSchema = z
     actorUserId: z.string().uuid(),
     pageId: z.string().uuid(),
     themeId: z.string().uuid(),
-    // Cleartext routing label only (ADL #57) — a page title, never comment content.
+    // Cleartext routing label only — a page title, never comment content.
     pageTitle: z.string().max(MAX_PAGE_TITLE_CHARS),
     occurredAt: z.string().datetime(),
   })
@@ -38,7 +38,7 @@ export const notificationEventSchema = z
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 
 // In-app feed item (T4.1): the same content-free event plus the row id, the resolved actor DISPLAY
-// name (org-scoped metadata, never an email — ADL #18), and in-app read-state. The box templates the
+// name (org-scoped metadata, never an email —), and in-app read-state. The box templates the
 // title from `type` + `actorName` and uses `pageTitle` as the routing sub-label; no body ever added.
 export const notificationFeedItemSchema = notificationEventSchema
   .extend({

@@ -14,7 +14,7 @@ export class GitHubConnector extends BaseConnector {
     }
     async pull(cursor, options) {
         // Incremental sync resumes from the cursor; a fresh backfill starts at the
-        // `since` window boundary (ADL #29). GitHub's REST `since` filters by update time.
+        // `since` window boundary. GitHub's REST `since` filters by update time.
         const since = cursor.value ?? options?.since?.toISOString();
         const facts = [];
         const containers = [];

@@ -26,7 +26,7 @@ export interface AppErrorOptions {
   cause?: unknown;
   /** Local-only structured detail for logging/debugging — NEVER sent to the control plane. */
   context?: Record<string, unknown>;
-  /** Subsystem this error is attributed to, for fleet telemetry (ADL #18). */
+  /** Subsystem this error is attributed to, for fleet telemetry. */
   component?: string;
   /** Expected/handled failure (true) vs. a bug or unknown state (false). */
   isOperational?: boolean;
@@ -39,7 +39,7 @@ interface AppErrorParams extends AppErrorOptions {
   category: ErrorCategory;
 }
 
-/** Content-free shape that may be reported to the control plane (ADL #18). */
+/** Content-free shape that may be reported to the control plane. */
 export interface ErrorTelemetry {
   error_type: string;
   component: string;
@@ -71,7 +71,7 @@ export abstract class AppError extends Error {
     }
   }
 
-  /** Content-free classification for the control-plane check-in (ADL #18). */
+  /** Content-free classification for the control-plane check-in. */
   toTelemetry(): ErrorTelemetry {
     return { error_type: this.code, component: this.component ?? 'unknown' };
   }

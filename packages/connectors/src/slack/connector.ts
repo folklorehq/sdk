@@ -27,7 +27,7 @@ export class SlackConnector extends BaseConnector {
     return channels.map((ch) => ({
       externalId: ch.id,
       resourceType: 'channel',
-      // Fail closed on the source-access boundary (ADL #6): a channel is public only when Slack
+      // Fail closed on the source-access boundary: a channel is public only when Slack
       // explicitly says so; a missing is_private is treated as private.
       isPublic: ch.is_private === false,
     }));

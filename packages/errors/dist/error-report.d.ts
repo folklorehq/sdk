@@ -1,5 +1,5 @@
 export type ErrorOrigin = 'http' | 'uncaught' | 'unhandled_rejection' | 'manual';
-/** Content-free error record for fleet analytics (ADL #18) — never message/stack text. */
+/** Content-free error record for fleet analytics — never message/stack text. */
 export interface ErrorReport {
     error_type: string;
     error_name: string;

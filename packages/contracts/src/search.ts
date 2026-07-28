@@ -6,7 +6,7 @@ const SEARCH_MAX_LIMIT = 100;
 // / answerer CITATION_SNIPPET_LIMIT); the bound is asserted on the wire so an over-long body can't ride the field.
 const SNIPPET_MAX_CHARS = 280;
 
-/** A single audience-gated fact hit — content-free metadata plus a decrypted snippet the caller is allowed to see (ADL #6/#34). */
+/** A single audience-gated fact hit — content-free metadata plus a decrypted snippet the caller is allowed to see. */
 export const searchResultSchema = z.object({
   id: z.string(),
   kind: z.string(),
