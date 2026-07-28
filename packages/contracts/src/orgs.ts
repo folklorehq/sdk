@@ -16,6 +16,38 @@ export type AccessGrantScope = z.infer<typeof accessGrantScopeSchema>;
 export const inviteStatusSchema = z.enum(['pending', 'accepted', 'revoked']);
 export type InviteStatus = z.infer<typeof inviteStatusSchema>;
 
+export const provisioningStateSchema = z.enum(['pending', 'provisioning', 'provisioned', 'failed']);
+export type ProvisioningState = z.infer<typeof provisioningStateSchema>;
+
+export const provisioningFailureCodeSchema = z.enum([
+  'provisioner_failed',
+  'attestation_unavailable',
+  'attestation_mismatch',
+]);
+export type ProvisioningFailureCode = z.infer<typeof provisioningFailureCodeSchema>;
+
+export const provisionOperationSchema = z
+  .object({
+    operationId: z.string().uuid(),
+    state: provisioningStateSchema,
+    failureCode: provisioningFailureCodeSchema.nullable(),
+  })
+  .strict();
+export type ProvisionOperation = z.infer<typeof provisionOperationSchema>;
+
+export const provisioningStatusSchema = provisionOperationSchema
+  .extend({ readyAt: z.string().datetime().nullable() })
+  .strict();
+export type ProvisioningStatus = z.infer<typeof provisioningStatusSchema>;
+
+export const recoveryKeyRegistrationInputSchema = z
+  .object({
+    publicKeyHex: z.string().regex(/^[0-9a-fA-F]{64}$/),
+    fingerprint: z.string().regex(/^[0-9a-f]{4}(?:-[0-9a-f]{4}){3}$/),
+  })
+  .strict();
+export type RecoveryKeyRegistrationInput = z.infer<typeof recoveryKeyRegistrationInputSchema>;
+
 /** Explicit acknowledgement captured when an admin selects the shared processing tier (shared-processing-tier §7/§8). */
 export const coProcessingConsentInputSchema = z.object({ disclosureVersion: z.string() }).strict();
 export type CoProcessingConsentInput = z.infer<typeof coProcessingConsentInputSchema>;
@@ -25,6 +57,7 @@ export const recoveryStatusSchema = z
   .object({
     publicKeyHex: z.string().nullable(),
     fingerprint: z.string().nullable(),
+    version: z.number().int().positive().nullable(),
     setAt: z.string().nullable(),
   })
   .strict();
