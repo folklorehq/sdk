@@ -1,0 +1,36 @@
+{
+  "name": "@folklore/inference",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@folklore/telemetry": "workspace:*",
+    "@folklore/utils": "workspace:*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@folklore/tsconfig": "workspace:*",
+    "@types/node": "^22.7.5",
+    "eslint": "^9.13.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

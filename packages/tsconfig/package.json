@@ -1,0 +1,11 @@
+{
+  "name": "@folklore/tsconfig",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "base.json",
+    "node.json",
+    "node-app.json",
+    "react-library.json"
+  ]
+}
