@@ -30,6 +30,11 @@
       "development": "./src/tenant.ts",
       "types": "./dist/tenant.d.ts",
       "default": "./dist/tenant.js"
+    },
+    "./public-email-domains": {
+      "development": "./src/public-email-domains.ts",
+      "types": "./dist/public-email-domains.d.ts",
+      "default": "./dist/public-email-domains.js"
     }
   },
   "scripts": {

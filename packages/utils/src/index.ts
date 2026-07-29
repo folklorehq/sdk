@@ -17,3 +17,4 @@ export {
   isValidTenantSubdomain,
   resolveTenantFromHost,
 } from './tenant.js';
+export { emailDomain, isPublicEmailDomain, isWorkEmail } from './public-email-domains.js';

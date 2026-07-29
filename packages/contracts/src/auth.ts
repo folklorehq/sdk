@@ -3,11 +3,13 @@ import { z } from 'zod';
 
 const MAX_EMAIL_LEN = 320;
 
-// Console magic-link sign-in request. Email is the only payload; the control
-// plane mints a short-lived single-use token and emails a verification link. Content-free.
+// Magic-link sign-in request. Optional `returnTo` is the box auth callback URL — when set,
+// the control plane treats this as a box sign-in and restricts delivery to that workspace's
+// authorized email domains. Content-free.
 export const magicLinkRequestSchema = z
   .object({
     email: z.string().trim().toLowerCase().email().max(MAX_EMAIL_LEN),
+    returnTo: z.string().url().max(2_048).optional(),
   })
   .strict();
 export type MagicLinkRequest = z.infer<typeof magicLinkRequestSchema>;
