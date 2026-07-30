@@ -2,6 +2,7 @@
 export * from './auth.js';
 export * from './collab.js';
 export * from './enclave.js';
+export * from './me.js';
 export * from './member-identity-links.js';
 export * from './metrics.js';
 export * from './notifications.js';
