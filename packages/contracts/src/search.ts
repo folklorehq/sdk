@@ -29,11 +29,22 @@ export const answerRequestSchema = z.object({
 });
 export type AnswerRequest = z.infer<typeof answerRequestSchema>;
 
-/** A grounded answer over enclave data: synthesized text plus the facts it was drawn from as citations. `grounded` is false when no visible fact matched, so the model was never asked to invent one. */
-export const answerResponseSchema = z.object({
+/** Why an answer abstained: no audience-visible fact matched at all, or facts matched but the model's answer cited none of them. */
+export const abstainReasonSchema = z.enum(['no_context', 'no_citations']);
+export type AbstainReason = z.infer<typeof abstainReasonSchema>;
+
+const answerBaseSchema = z.object({
   query: z.string(),
   answer: z.string(),
-  grounded: z.boolean(),
   citations: z.array(searchResultSchema),
 });
+
+/** A grounded answer over enclave data: synthesized text plus the facts it was drawn from as citations. Discriminated on `grounded` so "grounded with an abstain reason" is unrepresentable — `abstainReason` says which of the two abstain paths ran. */
+export const answerResponseSchema = z.discriminatedUnion('grounded', [
+  answerBaseSchema.extend({ grounded: z.literal(true) }),
+  answerBaseSchema.extend({
+    grounded: z.literal(false),
+    abstainReason: abstainReasonSchema.optional(),
+  }),
+]);
 export type AnswerResponse = z.infer<typeof answerResponseSchema>;
