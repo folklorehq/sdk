@@ -12,13 +12,14 @@ import type {
 export type TaskModelMap = Partial<Record<InferenceTask, string>>;
 
 /** Build a task→model map; tasks left unmapped fall through to the backend's default model. */
-export function tieredTaskModels(smallModel: string, largeModel?: string): TaskModelMap {
-  const map: TaskModelMap = {
-    labeling: smallModel,
-    'noise-filter': smallModel,
-    classification: smallModel,
-    extraction: smallModel,
-  };
+export function tieredTaskModels(smallModel?: string, largeModel?: string): TaskModelMap {
+  const map: TaskModelMap = {};
+  if (smallModel !== undefined) {
+    map.labeling = smallModel;
+    map['noise-filter'] = smallModel;
+    map.classification = smallModel;
+    map.extraction = smallModel;
+  }
   if (largeModel !== undefined) {
     map.synthesis = largeModel;
     map.query = largeModel;

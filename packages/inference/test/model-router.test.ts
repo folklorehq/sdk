@@ -34,6 +34,18 @@ describe('tieredTaskModels()', () => {
     expect(map.synthesis).toBe(LARGE);
     expect(map.query).toBe(LARGE);
   });
+
+  it('maps only the large tiers when no small model is provided', () => {
+    const map = tieredTaskModels(undefined, LARGE);
+    expect(map.synthesis).toBe(LARGE);
+    expect(map.query).toBe(LARGE);
+    expect(map.labeling).toBeUndefined();
+    expect(map.extraction).toBeUndefined();
+  });
+
+  it('maps nothing when neither tier is provided', () => {
+    expect(tieredTaskModels()).toEqual({});
+  });
 });
 
 describe('RoutingInferenceBackend', () => {
