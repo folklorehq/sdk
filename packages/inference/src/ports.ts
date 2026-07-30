@@ -40,6 +40,21 @@ export interface StructuredOptions extends GenerateOptions {
   tool: ToolSpec;
 }
 
+/** The three billable call classes; `stream` is deliberately absent — OpenAI streaming reports no usage without `stream_options`. */
+export type InferenceOperation = 'embed' | 'generate' | 'structured';
+
+/** Content-free per-call cost signal: a config-sourced model id, the call class, and integer counts — never prompt or output text. */
+export interface InferenceUsageEvent {
+  model: string;
+  operation: InferenceOperation;
+  promptTokens: number;
+  completionTokens: number;
+  /** True when a cache layer served the call, so it cost the upstream nothing. */
+  cached: boolean;
+}
+
+export type InferenceUsageSink = (event: InferenceUsageEvent) => void;
+
 export interface AttestationReport {
   /** Hex-encoded TDX attestation quote issued by the Phala dstack daemon. */
   quote: string;

@@ -5,7 +5,9 @@ import type {
   EmbedOptions,
   GenerateOptions,
   InferenceBackend,
+  InferenceOperation,
   InferenceResponseVerifier,
+  InferenceUsageSink,
   StructuredOptions,
 } from './ports.js';
 import { ACI_RECEIPT_ID_HEADER } from './aci-verifier.js';
@@ -29,6 +31,8 @@ export interface OpenAICompatConfig {
   modelAllowlist?: readonly string[];
   /** When set, prove each response came from a verified TEE upstream via its ACI receipt. */
   responseVerifier?: InferenceResponseVerifier;
+  /** Receives the content-free token counts of every successful call. */
+  usageSink?: InferenceUsageSink;
   telemetry?: TelemetryClient;
 }
 
@@ -37,13 +41,24 @@ const DEFAULT_GENERATE_MODEL = 'qwen2.5:7b';
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_LABEL = 'OpenAI-compatible endpoint';
 const STREAM_TIMEOUT_MULTIPLIER = 5;
+// Upstream-supplied counts are untrusted: an extreme value would overflow a caller's running total
+// to Infinity, which serializes to null and fails the wire schema, discarding the whole result.
+// Orders of magnitude above any configured input budget or max-output, so a real call is unclipped.
+export const MAX_TOKENS_PER_CALL = 2_000_000;
+
+interface OpenAIUsage {
+  prompt_tokens?: unknown;
+  completion_tokens?: unknown;
+}
 
 interface OpenAIEmbeddingResponse {
   data: Array<{ embedding: number[] }>;
+  usage?: OpenAIUsage;
 }
 
 interface OpenAIChatResponse {
   choices: Array<{ message: { content: string } }>;
+  usage?: OpenAIUsage;
 }
 
 interface OpenAIToolChatResponse {
@@ -53,6 +68,7 @@ interface OpenAIToolChatResponse {
       tool_calls?: Array<{ function: { name: string; arguments: string } }>;
     };
   }>;
+  usage?: OpenAIUsage;
 }
 
 interface OpenAIChatStreamChunk {
@@ -70,6 +86,7 @@ export class OpenAICompatBackend implements InferenceBackend {
   protected readonly label: string;
   protected readonly modelAllowlist: readonly string[] | undefined;
   protected readonly responseVerifier: InferenceResponseVerifier | undefined;
+  protected readonly usageSink: InferenceUsageSink | undefined;
   protected readonly telemetry: TelemetryClient | undefined;
 
   constructor(config: OpenAICompatConfig) {
@@ -82,6 +99,7 @@ export class OpenAICompatBackend implements InferenceBackend {
     this.label = config.label ?? DEFAULT_LABEL;
     this.modelAllowlist = config.modelAllowlist;
     this.responseVerifier = config.responseVerifier;
+    this.usageSink = config.usageSink;
     this.telemetry = config.telemetry;
   }
 
@@ -119,6 +137,7 @@ export class OpenAICompatBackend implements InferenceBackend {
         );
       }
       await this.responseVerifier?.verifyReceipt(this.receiptId(res));
+      this.recordUsage(model, 'embed', data.usage);
       this.telemetry?.track('inference.embed', 'system', { model, latencyMs: Date.now() - start });
       return embedding;
     } catch (err) {
@@ -159,6 +178,7 @@ export class OpenAICompatBackend implements InferenceBackend {
       const content = data.choices[0]?.message?.content;
       if (content === undefined) throw new Error(`${this.label} returned no content`);
       await this.responseVerifier?.verifyReceipt(this.receiptId(res));
+      this.recordUsage(model, 'generate', data.usage);
       this.telemetry?.track('inference.generate', 'system', {
         model,
         latencyMs: Date.now() - start,
@@ -195,6 +215,7 @@ export class OpenAICompatBackend implements InferenceBackend {
       const data = (await res.json()) as OpenAIToolChatResponse;
       const parsed = this.parseToolArguments(data, options.tool.name);
       await this.responseVerifier?.verifyReceipt(this.receiptId(res));
+      this.recordUsage(model, 'structured', data.usage);
       this.telemetry?.track('inference.generate', 'system', {
         model,
         latencyMs: Date.now() - start,
@@ -305,6 +326,32 @@ export class OpenAICompatBackend implements InferenceBackend {
       throw new Error(`${this.label} returned no tool call for "${toolName}"`);
     }
     return JSON.parse(extractJsonObject(raw));
+  }
+
+  // Cost telemetry must never be able to break inference, so a throwing sink is swallowed — and
+  // only these five fields cross, so an upstream that returns extra `usage` keys cannot smuggle them.
+  private recordUsage(
+    model: string,
+    operation: InferenceOperation,
+    usage: OpenAIUsage | undefined,
+  ): void {
+    if (!this.usageSink) return;
+    try {
+      this.usageSink({
+        model,
+        operation,
+        promptTokens: this.tokenCount(usage?.prompt_tokens),
+        completionTokens: this.tokenCount(usage?.completion_tokens),
+        cached: false,
+      });
+    } catch {
+      // Deliberately silent: the error could quote an upstream body.
+    }
+  }
+
+  private tokenCount(value: unknown): number {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return 0;
+    return Math.min(Math.trunc(value), MAX_TOKENS_PER_CALL);
   }
 
   protected headers(): Record<string, string> {

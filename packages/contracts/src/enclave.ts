@@ -95,6 +95,34 @@ export const richBlockKindCountSchema = z.object({
 });
 export type RichBlockKindCount = z.infer<typeof richBlockKindCountSchema>;
 
+// A model id is deployment config (an allowlist entry), never content — the charset admits no
+// whitespace and no prose punctuation, and the length cap keeps it to identifier scale, so a
+// sentence, a prompt fragment, or a fact body cannot ride it. The enclave sanitizes to the same
+// pattern before emitting, so a drifting id degrades to `unknown` instead of failing the result.
+export const TOKEN_USAGE_MODEL_MAX_LENGTH = 64;
+export const TOKEN_USAGE_MODEL_PATTERN = /^[A-Za-z0-9._:/-]+$/;
+
+// Content-free per-run inference cost. `.strict()` rejects any field added on the wire, so a
+// future member cannot reach a consumer unreviewed; every member but `model` is an integer or a
+// closed enum. `cachedCalls` splits free replays out of `calls` — without it a broken meter
+// (gateway returning no `usage`) is byte-identical to a run served entirely from cache.
+export const tokenUsageSchema = z
+  .object({
+    model: z.string().min(1).max(TOKEN_USAGE_MODEL_MAX_LENGTH).regex(TOKEN_USAGE_MODEL_PATTERN),
+    operation: z.enum(['embed', 'generate', 'structured']),
+    calls: z.number().int().nonnegative(),
+    cachedCalls: z.number().int().nonnegative().default(0),
+    promptTokens: z.number().int().nonnegative(),
+    completionTokens: z.number().int().nonnegative(),
+  })
+  .strict();
+export type TokenUsage = z.infer<typeof tokenUsageSchema>;
+
+// `.strict()` above must never cost a synthesis result: the enclave and the worker deploy
+// separately, so an enclave that ships a new usage field first would otherwise fail the whole
+// message and lose the article. Falling back to no telemetry is the recoverable half.
+const tokenUsageArray = z.array(tokenUsageSchema).default([]).catch([]);
+
 export const wikiSynthesisResultSchema = z.object({
   type: z.literal('wiki_synthesis'),
   requestId: z.string(),
@@ -104,6 +132,7 @@ export const wikiSynthesisResultSchema = z.object({
   blocks: z.array(encryptedBlockSchema),
   citedFactIds: z.array(z.string()),
   richBlockCounts: z.array(richBlockKindCountSchema).default([]),
+  tokenUsage: tokenUsageArray,
 });
 export type WikiSynthesisResult = z.infer<typeof wikiSynthesisResultSchema>;
 
@@ -194,6 +223,7 @@ export const themeSynthesisResultSchema = z.object({
   related: z.array(relatedThemeEdgeSchema),
   mergeCandidates: z.array(themeMergeCandidateSchema).default([]),
   aggregates: z.array(aggregateThemeSchema).default([]),
+  tokenUsage: tokenUsageArray,
 });
 export type ThemeSynthesisResult = z.infer<typeof themeSynthesisResultSchema>;
 
@@ -388,6 +418,7 @@ export const teamOnboardingSynthesisResultSchema = z.object({
   articles: z.array(wikiArticleSchema),
   blocks: z.array(encryptedBlockSchema),
   citedFactIds: z.array(z.string()),
+  tokenUsage: tokenUsageArray,
 });
 export type TeamOnboardingSynthesisResult = z.infer<typeof teamOnboardingSynthesisResultSchema>;
 

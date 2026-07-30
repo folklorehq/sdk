@@ -8,6 +8,9 @@ export type {
   AttestationReport,
   InferenceResponseVerifier,
   InferenceTask,
+  InferenceOperation,
+  InferenceUsageEvent,
+  InferenceUsageSink,
 } from './ports.js';
 export { TeeEndpointBackend, type TeeEndpointConfig } from './TeeEndpointBackend.js';
 export { OpenAICompatBackend, type OpenAICompatConfig } from './OpenAICompatBackend.js';

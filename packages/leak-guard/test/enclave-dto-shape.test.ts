@@ -4,12 +4,19 @@ import {
   processedFactSchema,
   wikiSynthesisResultSchema,
   themeSynthesisResultSchema,
+  teamOnboardingSynthesisResultSchema,
   synthesisRequestSchema,
   themeSynthesisRequestSchema,
   pullCompleteSignalSchema,
   pullDueMessageSchema,
+  tokenUsageSchema,
+  TOKEN_USAGE_MODEL_MAX_LENGTH,
 } from '@folklore/contracts/enclave';
 import { stringLeafPaths } from '../src/zod-introspect.js';
+
+function usageWith(model: string) {
+  return { model, operation: 'generate', calls: 1, promptTokens: 10, completionTokens: 2 };
+}
 
 // The enclave→worker DTOs are content-free BY SHAPE: the only fields that may carry synthesized
 // prose are wikiArticle.content (gated by contentFormat) and encryptedBody.ciphertext (ESDK).
@@ -45,6 +52,7 @@ const FROZEN: Record<string, string[]> = {
     'orgId',
     'requestId',
     'themeId',
+    'tokenUsage[].model',
   ],
   themeSynthesisResult: [
     'aggregates[].aggregateThemeId',
@@ -64,6 +72,21 @@ const FROZEN: Record<string, string[]> = {
     'themes[].team',
     'themes[].themeId',
     'themes[].tags[]',
+    'tokenUsage[].model',
+  ],
+  teamOnboardingSynthesisResult: [
+    'articles[].audienceId',
+    'articles[].content',
+    'blocks[].audienceId',
+    'blocks[].body.ciphertext',
+    'blocks[].factIds[]',
+    'blocks[].type',
+    'citedFactIds[]',
+    'orgId',
+    'requestId',
+    'teamId',
+    'teamName',
+    'tokenUsage[].model',
   ],
   synthesisRequest: [
     'audiences[].id',
@@ -107,6 +130,7 @@ const SCHEMAS = {
   processedFact: processedFactSchema,
   wikiSynthesisResult: wikiSynthesisResultSchema,
   themeSynthesisResult: themeSynthesisResultSchema,
+  teamOnboardingSynthesisResult: teamOnboardingSynthesisResultSchema,
   synthesisRequest: synthesisRequestSchema,
   themeSynthesisRequest: themeSynthesisRequestSchema,
   pullCompleteSignal: pullCompleteSignalSchema,
@@ -134,6 +158,27 @@ describe('enclave→worker DTO shapes are content-free by construction', () => {
         ).toBe(false);
       }
     }
+  });
+
+  // The one free string the cost telemetry adds is a model id. It is pattern-bound rather than
+  // merely named safely, so prose cannot ride it even if the enclave's sanitizer were bypassed.
+  it('tokenUsage.model rejects anything that is not a bare model id', () => {
+    for (const prose of [
+      'the payments team cut over on 2026-01-01',
+      'z-ai/glm-5.2 leaked this',
+      'x'.repeat(TOKEN_USAGE_MODEL_MAX_LENGTH + 1),
+      '',
+    ]) {
+      expect(tokenUsageSchema.safeParse(usageWith(prose)).success, prose).toBe(false);
+    }
+    expect(tokenUsageSchema.safeParse(usageWith('z-ai/glm-5.2')).success).toBe(true);
+  });
+
+  it('tokenUsage rejects an added field rather than passing it through', () => {
+    expect(
+      tokenUsageSchema.safeParse({ ...usageWith('z-ai/glm-5.2'), note: 'a prompt fragment' })
+        .success,
+    ).toBe(false);
   });
 
   it('the only accepted content-carrying fields are the two documented ones', () => {

@@ -144,6 +144,79 @@ describe('wikiSynthesisResultSchema', () => {
   });
 });
 
+describe('tokenUsage on a synthesis result', () => {
+  const base = {
+    type: 'wiki_synthesis',
+    requestId: 'req-1',
+    themeId: 'theme-1',
+    orgId: 'org-1',
+    articles: [],
+    blocks: [],
+    citedFactIds: [],
+  };
+
+  it('defaults cachedCalls so a legacy enclave still reports a total', () => {
+    const parsed = wikiSynthesisResultSchema.parse({
+      ...base,
+      tokenUsage: [
+        {
+          model: 'z-ai/glm-5.2',
+          operation: 'generate',
+          calls: 2,
+          promptTokens: 9,
+          completionTokens: 3,
+        },
+      ],
+    });
+    expect(parsed.tokenUsage[0]).toEqual({
+      model: 'z-ai/glm-5.2',
+      operation: 'generate',
+      calls: 2,
+      cachedCalls: 0,
+      promptTokens: 9,
+      completionTokens: 3,
+    });
+  });
+
+  it('keeps free replays recoverable from the aggregate', () => {
+    const parsed = wikiSynthesisResultSchema.parse({
+      ...base,
+      tokenUsage: [
+        {
+          model: 'z-ai/glm-5.2',
+          operation: 'generate',
+          calls: 4,
+          cachedCalls: 3,
+          promptTokens: 12,
+          completionTokens: 4,
+        },
+      ],
+    });
+    expect(parsed.tokenUsage[0]?.cachedCalls).toBe(3);
+  });
+
+  // The enclave and the worker deploy separately: an enclave shipping a new usage field first must
+  // cost the telemetry, never the article.
+  it('drops unparseable token usage rather than failing the whole result', () => {
+    const parsed = wikiSynthesisResultSchema.parse({
+      ...base,
+      articles: [{ audienceId: null, content: 'ZW5j', contentFormat: 'esdk-v1', factCount: 1 }],
+      tokenUsage: [
+        {
+          model: 'z-ai/glm-5.2',
+          operation: 'generate',
+          calls: 1,
+          promptTokens: 1,
+          completionTokens: 1,
+          costUsd: 0.02,
+        },
+      ],
+    });
+    expect(parsed.tokenUsage).toEqual([]);
+    expect(parsed.articles).toHaveLength(1);
+  });
+});
+
 describe('themeSynthesisResultSchema', () => {
   it('accepts a theme_synthesis payload', () => {
     const parsed = themeSynthesisResultSchema.parse({

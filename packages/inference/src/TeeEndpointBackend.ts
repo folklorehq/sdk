@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { TelemetryClient } from '@folklore/telemetry';
-import type { InferenceResponseVerifier } from './ports.js';
+import type { InferenceResponseVerifier, InferenceUsageSink } from './ports.js';
 import { OpenAICompatBackend } from './OpenAICompatBackend.js';
 import { DEFAULT_VERIFIED_MODELS } from './model-allowlist.js';
 
@@ -19,6 +19,8 @@ export interface TeeEndpointConfig {
   modelAllowlist?: readonly string[];
   /** Proves each response came from a verified TEE upstream via its ACI receipt. */
   responseVerifier?: InferenceResponseVerifier;
+  /** Receives the content-free token counts of every successful call. */
+  usageSink?: InferenceUsageSink;
   /** Request timeout in milliseconds. Default: 60000 (remote endpoints are slower). */
   timeoutMs?: number;
   telemetry?: TelemetryClient;
@@ -38,6 +40,7 @@ export class TeeEndpointBackend extends OpenAICompatBackend {
       generateModel: config.generateModel ?? DEFAULT_GENERATE_MODEL,
       modelAllowlist: config.modelAllowlist ?? DEFAULT_VERIFIED_MODELS,
       responseVerifier: config.responseVerifier,
+      usageSink: config.usageSink,
       timeoutMs: config.timeoutMs,
       label: 'TEE endpoint',
       telemetry: config.telemetry,
