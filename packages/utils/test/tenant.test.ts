@@ -23,6 +23,13 @@ describe('isValidSubdomainLabel', () => {
     expect(isValidSubdomainLabel('under_score')).toBe(false);
     expect(isValidSubdomainLabel('has.dot')).toBe(false);
   });
+
+  // A punycode label decodes to non-ASCII characters that can render as a homograph of a real
+  // tenant's slug in the browser URL bar (IDN homograph phishing) — reject the ACE prefix outright.
+  it('rejects a punycode (xn--) label', () => {
+    expect(isValidSubdomainLabel('xn--pple-43d')).toBe(false);
+    expect(isValidSubdomainLabel('xn--acme-1a2b3')).toBe(false);
+  });
 });
 
 describe('isReservedSubdomain', () => {
@@ -44,6 +51,10 @@ describe('isValidTenantSubdomain', () => {
     expect(isValidTenantSubdomain('app')).toBe(false);
     expect(isValidTenantSubdomain('controlplane')).toBe(false);
     expect(isValidTenantSubdomain('-bad')).toBe(false);
+  });
+
+  it('rejects a punycode label even though it is otherwise a well-formed DNS label', () => {
+    expect(isValidTenantSubdomain('xn--pple-43d')).toBe(false);
   });
 });
 

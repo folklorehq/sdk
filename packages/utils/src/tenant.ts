@@ -5,6 +5,11 @@ export const SUBDOMAIN_LABEL_MAX_LENGTH = 40;
 // A single DNS label: lowercase alphanumeric with internal (never leading/trailing) hyphens.
 const SUBDOMAIN_LABEL_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
+// The IDNA ACE prefix (RFC 3492). A punycode label decodes to non-ASCII characters that can render
+// as a homograph of a real tenant's slug — reject it here, at slug creation, so no org row is ever
+// created with one, rather than only at the box-origin/CORS gate.
+const PUNYCODE_ACE_PREFIX = 'xn--';
+
 // Hosts owned by platform infrastructure — never assignable to a tenant, so a tenant can
 // never shadow the console (apex/`www`), the box entry (`app`), or the control-plane API
 // (`api`; `controlplane` stays reserved for the pre-#73 domain). Extend
@@ -45,7 +50,8 @@ export function isValidSubdomainLabel(label: string): boolean {
   return (
     label.length >= SUBDOMAIN_LABEL_MIN_LENGTH &&
     label.length <= SUBDOMAIN_LABEL_MAX_LENGTH &&
-    SUBDOMAIN_LABEL_RE.test(label)
+    SUBDOMAIN_LABEL_RE.test(label) &&
+    !label.startsWith(PUNYCODE_ACE_PREFIX)
   );
 }
 
