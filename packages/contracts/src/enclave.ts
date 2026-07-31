@@ -95,6 +95,19 @@ export const richBlockKindCountSchema = z.object({
 });
 export type RichBlockKindCount = z.infer<typeof richBlockKindCountSchema>;
 
+// Content-free verdict of the cross-family faithfulness gate, rolled up across the audiences of one
+// request (worst outcome wins). `failed` means a gate call did not complete, so the page shipped
+// ungated; `revision_failed` means defects were found but the repair pass did not complete, so the
+// defective draft shipped. Both are deliberately distinct from `clean`, a real reviewed verdict.
+// An enum and an integer: no quote, heading, or fix instruction ever crosses.
+export const critiqueOutcomeSchema = z
+  .object({
+    outcome: z.enum(['issues_found', 'revision_failed', 'clean', 'failed']),
+    issueCount: z.number().int().nonnegative(),
+  })
+  .strict();
+export type CritiqueOutcome = z.infer<typeof critiqueOutcomeSchema>;
+
 // A model id is deployment config (an allowlist entry), never content — the charset admits no
 // whitespace and no prose punctuation, and the length cap keeps it to identifier scale, so a
 // sentence, a prompt fragment, or a fact body cannot ride it. The enclave sanitizes to the same
@@ -132,6 +145,7 @@ export const wikiSynthesisResultSchema = z.object({
   blocks: z.array(encryptedBlockSchema),
   citedFactIds: z.array(z.string()),
   richBlockCounts: z.array(richBlockKindCountSchema).default([]),
+  critique: critiqueOutcomeSchema.optional(),
   tokenUsage: tokenUsageArray,
 });
 export type WikiSynthesisResult = z.infer<typeof wikiSynthesisResultSchema>;
@@ -418,6 +432,7 @@ export const teamOnboardingSynthesisResultSchema = z.object({
   articles: z.array(wikiArticleSchema),
   blocks: z.array(encryptedBlockSchema),
   citedFactIds: z.array(z.string()),
+  critique: critiqueOutcomeSchema.optional(),
   tokenUsage: tokenUsageArray,
 });
 export type TeamOnboardingSynthesisResult = z.infer<typeof teamOnboardingSynthesisResultSchema>;

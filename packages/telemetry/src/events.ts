@@ -35,6 +35,7 @@ export const TelemetryEvent = {
   InferenceError: 'inference.error',
   WikiSynthesized: 'wiki.synthesized',
   WikiRichBlocksSynthesized: 'wiki.rich_blocks.synthesized',
+  WikiCritiqueCompleted: 'wiki.critique.completed',
   WikiLinkPreview: 'wiki.link_preview',
   NotificationSent: 'notification.sent',
   NotificationSendFailed: 'notification.send_failed',
@@ -119,6 +120,15 @@ type OpsEvents = {
     canvasSeen: number;
     canvasEmitted: number;
     canvasDropped: number;
+  };
+  // `failed` = the gate did not run, so the page published unreviewed; `revision_failed` = it found
+  // defects the repair pass never fixed. Exactly one of themeId/teamId is set (per-theme vs team page).
+  'wiki.critique.completed': {
+    orgId: string;
+    themeId?: string;
+    teamId?: string;
+    outcome: 'issues_found' | 'revision_failed' | 'clean' | 'failed';
+    issueCount: number;
   };
   'wiki.link_preview': { orgId: string; outcome: 'preview' | 'empty'; latencyMs: number };
   'notification.sent': { orgId: string; channel: 'email' | 'slack' };
