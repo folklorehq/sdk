@@ -95,15 +95,22 @@ export const richBlockKindCountSchema = z.object({
 });
 export type RichBlockKindCount = z.infer<typeof richBlockKindCountSchema>;
 
-// Content-free verdict of the cross-family faithfulness gate, rolled up across the audiences of one
-// request (worst outcome wins). `failed` means a gate call did not complete, so the page shipped
-// ungated; `revision_failed` means defects were found but the repair pass did not complete, so the
-// defective draft shipped. Both are deliberately distinct from `clean`, a real reviewed verdict.
-// An enum and an integer: no quote, heading, or fix instruction ever crosses.
+// Content-free verdict of the pre-publish gate, rolled up across the audiences of one request
+// (worst outcome wins). `failed` means a gate call did not complete, so the page shipped ungated;
+// `revision_failed` means defects were found but the repair pass did not complete, so the defective
+// draft shipped. Both are deliberately distinct from `clean`, a real reviewed verdict.
+// `outcome`/`issueCount` describe the faithfulness gate ONLY — a hallucination. `coverageOutcome`/
+// `visualIssueCount` describe the separate visual-coverage pass — a presentation gap. Split so a
+// down warrant judge can never restate a faithfulness verdict that was computed and repaired, and
+// so a drafter-model A/B on faithfulness reads one number. `skipped` means the faithfulness gate
+// did not complete, so the coverage pass deliberately never ran.
+// Enums and integers: no quote, heading, or fix instruction ever crosses.
 export const critiqueOutcomeSchema = z
   .object({
     outcome: z.enum(['issues_found', 'revision_failed', 'clean', 'failed']),
     issueCount: z.number().int().nonnegative(),
+    visualIssueCount: z.number().int().nonnegative().default(0),
+    coverageOutcome: z.enum(['clean', 'blocks_added', 'failed', 'skipped']).default('clean'),
   })
   .strict();
 export type CritiqueOutcome = z.infer<typeof critiqueOutcomeSchema>;

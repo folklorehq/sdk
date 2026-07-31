@@ -128,7 +128,12 @@ type OpsEvents = {
     themeId?: string;
     teamId?: string;
     outcome: 'issues_found' | 'revision_failed' | 'clean' | 'failed';
+    // Faithfulness defects only; a missing diagram counts under visualIssueCount, never here.
     issueCount: number;
+    visualIssueCount: number;
+    // The visual-coverage pass's own verdict, on its own axis: a down warrant judge shows up here
+    // rather than restating `outcome`. `skipped` = the faithfulness gate did not complete.
+    coverageOutcome: 'clean' | 'blocks_added' | 'failed' | 'skipped';
   };
   'wiki.link_preview': { orgId: string; outcome: 'preview' | 'empty'; latencyMs: number };
   'notification.sent': { orgId: string; channel: 'email' | 'slack' };
