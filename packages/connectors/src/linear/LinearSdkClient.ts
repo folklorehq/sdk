@@ -7,9 +7,11 @@ import type { LinearComment, LinearIssue } from './types.js';
 export class LinearSdkClient extends BaseApiClient implements LinearApiClient {
   private readonly sdk: LinearClient;
 
-  constructor(apiKey: string) {
-    super(apiKey);
-    this.sdk = new LinearClient({ apiKey: this.token });
+  constructor(token: string) {
+    super(token);
+    // token is an OAuth access token, not a personal API key —
+    // apiKey sends a bare Authorization header, accessToken sends "Bearer <token>".
+    this.sdk = new LinearClient({ accessToken: this.token });
   }
 
   async listIssues(updatedSince?: string): Promise<LinearIssue[]> {

@@ -34,10 +34,21 @@ export abstract class BaseConnector implements Connector {
 
   protected mapError(operation: string, err: unknown): AppError {
     const status = (err as { status?: number } | null)?.status;
-    const options = { cause: err, component: this.kind, context: { operation } };
     if (status === 429 || status === 403) {
-      return new RateLimitError(`${this.kind}: rate limited during ${operation}`, options);
+      return this.rateLimitError(operation, err);
     }
-    return new ExternalServiceError(`${this.kind}: ${operation} failed`, options);
+    return new ExternalServiceError(`${this.kind}: ${operation} failed`, {
+      cause: err,
+      component: this.kind,
+      context: { operation },
+    });
+  }
+
+  protected rateLimitError(operation: string, err: unknown): RateLimitError {
+    return new RateLimitError(`${this.kind}: rate limited during ${operation}`, {
+      cause: err,
+      component: this.kind,
+      context: { operation },
+    });
   }
 }

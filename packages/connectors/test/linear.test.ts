@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
+import { ExternalServiceError, RateLimitError } from '@folklore/errors';
 import { PinoLogger } from '@folklore/logger';
 import {
   LinearConnector,
@@ -221,6 +222,42 @@ describe('LinearConnector.pull', () => {
     expect(result.containers).toHaveLength(0);
     expect(result.facts).toHaveLength(1);
     expect(result.facts[0]!.kind).toBe('transition');
+  });
+});
+
+describe('LinearConnector rate limiting', () => {
+  // Shape of what @linear/sdk throws for Linear's documented 400 + RATELIMITED response
+  // (https://linear.app/developers/rate-limiting); the SDK itself never classifies this
+  // as its own RatelimitedLinearError, so LinearConnector must detect it independently.
+  function rateLimitedError() {
+    return {
+      status: 400,
+      raw: { response: { errors: [{ extensions: { code: 'RATELIMITED' } }] } },
+    };
+  }
+
+  function connectorThrowing(err: unknown) {
+    const client: LinearApiClient = {
+      async listIssues() {
+        throw err;
+      },
+      async listComments() {
+        return [];
+      },
+    };
+    return new LinearConnector({ logger: new PinoLogger({ level: 'silent' }) }, client);
+  }
+
+  it('surfaces a Linear 400/RATELIMITED response as RateLimitError, not a fatal error', async () => {
+    const connector = connectorThrowing(rateLimitedError());
+
+    await expect(connector.pull({ value: null })).rejects.toBeInstanceOf(RateLimitError);
+  });
+
+  it('still maps an unrelated 400 error to ExternalServiceError', async () => {
+    const connector = connectorThrowing({ status: 400, raw: { response: { errors: [] } } });
+
+    await expect(connector.pull({ value: null })).rejects.toBeInstanceOf(ExternalServiceError);
   });
 });
 

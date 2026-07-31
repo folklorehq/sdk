@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import type { AppError } from '@folklore/errors';
 import { BaseConnector } from '../BaseConnector.js';
 import type {
   ConnectorContext,
@@ -12,6 +13,18 @@ import { isCreateEvent } from '../pull-classification.js';
 import type { LinearApiClient } from './client.js';
 import { normalizeLinearCommentEvent, normalizeLinearIssueEvent } from './normalize.js';
 import type { LinearCommentEvent, LinearIssueEvent } from './types.js';
+
+// @linear/sdk inspects extensions.type, but Linear actually sends extensions.code —
+// so the SDK never surfaces this as a rate-limit error on its own.
+const LINEAR_RATE_LIMIT_CODE = 'RATELIMITED';
+
+interface LinearErrorLike {
+  raw?: {
+    response?: {
+      errors?: Array<{ extensions?: { code?: string } }>;
+    };
+  };
+}
 
 export class LinearConnector extends BaseConnector {
   readonly kind = 'linear';
@@ -79,5 +92,19 @@ export class LinearConnector extends BaseConnector {
       return normalizeLinearCommentEvent(payload as LinearCommentEvent);
     }
     return { containers: [], facts: [] };
+  }
+
+  protected override mapError(operation: string, err: unknown): AppError {
+    return this.isLinearRateLimited(err)
+      ? this.rateLimitError(operation, err)
+      : super.mapError(operation, err);
+  }
+
+  private isLinearRateLimited(err: unknown): boolean {
+    const errors = (err as LinearErrorLike | null)?.raw?.response?.errors;
+    return (
+      Array.isArray(errors) &&
+      errors.some((error) => error.extensions?.code === LINEAR_RATE_LIMIT_CODE)
+    );
   }
 }
