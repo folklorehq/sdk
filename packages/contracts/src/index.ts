@@ -14,4 +14,3 @@ export * from './search.js';
 export * from './themes.js';
 export * from './wiki.js';
 export * from './wiki-export.js';
-export * from './zoom.js';
