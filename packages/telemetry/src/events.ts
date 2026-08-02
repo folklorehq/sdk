@@ -175,23 +175,11 @@ type ErrorEvents = {
   'inference.error': { model: string; errorType: string };
   'notification.send_failed': { orgId: string; channel: 'email' | 'slack'; errorType: string };
   'worker.error': { component: string; errorType: string; orgId?: string };
-  // The DynamoDB routing table and the Postgres `source_connections` unique index disagreeing
-  // on who owns an external id — the fingerprint of a live cross-tenant misroute window. Never
-  // the external id itself, only which layer rejected the write.
-  // `dynamodb_bind`/`postgres_upsert`: the two stores actively disagreed on ownership.
-  // `postgres_upsert_failed`: the Postgres write failed for a non-conflict reason (e.g. a
-  // connection drop) after DynamoDB already created a fresh binding — an orphan risk even
-  // when the compensating unbind below succeeds. `compensating_unbind_exhausted`: that
-  // rollback itself failed on every retry, so the DynamoDB entry is confirmed orphaned —
-  // hijackable until a background reconciler sweeps it.
+  // The PostgreSQL owner and routing entry failed to converge. Never send the external ID.
   'source.routing_conflict': {
     orgId: string;
     sourceKind: string;
-    rejectedBy:
-      | 'dynamodb_bind'
-      | 'postgres_upsert'
-      | 'postgres_upsert_failed'
-      | 'compensating_unbind_exhausted';
+    rejectedBy: 'postgres_upsert' | 'postgres_upsert_failed' | 'routing_reconciliation_failed';
   };
   'error.captured': ErrorReport;
 };
