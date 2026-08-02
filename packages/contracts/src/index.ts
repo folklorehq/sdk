@@ -3,6 +3,7 @@ export * from './agent-release.js';
 export * from './auth.js';
 export * from './collab.js';
 export * from './enclave.js';
+export * from './intercom.js';
 export * from './me.js';
 export * from './member-identity-links.js';
 export * from './metrics.js';

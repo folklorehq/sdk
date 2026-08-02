@@ -15,8 +15,10 @@ export interface IntercomConversationMessage {
 
 export interface IntercomConversationPart {
   type: 'conversation_part';
+  id?: string;
   part_type: string;
   body: string;
+  redacted?: boolean;
   author: IntercomAuthor;
   created_at: number;
 }
