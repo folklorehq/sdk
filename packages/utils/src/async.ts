@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
+/** Resolves after `ms` — used to pace sequential external calls under a rate limit. */
+export async function sleep(ms: number): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
 /** Race `promise` against a timer — rejects after `ms` if the promise hasn't settled. */
 export async function timeLimited<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;

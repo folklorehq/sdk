@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+export * from './agent-release.js';
 export * from './auth.js';
 export * from './collab.js';
 export * from './enclave.js';

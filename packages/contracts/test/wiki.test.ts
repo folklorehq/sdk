@@ -9,6 +9,9 @@ import {
   embedBlockSchema,
   graphBlockSchema,
   richBlockBodySchema,
+  wikiPageResponseSchema,
+  wikiPublishRequestSchema,
+  wikiPublishResponseSchema,
 } from '../src/wiki.js';
 
 describe('rich wiki block schemas', () => {
@@ -559,5 +562,85 @@ describe('rich wiki block schemas', () => {
       objects: [{ type: 'frame', id: 'f1', x: 0, y: 0, w: 0, h: 100, label: 'Empty column' }],
     };
     expect(canvasBlockSchema.safeParse(zeroWidth).success).toBe(false);
+  });
+});
+
+describe('wiki publication wire contracts', () => {
+  const request = {
+    requestId: '0dcfa1d3-5d01-4cf6-b489-61e3cfa0b40d',
+    expectedRevisionId: null,
+    title: 'Status',
+    markdown: '## Status\n\nReady.',
+    yjsState: 'AQIDBA==',
+  };
+
+  it('accepts only the strict publish request and response shapes', () => {
+    expect(wikiPublishRequestSchema.parse(request)).toEqual(request);
+    expect(
+      wikiPublishResponseSchema.parse({
+        publicationId: '3a1e5e25-25d2-4f04-a3b6-1f7bb8b3359b',
+        revision: 1,
+        publishedAt: '2026-08-01T00:00:00.000Z',
+      }),
+    ).toMatchObject({ revision: 1 });
+    expect(wikiPublishRequestSchema.safeParse({ ...request, ignored: true }).success).toBe(false);
+    expect(wikiPublishRequestSchema.safeParse({ ...request, title: undefined }).success).toBe(
+      false,
+    );
+  });
+
+  it('rejects invalid publish identifiers, text bounds, and non-canonical base64', () => {
+    expect(wikiPublishRequestSchema.safeParse({ ...request, requestId: 'request' }).success).toBe(
+      false,
+    );
+    expect(
+      wikiPublishRequestSchema.safeParse({ ...request, expectedRevisionId: 'head' }).success,
+    ).toBe(false);
+    expect(wikiPublishRequestSchema.safeParse({ ...request, title: '   ' }).success).toBe(false);
+    expect(wikiPublishRequestSchema.safeParse({ ...request, title: 'x'.repeat(241) }).success).toBe(
+      false,
+    );
+    expect(
+      wikiPublishRequestSchema.safeParse({ ...request, markdown: 'x'.repeat(500_001) }).success,
+    ).toBe(false);
+    expect(wikiPublishRequestSchema.safeParse({ ...request, yjsState: 'YWJjZA' }).success).toBe(
+      false,
+    );
+    expect(wikiPublishRequestSchema.safeParse({ ...request, yjsState: '****' }).success).toBe(
+      false,
+    );
+    expect(
+      wikiPublishRequestSchema.safeParse({ ...request, yjsState: 'A'.repeat(2_000_001) }).success,
+    ).toBe(false);
+  });
+
+  it('requires the page publication and revision pair to move together', () => {
+    const page = {
+      themeId: 'theme-1',
+      pageId: 'page-1',
+      title: 'Status',
+      blocks: [],
+      meta: null,
+    };
+    expect(
+      wikiPageResponseSchema.safeParse({ ...page, publicationId: null, revision: null }).success,
+    ).toBe(true);
+    expect(
+      wikiPageResponseSchema.safeParse({
+        ...page,
+        publicationId: 'e21a5508-c6c0-4d8a-af28-9f8c807f3cb5',
+        revision: 1,
+      }).success,
+    ).toBe(true);
+    expect(
+      wikiPageResponseSchema.safeParse({ ...page, publicationId: null, revision: 1 }).success,
+    ).toBe(false);
+    expect(
+      wikiPageResponseSchema.safeParse({
+        ...page,
+        publicationId: 'e21a5508-c6c0-4d8a-af28-9f8c807f3cb5',
+        revision: null,
+      }).success,
+    ).toBe(false);
   });
 });

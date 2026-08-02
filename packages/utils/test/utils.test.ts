@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import { deterministicUuid, sha256Hex } from '../src/hash.js';
+import { canonicalJson, canonicalJsonHash } from '../src/canonical-json.js';
 import { collapseWhitespace, escapeRegExp, initials, truncate } from '../src/text.js';
 import { toVectorLiteral } from '../src/vector.js';
 import { mulberry32, seedFromString } from '../src/random.js';
@@ -37,6 +38,17 @@ describe('hash', () => {
     expect(a).toBe(deterministicUuid('theme', 'container-1'));
     expect(a).not.toBe(deterministicUuid('theme', 'container-2'));
     expect(a).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  });
+});
+
+describe('canonical JSON', () => {
+  it('orders object keys recursively before hashing', () => {
+    expect(canonicalJson({ b: [2, { z: true, a: null }], a: 'one' })).toBe(
+      '{"a":"one","b":[2,{"a":null,"z":true}]}',
+    );
+    expect(canonicalJsonHash({ a: 'one', b: [2, { a: null, z: true }] })).toBe(
+      canonicalJsonHash({ b: [2, { z: true, a: null }], a: 'one' }),
+    );
   });
 });
 

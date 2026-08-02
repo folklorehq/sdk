@@ -21,6 +21,20 @@ export const memberIdentityLinksResponseSchema = z
 
 export type MemberIdentityLinksResponse = z.infer<typeof memberIdentityLinksResponseSchema>;
 
+export const memberIdentityLinkPersistenceSchema = z
+  .object({
+    deploymentId: z.string().uuid(),
+    orgId: z.string().uuid(),
+    attestationGeneration: z.string().uuid(),
+    accountId: z.string().uuid(),
+    sourceKind: z.string().min(1).max(64),
+    memberEmail: z.string().email().max(320),
+    sourceUserId: z.string().min(1).max(256),
+  })
+  .strict();
+
+export type MemberIdentityLinkPersistence = z.infer<typeof memberIdentityLinkPersistenceSchema>;
+
 export const memberIdentityLinkAckRequestSchema = z.object({ ids: z.array(z.string()) }).strict();
 
 export type MemberIdentityLinkAckRequest = z.infer<typeof memberIdentityLinkAckRequestSchema>;

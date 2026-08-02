@@ -501,12 +501,142 @@ export const exportCompleteSignalSchema = z
   .strict();
 export type ExportCompleteSignal = z.infer<typeof exportCompleteSignalSchema>;
 
-// The control plane mints a scoped GitHub installation token and returns it ECIES-sealed to the
-// requesting deployment's enclave public key (S1) — plaintext exists only momentarily in
-// the minter and then inside the enclave, never on the wire in the clear. `encryptedToken` is a
-// JSON-serialized ECIES message decryptable only by that enclave's ingest private key.
-export const encryptedInstallationTokenSchema = z.object({
-  encryptedToken: z.string(),
-  expiresAt: z.string(),
-});
-export type EncryptedInstallationToken = z.infer<typeof encryptedInstallationTokenSchema>;
+const opaqueCiphertextSchema = z.string().min(1).max(2_000_000);
+
+export const oauthRefreshCommandSchema = z
+  .object({
+    encryptedRefreshToken: opaqueCiphertextSchema,
+    orgId: z.string().uuid(),
+    deploymentId: z.string().uuid(),
+    sourceKind: z.string().min(1).max(64),
+    connectionId: z.string().uuid(),
+    attestationGeneration: z.string().min(1).max(128),
+    attemptId: z.string().regex(/^[a-f0-9]{64}$/),
+    expectedRefreshCiphertextSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
+export type OAuthRefreshCommand = z.infer<typeof oauthRefreshCommandSchema>;
+
+export const enclaveAuthorizationCodeGrantSchema = z
+  .object({
+    version: z.literal(1),
+    deploymentId: z.string().uuid(),
+    orgId: z.string().uuid(),
+    connectionId: z.string().uuid().optional(),
+    sourceKind: z.string().min(1).max(64),
+    callbackUri: z.string().url(),
+    attestationGeneration: z.string().min(1).max(128),
+    stateBindingId: z.string().regex(/^[a-f0-9]{64}$/),
+    authorizationCode: z.string().min(1).max(16_384),
+    codeVerifier: z.string().min(43).max(256).nullable(),
+    accountId: z.string().uuid().optional(),
+    memberEmail: z.string().email().max(320).optional(),
+    issuedAt: z.string().datetime({ offset: true }),
+    expiresAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type EnclaveAuthorizationCodeGrant = z.infer<typeof enclaveAuthorizationCodeGrantSchema>;
+
+// Callback output is deliberately opaque. Authorization codes, PKCE verifiers, provider tokens,
+// and provider response bodies are enclave-only; the control plane may carry this envelope but may
+// not inspect or persist its plaintext members.
+export const sealedAuthorizationCodeSubmissionSchema = z
+  .object({
+    deploymentId: z.string().uuid(),
+    orgId: z.string().uuid(),
+    sourceKind: z.string().min(1).max(64),
+    attestationGeneration: z.string().min(1).max(128),
+    stateBindingId: z.string().regex(/^[a-f0-9]{64}$/),
+    encryptedCodeGrant: opaqueCiphertextSchema,
+    ciphertextSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
+export type SealedAuthorizationCodeSubmission = z.infer<
+  typeof sealedAuthorizationCodeSubmissionSchema
+>;
+
+export const sealedGitHubInstallationSubmissionSchema = z
+  .object({
+    deploymentId: z.string().min(1).max(128),
+    orgId: z.string().min(1).max(128),
+    accountId: z.string().uuid().optional(),
+    sourceKind: z.literal('github'),
+    connectionId: z.string().uuid(),
+    attestationGeneration: z.string().min(1).max(128),
+    stateBindingId: z.string().regex(/^[a-f0-9]{64}$/),
+    installationId: z
+      .string()
+      .regex(/^[0-9]+$/)
+      .max(32),
+  })
+  .strict();
+export type SealedGitHubInstallationSubmission = z.infer<
+  typeof sealedGitHubInstallationSubmissionSchema
+>;
+
+export const connectorOAuthMetadataUpdateSchema = z
+  .object({
+    deploymentId: z.string().uuid(),
+    orgId: z.string().uuid(),
+    sourceKind: z.string().min(1).max(64),
+    connectionId: z.string().min(1).max(128),
+    attestationGeneration: z.string().min(1).max(128),
+    sourceUserId: z.string().min(1).max(256).nullable(),
+    externalTenantId: z.string().min(1).max(256).nullable(),
+    accessCiphertextSha256: z.string().regex(/^[a-f0-9]{64}$/),
+    refreshCiphertextSha256: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .nullable(),
+    outcome: z.enum([
+      'success',
+      'state_invalid',
+      'state_replayed',
+      'code_seal_failed',
+      'provider_rejected',
+      'provider_error',
+      'identity_rejected',
+      'persist_failed',
+    ]),
+  })
+  .strict();
+export type ConnectorOAuthMetadataUpdate = z.infer<typeof connectorOAuthMetadataUpdateSchema>;
+
+export const sealedOAuthCredentialPersistenceSchema = z
+  .object({
+    accountId: z.string().uuid().optional(),
+    encryptedAccessToken: opaqueCiphertextSchema,
+    encryptedRefreshToken: opaqueCiphertextSchema.optional(),
+    metadata: connectorOAuthMetadataUpdateSchema,
+  })
+  .strict();
+export type SealedOAuthCredentialPersistence = z.infer<
+  typeof sealedOAuthCredentialPersistenceSchema
+>;
+
+export const oauthRefreshMetadataUpdateSchema = z
+  .object({
+    deploymentId: z.string().uuid(),
+    orgId: z.string().uuid(),
+    connectionId: z.string().min(1).max(128),
+    sourceKind: z.string().min(1).max(64),
+    attestationGeneration: z.string().min(1).max(128),
+    attemptId: z.string().regex(/^[a-f0-9]{64}$/),
+    priorRefreshCiphertextSha256: z.string().regex(/^[a-f0-9]{64}$/),
+    nextAccessCiphertextSha256: z.string().regex(/^[a-f0-9]{64}$/),
+    nextRefreshCiphertextSha256: z.string().regex(/^[a-f0-9]{64}$/),
+    outcome: z.enum([
+      'success',
+      'unsupported_connector',
+      'no_connection',
+      'unbound_connection',
+      'token_mismatch',
+      'attestation_unavailable',
+      'provider_rejected',
+      'provider_error',
+      'stale_write',
+      'persist_failed',
+    ]),
+  })
+  .strict();
+export type OAuthRefreshMetadataUpdate = z.infer<typeof oauthRefreshMetadataUpdateSchema>;

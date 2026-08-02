@@ -459,15 +459,51 @@ export const wikiPageMetaSchema = z
   .strict();
 export type WikiPageMeta = z.infer<typeof wikiPageMetaSchema>;
 
+const canonicalBase64Schema = z
+  .string()
+  .min(4)
+  .max(2_000_000)
+  .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/);
+
+export const wikiPublishRequestSchema = z
+  .object({
+    requestId: z.string().uuid(),
+    expectedRevisionId: z.string().uuid().nullable(),
+    title: z.string().trim().min(1).max(240),
+    markdown: z.string().max(500_000),
+    yjsState: canonicalBase64Schema,
+  })
+  .strict();
+export type WikiPublishRequest = z.infer<typeof wikiPublishRequestSchema>;
+
+export const wikiPublishResponseSchema = z
+  .object({
+    publicationId: z.string().uuid(),
+    revision: z.number().int().positive(),
+    publishedAt: z.string().datetime(),
+  })
+  .strict();
+export type WikiPublishResponse = z.infer<typeof wikiPublishResponseSchema>;
+
 export const wikiPageResponseSchema = z
   .object({
     themeId: z.string(),
     pageId: z.string(),
-    title: z.string(),
+    publicationId: z.string().uuid().nullable(),
+    revision: z.number().int().positive().nullable(),
+    title: z.string().max(240),
     blocks: z.array(wikiPageBlockSchema),
     meta: wikiPageMetaSchema.nullable(),
   })
-  .strict();
+  .strict()
+  .superRefine((page, context) => {
+    if ((page.publicationId === null) !== (page.revision === null)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'publicationId and revision must both be present or absent',
+      });
+    }
+  });
 export type WikiPageResponse = z.infer<typeof wikiPageResponseSchema>;
 
 // The wiki quality-feedback aggregate (apps/api `GET /api/v1/wiki/quality` flywheel).

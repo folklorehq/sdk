@@ -58,6 +58,20 @@ export const provisioningStatusSchema = provisionOperationSchema
   .strict();
 export type ProvisioningStatus = z.infer<typeof provisioningStatusSchema>;
 
+export const provisioningPhaseSchema = z.enum([
+  'pending',
+  'provisioning',
+  'verifying',
+  'ready',
+  'failed',
+]);
+export type ProvisioningPhase = z.infer<typeof provisioningPhaseSchema>;
+
+export function phaseForProvisioningStatus(status: ProvisioningStatus): ProvisioningPhase {
+  if (status.state === 'provisioned') return status.readyAt ? 'ready' : 'verifying';
+  return status.state;
+}
+
 export const recoveryKeyRegistrationInputSchema = z
   .object({
     publicKeyHex: z.string().regex(/^[0-9a-fA-F]{64}$/),
