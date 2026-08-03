@@ -2,8 +2,7 @@
 export * from './types.js';
 export type { GitHubClient } from './client.js';
 export { OctokitGitHubClient } from './OctokitGitHubClient.js';
-export type { GitHubAppCredentials, InstallationToken } from './installation-auth.js';
-export { mintInstallationToken } from './installation-auth.js';
+export type { GitHubAppCredentials } from './github-app-credentials.js';
 export { GitHubConnector } from './GitHubConnector.js';
 export {
   extractExplicitLinks,
