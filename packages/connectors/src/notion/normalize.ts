@@ -1,10 +1,39 @@
 // SPDX-License-Identifier: Apache-2.0
 import { extractExplicitLinks } from '../github/normalize.js';
-import type { NormalizedFact, NormalizedRecords } from '../normalized.js';
-import type { NotionComment, NotionCommentEvent, NotionPage, NotionPageEvent } from './types.js';
+import type { NormalizedRecords } from '../normalized.js';
+import type { NotionPage, NotionPageEvent } from './types.js';
 
 export function notionPageContainerId(pageId: string): string {
   return `notion:page:${pageId}`;
+}
+
+// Ids-only webhook seed (E7/1c): metadata-only by construction (no content field, so raw drives the
+// embedding); distinct sourceFactId keeps the pull's content-bearing create from being deduped away.
+export function normalizeNotionPageSeed(pageId: string): NormalizedRecords {
+  const containerId = notionPageContainerId(pageId);
+  return {
+    containers: [
+      {
+        sourceContainerId: containerId,
+        shape: 'hierarchical',
+        label: 'notion_page',
+        resourceExternalId: pageId,
+      },
+    ],
+    facts: [
+      {
+        sourceFactId: `notion:page:seed:${pageId}`,
+        kind: 'content',
+        occurredAt: new Date(),
+        resourceExternalId: pageId,
+        authors: [],
+        containerRefs: [containerId],
+        sourceThreadId: containerId,
+        entities: [pageId],
+        raw: { pageId },
+      },
+    ],
+  };
 }
 
 /** Structural ids Notion guarantees: the page id plus its parent database/page id. */
@@ -13,10 +42,6 @@ function notionPageEntities(page: NotionPage): string[] {
   const parentId = page.parent.database_id ?? page.parent.page_id;
   if (parentId) entities.push(parentId);
   return entities;
-}
-
-function notionCommentEntities(comment: NotionComment): string[] {
-  return [comment.parent.page_id, comment.discussion_id];
 }
 
 function pageTitle(page: NotionPage): string {
@@ -78,26 +103,4 @@ export function normalizeNotionPageEvent(event: NotionPageEvent): NormalizedReco
       },
     ],
   };
-}
-
-export function normalizeNotionCommentEvent(event: NotionCommentEvent): NormalizedRecords {
-  const { comment } = event;
-  const pageId = comment.parent.page_id;
-  const containerId = notionPageContainerId(pageId);
-  const body = comment.rich_text.map((t) => t.plain_text).join('');
-
-  const fact: NormalizedFact = {
-    sourceFactId: `notion:comment:${comment.id}`,
-    kind: 'content',
-    occurredAt: new Date(comment.created_time),
-    resourceExternalId: pageId,
-    authors: [{ sourceUserId: comment.created_by.id, role: 'author' }],
-    containerRefs: [containerId],
-    sourceThreadId: containerId,
-    entities: notionCommentEntities(comment),
-    content: { body, explicitLinks: [] },
-    raw: comment,
-  };
-
-  return { containers: [], facts: [fact] };
 }

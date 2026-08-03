@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { BaseConnector } from '../BaseConnector.js';
+import { notionWebhookEventSchema } from '@folklore/contracts';
 import type {
   ConnectorContext,
   PullOptions,
@@ -10,8 +11,8 @@ import type {
 import type { NormalizedFact, NormalizedRecords, NormalizedResource } from '../normalized.js';
 import { isCreateEvent } from '../pull-classification.js';
 import type { NotionApiClient } from './client.js';
-import { normalizeNotionCommentEvent, normalizeNotionPageEvent } from './normalize.js';
-import type { NotionCommentEvent, NotionPageEvent } from './types.js';
+import { normalizeNotionPageEvent, normalizeNotionPageSeed } from './normalize.js';
+import type { NotionPageEvent } from './types.js';
 
 export class NotionConnector extends BaseConnector {
   readonly kind = 'notion';
@@ -52,13 +53,28 @@ export class NotionConnector extends BaseConnector {
   }
 
   normalizeWebhook(event: WebhookEvent): NormalizedRecords {
-    const type = event.type as string;
-    if (type === 'page.created' || type === 'page.updated') {
-      return normalizeNotionPageEvent(event.payload as NotionPageEvent);
+    const parsed = notionWebhookEventSchema.safeParse(event.payload);
+    if (!parsed.success) {
+      this.logger.warn('notion webhook: unrecognized payload shape');
+      return { containers: [], facts: [] };
     }
-    if (type === 'comment.created') {
-      return normalizeNotionCommentEvent(event.payload as NotionCommentEvent);
+    const { type, entity, data } = parsed.data;
+    if (type === 'page.created') {
+      const pageId =
+        typeof entity?.id === 'string'
+          ? entity.id
+          : typeof data.page_id === 'string'
+            ? data.page_id
+            : typeof data.id === 'string'
+              ? data.id
+              : undefined;
+      if (pageId === undefined) {
+        this.logger.warn('notion webhook: page.created without a resolvable page id', { type });
+        return { containers: [], facts: [] };
+      }
+      return normalizeNotionPageSeed(pageId);
     }
+    this.logger.warn('notion webhook: event skipped', { type });
     return { containers: [], facts: [] };
   }
 }

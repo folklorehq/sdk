@@ -4,7 +4,7 @@ export { NotionClient } from './NotionClient.js';
 export type { NotionApiClient } from './client.js';
 export {
   normalizeNotionPageEvent,
-  normalizeNotionCommentEvent,
+  normalizeNotionPageSeed,
   notionPageContainerId,
 } from './normalize.js';
-export type { NotionPage, NotionPageEvent, NotionCommentEvent } from './types.js';
+export type { NotionPage, NotionPageEvent } from './types.js';

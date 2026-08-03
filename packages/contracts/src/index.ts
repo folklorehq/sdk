@@ -8,6 +8,7 @@ export * from './me.js';
 export * from './member-identity-links.js';
 export * from './metrics.js';
 export * from './notifications.js';
+export * from './notion.js';
 export * from './onboarding.js';
 export * from './orgs.js';
 export * from './preview.js';

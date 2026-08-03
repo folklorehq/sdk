@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { isCreateEvent } from '../src/pull-classification.js';
+import { isCalendarCreateEvent, isCreateEvent } from '../src/pull-classification.js';
 
 const WINDOW_START = '2025-06-01T00:00:00.000Z';
 
@@ -29,5 +29,27 @@ describe('isCreateEvent', () => {
 
   it('is an update when the created time is unknown but a lower bound applies', () => {
     expect(isCreateEvent(undefined, WINDOW_START)).toBe(false);
+  });
+});
+
+describe('isCalendarCreateEvent', () => {
+  it('is a create for an in-window event with no updated timestamp', () => {
+    expect(isCalendarCreateEvent('2026-01-01T00:00:00Z', undefined, WINDOW_START)).toBe(true);
+  });
+
+  it('is a create for an in-window event updated at or before creation', () => {
+    expect(
+      isCalendarCreateEvent('2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', WINDOW_START),
+    ).toBe(true);
+  });
+
+  it('is an update for an in-window event edited after creation', () => {
+    expect(
+      isCalendarCreateEvent('2026-01-01T00:00:00Z', '2026-07-01T00:00:00Z', WINDOW_START),
+    ).toBe(false);
+  });
+
+  it('is an update when the event predates the window even if unmodified', () => {
+    expect(isCalendarCreateEvent('2025-01-01T00:00:00Z', undefined, WINDOW_START)).toBe(false);
   });
 });

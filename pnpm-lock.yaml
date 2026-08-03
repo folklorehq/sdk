@@ -53,6 +53,9 @@ importers:
       '@folklore/utils':
         specifier: workspace:*
         version: link:../utils
+      '@googleapis/calendar':
+        specifier: ^9.8.0
+        version: 9.8.0
       '@googleapis/drive':
         specifier: ^8.0.0
         version: 8.16.0
@@ -678,6 +681,10 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@googleapis/calendar@9.8.0':
+    resolution: {integrity: sha512-5IG4x/bOvdDFLEzNX/HyvN4LUtuMFTv4eYqZcgwSWBHiBwCfN1zIVLPP6ENbIOR5sIceLpOS35NqknoaAiTJ1g==}
+    engines: {node: '>=12.0.0'}
 
   '@googleapis/drive@8.16.0':
     resolution: {integrity: sha512-Xi2mMrUTQ+gsfyouRGd0pfnL+jjg4n4sjKsJruM1y4DknuRfdSBTk5E//WrL0YJ/CqpcBgyd7L8DvaPRtxZD3Q==}
@@ -2053,6 +2060,13 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
+
+  '@googleapis/calendar@9.8.0':
+    dependencies:
+      googleapis-common: 7.2.0
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
 
   '@googleapis/drive@8.16.0':
     dependencies:
