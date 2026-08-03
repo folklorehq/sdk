@@ -9,6 +9,7 @@ export const themeGraphNodeSchema = z.object({
   isAggregate: z.boolean(),
   importance: z.number(),
   factCount: z.number(),
+  sources: z.array(z.string()),
   updatedAt: z.string(),
   ownerTeamId: z.string().nullable(),
   ownerTeamName: z.string().nullable(),
