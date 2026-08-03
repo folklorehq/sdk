@@ -44,6 +44,31 @@ export const provisioningFailureCodeSchema = z.enum([
 ]);
 export type ProvisioningFailureCode = z.infer<typeof provisioningFailureCodeSchema>;
 
+// The response body carries `AppError.code` — the taxonomy bucket (`not_found`, `rate_limit`) — so
+// the specific cause rides a separate `reason` field. Defined once here because the control plane
+// throws these and the console branches on them; two inline copies is how the two sides drift.
+export const provisioningRefusalReasonSchema = z.enum([
+  'organization_not_found',
+  'provisioning_not_invited',
+  'provisioning_build_in_progress',
+  'provisioning_fleet_full',
+]);
+export type ProvisioningRefusalReason = z.infer<typeof provisioningRefusalReasonSchema>;
+
+export const PROVISIONING_REFUSAL_REASON = {
+  organizationNotFound: 'organization_not_found',
+  notInvited: 'provisioning_not_invited',
+  buildInProgress: 'provisioning_build_in_progress',
+  fleetFull: 'provisioning_fleet_full',
+} as const satisfies Record<string, ProvisioningRefusalReason>;
+
+export const orgCreationRefusalReasonSchema = z.enum(['organization_quota_exceeded']);
+export type OrgCreationRefusalReason = z.infer<typeof orgCreationRefusalReasonSchema>;
+
+export const ORG_CREATION_REFUSAL_REASON = {
+  quotaExceeded: 'organization_quota_exceeded',
+} as const satisfies Record<string, OrgCreationRefusalReason>;
+
 export const provisionOperationSchema = z
   .object({
     operationId: z.string().uuid(),
