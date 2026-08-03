@@ -13,6 +13,7 @@ export * from './orgs.js';
 export * from './preview.js';
 export * from './review.js';
 export * from './search.js';
+export * from './sources.js';
 export * from './themes.js';
 export * from './wiki.js';
 export * from './wiki-export.js';
