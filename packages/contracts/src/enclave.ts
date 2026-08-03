@@ -560,7 +560,7 @@ export const sealedGitHubInstallationSubmissionSchema = z
     deploymentId: z.string().min(1).max(128),
     orgId: z.string().min(1).max(128),
     accountId: z.string().uuid().optional(),
-    sourceKind: z.literal('github'),
+    sourceKind: z.union([z.literal('github'), z.literal('code')]),
     connectionId: z.string().uuid(),
     attestationGeneration: z.string().min(1).max(128),
     stateBindingId: z.string().regex(/^[a-f0-9]{64}$/),

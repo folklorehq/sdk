@@ -23,6 +23,8 @@ export interface PullResult extends NormalizedRecords {
   /** Cursor to pass to the next `pull()`. */
   cursor: SyncCursor;
   hasMore: boolean;
+  /** Connector-internal early-return marker (rate-limited/enumeration-failed): the runner keeps the cursor and advances its tick exactly once. */
+  earlyReturn?: true;
 }
 
 /** Dependencies injected into every connector at construction. */
