@@ -16,6 +16,7 @@ export const TelemetryEvent = {
   SubscriptionSeatsChanged: 'subscription.seats_changed',
   WikiViewed: 'wiki.viewed',
   ReviewActioned: 'review.actioned',
+  ReviewSnippetsDegraded: 'review.snippets_degraded',
   FactIngested: 'fact.ingested',
   FactScored: 'fact.scored',
   FactPromoted: 'fact.promoted',
@@ -174,6 +175,8 @@ type ErrorEvents = {
   'inference.attestation_failed': { reason: string };
   'inference.error': { model: string; errorType: string };
   'notification.send_failed': { orgId: string; channel: 'email' | 'slack'; errorType: string };
+  // Review queue's snippet seam threw a non-AppError; rows rendered snippet-less (never a 500).
+  'review.snippets_degraded': { orgId: string };
   'worker.error': { component: string; errorType: string; orgId?: string };
   // The PostgreSQL owner and routing entry failed to converge. Never send the external ID.
   'source.routing_conflict': {

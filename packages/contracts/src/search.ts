@@ -2,9 +2,10 @@
 import { z } from 'zod';
 
 const SEARCH_MAX_LIMIT = 100;
-// The enclave truncates every preview to this before it leaves the index (fact-retriever SNIPPET_LIMIT
-// / answerer CITATION_SNIPPET_LIMIT); the bound is asserted on the wire so an over-long body can't ride the field.
-const SNIPPET_MAX_CHARS = 280;
+// The enclave truncates every preview to this before it leaves the index (enclave EnclaveFactRetriever
+// imports this same constant; answerer CITATION_SNIPPET_LIMIT); the bound is asserted on the wire so an
+// over-long body can't ride the field.
+export const SNIPPET_MAX_CHARS = 280;
 
 /** A single audience-gated fact hit — content-free metadata plus a decrypted snippet the caller is allowed to see. */
 export const searchResultSchema = z.object({

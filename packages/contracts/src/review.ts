@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
+import { SNIPPET_MAX_CHARS } from './search.js';
 
-/** One medium-confidence fact↔container association awaiting human disposition — content-free metadata only. */
+/** One medium-confidence fact↔container association awaiting human disposition — content-free metadata plus a decrypted snippet the caller is allowed to see. */
 export const reviewQueueItemSchema = z.object({
   scoreId: z.string(),
   factId: z.string(),
@@ -12,6 +13,7 @@ export const reviewQueueItemSchema = z.object({
   scoredAt: z.string(),
   fact: z.object({ kind: z.string(), occurredAt: z.string(), sourceId: z.string() }),
   container: z.object({ label: z.string(), shape: z.string() }),
+  snippet: z.string().max(SNIPPET_MAX_CHARS).optional(),
 });
 export type ReviewQueueItem = z.infer<typeof reviewQueueItemSchema>;
 
