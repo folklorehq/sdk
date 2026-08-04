@@ -77,5 +77,7 @@ describe('buildRecoveryFileContents', () => {
     expect(file).toContain(m.publicKeyHex);
     expect(file).toContain('CANNOT recover');
     expect(file).toContain('Acme');
+    expect(file).toContain('Keep these words secret');
+    expect(file).not.toContain('docs/security/master-key-recovery.md');
   });
 });

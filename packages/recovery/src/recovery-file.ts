@@ -30,8 +30,7 @@ export function buildRecoveryFileContents(
     `Recovery public key (shared with Folklore, not secret): ${material.publicKeyHex}`,
     `Fingerprint (verify this matches the console): ${material.fingerprint}`,
     '',
-    'To recover: follow docs/security/master-key-recovery.md. The phrase above derives',
-    'the X25519 private key that decrypts your sealed recovery blob.',
+    'Keep these words secret: anyone who holds them can recover your workspace data.',
     '',
   ].join('\n');
 }
