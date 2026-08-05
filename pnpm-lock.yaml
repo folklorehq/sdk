@@ -64,7 +64,7 @@ importers:
         version: 87.0.0(graphql@17.0.2)
       '@notionhq/client':
         specifier: ^5.22.0
-        version: 5.23.3
+        version: 5.24.0
       '@octokit/rest':
         specifier: ^21.0.0
         version: 21.1.1
@@ -193,7 +193,7 @@ importers:
         version: 9.39.5
       tsx:
         specifier: ^4.19.1
-        version: 4.23.5
+        version: 4.23.8
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
@@ -310,7 +310,7 @@ importers:
         version: link:../errors
       posthog-node:
         specifier: ^5.39.1
-        version: 5.47.10
+        version: 5.48.0
     devDependencies:
       '@folklore/tsconfig':
         specifier: workspace:*
@@ -736,8 +736,8 @@ packages:
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
 
-  '@notionhq/client@5.23.3':
-    resolution: {integrity: sha512-Uk0ycO+u6+iueoE/eK9Aa/DGWd2tZ9ymvGF/MXcfxXXL+AS2JYWm1ols19rEk5qOdZ0l2KYc6zThx0iXQ3QhpQ==}
+  '@notionhq/client@5.24.0':
+    resolution: {integrity: sha512-fd71hjK6QZYggwWdaBeLu4ajBQ4HTK0R6bj7v9GMFhilgsdMRJ5HDHQtKbc8/y6E5XXLYgNpDz78Q+BdXHa1ug==}
     engines: {node: '>=18'}
 
   '@octokit/auth-token@5.1.2':
@@ -801,11 +801,11 @@ packages:
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
 
-  '@posthog/core@1.46.7':
-    resolution: {integrity: sha512-Oxsa6AvXXtNhHI+BDMBvysSg9lPIrMKWP9mKKgqD9M0jgyZN1GuIxIXI3T+0h9kLRWdIFFIOGaNNrCmFTg6Dzw==}
+  '@posthog/core@1.46.8':
+    resolution: {integrity: sha512-WQTSwlFhsWk09xngTimHiTyhFU8QZHFZEGSm+6brY3acwYdvTLcTxpIhgl/qOCgn/XoqlCFTZqU1ldWLxNntfA==}
 
-  '@posthog/types@1.401.0':
-    resolution: {integrity: sha512-tLGiHJhYoGMFkcB5kPT3eTOMAKQYd8Wsm2H+RvMkDehY2YJwLjr2wrJ3DcRddpdivqT0TYT9TAMWKSNRzNSMtg==}
+  '@posthog/types@1.402.1':
+    resolution: {integrity: sha512-4PZ9wMYI8m8AqJuZ9YR1IAHGVtSnYbBVBgTevrKpzZbcSe/OUwhEV2Ks//rJh/L8eMTU8R5DrD4D/hlrOwaAiQ==}
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
     resolution: {integrity: sha512-RrPokAb7dmbxFoeO3TloqHyOjgye8RkBhSqmp4aJMIex4c9r46ZstPnleDQOq1t46VOVjwIuwNogIqbodV1Vvg==}
@@ -1589,8 +1589,8 @@ packages:
     resolution: {integrity: sha512-DTPx3RWSSnWyzLxQnlH0rJP+EW5ekl16ZU4/psbIhA0e53kJfdgaN5vKM+xP7yJtXVu+nfdVFmlgFDEKAe4Pyw==}
     engines: {node: ^10 || ^12 || >=14}
 
-  posthog-node@5.47.10:
-    resolution: {integrity: sha512-GNQCwALevyYLn/i7q3EjwBDx5Yj6RBSGuBOqoTO3yfatVFWbxOtk/IXQsyGejl55vM4uSfU0tRFweYB5FHZtIw==}
+  posthog-node@5.48.0:
+    resolution: {integrity: sha512-YIH82XV24aa1nnVph1ndiW/vBN2QDIKlrHNEJcmAYutMGeoGC4WeEefg7O5aD3dDcO5dzociy8sVwXq4tNDYsQ==}
     engines: {node: ^20.20.0 || >=22.22.0}
     peerDependencies:
       rxjs: ^7.0.0
@@ -1740,8 +1740,8 @@ packages:
   tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
 
-  tsx@4.23.5:
-    resolution: {integrity: sha512-rw55FUaqOoI7RvlQwLbhO4nSDApnQ4/CykPuiQ/EPvtrX3WA9Ig55jIt9VvbBJbzJuj12ueRu4PMZ2SxPVbihg==}
+  tsx@4.23.8:
+    resolution: {integrity: sha512-8W675THjbzfFmLOQzjDBIBna+WjqMGIxmSZ1mMc1+o9qoVsEuAgQu5j5ueLhau8inOkDu9OslVg0FmfBs1RIHw==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -2112,7 +2112,7 @@ snapshots:
 
   '@noble/hashes@1.8.0': {}
 
-  '@notionhq/client@5.23.3': {}
+  '@notionhq/client@5.24.0': {}
 
   '@octokit/auth-token@5.1.2': {}
 
@@ -2184,11 +2184,11 @@ snapshots:
 
   '@pinojs/redact@0.4.0': {}
 
-  '@posthog/core@1.46.7':
+  '@posthog/core@1.46.8':
     dependencies:
-      '@posthog/types': 1.401.0
+      '@posthog/types': 1.402.1
 
-  '@posthog/types@1.401.0': {}
+  '@posthog/types@1.402.1': {}
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
     optional: true
@@ -3013,9 +3013,9 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  posthog-node@5.47.10:
+  posthog-node@5.48.0:
     dependencies:
-      '@posthog/core': 1.46.7
+      '@posthog/core': 1.46.8
 
   prelude-ls@1.2.1: {}
 
@@ -3167,7 +3167,7 @@ snapshots:
 
   tr46@0.0.3: {}
 
-  tsx@4.23.5:
+  tsx@4.23.8:
     dependencies:
       esbuild: 0.28.1
     optionalDependencies:

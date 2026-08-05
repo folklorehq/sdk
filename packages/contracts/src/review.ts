@@ -11,7 +11,7 @@ export const reviewQueueItemSchema = z.object({
   signals: z.unknown(),
   confidence: z.string(),
   scoredAt: z.string(),
-  fact: z.object({ kind: z.string(), occurredAt: z.string(), sourceId: z.string() }),
+  fact: z.object({ kind: z.string(), occurredAt: z.string(), sourceKind: z.string() }),
   container: z.object({ label: z.string(), shape: z.string() }),
   snippet: z.string().max(SNIPPET_MAX_CHARS).optional(),
 });

@@ -10,7 +10,7 @@ const BASE = {
   signals: { threadIdMatch: 1 },
   confidence: 'low',
   scoredAt: '2024-01-01T00:00:00.000Z',
-  fact: { kind: 'content', occurredAt: '2024-01-01T00:00:00.000Z', sourceId: 'src-1' },
+  fact: { kind: 'content', occurredAt: '2024-01-01T00:00:00.000Z', sourceKind: 'github' },
   container: { label: 'Billing', shape: 'theme' },
 };
 

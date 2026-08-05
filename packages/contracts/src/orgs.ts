@@ -219,7 +219,12 @@ export const orgOverviewSchema = z
       })
       .strict(),
     deployment: z
-      .object({ provisioningStatus: z.string(), healthStatus: z.string() })
+      .object({
+        provisioningStatus: z.string(),
+        healthStatus: z.string(),
+        /** Last enclave check-in; null until the enclave has ever reported in. */
+        lastSeenAt: z.string().nullable(),
+      })
       .strict()
       .nullable(),
     counts: z

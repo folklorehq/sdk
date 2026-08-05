@@ -13,6 +13,7 @@ export const searchResultSchema = z.object({
   kind: z.string(),
   occurredAt: z.string(),
   sourceId: z.string(),
+  sourceKind: z.string(),
   distance: z.number(),
   snippet: z.string().max(SNIPPET_MAX_CHARS).optional(),
 });
