@@ -97,8 +97,7 @@ test('no-orm-prefixed-classes flags Drizzle/Postgres classes, allows carve-outs'
     valid: [
       'export class OrganizationRepository {}',
       'export class DrizzleDb {}',
-      'export class PostgresDatabase {}',
-      'export class PostgresFleetDatabase {}',
+      'export class PostgresHealthCheck {}',
     ],
     invalid: [
       {

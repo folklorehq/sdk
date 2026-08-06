@@ -1,12 +1,6 @@
 const FORBIDDEN = /^(Drizzle|Postgres)[A-Z]/;
 // <Tech><Role> adapters with 2+ production backends / DB drivers — carve-out
-const ALLOWLIST = new Set([
-  'DrizzleDb',
-  'PostgresDatabase',
-  'PostgresFleetDatabase',
-  'PostgresHealthCheck',
-  'PostgresCommandAuditLog',
-]);
+const ALLOWLIST = new Set(['DrizzleDb', 'PostgresHealthCheck']);
 
 export const noOrmPrefixedClasses = {
   meta: {
