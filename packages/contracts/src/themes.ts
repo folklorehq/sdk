@@ -52,6 +52,5 @@ export type ThemeMergeReviewList = z.infer<typeof themeMergeReviewListSchema>;
 
 export const themeMergeActionSchema = z.object({
   action: z.enum(['approve', 'reject']),
-  reason: z.string().nullish(),
 });
 export type ThemeMergeAction = z.infer<typeof themeMergeActionSchema>;

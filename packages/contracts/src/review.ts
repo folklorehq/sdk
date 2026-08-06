@@ -25,6 +25,5 @@ export type ReviewQueue = z.infer<typeof reviewQueueSchema>;
 
 export const reviewActionSchema = z.object({
   action: z.enum(['assign', 'remove']),
-  reason: z.string().nullish(),
 });
 export type ReviewAction = z.infer<typeof reviewActionSchema>;
