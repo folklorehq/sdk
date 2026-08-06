@@ -8,9 +8,32 @@ const WIKI_CONTENT_FORMAT = 'esdk-v1';
 export const factKindSchema = z.enum(['content', 'transition']);
 export type FactKind = z.infer<typeof factKindSchema>;
 
+// Our own literals, never customer text — the label lookup they key is shared, not per-tenant.
+export const containerLabelSchema = z.enum([
+  'calendar_event',
+  'code_repo',
+  'confluence_page',
+  'email_thread',
+  'github_pr',
+  'github_repo',
+  'google_doc',
+  'intercom_conversation',
+  'jira_issue',
+  'linear_issue',
+  'meeting_transcript',
+  'microsoft365_doc',
+  'notion_page',
+  'slack_channel',
+  'slack_thread',
+  'unknown',
+]);
+export type ContainerLabel = z.infer<typeof containerLabelSchema>;
+
 export const containerSeedSchema = z.object({
   sourceContainerId: z.string(),
-  label: z.string(),
+  // Degrades rather than failing the parse: the worker acks and discards a rejected ProcessedFact,
+  // so a narrowing enum would lose facts whenever a connector ships ahead of the worker.
+  label: containerLabelSchema.catch('unknown'),
   shape: z.string(),
 });
 export type ContainerSeed = z.infer<typeof containerSeedSchema>;

@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { extractExplicitLinks } from '../github/normalize.js';
-import type { NormalizedActor, NormalizedFact, NormalizedRecords } from '../normalized.js';
+import type {
+  NormalizedActor,
+  NormalizedContainer,
+  NormalizedFact,
+  NormalizedRecords,
+} from '../normalized.js';
 import type { CalendarAttendee, CalendarEvent, CalendarEventTime } from './types.js';
 
 const CONTAINER_LABEL = 'calendar_event';
@@ -114,10 +119,10 @@ function containerIdFor(ns: CalendarNamespace, eventId: string): string {
   return `${ns}:event:${eventId}`;
 }
 
-function seedContainer(containerId: string, resourceExternalId: string) {
+function seedContainer(containerId: string, resourceExternalId: string): NormalizedContainer {
   return {
     sourceContainerId: containerId,
-    shape: 'event' as const,
+    shape: 'event',
     label: CONTAINER_LABEL,
     resourceExternalId,
   };

@@ -28,7 +28,6 @@ const FROZEN: Record<string, string[]> = {
     'bodyHash',
     'bodyS3Key',
     'containerRefs[]',
-    'containerSeeds[].label',
     'containerSeeds[].shape',
     'containerSeeds[].sourceContainerId',
     'explicitLinks[]',

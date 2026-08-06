@@ -3,6 +3,8 @@
 // consumes these and persists them as rows in @folklore/tenant-db — connectors never
 // touch the database themselves.
 
+import type { ContainerLabel } from '@folklore/contracts';
+
 /** Mirrors the `container_shape` enum in @folklore/tenant-db (keep in sync). */
 export type ContainerShape = 'flat' | 'stateful' | 'hierarchical' | 'event';
 
@@ -67,8 +69,7 @@ export interface NormalizedFact {
 export interface NormalizedContainer {
   sourceContainerId: string;
   shape: ContainerShape;
-  /** Open-ended label, e.g. 'github_pr' | 'slack_thread' | 'unknown'. */
-  label: string;
+  label: ContainerLabel;
   resourceExternalId?: string;
 }
 
