@@ -30,9 +30,7 @@ function argumentLeaksContent(arg) {
   if (arg.type === 'SpreadElement') return isContentIdentifier(arg.argument);
   if (isContentIdentifier(arg)) return true;
   if (arg.type === 'ObjectExpression') {
-    return arg.properties.some(
-      (p) => p.type === 'Property' && isContentIdentifier(p.value),
-    );
+    return arg.properties.some((p) => p.type === 'Property' && isContentIdentifier(p.value));
   }
   if (arg.type === 'TemplateLiteral') {
     return arg.expressions.some(isContentIdentifier);

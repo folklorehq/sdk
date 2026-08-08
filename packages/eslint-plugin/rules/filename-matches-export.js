@@ -22,8 +22,7 @@ export const filenameMatchesExport = {
     messages: {
       shouldBePascal:
         'Primary export is class/component "{{name}}" — rename file to {{name}}.{{ext}}.',
-      shouldMatch:
-        'PascalCase file "{{file}}" must export a class or component named "{{stem}}".',
+      shouldMatch: 'PascalCase file "{{file}}" must export a class or component named "{{stem}}".',
     },
   },
   create(context) {
@@ -49,12 +48,18 @@ export const filenameMatchesExport = {
           if (node.specifiers.length > 0) otherValueExports += 1;
           return;
         }
-        if (decl.type === 'TSTypeAliasDeclaration' || decl.type === 'TSInterfaceDeclaration') return;
+        if (decl.type === 'TSTypeAliasDeclaration' || decl.type === 'TSInterfaceDeclaration')
+          return;
         if (decl.type === 'ClassDeclaration' && decl.id?.name) {
           classOrComponent.push(decl.id.name);
           return;
         }
-        if (isTsx && decl.type === 'FunctionDeclaration' && decl.id?.name && /^[A-Z]/.test(decl.id.name)) {
+        if (
+          isTsx &&
+          decl.type === 'FunctionDeclaration' &&
+          decl.id?.name &&
+          /^[A-Z]/.test(decl.id.name)
+        ) {
           classOrComponent.push(decl.id.name);
           return;
         }

@@ -34,6 +34,34 @@ export const orgInviteContextSchema = z
   .strict();
 export type OrgInviteContext = z.infer<typeof orgInviteContextSchema>;
 
+// Session-gated pending-invite listing (`GET /v1/invites/pending`): opaque ids, never the one-time
+// token; email matching is enforced server-side against the session's `accountEmail`.
+export const pendingOrgInviteSchema = z
+  .object({
+    id: z.string().uuid(),
+    orgId: z.string().uuid(),
+    orgName: z.string(),
+    role: membershipRoleSchema,
+  })
+  .strict();
+export type PendingOrgInvite = z.infer<typeof pendingOrgInviteSchema>;
+
+export const pendingBetaInviteSchema = z
+  .object({
+    id: z.string().uuid(),
+    email: z.string(),
+  })
+  .strict();
+export type PendingBetaInvite = z.infer<typeof pendingBetaInviteSchema>;
+
+export const pendingInvitesSchema = z
+  .object({
+    orgInvites: z.array(pendingOrgInviteSchema),
+    betaInvite: pendingBetaInviteSchema.nullable(),
+  })
+  .strict();
+export type PendingInvites = z.infer<typeof pendingInvitesSchema>;
+
 export const provisioningStateSchema = z.enum(['pending', 'provisioning', 'provisioned', 'failed']);
 export type ProvisioningState = z.infer<typeof provisioningStateSchema>;
 

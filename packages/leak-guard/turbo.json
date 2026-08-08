@@ -1,0 +1,19 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "../../infra/src/enclave.ts",
+        "../../infra/src/enclave-userdata.ts",
+        "../../infra/src/shared-enclave.ts",
+        "../../ingest-proxy/src/lambdas/handler.ts",
+        "../../preview-proxy/src/SsrfSafeFetcher.ts",
+        "../../preview-proxy/src/ssrf.ts",
+        "../../enclave/entrypoint.sh"
+      ]
+    }
+  }
+}

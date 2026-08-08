@@ -9,8 +9,7 @@ export const noLayerDirFiles = {
     },
     schema: [],
     messages: {
-      layerDir:
-        'Layer dir file: colocate under src/<domain>/, not src/{{layer}}/.',
+      layerDir: 'Layer dir file: colocate under src/<domain>/, not src/{{layer}}/.',
     },
   },
   create(context) {

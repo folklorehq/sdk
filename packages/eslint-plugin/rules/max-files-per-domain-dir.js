@@ -21,7 +21,13 @@ export const maxFilesPerDomainDir = {
       description:
         'Warn when a domain directory holds too many sibling source files; split by sub-domain',
     },
-    schema: [{ type: 'object', properties: { max: { type: 'integer', minimum: 1 } }, additionalProperties: false }],
+    schema: [
+      {
+        type: 'object',
+        properties: { max: { type: 'integer', minimum: 1 } },
+        additionalProperties: false,
+      },
+    ],
     messages: {
       tooMany:
         'Domain dir "{{dir}}" has {{count}} sibling source files (max {{max}}). Split by sub-domain — do not re-add top-level layer dirs.',

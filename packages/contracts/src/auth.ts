@@ -18,6 +18,10 @@ export type MagicLinkRequest = z.infer<typeof magicLinkRequestSchema>;
 export const magicLinkRequestResultSchema = z.object({ ok: z.literal(true) }).strict();
 export type MagicLinkRequestResult = z.infer<typeof magicLinkRequestResultSchema>;
 
+// Closed-beta refusal: the address has no invite.
+export const magicLinkRefusedSchema = z.object({ error: z.literal('not_invited') }).strict();
+export type MagicLinkRefused = z.infer<typeof magicLinkRefusedSchema>;
+
 // TOTP (authenticator-app) MFA for control-plane / console sign-in. A 6-digit TOTP code or a
 // recovery code (letters/digits + optional separators) is accepted where a code is required.
 const MFA_CODE_MIN = 6;

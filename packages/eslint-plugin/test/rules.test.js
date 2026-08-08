@@ -16,7 +16,7 @@ test('no-content-in-sinks flags content identifiers reaching a sink, allows meta
   tester.run('no-content-in-sinks', plugin.rules['no-content-in-sinks'], {
     valid: [
       "logger.info('persisted', { factId, orgId })",
-      "cache.set(key, factId)",
+      'cache.set(key, factId)',
       "telemetry.track('fact.ingested', orgId, { sourceKind })",
       "logger.error('failed', { id: msg.MessageId })",
     ],
@@ -26,7 +26,7 @@ test('no-content-in-sinks flags content identifiers reaching a sink, allows meta
         errors: [{ messageId: 'contentInSink' }],
       },
       {
-        code: "cache.set(key, decryptedBody)",
+        code: 'cache.set(key, decryptedBody)',
         errors: [{ messageId: 'contentInSink' }],
       },
       {
@@ -34,7 +34,7 @@ test('no-content-in-sinks flags content identifiers reaching a sink, allows meta
         errors: [{ messageId: 'contentInSink' }],
       },
       {
-        code: "logger.warn(`leaked ${factBody}`)",
+        code: 'logger.warn(`leaked ${factBody}`)',
         errors: [{ messageId: 'contentInSink' }],
       },
     ],
@@ -138,6 +138,7 @@ test('filename-matches-export requires PascalCase for a single exported class', 
   });
 });
 
+
 test('no-src-imports-from-test flags climbing into test/', () => {
   tester.run('no-src-imports-from-test', plugin.rules['no-src-imports-from-test'], {
     valid: [
@@ -155,3 +156,4 @@ test('no-src-imports-from-test flags climbing into test/', () => {
     ],
   });
 });
+
