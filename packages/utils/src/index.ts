@@ -7,6 +7,7 @@ export { groupBy, chunk } from './collection.js';
 export { mapWithConcurrency, timeLimited, sleep } from './async.js';
 export { parseJsonFence, extractJsonObject } from './json.js';
 export { ingestWebhookUrl } from './ingest.js';
+export { isAllowedRecallMeetingUrl } from './recall/meeting-host.js';
 export { mulberry32, seedFromString } from './random.js';
 export { clamp01, cosine, mean, median, jaccard } from './math.js';
 export {
