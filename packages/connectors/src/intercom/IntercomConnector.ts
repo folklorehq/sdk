@@ -91,12 +91,13 @@ export class IntercomConnector extends BaseConnector {
     const truncated = drained.budgetExceeded || page.nextStartingAfter !== undefined;
     const retry = this.resolveRetry(state, drained, isMidDrain);
 
-    this.logger.debug('intercom pull complete', {
-      facts: drained.facts.length,
-      conversations: page.conversations.length,
-      truncated,
-      budgetExceeded: drained.budgetExceeded,
-    });
+    this.logger.debug('intercom_pull_facts', { count: drained.facts.length });
+    this.logger.debug('intercom_pull_conversations', { count: page.conversations.length });
+    if (truncated) {
+      this.logger.debug('intercom_pull_truncated', {
+        outcome: drained.budgetExceeded ? 'budget_exceeded' : 'page_pending',
+      });
+    }
 
     const value = this.buildCursorValue(
       page,
@@ -208,32 +209,24 @@ export class IntercomConnector extends BaseConnector {
   // this warning rather than silently dropped.
   private logPageIssues(page: IntercomConversationPage): void {
     if (page.retrieveFailedConversationIds.length > 0) {
-      this.logger.warn('intercom retrieve fan-out had failures', {
-        failures: page.retrieveFailedConversationIds.length,
-        conversations: page.conversations.length,
+      this.logger.warn('intercom_retrieve_failures', {
+        count: page.retrieveFailedConversationIds.length,
       });
     }
     if (page.truncatedConversations) {
-      this.logger.warn('intercom conversation exceeded the 500-part Retrieve cap', {
-        truncatedConversations: page.truncatedConversations,
-        conversations: page.conversations.length,
+      this.logger.warn('intercom_conversation_truncated', {
+        count: page.truncatedConversations,
       });
     }
     if (page.partsMissingId) {
-      this.logger.warn(
-        'intercom dropped conversation parts with no id — cannot be safely ingested',
-        {
-          partsMissingId: page.partsMissingId,
-          conversations: page.conversations.length,
-        },
-      );
+      this.logger.warn('intercom_parts_missing_id', { count: page.partsMissingId });
     }
   }
 
   normalizeWebhook(event: WebhookEvent): NormalizedRecords {
     const parsed = IntercomNotificationEventSchema.safeParse(event.payload);
     if (!parsed.success) {
-      this.logger.debug('intercom webhook: unrecognized payload shape');
+      this.logger.debug('intercom_webhook_unrecognized_payload_shape');
       return { containers: [], facts: [] };
     }
     return normalizeIntercomEvent(parsed.data);
@@ -308,10 +301,7 @@ export class IntercomConnector extends BaseConnector {
     }
     const streak = (state.retryStreak ?? 0) + 1;
     if (streak >= RETRY_GIVE_UP_THRESHOLD) {
-      this.logger.warn(
-        'intercom giving up on a Retrieve failure after repeated retries — its replies are permanently lost',
-        { retryFloor: drained.retryFloor, attempts: streak },
-      );
+      this.logger.warn('intercom_retrieve_give_up', { attempt: streak });
       return { watermark: drained.watermark, retryFloor: null, retryStreak: 0 };
     }
     return {
@@ -410,9 +400,7 @@ export class IntercomConnector extends BaseConnector {
   private encodeCursor(cursor: IntercomCursor): string {
     const json = JSON.stringify(cursor);
     if (json.length <= CURSOR_SAFETY_MARGIN_CHARS) return json;
-    this.logger.warn('intercom cursor exceeded its safety margin', {
-      length: json.length,
-    });
+    this.logger.warn('intercom_cursor_oversize', { bytes: Buffer.byteLength(json) });
     const restartWatermark =
       cursor.queryFloor !== undefined ? String(cursor.queryFloor) : cursor.watermark;
     return JSON.stringify({

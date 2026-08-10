@@ -75,9 +75,9 @@ describe('AppError.toTelemetry() is content-free however the error is built (pro
     );
   });
 
-  it('control: toLogContext() DOES carry content (it is box-local, never sent)', () => {
+  it('toLogContext() remains content-free at the logging boundary', () => {
     const err = new ValidationError('bad', { context: { note: SENTINEL } });
-    expect(containsSentinel(err.toLogContext(), SENTINEL)).toBe(true);
+    expect(containsSentinel(err.toLogContext(), SENTINEL)).toBe(false);
     expect(containsSentinel(err.toTelemetry(), SENTINEL)).toBe(false);
   });
 });

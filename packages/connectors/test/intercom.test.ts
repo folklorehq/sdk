@@ -636,10 +636,7 @@ describe('IntercomConnector.pull', () => {
     const result = await connector.pull({ value: null });
 
     expect(result.containers).toHaveLength(1);
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('500-part Retrieve cap'),
-      expect.objectContaining({ truncatedConversations: 1 }),
-    );
+    expect(warnSpy).toHaveBeenCalledWith('intercom_conversation_truncated', { count: 1 });
   });
 
   it('does not warn when no conversation was truncated', async () => {
@@ -1236,8 +1233,8 @@ describe('IntercomConnector.pull', () => {
       expect(cursor.watermark).toBe(String(UNIX_TS));
       expect(result.cursor.value!.length).toBeLessThan(4096);
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('safety margin'),
-        expect.any(Object),
+        'intercom_cursor_oversize',
+        expect.objectContaining({ bytes: expect.any(Number) }),
       );
     });
 
@@ -1284,10 +1281,9 @@ describe('IntercomConnector.pull', () => {
 
       // conv-ok's updated_at, not conv-broken's — the give-up finally let the watermark through.
       expect(cursorValue).toBe(String(UNIX_TS + 50));
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('giving up'),
-        expect.any(Object),
-      );
+      expect(warnSpy).toHaveBeenCalledWith('intercom_retrieve_give_up', {
+        attempt: RETRY_GIVE_UP_THRESHOLD,
+      });
     });
 
     it('keeps capping the watermark before the give-up threshold is reached', async () => {
@@ -1387,10 +1383,9 @@ describe('IntercomConnector.pull', () => {
       // let it through after RETRY_GIVE_UP_THRESHOLD genuine drain restarts, even though this
       // scenario spans twice that many pull() calls (two pages per restart).
       expect(cursorValue).toBe(String(UNIX_TS + 900 + RETRY_GIVE_UP_THRESHOLD - 1));
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('giving up'),
-        expect.any(Object),
-      );
+      expect(warnSpy).toHaveBeenCalledWith('intercom_retrieve_give_up', {
+        attempt: RETRY_GIVE_UP_THRESHOLD,
+      });
     });
   });
 });

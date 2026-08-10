@@ -1,45 +1,45 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { Cache, Closable, LogContext, Logger } from '@folklore/core';
+import type { Cache, Closable, Logger, SafeLogContext } from '@folklore/core';
 import type { ErrorReport } from '@folklore/errors';
 import type { TelemetryClient } from '@folklore/telemetry';
 
 export interface RecordedLog {
   level: string;
   message: string;
-  context?: LogContext;
-  bindings: LogContext;
+  context?: SafeLogContext;
+  bindings: SafeLogContext;
 }
 
 export class RecordingLogger implements Logger {
   constructor(
     readonly records: RecordedLog[] = [],
-    private readonly bindings: LogContext = {},
+    private readonly bindings: SafeLogContext = {},
   ) {}
 
-  trace(message: string, context?: LogContext): void {
+  trace(message: string, context?: SafeLogContext): void {
     this.record('trace', message, context);
   }
-  debug(message: string, context?: LogContext): void {
+  debug(message: string, context?: SafeLogContext): void {
     this.record('debug', message, context);
   }
-  info(message: string, context?: LogContext): void {
+  info(message: string, context?: SafeLogContext): void {
     this.record('info', message, context);
   }
-  warn(message: string, context?: LogContext): void {
+  warn(message: string, context?: SafeLogContext): void {
     this.record('warn', message, context);
   }
-  error(message: string, context?: LogContext): void {
+  error(message: string, context?: SafeLogContext): void {
     this.record('error', message, context);
   }
-  fatal(message: string, context?: LogContext): void {
+  fatal(message: string, context?: SafeLogContext): void {
     this.record('fatal', message, context);
   }
 
-  child(bindings: LogContext): Logger {
+  child(bindings: SafeLogContext): Logger {
     return new RecordingLogger(this.records, { ...this.bindings, ...bindings });
   }
 
-  private record(level: string, message: string, context?: LogContext): void {
+  private record(level: string, message: string, context?: SafeLogContext): void {
     this.records.push({ level, message, context, bindings: this.bindings });
   }
 }

@@ -57,7 +57,7 @@ export class SlackConnector extends BaseConnector {
       } while (pageCursor);
     }
 
-    this.logger.debug('slack pull complete', { facts: facts.length, channels: channels.length });
+    this.logger.debug('slack_pull_complete');
     return { facts, containers, cursor: { value: maxTs }, hasMore: false };
   }
 

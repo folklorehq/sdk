@@ -48,14 +48,14 @@ export class NotionConnector extends BaseConnector {
       }
     }
 
-    this.logger.debug('notion pull complete', { facts: facts.length, pages: pages.length });
+    this.logger.debug('notion_pull_complete');
     return { facts, containers, cursor: { value: maxEditedAt }, hasMore: false };
   }
 
   normalizeWebhook(event: WebhookEvent): NormalizedRecords {
     const parsed = notionWebhookEventSchema.safeParse(event.payload);
     if (!parsed.success) {
-      this.logger.warn('notion webhook: unrecognized payload shape');
+      this.logger.warn('notion_webhook_unrecognized_payload_shape');
       return { containers: [], facts: [] };
     }
     const { type, entity, data } = parsed.data;
@@ -69,12 +69,12 @@ export class NotionConnector extends BaseConnector {
               ? data.id
               : undefined;
       if (pageId === undefined) {
-        this.logger.warn('notion webhook: page.created without a resolvable page id', { type });
+        this.logger.warn('notion_webhook_page_created_without_a_resolvable_page_id');
         return { containers: [], facts: [] };
       }
       return normalizeNotionPageSeed(pageId);
     }
-    this.logger.warn('notion webhook: event skipped', { type });
+    this.logger.warn('notion_webhook_event_skipped');
     return { containers: [], facts: [] };
   }
 }

@@ -76,16 +76,8 @@ export abstract class AppError extends Error {
     return { error_type: this.code, component: this.component ?? 'unknown' };
   }
 
-  /** Structured fields for local logging. Stays inside the box. */
-  toLogContext(): Record<string, unknown> {
-    return {
-      name: this.name,
-      code: this.code,
-      category: this.category,
-      httpStatus: this.httpStatus,
-      isOperational: this.isOperational,
-      ...(this.component ? { component: this.component } : {}),
-      ...(this.context ? { context: this.context } : {}),
-    };
+  /** Content-free classification for compatibility logging during the migration. */
+  toLogContext(): ErrorTelemetry {
+    return this.toTelemetry();
   }
 }

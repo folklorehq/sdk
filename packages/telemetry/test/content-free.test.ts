@@ -56,7 +56,6 @@ describe('checkContentFree', () => {
         origin: 'http',
         fingerprint: 'abc123',
         route: '/api/v1/wiki/x',
-        source_location: 'wiki.js:42',
       }),
     ).toBeNull();
   });
@@ -64,8 +63,13 @@ describe('checkContentFree', () => {
 
 describe('checkDistinctId', () => {
   it('accepts synthetic ids', () => {
-    expect(checkDistinctId('11111111-1111-1111-1111-111111111111')).toBeNull();
+    expect(checkDistinctId('11111111-1111-4111-8111-111111111111')).toBeNull();
     expect(checkDistinctId('system')).toBeNull();
+  });
+
+  it('rejects non-string and unapproved opaque values', () => {
+    expect(checkDistinctId({})).not.toBeNull();
+    expect(checkDistinctId('customer-secret')).not.toBeNull();
   });
 
   it('rejects an email-as-distinctId footgun', () => {

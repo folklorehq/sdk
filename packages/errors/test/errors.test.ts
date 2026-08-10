@@ -61,13 +61,16 @@ describe('trust boundary', () => {
     expect(new InternalError('x').toTelemetry().component).toBe('unknown');
   });
 
-  it('toLogContext keeps rich detail for local logging', () => {
-    const err = new ValidationError('bad', { component: 'api', context: { field: 'name' } });
-    expect(err.toLogContext()).toMatchObject({
-      code: 'validation_error',
+  it('toLogContext retains only the closed telemetry classification during migration', () => {
+    const err = new ValidationError('customer content', {
       component: 'api',
       context: { field: 'name' },
     });
+    const context = err.toLogContext();
+
+    expect(context).toEqual({ error_type: 'validation_error', component: 'api' });
+    expect(JSON.stringify(context)).not.toContain('customer content');
+    expect(JSON.stringify(context)).not.toContain('field');
   });
 });
 

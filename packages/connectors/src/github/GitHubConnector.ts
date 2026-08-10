@@ -78,10 +78,7 @@ export class GitHubConnector extends BaseConnector {
       }
     }
 
-    this.logger.debug('github pull complete', {
-      facts: facts.length,
-      containers: containers.length,
-    });
+    this.logger.debug('github_pull_complete');
     return { facts, containers, cursor: { value: maxUpdatedAt }, hasMore: false };
   }
 
@@ -94,7 +91,7 @@ export class GitHubConnector extends BaseConnector {
       case 'push':
         return normalizePushEvent(event.payload as PushEvent);
       default:
-        this.logger.debug('unhandled github webhook', { type: event.type });
+        this.logger.debug('unhandled_github_webhook');
         return { facts: [], containers: [] };
     }
   }

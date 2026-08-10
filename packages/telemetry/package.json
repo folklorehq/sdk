@@ -10,12 +10,22 @@
       "development": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./events": {
+      "development": "./src/events.ts",
+      "types": "./dist/events.d.ts",
+      "default": "./dist/events.js"
+    },
+    "./content-free": {
+      "development": "./src/content-free.ts",
+      "types": "./dist/content-free.d.ts",
+      "default": "./dist/content-free.js"
     }
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsc --noEmit && tsc --noEmit --project tsconfig.test.json",
     "lint": "eslint .",
     "test": "vitest run",
     "clean": "rm -rf dist .turbo"

@@ -1,19 +1,52 @@
 // SPDX-License-Identifier: Apache-2.0
-/** Structured context attached to a log line. */
+/** Temporary compatibility context for public-mirror runtimes pending P2.7. */
 export interface LogContext {
   [key: string]: unknown;
 }
 
+/** A primitive value that is safe to pass through the structured logging boundary. */
+export type SafeLogValue = string | number | boolean | null;
+
+/** Operational field names permitted at the structured logging boundary. */
+export const SAFE_LOG_FIELDS = Object.freeze([
+  'attempt',
+  'bytes',
+  'component',
+  'count',
+  'duration',
+  'errorCode',
+  'error_type',
+  'generation',
+  'httpStatus',
+  'isOperational',
+  'outcome',
+  'phase',
+  'port',
+  'requestId',
+  'retried',
+  'route',
+  'status',
+  'statusCode',
+] as const);
+
+export type SafeLogField = (typeof SAFE_LOG_FIELDS)[number];
+
+/** Flat context accepted by the structured logging boundary. */
+export type SafeLogContext = Readonly<Partial<Record<SafeLogField, SafeLogValue>>>;
+
+/** A stable, bounded code identifying a log event. */
+export type SafeLogEvent = string;
+
 /** Logging port — app code depends on this interface, never a concrete logger. */
 export interface Logger {
-  trace(message: string, context?: LogContext): void;
-  debug(message: string, context?: LogContext): void;
-  info(message: string, context?: LogContext): void;
-  warn(message: string, context?: LogContext): void;
-  error(message: string, context?: LogContext): void;
-  fatal(message: string, context?: LogContext): void;
+  trace(event: SafeLogEvent, context?: SafeLogContext | LogContext): void;
+  debug(event: SafeLogEvent, context?: SafeLogContext | LogContext): void;
+  info(event: SafeLogEvent, context?: SafeLogContext | LogContext): void;
+  warn(event: SafeLogEvent, context?: SafeLogContext | LogContext): void;
+  error(event: SafeLogEvent, context?: SafeLogContext | LogContext): void;
+  fatal(event: SafeLogEvent, context?: SafeLogContext | LogContext): void;
   /** Return a child logger that includes `bindings` on every line. */
-  child(bindings: LogContext): Logger;
+  child(bindings: SafeLogContext | LogContext): Logger;
 }
 
 /** Anything holding resources that must be released on shutdown. */

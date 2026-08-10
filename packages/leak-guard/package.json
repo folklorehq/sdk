@@ -18,6 +18,8 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "audit:browser-telemetry": "vitest run test/browser-telemetry-audit.test.ts",
+    "audit:logs": "vitest run test/static-log-audit.test.ts",
     "leak:scan": "node scripts/leak-scan.mjs",
     "clean": "rm -rf dist .turbo"
   },

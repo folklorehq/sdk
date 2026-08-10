@@ -142,7 +142,6 @@ type OpsEvents = {
   'notification.sent': { orgId: string; channel: 'email' | 'slack' };
   'deployment.checkin': {
     deploymentId: string;
-    version: string;
     seatCount: number;
     queueDepth: number;
     linkedAccountCount: number;
@@ -176,9 +175,9 @@ type ErrorEvents = {
   'inference.attestation_failed': { reason: string };
   'inference.error': { model: string; errorType: string };
   'notification.send_failed': { orgId: string; channel: 'email' | 'slack'; errorType: string };
-  // A volunteered marketing opt-in couldn't be recorded after the org committed. Content-free — the
-  // error kind only — so the fail-safe swallow (org creation still succeeds) stays observable.
-  'marketing_opt_in.record_failed': { errorType: string };
+  // A volunteered marketing opt-in couldn't be recorded after the org committed. Content-free, so the
+  // fail-safe swallow (org creation still succeeds) stays observable without an error-kind string.
+  'marketing_opt_in.record_failed': Record<string, never>;
   // Review queue's snippet seam threw a non-AppError; rows rendered snippet-less (never a 500).
   'review.snippets_degraded': { orgId: string };
   'worker.error': { component: string; errorType: string; orgId?: string };
@@ -191,6 +190,158 @@ type ErrorEvents = {
   'error.captured': ErrorReport;
 };
 
-export type TelemetryEventMap = ProductEvents & OpsEvents & ErrorEvents;
+export const BrowserTelemetryEvent = {
+  SourceConnectStarted: 'source.connect_started',
+  SourceConnectFailed: 'source.connect_failed',
+  SignInCompleted: 'sign_in_completed',
+  ClientError: 'client_error',
+} as const;
+
+export type BrowserSourceKind =
+  | 'github'
+  | 'code'
+  | 'slack'
+  | 'linear'
+  | 'notion'
+  | 'jira'
+  | 'intercom'
+  | 'confluence'
+  | 'google_drive'
+  | 'gmail'
+  | 'microsoft365'
+  | 'microsoft365_mail'
+  | 'google_calendar'
+  | 'microsoft365_calendar';
+
+type BrowserSourceConnectFailure =
+  | 'cancelled'
+  | 'failed'
+  | 'network'
+  | 'provider'
+  | 'unauthorized'
+  | 'unsupported';
+
+type BrowserClientErrorOrigin = 'error_boundary' | 'window_error' | 'unhandled_rejection';
+
+type BrowserEvents = {
+  'source.connect_started': { eventSchemaVersion: 1; sourceKind: BrowserSourceKind };
+  'source.connect_failed': {
+    eventSchemaVersion: 1;
+    sourceKind: BrowserSourceKind;
+    reason: BrowserSourceConnectFailure;
+  };
+  sign_in_completed: Record<string, never>;
+  client_error: { origin: BrowserClientErrorOrigin; errorName: string };
+};
+
+export type TelemetryEventMap = ProductEvents & OpsEvents & ErrorEvents & BrowserEvents;
 
 export type TelemetryEventName = keyof TelemetryEventMap;
+
+export type ServerTelemetryEventName = (typeof TelemetryEvent)[keyof typeof TelemetryEvent];
+
+export type BrowserTelemetryEventName = keyof BrowserEvents;
+
+const SERVER_TELEMETRY_EVENTS = new Set<string>(Object.values(TelemetryEvent));
+
+export function isServerTelemetryEvent(value: unknown): value is ServerTelemetryEventName {
+  return typeof value === 'string' && SERVER_TELEMETRY_EVENTS.has(value);
+}
+
+const BROWSER_SOURCE_KINDS = new Set<BrowserSourceKind>([
+  'github',
+  'code',
+  'slack',
+  'linear',
+  'notion',
+  'jira',
+  'intercom',
+  'confluence',
+  'google_drive',
+  'gmail',
+  'microsoft365',
+  'microsoft365_mail',
+  'google_calendar',
+  'microsoft365_calendar',
+]);
+
+const BROWSER_SOURCE_CONNECT_FAILURES = new Set<BrowserSourceConnectFailure>([
+  'cancelled',
+  'failed',
+  'network',
+  'provider',
+  'unauthorized',
+  'unsupported',
+]);
+
+const BROWSER_CLIENT_ERROR_ORIGINS = new Set<BrowserClientErrorOrigin>([
+  'error_boundary',
+  'window_error',
+  'unhandled_rejection',
+]);
+
+const BROWSER_EVENT_PROPERTY_KEYS: Record<BrowserTelemetryEventName, readonly string[]> = {
+  'source.connect_started': ['eventSchemaVersion', 'sourceKind'],
+  'source.connect_failed': ['eventSchemaVersion', 'sourceKind', 'reason'],
+  sign_in_completed: [],
+  client_error: ['origin', 'errorName'],
+};
+
+export function isBrowserTelemetryEvent(event: string): event is BrowserTelemetryEventName {
+  return Object.prototype.hasOwnProperty.call(BROWSER_EVENT_PROPERTY_KEYS, event);
+}
+
+export function isBrowserSourceKind(value: string): value is BrowserSourceKind {
+  return BROWSER_SOURCE_KINDS.has(value as BrowserSourceKind);
+}
+
+export function browserTelemetryPropertyKeys(event: BrowserTelemetryEventName): readonly string[] {
+  return BROWSER_EVENT_PROPERTY_KEYS[event];
+}
+
+export function isBrowserTelemetryProperty(
+  event: BrowserTelemetryEventName,
+  key: string,
+  value: unknown,
+): boolean {
+  if (key === 'eventSchemaVersion') return value === 1;
+  if (key === 'sourceKind') {
+    return typeof value === 'string' && BROWSER_SOURCE_KINDS.has(value as BrowserSourceKind);
+  }
+  if (key === 'origin') {
+    return (
+      event === BrowserTelemetryEvent.ClientError &&
+      typeof value === 'string' &&
+      BROWSER_CLIENT_ERROR_ORIGINS.has(value as BrowserClientErrorOrigin)
+    );
+  }
+  if (key === 'errorName') {
+    return (
+      event === BrowserTelemetryEvent.ClientError &&
+      typeof value === 'string' &&
+      value.length > 0 &&
+      value.length <= 64 &&
+      /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(value)
+    );
+  }
+  return (
+    event === BrowserTelemetryEvent.SourceConnectFailed &&
+    key === 'reason' &&
+    typeof value === 'string' &&
+    BROWSER_SOURCE_CONNECT_FAILURES.has(value as BrowserSourceConnectFailure)
+  );
+}
+
+export function areBrowserTelemetryPropertiesValid(
+  event: BrowserTelemetryEventName,
+  properties: Record<string, unknown>,
+): boolean {
+  if (!isBrowserTelemetryEvent(event)) return false;
+  const allowedKeys = browserTelemetryPropertyKeys(event);
+  return (
+    Object.keys(properties).length === allowedKeys.length &&
+    allowedKeys.every(
+      (key) => key in properties && isBrowserTelemetryProperty(event, key, properties[key]),
+    )
+  );
+}

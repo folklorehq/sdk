@@ -62,7 +62,7 @@ export class JiraConnector extends BaseConnector {
       }
     }
 
-    this.logger.debug('jira pull complete', { facts: facts.length, issues: issues.length });
+    this.logger.debug('jira_pull_complete');
     return { facts, containers, cursor: { value: maxUpdatedAt }, hasMore: false };
   }
 

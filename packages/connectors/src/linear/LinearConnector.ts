@@ -79,7 +79,7 @@ export class LinearConnector extends BaseConnector {
       }
     }
 
-    this.logger.debug('linear pull complete', { facts: facts.length, issues: issues.length });
+    this.logger.debug('linear_pull_complete');
     return { facts, containers, cursor: { value: maxUpdatedAt }, hasMore: false };
   }
 

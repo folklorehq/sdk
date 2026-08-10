@@ -12,6 +12,7 @@ import { contentKey, contentString, contentPayload } from '../src/content-arbitr
 import { makeSentinel } from '../src/sentinel.js';
 
 const SENTINEL = makeSentinel('telemetry').value;
+const ORGANIZATION_ID = '11111111-1111-4111-8111-111111111111';
 
 interface CaptureStub {
   captured: Array<{ event: string; distinctId: string; properties: Record<string, unknown> }>;
@@ -81,7 +82,7 @@ describe('content-free telemetry guard — property-based', () => {
       { numRuns: 200 },
     );
     expect(checkDistinctId('a'.repeat(257))).not.toBeNull();
-    expect(checkDistinctId('00000000-0000-0000-0000-000000000000')).toBeNull();
+    expect(checkDistinctId(ORGANIZATION_ID)).toBeNull();
   });
 
   it('assertContentFree throws a content-free violation for content payloads', () => {
@@ -131,7 +132,109 @@ describe('PostHogTelemetryClient — fail-closed at the send boundary', () => {
 
   it('does forward a genuinely content-free event (control)', () => {
     const { client, stub } = withStub();
-    client.track('fact.ingested', 'org-123', { orgId: 'org-123', sourceKind: 'slack' });
+    client.track('fact.ingested', ORGANIZATION_ID, {
+      orgId: ORGANIZATION_ID,
+      sourceKind: 'slack',
+    });
     expect(stub.captured).toHaveLength(1);
+  });
+
+  it('rejects accessor-backed properties before the transport can read them again', () => {
+    const { client, stub } = withStub();
+    const properties = {} as Record<string, unknown>;
+    Object.defineProperty(properties, 'status', {
+      enumerable: true,
+      get: () => SENTINEL,
+    });
+
+    expect(() =>
+      client.track('fact.ingested' as never, 'system', properties as never),
+    ).not.toThrow();
+    expect(stub.captured).toEqual([]);
+  });
+
+  it('copies descriptor values instead of reading mutable proxy properties', () => {
+    const { client, stub } = withStub();
+    const expectedProperties = { orgId: ORGANIZATION_ID, sourceKind: 'github' };
+    const properties = new Proxy(expectedProperties, {
+      get: () => SENTINEL,
+      getOwnPropertyDescriptor: (target, property) =>
+        Reflect.getOwnPropertyDescriptor(target, property),
+    });
+
+    client.track('fact.ingested' as never, 'system', properties as never);
+
+    expect(stub.captured).toHaveLength(1);
+    expect(stub.captured[0]?.properties).toEqual(expectedProperties);
+    expect(JSON.stringify(stub.captured)).not.toContain(SENTINEL);
+  });
+
+  it('rejects proxies whose reflection traps fail', () => {
+    const { client, stub } = withStub();
+    const properties = new Proxy(
+      {},
+      {
+        ownKeys: () => {
+          throw new Error(SENTINEL);
+        },
+      },
+    );
+
+    expect(() =>
+      client.track('fact.ingested' as never, 'system', properties as never),
+    ).not.toThrow();
+    expect(stub.captured).toEqual([]);
+  });
+
+  it('rejects symbol-keyed payloads', () => {
+    const { client, stub } = withStub();
+    const properties = { [Symbol('customer-content')]: SENTINEL };
+
+    client.track('fact.ingested' as never, 'system', properties as never);
+
+    expect(stub.captured).toEqual([]);
+  });
+
+  it('rejects non-plain payload objects', () => {
+    const { client, stub } = withStub();
+
+    client.track('fact.ingested' as never, 'system', new Date() as never);
+
+    expect(stub.captured).toEqual([]);
+  });
+
+  it('does not retain a caller-owned mutable payload after validation', () => {
+    const { client, stub } = withStub();
+    const properties: Record<string, unknown> = {
+      orgId: ORGANIZATION_ID,
+      sourceKind: 'github',
+    };
+
+    client.track('fact.ingested' as never, 'system', properties as never);
+    properties['sourceKind'] = SENTINEL;
+
+    expect(stub.captured[0]?.properties).toEqual({
+      orgId: ORGANIZATION_ID,
+      sourceKind: 'github',
+    });
+    expect(JSON.stringify(stub.captured)).not.toContain(SENTINEL);
+  });
+
+  it('rejects an error report with a source-derived location', () => {
+    const { client, stub } = withStub();
+
+    client.captureError({
+      error_type: 'internal_error',
+      error_name: 'InternalError',
+      category: 'internal',
+      http_status: 500,
+      operational: false,
+      component: 'worker',
+      origin: 'uncaught',
+      fingerprint: '0123456789abcdef',
+      source_location: SENTINEL,
+    } as never);
+
+    expect(stub.captured).toEqual([]);
   });
 });

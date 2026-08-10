@@ -20,8 +20,14 @@ export {
 } from './errors.js';
 export { isAppError, normalizeError } from './normalize.js';
 export {
+  ERROR_REPORT_CLASSIFICATIONS,
+  isErrorReport,
+  isParameterizedRouteTemplate,
   toErrorReport,
   type ErrorReport,
+  type ErrorReportComponent,
+  type ErrorReportName,
+  type ErrorReportType,
   type ErrorOrigin,
   type ToErrorReportOptions,
 } from './error-report.js';
