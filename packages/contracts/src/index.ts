@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 export * from './agent-release.js';
+export * from './app-handoff.js';
 export * from './auth.js';
 export * from './collab.js';
 export * from './enclave.js';
@@ -14,6 +15,7 @@ export * from './orgs.js';
 export * from './preview.js';
 export * from './review.js';
 export * from './search.js';
+export * from './session-delivery.js';
 export * from './sources.js';
 export * from './themes.js';
 export * from './wiki.js';

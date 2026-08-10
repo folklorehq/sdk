@@ -4,6 +4,24 @@ import { z } from 'zod';
 export const membershipRoleSchema = z.enum(['owner', 'admin', 'member']);
 export type MembershipRole = z.infer<typeof membershipRoleSchema>;
 
+export const workspaceAccessSchema = z
+  .object({
+    orgId: z.string().uuid(),
+    name: z.string(),
+    slug: z.string().nullable(),
+    role: membershipRoleSchema,
+    appAvailable: z.boolean(),
+  })
+  .strict();
+export type WorkspaceAccess = z.infer<typeof workspaceAccessSchema>;
+
+export const workspaceAccessResponseSchema = z
+  .object({
+    workspaceAccesses: z.array(workspaceAccessSchema),
+  })
+  .strict();
+export type WorkspaceAccessResponse = z.infer<typeof workspaceAccessResponseSchema>;
+
 export const membershipStatusSchema = z.enum(['active', 'invited', 'suspended']);
 export type MembershipStatus = z.infer<typeof membershipStatusSchema>;
 
