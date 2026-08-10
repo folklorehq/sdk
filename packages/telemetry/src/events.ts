@@ -5,6 +5,7 @@ export const TelemetryEvent = {
   OrgCreated: 'org.created',
   OrgRecoveryKeySet: 'org.recovery_key_set',
   CoProcessingConsentRecorded: 'co_processing_consent.recorded',
+  MarketingOptInRecordFailed: 'marketing_opt_in.record_failed',
   SourceConnected: 'source.connected',
   SourceRoutingConflict: 'source.routing_conflict',
   MemberInvited: 'member.invited',
@@ -175,6 +176,9 @@ type ErrorEvents = {
   'inference.attestation_failed': { reason: string };
   'inference.error': { model: string; errorType: string };
   'notification.send_failed': { orgId: string; channel: 'email' | 'slack'; errorType: string };
+  // A volunteered marketing opt-in couldn't be recorded after the org committed. Content-free — the
+  // error kind only — so the fail-safe swallow (org creation still succeeds) stays observable.
+  'marketing_opt_in.record_failed': { errorType: string };
   // Review queue's snippet seam threw a non-AppError; rows rendered snippet-less (never a 500).
   'review.snippets_degraded': { orgId: string };
   'worker.error': { component: string; errorType: string; orgId?: string };
