@@ -7,6 +7,7 @@ import type { NormalizedRecords } from '../normalized.js';
 export interface PullConnectorDeps {
   logger: Logger;
   token: string;
+  externalTenantId?: string;
   httpsProxyAgent?: unknown;
   gmailLabelAllowlist?: string[];
   m365FolderAllowlist?: string[];

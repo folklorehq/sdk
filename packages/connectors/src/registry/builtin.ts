@@ -58,7 +58,10 @@ export function registerBuiltinConnectors(registry: ConnectorRegistry): void {
     kind: 'jira',
     createForWebhook: webhookOnly(JiraConnector),
     createForPull: (deps) =>
-      new JiraConnector({ logger: deps.logger }, new JiraHttpClient(deps.token)),
+      new JiraConnector(
+        { logger: deps.logger },
+        new JiraHttpClient(deps.token, deps.externalTenantId),
+      ),
   });
 
   registry.register({

@@ -6,12 +6,18 @@ import {
   processedFactSchema,
   pullCompleteSignalSchema,
   pullDueMessageSchema,
+  oauthDisconnectCleanupCommandSchema,
   synthesisQueueRequestSchema,
   synthesisRequestSchema,
   teamOnboardingSynthesisRequestSchema,
   teamOnboardingSynthesisResultSchema,
   themeSynthesisRequestSchema,
   themeSynthesisResultSchema,
+  webhookLifecycleClaimSchema,
+  webhookLifecycleCleanupClearSchema,
+  webhookLifecycleDeliverySchema,
+  webhookLifecycleFinalizeSchema,
+  webhookProtocolCaptureSchema,
   wikiSynthesisResultSchema,
   type KnowledgeSkeleton,
   type PullCompleteSignal,
@@ -20,6 +26,185 @@ import {
   type ThemeSynthesisRequest,
   type WikiSynthesisResult,
 } from '../src/enclave.js';
+
+const RUNTIME_DEPLOYMENT_ID = '11111111-1111-4111-8111-111111111111';
+const TENANT_DEPLOYMENT_ID = '22222222-2222-4222-8222-222222222222';
+const ORG_ID = '33333333-3333-4333-8333-333333333333';
+const CONNECTION_ID = '44444444-4444-4444-8444-444444444444';
+const ROUTE_ID = '55555555-5555-4555-8555-555555555555';
+const CLAIM_ID = '66666666-6666-4666-8666-666666666666';
+
+const webhookBinding = {
+  runtimeDeploymentId: RUNTIME_DEPLOYMENT_ID,
+  tenantDeploymentId: TENANT_DEPLOYMENT_ID,
+  orgId: ORG_ID,
+  connectionId: CONNECTION_ID,
+  webhookRouteId: ROUTE_ID,
+  sourceKind: 'jira',
+  attestationGeneration: 'gen-1',
+};
+
+describe('webhook lifecycle enclave contracts', () => {
+  const validFinalize = {
+    ...webhookBinding,
+    claimId: CLAIM_ID,
+    revision: 4,
+    registrationIds: ['1000'],
+    expiresAt: new Date(Date.now() + 300_000).toISOString(),
+    attemptedAt: '2026-08-10T12:00:00.000Z',
+    succeededAt: '2026-08-10T12:00:00.000Z',
+    status: 'registered' as const,
+    operation: 'register' as const,
+    failureCode: null,
+  };
+
+  it('accepts a fully bound registered finalization', () => {
+    expect(webhookLifecycleFinalizeSchema.parse(validFinalize)).toEqual(validFinalize);
+  });
+
+  it('rejects malformed ids, unknown fields, oversized registrations, and inconsistent outcomes', () => {
+    expect(() =>
+      webhookLifecycleClaimSchema.parse({ ...webhookBinding, expectedRevision: -1 }),
+    ).toThrow();
+    expect(() =>
+      webhookLifecycleClaimSchema.parse({
+        ...webhookBinding,
+        runtimeDeploymentId: 'runtime-1',
+        expectedRevision: 0,
+      }),
+    ).toThrow();
+    expect(() =>
+      webhookLifecycleFinalizeSchema.parse({
+        ...validFinalize,
+        registrationIds: Array.from({ length: 17 }, (_, index) => String(index)),
+      }),
+    ).toThrow();
+    expect(() =>
+      webhookLifecycleFinalizeSchema.parse({
+        ...validFinalize,
+        expiresAt: new Date(Date.now() - 60_000).toISOString(),
+      }),
+    ).toThrow();
+    expect(() =>
+      webhookLifecycleFinalizeSchema.parse({ ...validFinalize, failureCode: 'provider_error' }),
+    ).toThrow();
+    expect(() =>
+      webhookLifecycleFinalizeSchema.parse({
+        ...validFinalize,
+        status: 'degraded',
+        failureCode: null,
+      }),
+    ).toThrow();
+    expect(() => webhookLifecycleFinalizeSchema.parse({ ...validFinalize, extra: true })).toThrow();
+  });
+
+  it('permits a degraded update with no active provider registration but rejects invalid bindings', () => {
+    const degraded = webhookLifecycleFinalizeSchema.parse({
+      ...validFinalize,
+      registrationIds: null,
+      expiresAt: null,
+      succeededAt: null,
+      status: 'degraded',
+      failureCode: 'provider_error',
+    });
+    expect(degraded.status).toBe('degraded');
+    expect(() =>
+      webhookLifecycleFinalizeSchema.parse({ ...validFinalize, registrationIds: ['0001'] }),
+    ).toThrow();
+    expect(() =>
+      webhookLifecycleFinalizeSchema.parse({
+        ...validFinalize,
+        registrationIds: ['9007199254740992'],
+      }),
+    ).toThrow();
+    expect(() =>
+      webhookLifecycleCleanupClearSchema.parse({
+        ...webhookBinding,
+        claimId: CLAIM_ID,
+        revision: 4,
+        orgId: 'not-a-uuid',
+      }),
+    ).toThrow();
+    expect(() =>
+      webhookLifecycleDeliverySchema.parse({
+        ...webhookBinding,
+        registrationId: '1000',
+        attestationGeneration: '',
+      }),
+    ).toThrow();
+  });
+
+  it('accepts only bounded, value-free protocol capture metadata', () => {
+    const capture = webhookProtocolCaptureSchema.parse({
+      ...webhookBinding,
+      capture: {
+        algorithm: 'HS256',
+        claims: [
+          { name: 'aud', type: 'array' },
+          { name: 'exp', type: 'number' },
+          { name: 'iss', type: 'string' },
+        ],
+        lifetimeSeconds: 300,
+        qshPresent: true,
+        qshMatches: true,
+        issuerPolicyMatch: 'matched',
+        audiencePolicyMatch: 'matched',
+        tenantPolicyMatch: 'matched',
+      },
+    });
+    expect(capture.capture.algorithm).toBe('HS256');
+    expect(() =>
+      webhookProtocolCaptureSchema.parse({
+        ...capture,
+        capture: { ...capture.capture, claims: [{ name: 'authorization', type: 'string' }] },
+      }),
+    ).toThrow();
+    expect(() =>
+      webhookProtocolCaptureSchema.parse({
+        ...capture,
+        capture: { ...capture.capture, rawJwt: 'Bearer opaque-token' },
+      }),
+    ).toThrow();
+    expect(() =>
+      webhookProtocolCaptureSchema.parse({
+        ...capture,
+        capture: { ...capture.capture, algorithm: 'Bearer' },
+      }),
+    ).toThrow();
+  });
+
+  it('keeps the disconnect cleanup command content-free and fully bound', () => {
+    expect(
+      oauthDisconnectCleanupCommandSchema.parse({
+        orgId: ORG_ID,
+        tenantDeploymentId: TENANT_DEPLOYMENT_ID,
+        connectionId: CONNECTION_ID,
+        kind: 'jira',
+        routeId: ROUTE_ID,
+        generation: 'gen-1',
+        disconnectEraseAfter: '2026-08-10T12:05:00.000Z',
+        cleanupExternalTenantId: '66666666-6666-4666-8666-666666666666',
+        cleanupRegistrationIds: ['1000'],
+        cleanupExpiresAt: '2026-09-01T12:00:00.000Z',
+      }),
+    ).toMatchObject({ routeId: ROUTE_ID, kind: 'jira' });
+    expect(() =>
+      oauthDisconnectCleanupCommandSchema.parse({
+        orgId: ORG_ID,
+        tenantDeploymentId: TENANT_DEPLOYMENT_ID,
+        connectionId: CONNECTION_ID,
+        kind: 'jira',
+        routeId: ROUTE_ID,
+        generation: 'gen-1',
+        disconnectEraseAfter: '2026-08-10T12:05:00.000Z',
+        cleanupExternalTenantId: null,
+        cleanupRegistrationIds: null,
+        cleanupExpiresAt: null,
+        encryptedAccessToken: 'forbidden',
+      }),
+    ).toThrow();
+  });
+});
 
 describe('processedFactSchema', () => {
   const valid = {

@@ -248,6 +248,15 @@ export const connectorViewSchema = z
     connectedAt: z.string(),
     sourceUserId: z.string().nullable(),
     status: z.literal('connected'),
+    realtime: z
+      .object({
+        registrationStatus: z.enum(['pending', 'registered', 'degraded']),
+        expiresAt: z.string().nullable(),
+        lastSucceededAt: z.string().nullable(),
+        lastDeliveryAt: z.string().nullable(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type ConnectorView = z.infer<typeof connectorViewSchema>;

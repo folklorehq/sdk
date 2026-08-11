@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 import { factMetricSchema } from './metrics.js';
+import { sealedContentEnvelopeV1Schema } from './sealed-content.js';
 import { richBlockKindSchema } from './wiki.js';
+
+export {
+  sealedContentEnvelopeV1Schema,
+  sealedEnvelopeHeader,
+  type SealedContentEnvelopeV1,
+} from './sealed-content.js';
 
 const WIKI_CONTENT_FORMAT = 'esdk-v1';
 
@@ -82,11 +89,22 @@ export const processedFactSchema = z.object({
 });
 export type ProcessedFact = z.infer<typeof processedFactSchema>;
 
-export const encryptedBodySchema = z.object({
-  format: z.literal(WIKI_CONTENT_FORMAT),
-  ciphertext: z.string(),
-});
+const CANONICAL_BASE64_PATTERN =
+  /^(?:[A-Za-z0-9+/]{4})*(?:(?:[A-Za-z0-9+/][AQgw])==|(?:[A-Za-z0-9+/]{2}[AEIMQUYcgkosw048])=)?$/;
+
+const legacyEncryptedBodySchema = z
+  .object({
+    format: z.literal(WIKI_CONTENT_FORMAT),
+    ciphertext: z.string().min(1).regex(CANONICAL_BASE64_PATTERN),
+  })
+  .strict();
+
+export const encryptedBodySchema = sealedContentEnvelopeV1Schema;
 export type EncryptedBody = z.infer<typeof encryptedBodySchema>;
+
+// Read-only migration compatibility for deployed legacy ciphertext; producers use encryptedBodySchema.
+export const encryptedBodyReadSchema = z.union([encryptedBodySchema, legacyEncryptedBodySchema]);
+export type EncryptedBodyRead = z.infer<typeof encryptedBodyReadSchema>;
 
 export const encryptedBlockSchema = z.object({
   type: z.string(),
@@ -96,6 +114,12 @@ export const encryptedBlockSchema = z.object({
   body: encryptedBodySchema,
 });
 export type EncryptedBlock = z.infer<typeof encryptedBlockSchema>;
+
+// Read-only migration compatibility for deployed legacy blocks; producers use encryptedBlockSchema.
+export const encryptedBlockReadSchema = encryptedBlockSchema.extend({
+  body: encryptedBodyReadSchema,
+});
+export type EncryptedBlockRead = z.infer<typeof encryptedBlockReadSchema>;
 
 export const wikiArticleSchema = z.object({
   audienceId: z.string().nullable(),
@@ -172,7 +196,7 @@ export const wikiSynthesisResultSchema = z.object({
   themeId: z.string(),
   orgId: z.string(),
   articles: z.array(wikiArticleSchema),
-  blocks: z.array(encryptedBlockSchema),
+  blocks: z.array(encryptedBlockReadSchema),
   citedFactIds: z.array(z.string()),
   richBlockCounts: z.array(richBlockKindCountSchema).default([]),
   critique: critiqueOutcomeSchema.optional(),
@@ -460,7 +484,7 @@ export const teamOnboardingSynthesisResultSchema = z.object({
   teamId: z.string(),
   teamName: z.string(),
   articles: z.array(wikiArticleSchema),
-  blocks: z.array(encryptedBlockSchema),
+  blocks: z.array(encryptedBlockReadSchema),
   citedFactIds: z.array(z.string()),
   critique: critiqueOutcomeSchema.optional(),
   tokenUsage: tokenUsageArray,
@@ -491,6 +515,33 @@ export const pullDueMessageSchema = z.object({
   backfill: z.boolean().default(false),
 });
 export type PullDueMessage = z.infer<typeof pullDueMessageSchema>;
+
+export const jiraEncryptedWebhookEnvelopeSchema = z
+  .object({
+    version: z.literal(1),
+    rawBody: z.string().max(2_000_000),
+    authorization: z
+      .string()
+      .regex(/^Bearer [^\s]+$/)
+      .max(16_384),
+    method: z.literal('POST'),
+    rawPath: z
+      .string()
+      .min(1)
+      .max(512)
+      .regex(/^\/[^\r\n]*$/),
+    rawQuery: z
+      .string()
+      .max(8_192)
+      .regex(/^[^\r\n]*$/),
+    webhookIdentifier: z
+      .string()
+      .min(1)
+      .max(256)
+      .regex(/^[^\r\n]+$/),
+  })
+  .strict();
+export type JiraEncryptedWebhookEnvelope = z.infer<typeof jiraEncryptedWebhookEnvelopeSchema>;
 
 // Content-free "export-due" signal, the outbound mirror of `pull-due`: the worker
 // scheduler lists due export targets and signals the enclave, which alone can decrypt the wiki
@@ -663,3 +714,298 @@ export const oauthRefreshMetadataUpdateSchema = z
   })
   .strict();
 export type OAuthRefreshMetadataUpdate = z.infer<typeof oauthRefreshMetadataUpdateSchema>;
+
+const webhookLifecycleUuidSchema = z.string().uuid();
+const webhookLifecycleSourceKindSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z][a-z0-9_-]*$/);
+const webhookLifecycleGenerationSchema = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9._:-]+$/);
+const webhookRegistrationIdSchema = z
+  .string()
+  .min(1)
+  .max(256)
+  .regex(/^(?:0|[1-9][0-9]{0,15})$/)
+  .refine(
+    (id) => BigInt(id) <= BigInt(Number.MAX_SAFE_INTEGER),
+    'registration id exceeds safe integer',
+  );
+const webhookRegistrationIdsSchema = z
+  .array(webhookRegistrationIdSchema)
+  .min(1)
+  .max(16)
+  .superRefine((ids, context) => {
+    if (new Set(ids).size !== ids.length) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'registration ids must be unique' });
+    }
+  });
+const webhookLifecycleTimestampSchema = z.string().datetime({ offset: true });
+
+const webhookLifecycleBindingSchema = z
+  .object({
+    runtimeDeploymentId: webhookLifecycleUuidSchema,
+    tenantDeploymentId: webhookLifecycleUuidSchema,
+    orgId: webhookLifecycleUuidSchema,
+    connectionId: webhookLifecycleUuidSchema,
+    webhookRouteId: webhookLifecycleUuidSchema,
+    sourceKind: webhookLifecycleSourceKindSchema,
+    attestationGeneration: webhookLifecycleGenerationSchema,
+  })
+  .strict();
+
+export const webhookLifecycleClaimSchema = webhookLifecycleBindingSchema
+  .extend({
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type WebhookLifecycleClaim = z.infer<typeof webhookLifecycleClaimSchema>;
+
+export const webhookLifecycleRenewSchema = webhookLifecycleBindingSchema
+  .extend({
+    claimId: webhookLifecycleUuidSchema,
+    revision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type WebhookLifecycleRenew = z.infer<typeof webhookLifecycleRenewSchema>;
+
+const webhookLifecycleStatusSchema = z.enum(['registered', 'degraded']);
+const webhookLifecycleOperationSchema = z.enum(['register', 'refresh', 'adopt', 'cleanup']);
+const webhookLifecycleFailureCodeSchema = z.enum([
+  'provider_rejected',
+  'provider_error',
+  'persist_failed',
+]);
+
+export const webhookLifecycleFinalizeSchema = webhookLifecycleBindingSchema
+  .extend({
+    claimId: webhookLifecycleUuidSchema,
+    revision: z.number().int().nonnegative(),
+    registrationIds: webhookRegistrationIdsSchema.nullable(),
+    expiresAt: webhookLifecycleTimestampSchema.nullable(),
+    attemptedAt: webhookLifecycleTimestampSchema,
+    succeededAt: webhookLifecycleTimestampSchema.nullable(),
+    status: webhookLifecycleStatusSchema,
+    operation: webhookLifecycleOperationSchema,
+    failureCode: webhookLifecycleFailureCodeSchema.nullable(),
+  })
+  .strict()
+  .superRefine((input, context) => {
+    const hasActiveRegistration = input.registrationIds !== null;
+    if (hasActiveRegistration !== (input.expiresAt !== null)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'registration ids and expiry must be paired',
+      });
+    }
+    if (
+      hasActiveRegistration &&
+      input.expiresAt !== null &&
+      Date.parse(input.expiresAt) <= Date.now()
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'active provider registration expiry must be in the future',
+        path: ['expiresAt'],
+      });
+    }
+    if (input.status === 'registered') {
+      if (!hasActiveRegistration || input.expiresAt === null || input.succeededAt === null) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'registered lifecycle requires an active provider registration',
+        });
+      }
+      if (input.failureCode !== null) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'registered lifecycle cannot carry a failure code',
+        });
+      }
+      return;
+    }
+    if (input.failureCode === null) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'degraded lifecycle requires a failure code',
+      });
+    }
+  });
+export type WebhookLifecycleFinalize = z.infer<typeof webhookLifecycleFinalizeSchema>;
+
+export const webhookLifecycleCleanupClearSchema = webhookLifecycleBindingSchema
+  .extend({
+    claimId: webhookLifecycleUuidSchema,
+    revision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type WebhookLifecycleCleanupClear = z.infer<typeof webhookLifecycleCleanupClearSchema>;
+
+export const webhookLifecycleDeliverySchema = webhookLifecycleBindingSchema
+  .extend({
+    registrationId: webhookRegistrationIdSchema,
+  })
+  .strict();
+export type WebhookLifecycleDelivery = z.infer<typeof webhookLifecycleDeliverySchema>;
+
+const webhookCaptureClaimSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1)
+      .max(64)
+      .regex(/^[A-Za-z_][A-Za-z0-9_.-]*$/)
+      .refine(
+        (name) => !/(?:authorization|bearer|cookie|password|secret|token|value)/i.test(name),
+        'claim names cannot identify credential material',
+      ),
+    type: z.enum(['string', 'number', 'boolean', 'array', 'object', 'null']),
+  })
+  .strict();
+
+export const webhookProtocolCaptureRecordSchema = z
+  .object({
+    algorithm: z.enum([
+      'HS256',
+      'RS256',
+      'RS384',
+      'RS512',
+      'PS256',
+      'PS384',
+      'PS512',
+      'ES256',
+      'ES384',
+      'ES512',
+      'EdDSA',
+    ]),
+    claims: z.array(webhookCaptureClaimSchema).max(32),
+    lifetimeSeconds: z.number().int().nonnegative().max(86_400),
+    qshPresent: z.boolean(),
+    qshMatches: z.boolean(),
+    issuerPolicyMatch: z.enum(['matched', 'mismatched', 'missing']),
+    audiencePolicyMatch: z.enum(['matched', 'mismatched', 'missing']),
+    tenantPolicyMatch: z.enum(['matched', 'mismatched', 'missing']),
+  })
+  .strict()
+  .superRefine((record, context) => {
+    if (!record.qshPresent && record.qshMatches) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'an absent qsh cannot match',
+      });
+    }
+    for (let index = 1; index < record.claims.length; index += 1) {
+      const previous = record.claims[index - 1];
+      const current = record.claims[index];
+      if (!previous || !current) continue;
+      if (previous.name >= current.name) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'claims must be uniquely sorted by name',
+          path: ['claims', index],
+        });
+      }
+    }
+    if (new TextEncoder().encode(JSON.stringify(record)).byteLength > 4096) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'protocol capture exceeds byte limit',
+      });
+    }
+  });
+
+export const webhookProtocolCaptureSchema = webhookLifecycleBindingSchema
+  .extend({
+    capture: webhookProtocolCaptureRecordSchema,
+  })
+  .strict();
+export type WebhookProtocolCapture = z.infer<typeof webhookProtocolCaptureSchema>;
+
+export const encryptedSourceConnectionSchema = z
+  .object({
+    connectionId: webhookLifecycleUuidSchema,
+    orgId: webhookLifecycleUuidSchema.nullable(),
+    attestationGeneration: webhookLifecycleGenerationSchema.nullable(),
+    accessCiphertextSha256: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .nullable(),
+    refreshCiphertextSha256: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .nullable(),
+    kind: webhookLifecycleSourceKindSchema,
+    encryptedAccessToken: opaqueCiphertextSchema,
+    encryptedRefreshToken: opaqueCiphertextSchema.nullable(),
+    sourceUserId: z.string().min(1).max(256).nullable(),
+    installationId: z.string().min(1).max(64).nullable(),
+    externalTenantId: z.string().min(1).max(256).nullable(),
+    webhookRouteId: webhookLifecycleUuidSchema.nullable(),
+    webhookRevision: z.number().int().nonnegative(),
+    webhookRegistrationIds: webhookRegistrationIdsSchema.nullable(),
+    webhookExpiresAt: webhookLifecycleTimestampSchema.nullable(),
+    webhookStatus: webhookLifecycleStatusSchema.nullable(),
+    webhookLastOperation: webhookLifecycleOperationSchema.nullable(),
+    webhookLastAttemptedAt: webhookLifecycleTimestampSchema.nullable(),
+    webhookLastSucceededAt: webhookLifecycleTimestampSchema.nullable(),
+    webhookLastDeliveryAt: webhookLifecycleTimestampSchema.nullable(),
+    webhookProtocolCapture: webhookProtocolCaptureRecordSchema.nullable(),
+    webhookProtocolCaptureExpiresAt: webhookLifecycleTimestampSchema.nullable(),
+    webhookFailureCode: webhookLifecycleFailureCodeSchema.nullable(),
+    webhookCleanupRouteId: webhookLifecycleUuidSchema.nullable(),
+    webhookCleanupExternalTenantId: z.string().min(1).max(256).nullable(),
+    webhookCleanupRegistrationIds: webhookRegistrationIdsSchema.nullable(),
+    webhookCleanupExpiresAt: webhookLifecycleTimestampSchema.nullable(),
+  })
+  .strict();
+export type EncryptedSourceConnection = z.infer<typeof encryptedSourceConnectionSchema>;
+
+export const oauthDisconnectCleanupCommandSchema = z
+  .object({
+    orgId: webhookLifecycleUuidSchema,
+    tenantDeploymentId: webhookLifecycleUuidSchema,
+    connectionId: webhookLifecycleUuidSchema,
+    kind: webhookLifecycleSourceKindSchema,
+    routeId: webhookLifecycleUuidSchema.nullable(),
+    generation: webhookLifecycleGenerationSchema,
+    disconnectEraseAfter: webhookLifecycleTimestampSchema,
+    cleanupExternalTenantId: z.string().min(1).max(256).nullable(),
+    cleanupRegistrationIds: webhookRegistrationIdsSchema.nullable(),
+    cleanupExpiresAt: webhookLifecycleTimestampSchema.nullable(),
+  })
+  .strict();
+export type OAuthDisconnectCleanupCommand = z.infer<typeof oauthDisconnectCleanupCommandSchema>;
+
+export const retiredOAuthCredentialLookupSchema = z
+  .object({
+    orgId: webhookLifecycleUuidSchema,
+    tenantDeploymentId: webhookLifecycleUuidSchema,
+    connectionId: webhookLifecycleUuidSchema,
+    kind: webhookLifecycleSourceKindSchema,
+    routeId: webhookLifecycleUuidSchema.nullable(),
+    generation: webhookLifecycleGenerationSchema,
+    disconnectEraseAfter: webhookLifecycleTimestampSchema,
+  })
+  .strict();
+export type RetiredOAuthCredentialLookup = z.infer<typeof retiredOAuthCredentialLookupSchema>;
+
+export const retiredOAuthCredentialSchema = z
+  .object({
+    encryptedAccessToken: opaqueCiphertextSchema,
+    encryptedRefreshToken: opaqueCiphertextSchema.nullable(),
+    accessCiphertextSha256: z.string().regex(/^[a-f0-9]{64}$/),
+    refreshCiphertextSha256: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .nullable(),
+    externalTenantId: z.string().min(1).max(256).nullable(),
+    cleanupExternalTenantId: z.string().min(1).max(256).nullable(),
+    cleanupRegistrationIds: webhookRegistrationIdsSchema.nullable(),
+    cleanupExpiresAt: webhookLifecycleTimestampSchema.nullable(),
+  })
+  .strict();
+export type RetiredOAuthCredential = z.infer<typeof retiredOAuthCredentialSchema>;
