@@ -23,5 +23,4 @@ export {
   InferenceAttestationError,
   ACI_RECEIPT_ID_HEADER,
   type AciVerifierConfig,
-  type ReceiptVerificationPolicy,
 } from './aci-verifier.js';

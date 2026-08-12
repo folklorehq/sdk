@@ -13,6 +13,7 @@ import {
   teamOnboardingSynthesisResultSchema,
   themeSynthesisRequestSchema,
   themeSynthesisResultSchema,
+  wikiArticleSchema,
   webhookLifecycleClaimSchema,
   webhookLifecycleCleanupClearSchema,
   webhookLifecycleDeliverySchema,
@@ -206,6 +207,50 @@ describe('webhook lifecycle enclave contracts', () => {
   });
 });
 
+describe('wikiArticleSchema', () => {
+  it('rejects nonempty plaintext content at the enclave boundary', () => {
+    expect(() =>
+      wikiArticleSchema.parse({
+        audienceId: null,
+        content: 'customer prose',
+        contentFormat: 'plaintext',
+        factCount: 1,
+      }),
+    ).toThrow();
+  });
+
+  it('accepts only the empty plaintext compatibility sentinel', () => {
+    expect(
+      wikiArticleSchema.parse({
+        audienceId: null,
+        content: '',
+        contentFormat: 'plaintext',
+        factCount: 0,
+      }),
+    ).toMatchObject({ content: '', contentFormat: 'plaintext' });
+  });
+
+  it('requires encrypted article content to be nonempty canonical base64', () => {
+    const article = {
+      audienceId: null,
+      contentFormat: 'esdk-v1',
+      factCount: 1,
+    } as const;
+
+    expect(() => wikiArticleSchema.parse({ ...article, content: '' })).toThrow();
+    expect(() => wikiArticleSchema.parse({ ...article, content: 'not base64' })).toThrow();
+    expect(() => wikiArticleSchema.parse({ ...article, content: 'Zh==' })).toThrow();
+    expect(wikiArticleSchema.parse({ ...article, content: 'Zg==' }).content).toBe('Zg==');
+  });
+
+  it.each([
+    { audienceId: null, content: 'Zg==', contentFormat: 'esdk-v1', factCount: 1 },
+    { audienceId: null, content: '', contentFormat: 'plaintext', factCount: 0 },
+  ] as const)('rejects an article with an unknown plaintext-bearing field', (article) => {
+    expect(() => wikiArticleSchema.parse({ ...article, plaintext: 'x' })).toThrow();
+  });
+});
+
 describe('processedFactSchema', () => {
   const valid = {
     factId: 'f1',
@@ -247,6 +292,18 @@ describe('processedFactSchema', () => {
   it('defaults metrics to [] when an older enclave omits it', () => {
     expect(processedFactSchema.parse(valid).metrics).toEqual([]);
   });
+
+  it('rejects unknown fields at the root and in nested output records', () => {
+    expect(processedFactSchema.safeParse({ ...valid, plaintext: 'customer prose' }).success).toBe(
+      false,
+    );
+    expect(
+      processedFactSchema.safeParse({
+        ...valid,
+        containerSeeds: [{ ...valid.containerSeeds[0], plaintext: 'customer prose' }],
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe('wikiSynthesisResultSchema', () => {
@@ -256,6 +313,7 @@ describe('wikiSynthesisResultSchema', () => {
       requestId: 'req-1',
       themeId: 'theme-1',
       orgId: 'org-1',
+      leaseToken: 'lease-1',
       articles: [{ audienceId: null, content: 'ZW5j', contentFormat: 'esdk-v1', factCount: 3 }],
       blocks: [
         {
@@ -277,6 +335,7 @@ describe('wikiSynthesisResultSchema', () => {
       requestId: 'req-1',
       themeId: 'theme-1',
       orgId: 'org-1',
+      leaseToken: 'lease-1',
       articles: [],
       blocks: [],
       citedFactIds: [],
@@ -290,6 +349,7 @@ describe('wikiSynthesisResultSchema', () => {
       requestId: 'req-1',
       themeId: 'theme-1',
       orgId: 'org-1',
+      leaseToken: 'lease-1',
       articles: [],
       blocks: [],
       citedFactIds: [],
@@ -310,6 +370,7 @@ describe('wikiSynthesisResultSchema', () => {
       requestId: 'req-1',
       themeId: 'theme-1',
       orgId: 'org-1',
+      leaseToken: 'lease-1',
       articles: [],
       blocks: [],
       citedFactIds: [],
@@ -327,6 +388,36 @@ describe('wikiSynthesisResultSchema', () => {
       }),
     ).toThrow();
   });
+
+  it('rejects unknown fields at the root and inside encrypted blocks', () => {
+    const base = {
+      type: 'wiki_synthesis',
+      requestId: 'req-1',
+      themeId: 'theme-1',
+      orgId: 'org-1',
+      leaseToken: 'lease-1',
+      articles: [],
+      citedFactIds: [],
+    };
+    expect(
+      wikiSynthesisResultSchema.safeParse({ ...base, plaintext: 'customer prose' }).success,
+    ).toBe(false);
+    expect(
+      wikiSynthesisResultSchema.safeParse({
+        ...base,
+        blocks: [
+          {
+            type: 'summary',
+            sensitivityLevel: 'team_scoped',
+            audienceId: null,
+            factIds: [],
+            body: { format: 'esdk-v1', ciphertext: 'YmxvY2s=' },
+            plaintext: 'customer prose',
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe('tokenUsage on a synthesis result', () => {
@@ -335,6 +426,7 @@ describe('tokenUsage on a synthesis result', () => {
     requestId: 'req-1',
     themeId: 'theme-1',
     orgId: 'org-1',
+    leaseToken: 'lease-1',
     articles: [],
     blocks: [],
     citedFactIds: [],
@@ -407,6 +499,8 @@ describe('themeSynthesisResultSchema', () => {
     const parsed = themeSynthesisResultSchema.parse({
       type: 'theme_synthesis',
       requestId: 'req-1',
+      inputVersion: 'input-v1',
+      leaseToken: 'legacy-lease-must-not-cross-the-wire',
       orgId: 'org-1',
       themes: [
         {
@@ -436,17 +530,36 @@ describe('themeSynthesisResultSchema', () => {
     expect(parsed.themes[0]?.docType).toBe('concept');
     expect(parsed.themes[0]?.docTypeConfidence).toBe(0);
     expect(parsed.aggregates[0]?.children[0]?.childThemeId).toBe('t1');
+    expect(parsed.inputVersion).toBe('input-v1');
+    expect(parsed.leaseToken).toBe('legacy-lease-must-not-cross-the-wire');
   });
 
   it('defaults aggregates to an empty array when omitted', () => {
     const parsed = themeSynthesisResultSchema.parse({
       type: 'theme_synthesis',
       requestId: 'req-1',
+      inputVersion: 'input-v1',
+      leaseToken: 'lease-1',
       orgId: 'org-1',
       themes: [],
       related: [],
     });
     expect(parsed.aggregates).toEqual([]);
+  });
+
+  it('rejects an unknown root field', () => {
+    expect(
+      themeSynthesisResultSchema.safeParse({
+        type: 'theme_synthesis',
+        requestId: 'req-1',
+        inputVersion: 'input-v1',
+        leaseToken: 'lease-1',
+        orgId: 'org-1',
+        themes: [],
+        related: [],
+        plaintext: 'customer prose',
+      }).success,
+    ).toBe(false);
   });
 });
 
@@ -456,6 +569,7 @@ describe('synthesisRequestSchema', () => {
     requestId: 'req-1',
     themeId: 'theme-1',
     orgId: 'org-1',
+    leaseToken: 'lease-1',
     themeName: 'Checkout Rate-Limit Incident',
     themeType: 'incident',
     parentThemeCount: 0,
@@ -555,6 +669,8 @@ describe('themeSynthesisRequestSchema', () => {
     const parsed = themeSynthesisRequestSchema.parse({
       type: 'theme_synthesis',
       requestId: 'req-1',
+      inputVersion: 'input-v1',
+      leaseToken: 'legacy-lease-must-not-cross-the-wire',
       orgId: 'org-1',
       containers: [
         {
@@ -568,6 +684,8 @@ describe('themeSynthesisRequestSchema', () => {
       ],
     });
     expect(parsed.containers[0]?.containerId).toBe('c1');
+    expect(parsed.inputVersion).toBe('input-v1');
+    expect(parsed.leaseToken).toBe('legacy-lease-must-not-cross-the-wire');
   });
 });
 
@@ -646,38 +764,77 @@ describe('teamOnboardingSynthesisResultSchema', () => {
     });
     expect(parsed.blocks[0]?.body.format).toBe('esdk-v1');
   });
+
+  it('rejects an unknown root field', () => {
+    expect(
+      teamOnboardingSynthesisResultSchema.safeParse({
+        type: 'team_onboarding_synthesis',
+        requestId: 'req-1',
+        orgId: 'org-1',
+        teamId: 'team-1',
+        teamName: 'Payments',
+        articles: [],
+        blocks: [],
+        citedFactIds: [],
+        plaintext: 'customer prose',
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe('pullDueMessageSchema', () => {
-  it('accepts the content-free pull-due signal', () => {
+  it('accepts a strict scheduled pull-due signal', () => {
     const parsed = pullDueMessageSchema.parse({
       type: 'pull-due',
+      trigger: 'scheduled',
       tenant_id: 'org-1',
       sourceId: 'src-1',
       kind: 'github',
+      backfill: false,
     });
     expect(parsed.kind).toBe('github');
   });
 
-  it('defaults the backfill marker to false when omitted', () => {
+  it('accepts a strict activation pull-due signal', () => {
     const parsed = pullDueMessageSchema.parse({
       type: 'pull-due',
+      trigger: 'activation',
       tenant_id: 'org-1',
       sourceId: 'src-1',
       kind: 'github',
+      activationGeneration: '11111111-1111-4111-8111-111111111111',
+      backfill: true,
     });
-    expect(parsed.backfill).toBe(false);
+    expect(parsed.trigger).toBe('activation');
   });
 
-  it('carries an explicit backfill marker', () => {
-    const parsed = pullDueMessageSchema.parse({
+  it.each([
+    {
+      type: 'pull-due',
+      trigger: 'activation',
+      tenant_id: 'org-1',
+      sourceId: 'src-1',
+      kind: 'github',
+      backfill: true,
+    },
+    {
+      type: 'pull-due',
+      trigger: 'scheduled',
+      tenant_id: 'org-1',
+      sourceId: 'src-1',
+      kind: 'github',
+      activationGeneration: '11111111-1111-4111-8111-111111111111',
+      backfill: true,
+    },
+    {
       type: 'pull-due',
       tenant_id: 'org-1',
       sourceId: 'src-1',
       kind: 'github',
       backfill: true,
-    });
-    expect(parsed.backfill).toBe(true);
+    },
+  ])('rejects legacy or cross-trigger fields', (message) => {
+    expect(pullDueMessageSchema.safeParse(message).success).toBe(false);
   });
 });
 
@@ -696,6 +853,12 @@ describe('pullCompleteSignalSchema', () => {
 
   it('rejects a non-ISO completedAt', () => {
     expect(() => pullCompleteSignalSchema.parse({ ...valid, completedAt: 'yesterday' })).toThrow();
+  });
+
+  it('rejects an unknown root field', () => {
+    expect(pullCompleteSignalSchema.safeParse({ ...valid, body: 'customer prose' }).success).toBe(
+      false,
+    );
   });
 });
 
@@ -722,6 +885,7 @@ type EnclaveSynthesisRequest = {
   requestId: string;
   themeId: string;
   orgId: string;
+  leaseToken: string;
   themeName: string;
   themeType: string;
   parentThemeCount: number;
@@ -741,6 +905,7 @@ type EnclaveWikiSynthesisResult = {
   requestId: string;
   themeId: string;
   orgId: string;
+  leaseToken: string;
   articles: {
     audienceId: string | null;
     content: string;
@@ -768,6 +933,8 @@ type _WikiSynthesisResultPinned = Expect<Equal<WikiSynthesisResult, EnclaveWikiS
 type EnclaveThemeSynthesisRequest = {
   type: 'theme_synthesis';
   requestId: string;
+  inputVersion: string;
+  leaseToken: string;
   orgId: string;
   containers: {
     containerId: string;
@@ -777,13 +944,25 @@ type EnclaveThemeSynthesisRequest = {
   }[];
 };
 
-type EnclavePullDueMessage = {
-  type: 'pull-due';
-  tenant_id: string;
-  sourceId: string;
-  kind: string;
-  backfill: boolean;
-};
+type EnclavePullDueMessage =
+  | {
+      type: 'pull-due';
+      trigger: 'scheduled';
+      tenant_id: string;
+      sourceId: string;
+      kind: string;
+      backfill: boolean;
+      backfillLeaseToken?: string;
+    }
+  | {
+      type: 'pull-due';
+      trigger: 'activation';
+      tenant_id: string;
+      sourceId: string;
+      kind: string;
+      activationGeneration: string;
+      backfill: true;
+    };
 
 type EnclavePullCompleteSignal = {
   type: 'pull-complete';
@@ -791,6 +970,7 @@ type EnclavePullCompleteSignal = {
   sourceKind: string;
   sourceId: string;
   completedAt: string;
+  backfillLeaseToken?: string;
 };
 
 type _SynthesisRequestPinned = Expect<Equal<SynthesisRequest, EnclaveSynthesisRequest>>;

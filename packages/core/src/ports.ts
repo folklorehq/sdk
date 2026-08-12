@@ -60,3 +60,7 @@ export interface Cache extends Closable {
   set(key: string, value: unknown, ttlSeconds?: number): Promise<void>;
   del(...keys: string[]): Promise<number>;
 }
+
+export interface MonotonicCache extends Cache {
+  setMaxAndSet(floorKey: string, floor: number, valueKey: string, value: unknown): Promise<boolean>;
+}

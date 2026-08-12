@@ -5,6 +5,7 @@ export * from './assignment-head.js';
 export * from './auth.js';
 export * from './collab.js';
 export * from './enclave.js';
+export * from './enclave-output.js';
 export * from './inference-trust.js';
 export * from './intercom.js';
 export * from './me.js';

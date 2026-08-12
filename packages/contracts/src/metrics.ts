@@ -30,9 +30,11 @@ export const FACT_METRIC_UNITS = {
   [FACT_METRIC_KEYS.commitChangedFiles]: 'files',
 } as const satisfies Record<FactMetricKey, FactMetricUnit>;
 
-export const factMetricSchema = z.object({
-  key: factMetricKeySchema,
-  value: z.number(),
-  unit: factMetricUnitSchema,
-});
+export const factMetricSchema = z
+  .object({
+    key: factMetricKeySchema,
+    value: z.number(),
+    unit: factMetricUnitSchema,
+  })
+  .strict();
 export type FactMetric = z.infer<typeof factMetricSchema>;

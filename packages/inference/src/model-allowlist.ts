@@ -24,3 +24,14 @@ export function parseModelAllowlist(
     .filter((model) => model.length > 0);
   return models.length > 0 ? models : fallback;
 }
+
+export function assertVerifiedModelConfiguration(
+  models: readonly string[],
+  allowlist: readonly string[],
+): void {
+  for (const model of models) {
+    if (!allowlist.includes(model)) {
+      throw new Error(`inference model "${model}" is not on the verified-model allowlist`);
+    }
+  }
+}

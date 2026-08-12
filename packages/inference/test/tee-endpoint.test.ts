@@ -3,6 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TeeEndpointBackend } from '../src/TeeEndpointBackend.js';
 
 const BASE_URL = 'https://inference.example.com';
+const VERIFIED = {
+  ensureAttested: async () => undefined,
+  verifyReceipt: async () => undefined,
+};
 
 function makeFetch(response: object, status = 200) {
   return vi.fn().mockResolvedValue({
@@ -26,7 +30,7 @@ describe('TeeEndpointBackend', () => {
       const embedding = [0.1, 0.2, 0.3];
       vi.stubGlobal('fetch', makeFetch({ data: [{ embedding }] }));
 
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL });
+      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
       const result = await backend.embed('hello');
 
       expect(result).toEqual(embedding);
@@ -44,7 +48,11 @@ describe('TeeEndpointBackend', () => {
     it('includes Authorization header when apiKey is set', async () => {
       vi.stubGlobal('fetch', makeFetch({ data: [{ embedding: [1, 2] }] }));
 
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, apiKey: 'sk-test' });
+      const backend = new TeeEndpointBackend({
+        baseUrl: BASE_URL,
+        responseVerifier: VERIFIED,
+        apiKey: 'sk-test',
+      });
       await backend.embed('hi');
 
       const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
@@ -54,7 +62,11 @@ describe('TeeEndpointBackend', () => {
     it('forwards embedDimensions as the dimensions request param', async () => {
       vi.stubGlobal('fetch', makeFetch({ data: [{ embedding: [1, 2, 3] }] }));
 
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, embedDimensions: 3 });
+      const backend = new TeeEndpointBackend({
+        baseUrl: BASE_URL,
+        responseVerifier: VERIFIED,
+        embedDimensions: 3,
+      });
       await backend.embed('hi');
 
       const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
@@ -64,7 +76,7 @@ describe('TeeEndpointBackend', () => {
     it('uses options.model when provided (and it is on the allowlist)', async () => {
       vi.stubGlobal('fetch', makeFetch({ data: [{ embedding: [1] }] }));
 
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL });
+      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
       await backend.embed('text', { model: 'qwen/qwen3-32b' });
 
       const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
@@ -74,14 +86,14 @@ describe('TeeEndpointBackend', () => {
     it('throws on non-2xx response', async () => {
       vi.stubGlobal('fetch', makeFetch({}, 401));
 
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL });
+      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
       await expect(backend.embed('x')).rejects.toThrow('TEE endpoint embed failed: 401');
     });
 
     it('throws when response contains no embedding', async () => {
       vi.stubGlobal('fetch', makeFetch({ data: [] }));
 
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL });
+      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
       await expect(backend.embed('x')).rejects.toThrow('TEE endpoint returned no embedding');
     });
   });
@@ -90,7 +102,7 @@ describe('TeeEndpointBackend', () => {
     it('calls /v1/chat/completions and returns content', async () => {
       vi.stubGlobal('fetch', makeFetch({ choices: [{ message: { content: 'hello world' } }] }));
 
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL });
+      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
       const result = await backend.generate('Say hi');
 
       expect(result).toBe('hello world');
@@ -108,7 +120,7 @@ describe('TeeEndpointBackend', () => {
     it('prepends system message when systemPrompt is set', async () => {
       vi.stubGlobal('fetch', makeFetch({ choices: [{ message: { content: 'ok' } }] }));
 
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL });
+      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
       await backend.generate('prompt', { systemPrompt: 'Be concise.' });
 
       const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
@@ -120,7 +132,7 @@ describe('TeeEndpointBackend', () => {
     it('passes maxTokens and temperature when provided', async () => {
       vi.stubGlobal('fetch', makeFetch({ choices: [{ message: { content: 'x' } }] }));
 
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL });
+      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
       await backend.generate('p', { maxTokens: 100, temperature: 0.5 });
 
       const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
@@ -132,14 +144,17 @@ describe('TeeEndpointBackend', () => {
     it('throws on non-2xx response', async () => {
       vi.stubGlobal('fetch', makeFetch({}, 500));
 
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL });
+      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
       await expect(backend.generate('x')).rejects.toThrow('TEE endpoint generate failed: 500');
     });
 
     it('strips trailing slash from baseUrl', async () => {
       vi.stubGlobal('fetch', makeFetch({ choices: [{ message: { content: 'hi' } }] }));
 
-      const backend = new TeeEndpointBackend({ baseUrl: `${BASE_URL}/` });
+      const backend = new TeeEndpointBackend({
+        baseUrl: `${BASE_URL}/`,
+        responseVerifier: VERIFIED,
+      });
       await backend.generate('hi');
 
       const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
@@ -152,7 +167,7 @@ describe('TeeEndpointBackend', () => {
       const fetchSpy = makeFetch({ choices: [{ message: { content: 'x' } }] });
       vi.stubGlobal('fetch', fetchSpy);
 
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL });
+      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
       await expect(backend.generate('p', { model: 'qwen/qwen3.7-max' })).rejects.toThrow(
         /not in the verified-model allowlist/,
       );
@@ -163,7 +178,7 @@ describe('TeeEndpointBackend', () => {
       const fetchSpy = makeFetch({ data: [{ embedding: [1] }] });
       vi.stubGlobal('fetch', fetchSpy);
 
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL });
+      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
       await expect(backend.embed('x', { model: 'unverified/model' })).rejects.toThrow(
         /not in the verified-model allowlist/,
       );
@@ -172,7 +187,7 @@ describe('TeeEndpointBackend', () => {
 
     it('allows the default verified models', async () => {
       vi.stubGlobal('fetch', makeFetch({ choices: [{ message: { content: 'ok' } }] }));
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL });
+      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
       await expect(backend.generate('p')).resolves.toBe('ok');
     });
 
@@ -181,6 +196,9 @@ describe('TeeEndpointBackend', () => {
       vi.stubGlobal('fetch', fetchSpy);
       const backend = new TeeEndpointBackend({
         baseUrl: BASE_URL,
+        responseVerifier: VERIFIED,
+        embedModel: 'only/allowed',
+        generateModel: 'only/allowed',
         modelAllowlist: ['only/allowed'],
       });
       await expect(backend.generate('p', { model: 'z-ai/glm-5.2' })).rejects.toThrow(
@@ -230,7 +248,7 @@ describe('TeeEndpointBackend', () => {
 
   describe('close()', () => {
     it('is a no-op (stateless HTTP client)', async () => {
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL });
+      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
       await expect(backend.close()).resolves.toBeUndefined();
     });
   });

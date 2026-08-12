@@ -16,6 +16,11 @@
       "types": "./dist/enclave.d.ts",
       "default": "./dist/enclave.js"
     },
+    "./enclave-output": {
+      "development": "./src/enclave-output.ts",
+      "types": "./dist/enclave-output.d.ts",
+      "default": "./dist/enclave-output.js"
+    },
     "./wiki": {
       "development": "./src/wiki.ts",
       "types": "./dist/wiki.d.ts",

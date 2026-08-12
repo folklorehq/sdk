@@ -8,6 +8,7 @@ export {
   type SafeLogEvent,
   type SafeLogValue,
   type Cache,
+  type MonotonicCache,
   type Closable,
 } from './ports.js';
 export { ShutdownManager, type ShutdownHandler, type ShutdownOptions } from './ShutdownManager.js';

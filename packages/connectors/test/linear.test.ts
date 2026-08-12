@@ -194,6 +194,16 @@ describe('LinearConnector.pull', () => {
     return { client, connector };
   }
 
+  it('treats an empty incremental response as successful and preserves its cursor', async () => {
+    const { connector } = connectorFor([]);
+
+    const result = await connector.pull({ value: '2026-06-01T10:00:00.000Z' });
+
+    expect(result.facts).toEqual([]);
+    expect(result.containers).toEqual([]);
+    expect(result.cursor.value).toBe('2026-06-01T10:00:00.000Z');
+  });
+
   it('seeds a container + content body for an issue created inside the enclave 12-month window', async () => {
     // Regression: the enclave ALWAYS sets options.since, so the old `since ? 'update' : 'create'`
     // buried every backfilled issue as a bodyless transition. An in-window issue is a create.
@@ -248,7 +258,7 @@ describe('LinearConnector rate limiting', () => {
     return new LinearConnector({ logger: new PinoLogger({ level: 'silent' }) }, client);
   }
 
-  it('surfaces a Linear 400/RATELIMITED response as RateLimitError, not a fatal error', async () => {
+  it('does not report success for a Linear 400/RATELIMITED pull', async () => {
     const connector = connectorThrowing(rateLimitedError());
 
     await expect(connector.pull({ value: null })).rejects.toBeInstanceOf(RateLimitError);

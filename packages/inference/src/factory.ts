@@ -30,11 +30,9 @@ export interface InferenceConfig {
   /** Verified-model allowlist for TEE modes (fail-closed). Defaults to the built-in verified set. */
   modelAllowlist?: readonly string[];
 
-  /** Verify each TEE response against its Phala ACI receipt (attestation pin + upstream.verified). */
-  verifyReceipts?: boolean;
-
-  /** Also enforce the receipt signature (scoped next step — see AciVerifierConfig). */
-  enforceReceiptSignature?: boolean;
+  aciExpectedHost?: string;
+  aciExpectedWorkloadId?: string;
+  aciExpectedKeysetDigest?: string;
 
   /** Optional task→model routing — tagged `generate`/`stream` calls use the model configured for that task. See {@link tieredTaskModels}. */
   taskModels?: TaskModelMap;
@@ -102,14 +100,21 @@ function createBaseBackend(config: InferenceConfig): InferenceBackend {
   }
 }
 
-function buildReceiptVerifier(config: InferenceConfig): InferenceResponseVerifier | undefined {
-  if (!config.verifyReceipts || !config.teeEndpointUrl) return undefined;
+function buildReceiptVerifier(config: InferenceConfig): InferenceResponseVerifier {
+  if (!config.teeEndpointUrl) throw new Error('TEE receipt verifier requires teeEndpointUrl');
   return new AciReceiptVerifier({
     baseUrl: config.teeEndpointUrl,
+    expectedHost: requiredPin(config.aciExpectedHost, 'aciExpectedHost'),
+    expectedWorkloadId: requiredPin(config.aciExpectedWorkloadId, 'aciExpectedWorkloadId'),
+    expectedKeysetDigest: requiredPin(config.aciExpectedKeysetDigest, 'aciExpectedKeysetDigest'),
     apiKey: config.teeApiKey,
     telemetry: config.telemetry,
-    enforceReceiptSignature: config.enforceReceiptSignature,
   });
+}
+
+function requiredPin(value: string | undefined, name: string): string {
+  if (!value) throw new Error(`TEE receipt verifier requires ${name}`);
+  return value;
 }
 
 function assertUnreachableMode(mode: never): never {

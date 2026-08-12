@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { agentPrincipalName, isAgentPrincipalName } from '../src/agent-principal.js';
+import {
+  agentPrincipalName,
+  isAgentPrincipalName,
+  purgePrincipalName,
+} from '../src/agent-principal.js';
 
 const ORG_ID = '22222222-2222-4222-8222-222222222222';
 const PRINCIPAL = 'folklore_agent_22222222222242228222222222222222';
+const PURGE_PRINCIPAL = 'folklore_purge_22222222222242228222222222222222';
 
 describe('agentPrincipalName', () => {
   it('derives the sole allowed RDS IAM principal from a non-nil org UUID', () => {
@@ -18,4 +23,9 @@ describe('agentPrincipalName', () => {
       expect(isAgentPrincipalName(value, ORG_ID)).toBe(false);
     },
   );
+
+  it('derives a distinct purge principal from the same org UUID', () => {
+    expect(purgePrincipalName(ORG_ID)).toBe(PURGE_PRINCIPAL);
+    expect(purgePrincipalName(ORG_ID)).not.toBe(PRINCIPAL);
+  });
 });

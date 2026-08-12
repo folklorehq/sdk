@@ -20,5 +20,5 @@ export {
   resolveTenantFromHost,
 } from './tenant.js';
 export { emailDomain, isPublicEmailDomain, isWorkEmail } from './public-email-domains.js';
-export { agentPrincipalName, isAgentPrincipalName } from './agent-principal.js';
+export { agentPrincipalName, isAgentPrincipalName, purgePrincipalName } from './agent-principal.js';
 export { verifyControlPlaneCertificate, matchesSpkiPin } from './control-plane-pin.js';

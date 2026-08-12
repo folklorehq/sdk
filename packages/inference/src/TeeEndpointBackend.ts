@@ -2,7 +2,7 @@
 import type { TelemetryClient } from '@folklore/telemetry';
 import type { InferenceResponseVerifier, InferenceUsageSink } from './ports.js';
 import { OpenAICompatBackend } from './OpenAICompatBackend.js';
-import { DEFAULT_VERIFIED_MODELS } from './model-allowlist.js';
+import { assertVerifiedModelConfiguration, DEFAULT_VERIFIED_MODELS } from './model-allowlist.js';
 
 export interface TeeEndpointConfig {
   /** Base URL of the TEE inference endpoint — must point to a verified Phala CVM or Folklore-hosted TEE endpoint. */
@@ -17,8 +17,8 @@ export interface TeeEndpointConfig {
   generateModel?: string;
   /** Verified-model allowlist. Default: {@link DEFAULT_VERIFIED_MODELS}. Off-list models are rejected before sending. */
   modelAllowlist?: readonly string[];
-  /** Proves each response came from a verified TEE upstream via its ACI receipt. */
-  responseVerifier?: InferenceResponseVerifier;
+  /** Proves each response came from a verified TEE upstream via its ACI receipt. Required. */
+  responseVerifier: InferenceResponseVerifier;
   /** Receives the content-free token counts of every successful call. */
   usageSink?: InferenceUsageSink;
   /** Request timeout in milliseconds. Default: 60000 (remote endpoints are slower). */
@@ -32,13 +32,20 @@ const DEFAULT_GENERATE_MODEL = 'z-ai/glm-5.2';
 /** Calls a remote TEE-backed inference endpoint (Phala or Folklore-hosted); an {@link OpenAICompatBackend} with TEE-specific defaults. */
 export class TeeEndpointBackend extends OpenAICompatBackend {
   constructor(config: TeeEndpointConfig) {
+    const embedModel = config.embedModel ?? DEFAULT_EMBED_MODEL;
+    const generateModel = config.generateModel ?? DEFAULT_GENERATE_MODEL;
+    const modelAllowlist = config.modelAllowlist ?? DEFAULT_VERIFIED_MODELS;
+    assertVerifiedModelConfiguration([embedModel, generateModel], modelAllowlist);
+    if (!config.responseVerifier) {
+      throw new Error('TEE endpoint requires an inference response verifier');
+    }
     super({
       baseUrl: config.baseUrl,
       apiKey: config.apiKey,
-      embedModel: config.embedModel ?? DEFAULT_EMBED_MODEL,
+      embedModel,
       embedDimensions: config.embedDimensions,
-      generateModel: config.generateModel ?? DEFAULT_GENERATE_MODEL,
-      modelAllowlist: config.modelAllowlist ?? DEFAULT_VERIFIED_MODELS,
+      generateModel,
+      modelAllowlist,
       responseVerifier: config.responseVerifier,
       usageSink: config.usageSink,
       timeoutMs: config.timeoutMs,

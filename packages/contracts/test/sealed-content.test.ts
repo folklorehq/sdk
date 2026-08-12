@@ -204,6 +204,7 @@ describe('explicit read compatibility contracts', () => {
         requestId: 'req-1',
         themeId: 'theme-1',
         orgId: 'org-1',
+        leaseToken: 'lease-1',
         articles: [],
         blocks: [legacyBlock],
         citedFactIds: ['f1'],

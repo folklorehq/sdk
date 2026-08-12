@@ -212,6 +212,23 @@ describe('fact_metrics (method 6, content-free numeric signals)', () => {
 });
 
 describe('GitHubConnector.pull', () => {
+  it('treats an empty incremental response as successful and preserves its cursor', async () => {
+    const client: GitHubClient = {
+      listRepositories: async () => [repo],
+      listPullRequests: async () => [],
+      getPullRequest: async () => ({ additions: 0, deletions: 0, changed_files: 0 }),
+      listIssueComments: async () => [],
+      getPullRequestFiles: async () => [],
+    };
+    const connector = new GitHubConnector(context, client);
+
+    const result = await connector.pull({ value: '2026-06-01T10:00:00Z' });
+
+    expect(result.facts).toEqual([]);
+    expect(result.containers).toEqual([]);
+    expect(result.cursor.value).toBe('2026-06-01T10:00:00Z');
+  });
+
   it('produces containers + facts and advances the cursor', async () => {
     const client: GitHubClient = {
       listRepositories: async () => [repo],

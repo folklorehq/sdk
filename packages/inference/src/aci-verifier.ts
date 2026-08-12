@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { createPublicKey, verify as verifyEd25519 } from 'node:crypto';
+import { createHash, createPublicKey, verify as verifyEd25519 } from 'node:crypto';
 import { z } from 'zod';
 import type { TelemetryClient } from '@folklore/telemetry';
 import type { InferenceResponseVerifier } from './ports.js';
@@ -19,35 +19,37 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 const ED25519_RAW_KEY_LEN = 32;
 
-export type ReceiptVerificationPolicy = 'per-call' | 'first-call';
-
 export interface AciVerifierConfig {
   baseUrl: string;
+  expectedHost: string;
+  expectedWorkloadId: string;
+  expectedKeysetDigest: string;
   apiKey?: string;
   telemetry?: TelemetryClient;
   timeoutMs?: number;
-  /** 'per-call' verifies every response; 'first-call' (default) verifies once, bounding latency. */
-  policy?: ReceiptVerificationPolicy;
-  // Off by default: upstream.verified + workload-match are always enforced, but the exact
-  // signed-byte canonicalization must be reconciled against live receipts before failing
-  // closed on the signature (scoped next step — see docs/product/inference.md).
-  enforceReceiptSignature?: boolean;
   fetchImpl?: typeof fetch;
+  now?: () => Date;
 }
 
 const receiptSigningKeySchema = z
-  .object({ id: z.string().optional(), algorithm: z.string(), public_key: z.string() })
+  .object({ key_id: z.string().min(1), algo: z.literal('ed25519'), public_key: z.string() })
+  .passthrough();
+
+const workloadKeysetSchema = z
+  .object({
+    not_after: z.number().int(),
+    receipt_signing_keys: z.array(receiptSigningKeySchema).min(1),
+  })
   .passthrough();
 
 const attestationSchema = z
   .object({
+    api_version: z.literal('aci/1'),
     workload_id: z.string(),
     workload_keyset_digest: z.string(),
     attestation: z
       .object({
-        workload_keyset: z
-          .object({ receipt_signing_keys: z.array(receiptSigningKeySchema).min(1) })
-          .passthrough(),
+        workload_keyset: workloadKeysetSchema,
       })
       .passthrough(),
   })
@@ -65,10 +67,13 @@ const receiptEventSchema = z
 
 const receiptSchema = z
   .object({
+    api_version: z.literal('aci/1'),
+    key_id: z.string().min(1),
     workload_id: z.string(),
     workload_keyset_digest: z.string(),
     event_log: z.array(receiptEventSchema),
-    signature: z.string().optional(),
+    expires_at: z.string(),
+    signature: z.string().min(1).optional(),
   })
   .passthrough();
 
@@ -77,6 +82,7 @@ type Receipt = z.infer<typeof receiptSchema>;
 interface PinnedAttestation {
   workloadId: string;
   keysetDigest: string;
+  notAfter: number;
   signingKeys: ReadonlyArray<z.infer<typeof receiptSigningKeySchema>>;
 }
 
@@ -95,22 +101,30 @@ export class AciReceiptVerifier implements InferenceResponseVerifier {
   private readonly apiKey: string | undefined;
   private readonly telemetry: TelemetryClient | undefined;
   private readonly timeoutMs: number;
-  private readonly policy: ReceiptVerificationPolicy;
-  private readonly enforceReceiptSignature: boolean;
   private readonly fetchImpl: typeof fetch;
+  private readonly expectedWorkloadId: string;
+  private readonly expectedKeysetDigest: string;
+  private readonly now: () => Date;
 
   private pinned: PinnedAttestation | null = null;
   private pinning: Promise<PinnedAttestation> | null = null;
-  private satisfied = false;
 
   constructor(config: AciVerifierConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, '').replace(/\/v1$/, '');
     this.apiKey = config.apiKey;
     this.telemetry = config.telemetry;
     this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    this.policy = config.policy ?? 'first-call';
-    this.enforceReceiptSignature = config.enforceReceiptSignature ?? false;
     this.fetchImpl = config.fetchImpl ?? fetch;
+    this.expectedWorkloadId = config.expectedWorkloadId;
+    this.expectedKeysetDigest = config.expectedKeysetDigest;
+    this.now = config.now ?? (() => new Date());
+    const endpoint = new URL(this.baseUrl);
+    if (endpoint.protocol !== 'https:') {
+      throw this.fail('endpoint must use https');
+    }
+    if (endpoint.hostname !== config.expectedHost) {
+      throw this.fail('endpoint host does not match configured pin');
+    }
   }
 
   async ensureAttested(): Promise<void> {
@@ -118,16 +132,15 @@ export class AciReceiptVerifier implements InferenceResponseVerifier {
   }
 
   async verifyReceipt(receiptId: string | null): Promise<void> {
-    if (this.policy === 'first-call' && this.satisfied) return;
     const pinned = await this.pin();
     if (!receiptId) throw this.fail('response carried no receipt id');
 
     const receipt = await this.fetchReceipt(receiptId);
     this.assertWorkloadMatches(receipt, pinned);
+    this.assertNotExpired(receipt);
     const sessionId = this.assertUpstreamVerified(receipt);
-    if (this.enforceReceiptSignature) this.assertSignature(receipt, pinned);
+    this.assertSignature(receipt, pinned);
 
-    this.satisfied = true;
     this.telemetry?.track('inference.receipt_verified', 'system', { sessionId });
   }
 
@@ -146,11 +159,26 @@ export class AciReceiptVerifier implements InferenceResponseVerifier {
   private async fetchAttestation(): Promise<PinnedAttestation> {
     const raw = await this.getJson(`${this.baseUrl}${ACI_ATTESTATION_PATH}`, 'attestation');
     const parsed = this.parse(attestationSchema, raw, 'attestation');
-    return {
+    const pinned = {
       workloadId: parsed.workload_id,
       keysetDigest: parsed.workload_keyset_digest,
+      notAfter: parsed.attestation.workload_keyset.not_after,
       signingKeys: parsed.attestation.workload_keyset.receipt_signing_keys,
     };
+    const computedDigest = `sha256:${createHash('sha256')
+      .update(canonicalJson(parsed.attestation.workload_keyset))
+      .digest('hex')}`;
+    if (
+      pinned.workloadId !== this.expectedWorkloadId ||
+      pinned.keysetDigest !== this.expectedKeysetDigest ||
+      computedDigest !== this.expectedKeysetDigest
+    ) {
+      throw this.fail('attestation does not match configured pin');
+    }
+    if (pinned.notAfter <= Math.floor(this.now().getTime() / 1_000)) {
+      throw this.fail('attested signing keyset expired');
+    }
+    return pinned;
   }
 
   private async fetchReceipt(receiptId: string): Promise<Receipt> {
@@ -168,6 +196,13 @@ export class AciReceiptVerifier implements InferenceResponseVerifier {
     }
   }
 
+  private assertNotExpired(receipt: Receipt): void {
+    const expiresAt = Date.parse(receipt.expires_at);
+    if (!Number.isFinite(expiresAt) || expiresAt <= this.now().getTime()) {
+      throw this.fail('receipt expired');
+    }
+  }
+
   private assertUpstreamVerified(receipt: Receipt): string {
     const event = receipt.event_log.find((e) => (e.type ?? e.event) === UPSTREAM_VERIFIED_EVENT);
     if (!event) throw this.fail('receipt has no upstream.verified event');
@@ -181,9 +216,11 @@ export class AciReceiptVerifier implements InferenceResponseVerifier {
 
   private assertSignature(receipt: Receipt, pinned: PinnedAttestation): void {
     if (!receipt.signature) throw this.fail('receipt is unsigned');
+    const key = pinned.signingKeys.find((candidate) => candidate.key_id === receipt.key_id);
+    if (!key) throw this.fail('receipt signing key was not in the attested keyset');
     const message = Buffer.from(this.canonicalSignedPayload(receipt), 'utf8');
     const signature = this.decodeBytes(receipt.signature);
-    const ok = pinned.signingKeys.some((key) => this.verifyWithKey(key, message, signature));
+    const ok = this.verifyWithKey(key, message, signature);
     if (!ok) throw this.fail('receipt signature did not match any attested signing key');
   }
 
@@ -203,19 +240,14 @@ export class AciReceiptVerifier implements InferenceResponseVerifier {
     }
   }
 
-  // The receipt minus its detached signature, canonicalized with sorted keys. The exact
-  // Phala canonicalization is unconfirmed in public docs, so signature enforcement stays
-  // opt-in (enforceReceiptSignature) until reconciled against live receipts.
   private canonicalSignedPayload(receipt: Receipt): string {
     const { signature: _signature, ...rest } = receipt;
     return canonicalJson(rest);
   }
 
   private decodeBytes(value: string): Buffer {
-    if (/^[0-9a-fA-F]+$/.test(value) && value.length % 2 === 0) {
-      return Buffer.from(value, 'hex');
-    }
-    return Buffer.from(value, 'base64');
+    if (!/^[0-9a-f]+$/.test(value) || value.length % 2 !== 0) return Buffer.alloc(0);
+    return Buffer.from(value, 'hex');
   }
 
   private async getJson(url: string, label: string): Promise<unknown> {

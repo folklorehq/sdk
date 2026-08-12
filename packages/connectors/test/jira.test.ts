@@ -281,6 +281,31 @@ describe('JiraConnector.pull', () => {
     return [makeIssue(), issueB];
   }
 
+  it('treats an empty incremental response as successful and preserves its cursor', async () => {
+    const client = new FakeJiraClient([]);
+    const connector = new JiraConnector({ logger: new PinoLogger({ level: 'silent' }) }, client);
+
+    const result = await connector.pull({ value: '2026-06-01T10:00:00.000Z' });
+
+    expect(result.facts).toEqual([]);
+    expect(result.containers).toEqual([]);
+    expect(result.cursor.value).toBe('2026-06-01T10:00:00.000Z');
+  });
+
+  it('does not report success when the Jira provider fails', async () => {
+    const providerFailure = new Error('jira_provider_failed');
+    const client = new FakeJiraClient([]);
+    client.listIssues = async () => {
+      throw providerFailure;
+    };
+    const connector = new JiraConnector({ logger: new PinoLogger({ level: 'silent' }) }, client);
+
+    await expect(connector.pull({ value: '2026-06-01T10:00:00.000Z' })).rejects.toMatchObject({
+      code: 'external_service_error',
+      component: 'jira',
+    });
+  });
+
   it('seeds a container per issue on a from-scratch pull and advances the cursor to the max updated time', async () => {
     const client = new FakeJiraClient(twoIssues());
     const connector = new JiraConnector({ logger: new PinoLogger({ level: 'silent' }) }, client);

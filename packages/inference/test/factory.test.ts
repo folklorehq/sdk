@@ -5,6 +5,14 @@ import { StubInferenceBackend } from '../src/StubInferenceBackend.js';
 import { OpenAICompatBackend } from '../src/OpenAICompatBackend.js';
 import { TeeEndpointBackend } from '../src/TeeEndpointBackend.js';
 
+function pins(host: string) {
+  return {
+    aciExpectedHost: host,
+    aciExpectedWorkloadId: 'workload-1',
+    aciExpectedKeysetDigest: `sha256:${'a'.repeat(64)}`,
+  };
+}
+
 describe('createInferenceBackend()', () => {
   it('throws when no mode is set (fail loud, no silent stub/local fallback)', () => {
     expect(() => createInferenceBackend({})).toThrow(/mode is not configured/);
@@ -30,6 +38,7 @@ describe('createInferenceBackend()', () => {
     const backend = createInferenceBackend({
       mode: 'phala-endpoint',
       teeEndpointUrl: 'https://api.phala.com/v1',
+      ...pins('api.phala.com'),
     });
     expect(backend).toBeInstanceOf(TeeEndpointBackend);
   });
@@ -38,6 +47,7 @@ describe('createInferenceBackend()', () => {
     const backend = createInferenceBackend({
       mode: 'folklore-tee',
       teeEndpointUrl: 'https://inference.folklore.app/v1',
+      ...pins('inference.folklore.app'),
     });
     expect(backend).toBeInstanceOf(TeeEndpointBackend);
   });
@@ -51,6 +61,7 @@ describe('createInferenceBackend()', () => {
     const tee = createInferenceBackend({
       mode: 'phala-endpoint',
       teeEndpointUrl: 'https://api.phala.com/v1',
+      ...pins('api.phala.com'),
     });
     await expect(stub.close()).resolves.toBeUndefined();
     await expect(tee.close()).resolves.toBeUndefined();
