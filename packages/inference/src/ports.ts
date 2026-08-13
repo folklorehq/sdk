@@ -1,14 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
+import type { InferenceModelRole } from '@folklore/contracts';
+
 /** InferenceBackend port — all inference MUST happen inside the customer's box; sending fact content to an external API is structurally prohibited. */
 
 export interface EmbedOptions {
   /** Override the default embedding model for this call. */
   model?: string;
+  /** Exact provider revision expected for this call. */
+  modelRevision?: string;
+  /** Signed-policy role expected for this call. */
+  modelRole?: InferenceModelRole;
 }
 
 export interface GenerateOptions {
   /** Override the default generation model for this call. */
   model?: string;
+  /** Exact provider revision expected for this call. */
+  modelRevision?: string;
+  /** Signed-policy role expected for this call. */
+  modelRole?: InferenceModelRole;
   /** System prompt to prepend before the user prompt. */
   systemPrompt?: string;
   /** Maximum number of tokens to generate. */
@@ -66,9 +76,20 @@ export interface AttestationReport {
 export interface InferenceResponseVerifier {
   /** Pin + verify the gateway's ACI attestation once; throws (fail-closed) if unverifiable. */
   ensureAttested(): Promise<void>;
-  /** Verify the per-response receipt for `receiptId`; throws if it is missing or unverified. */
-  verifyReceipt(receiptId: string | null): Promise<void>;
+  /** Verify the per-response receipt against the exact serialized exchange. */
+  verifyReceipt(receiptId: string | null, evidence: InferenceExchangeEvidence): Promise<void>;
 }
+
+export interface InferenceExchangeEvidence {
+  requestSha256: string;
+  responseSha256: string;
+  model: string;
+  modelRevision: string;
+  modelRole?: InferenceModelRole;
+  nonce: string;
+}
+
+export type { InferenceModelRole };
 
 export interface InferenceBackend {
   /** Generate a fixed-size embedding vector for the given text. */

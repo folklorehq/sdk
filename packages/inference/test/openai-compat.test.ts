@@ -5,12 +5,17 @@ import { OpenAICompatBackend } from '../src/OpenAICompatBackend.js';
 const BASE_URL = 'http://vllm:8000';
 
 function makeFetch(response: object, status = 200) {
+  const bytes = new TextEncoder().encode(JSON.stringify(response));
   return vi.fn().mockResolvedValue({
     status,
     ok: status >= 200 && status < 300,
-    json: () => Promise.resolve(response),
+    arrayBuffer: () => Promise.resolve(bytes.buffer as ArrayBuffer),
     body: null,
   });
+}
+
+function jsonResponse(body: object): Response {
+  return new Response(JSON.stringify(body), { status: 200 });
 }
 
 describe('OpenAICompatBackend', () => {
@@ -110,6 +115,57 @@ describe('OpenAICompatBackend', () => {
     await withKey.embed('hi');
     const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
     expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer sk-x');
+  });
+
+  it('denies redirects on every content-bearing request', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (init?.redirect !== 'error') throw new Error('redirect policy missing');
+      const body = JSON.parse(String(init.body)) as { stream?: boolean; tools?: unknown[] };
+      if (body.stream) {
+        const bytes = new TextEncoder().encode(
+          'data: {"choices":[{"delta":{"content":"ok"}}]}\n\ndata: [DONE]\n',
+        );
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+          body: {
+            getReader: () => ({
+              read: vi
+                .fn()
+                .mockResolvedValueOnce({ done: false, value: bytes })
+                .mockResolvedValueOnce({ done: true, value: undefined }),
+              releaseLock: vi.fn(),
+            }),
+          },
+        });
+      }
+      if (url.endsWith('/embeddings')) {
+        return Promise.resolve(jsonResponse({ data: [{ embedding: [0.1] }] }));
+      }
+      if (body.tools) {
+        return Promise.resolve(
+          jsonResponse({
+            choices: [
+              { message: { tool_calls: [{ function: { name: 'judge', arguments: '{}' } }] } },
+            ],
+          }),
+        );
+      }
+      return Promise.resolve(jsonResponse({ choices: [{ message: { content: 'ok' } }] }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const backend = new OpenAICompatBackend({ baseUrl: BASE_URL });
+
+    await expect(backend.embed('secret')).resolves.toEqual([0.1]);
+    await expect(backend.generate('secret')).resolves.toBe('ok');
+    await expect(
+      backend.generateStructured('secret', {
+        tool: { name: 'judge', description: 'judge', parameters: { type: 'object' } },
+      }),
+    ).resolves.toEqual({});
+    await expect(backend.stream('secret').next()).resolves.toEqual({ value: 'ok', done: false });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it('uses a generic error label', async () => {

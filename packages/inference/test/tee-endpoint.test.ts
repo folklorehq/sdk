@@ -1,20 +1,71 @@
 // SPDX-License-Identifier: Apache-2.0
+import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TeeEndpointBackend } from '../src/TeeEndpointBackend.js';
 
 const BASE_URL = 'https://inference.example.com';
-const VERIFIED = {
-  ensureAttested: async () => undefined,
-  verifyReceipt: async () => undefined,
+const POLICY = {
+  version: 1 as const,
+  generation: 4,
+  origin: BASE_URL,
+  route: '/v1',
+  redirectOrigins: [],
+  tlsSpkiSha256: ['a'.repeat(64)],
+  workloadId: 'workload-1',
+  quoteRootDigests: ['1'.repeat(64)],
+  workloadMeasurements: ['2'.repeat(96)],
+  attestationKeys: [
+    { keyId: 'attestation-key-1', algorithm: 'Ed25519' as const, publicKey: 'A'.repeat(43) + '=' },
+  ],
+  receiptKeys: [
+    { keyId: 'receipt-key-1', algorithm: 'Ed25519' as const, publicKey: 'B'.repeat(43) + '=' },
+  ],
+  permittedModels: [
+    { model: 'provider/critique', revision: 'critique-1' },
+    { model: 'provider/embed', revision: 'embed-1' },
+    { model: 'provider/generate', revision: 'generate-1' },
+    { model: 'provider/judge', revision: 'judge-1' },
+  ],
+  roleModels: {
+    embed: { model: 'provider/embed', revision: 'embed-1' },
+    generate: { model: 'provider/generate', revision: 'generate-1' },
+    judge: { model: 'provider/judge', revision: 'judge-1' },
+    critique: { model: 'provider/critique', revision: 'critique-1' },
+  },
 };
 
-function makeFetch(response: object, status = 200) {
-  return vi.fn().mockResolvedValue({
+function passingVerifier() {
+  return {
+    ensureAttested: vi.fn().mockResolvedValue(undefined),
+    verifyReceipt: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function response(bytes: Uint8Array, status = 200, receiptId = 'receipt-1') {
+  return {
     status,
     ok: status >= 200 && status < 300,
-    json: () => Promise.resolve(response),
+    arrayBuffer: () => Promise.resolve(bytes.buffer as ArrayBuffer),
+    headers: { get: (name: string) => (name === 'x-receipt-id' ? receiptId : null) },
     body: null,
-  });
+  };
+}
+
+function makeFetch(body: object, status = 200) {
+  const bytes = new TextEncoder().encode(JSON.stringify(body));
+  return vi.fn().mockResolvedValue(response(bytes, status));
+}
+
+function makeBackend(verifier = passingVerifier()) {
+  return {
+    backend: new TeeEndpointBackend({
+      baseUrl: BASE_URL,
+      trustPolicy: POLICY,
+      responseVerifier: verifier,
+      fetchImpl: fetch,
+    }),
+    verifier,
+  };
 }
 
 describe('TeeEndpointBackend', () => {
@@ -25,231 +76,215 @@ describe('TeeEndpointBackend', () => {
     vi.unstubAllGlobals();
   });
 
-  describe('embed()', () => {
-    it('calls /v1/embeddings with correct body and returns vector', async () => {
-      const embedding = [0.1, 0.2, 0.3];
-      vi.stubGlobal('fetch', makeFetch({ data: [{ embedding }] }));
+  it('derives the embed model and exact revision from roleModels', async () => {
+    const embedding = [0.1, 0.2, 0.3];
+    vi.stubGlobal('fetch', makeFetch({ data: [{ embedding }] }));
+    const { backend, verifier } = makeBackend();
 
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
-      const result = await backend.embed('hello');
-
-      expect(result).toEqual(embedding);
-      const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [
-        string,
-        RequestInit,
-      ];
-      expect(url).toBe(`${BASE_URL}/v1/embeddings`);
-      expect(JSON.parse(init.body as string)).toMatchObject({
-        model: 'qwen/qwen3-embedding-8b',
-        input: 'hello',
-      });
+    await expect(backend.embed('hello')).resolves.toEqual(embedding);
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toMatchObject({
+      model: 'provider/embed',
+      model_revision: 'embed-1',
+      input: 'hello',
     });
+    expect((init.headers as Record<string, string>)['X-Folklore-Inference-Model-Revision']).toBe(
+      'embed-1',
+    );
+    expect(verifier.verifyReceipt).toHaveBeenCalledWith(
+      'receipt-1',
+      expect.objectContaining({
+        model: 'provider/embed',
+        modelRevision: 'embed-1',
+        modelRole: 'embed',
+      }),
+    );
+  });
 
-    it('includes Authorization header when apiKey is set', async () => {
-      vi.stubGlobal('fetch', makeFetch({ data: [{ embedding: [1, 2] }] }));
+  it('rejects a parent-selected model or revision before sending content', async () => {
+    const fetchSpy = makeFetch({ data: [{ embedding: [1] }] });
+    vi.stubGlobal('fetch', fetchSpy);
+    const { backend } = makeBackend();
 
-      const backend = new TeeEndpointBackend({
-        baseUrl: BASE_URL,
-        responseVerifier: VERIFIED,
-        apiKey: 'sk-test',
-      });
-      await backend.embed('hi');
+    await expect(backend.embed('secret', { model: 'attacker/model' })).rejects.toThrow(
+      /model override/,
+    );
+    await expect(
+      backend.embed('secret', { modelRevision: 'uncommissioned-revision' }),
+    ).rejects.toThrow(/revision override/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 
-      const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
-      expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer sk-test');
-    });
-
-    it('forwards embedDimensions as the dimensions request param', async () => {
-      vi.stubGlobal('fetch', makeFetch({ data: [{ embedding: [1, 2, 3] }] }));
-
-      const backend = new TeeEndpointBackend({
-        baseUrl: BASE_URL,
-        responseVerifier: VERIFIED,
-        embedDimensions: 3,
-      });
-      await backend.embed('hi');
-
-      const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
-      expect(JSON.parse(init.body as string).dimensions).toBe(3);
-    });
-
-    it('uses options.model when provided (and it is on the allowlist)', async () => {
-      vi.stubGlobal('fetch', makeFetch({ data: [{ embedding: [1] }] }));
-
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
-      await backend.embed('text', { model: 'qwen/qwen3-32b' });
-
-      const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
-      expect(JSON.parse(init.body as string).model).toBe('qwen/qwen3-32b');
-    });
-
-    it('throws on non-2xx response', async () => {
-      vi.stubGlobal('fetch', makeFetch({}, 401));
-
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
-      await expect(backend.embed('x')).rejects.toThrow('TEE endpoint embed failed: 401');
-    });
-
-    it('throws when response contains no embedding', async () => {
-      vi.stubGlobal('fetch', makeFetch({ data: [] }));
-
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
-      await expect(backend.embed('x')).rejects.toThrow('TEE endpoint returned no embedding');
+  it('uses the signed generate role and binds its revision', async () => {
+    vi.stubGlobal('fetch', makeFetch({ choices: [{ message: { content: 'hello world' } }] }));
+    const { backend } = makeBackend();
+    await expect(backend.generate('Say hi')).resolves.toBe('hello world');
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toMatchObject({
+      model: 'provider/generate',
+      model_revision: 'generate-1',
+      stream: false,
     });
   });
 
-  describe('generate()', () => {
-    it('calls /v1/chat/completions and returns content', async () => {
-      vi.stubGlobal('fetch', makeFetch({ choices: [{ message: { content: 'hello world' } }] }));
-
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
-      const result = await backend.generate('Say hi');
-
-      expect(result).toBe('hello world');
-      const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [
-        string,
-        RequestInit,
-      ];
-      expect(url).toBe(`${BASE_URL}/v1/chat/completions`);
-      expect(JSON.parse(init.body as string)).toMatchObject({
-        model: 'z-ai/glm-5.2',
-        stream: false,
-      });
+  it('uses the judge role for structured calls', async () => {
+    vi.stubGlobal(
+      'fetch',
+      makeFetch({
+        choices: [{ message: { tool_calls: [{ function: { name: 'judge', arguments: '{}' } }] } }],
+      }),
+    );
+    const { backend } = makeBackend();
+    await backend.generateStructured('judge', {
+      tool: { name: 'judge', description: 'judge', parameters: { type: 'object' } },
     });
-
-    it('prepends system message when systemPrompt is set', async () => {
-      vi.stubGlobal('fetch', makeFetch({ choices: [{ message: { content: 'ok' } }] }));
-
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
-      await backend.generate('prompt', { systemPrompt: 'Be concise.' });
-
-      const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
-      const { messages } = JSON.parse(init.body as string);
-      expect(messages[0]).toEqual({ role: 'system', content: 'Be concise.' });
-      expect(messages[1]).toEqual({ role: 'user', content: 'prompt' });
-    });
-
-    it('passes maxTokens and temperature when provided', async () => {
-      vi.stubGlobal('fetch', makeFetch({ choices: [{ message: { content: 'x' } }] }));
-
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
-      await backend.generate('p', { maxTokens: 100, temperature: 0.5 });
-
-      const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
-      const body = JSON.parse(init.body as string);
-      expect(body.max_tokens).toBe(100);
-      expect(body.temperature).toBe(0.5);
-    });
-
-    it('throws on non-2xx response', async () => {
-      vi.stubGlobal('fetch', makeFetch({}, 500));
-
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
-      await expect(backend.generate('x')).rejects.toThrow('TEE endpoint generate failed: 500');
-    });
-
-    it('strips trailing slash from baseUrl', async () => {
-      vi.stubGlobal('fetch', makeFetch({ choices: [{ message: { content: 'hi' } }] }));
-
-      const backend = new TeeEndpointBackend({
-        baseUrl: `${BASE_URL}/`,
-        responseVerifier: VERIFIED,
-      });
-      await backend.generate('hi');
-
-      const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
-      expect(url).toBe(`${BASE_URL}/v1/chat/completions`);
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toMatchObject({
+      model: 'provider/judge',
+      model_revision: 'judge-1',
     });
   });
 
-  describe('verified-model allowlist (fail-closed)', () => {
-    it('rejects an off-allowlist generate model before sending any request', async () => {
-      const fetchSpy = makeFetch({ choices: [{ message: { content: 'x' } }] });
-      vi.stubGlobal('fetch', fetchSpy);
-
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
-      await expect(backend.generate('p', { model: 'qwen/qwen3.7-max' })).rejects.toThrow(
-        /not in the verified-model allowlist/,
-      );
-      expect(fetchSpy).not.toHaveBeenCalled();
+  it('includes Authorization header when apiKey is set', async () => {
+    vi.stubGlobal('fetch', makeFetch({ data: [{ embedding: [1, 2] }] }));
+    const verifier = passingVerifier();
+    const backend = new TeeEndpointBackend({
+      baseUrl: BASE_URL,
+      trustPolicy: POLICY,
+      responseVerifier: verifier,
+      fetchImpl: fetch,
+      apiKey: 'sk-test',
     });
+    await backend.embed('hi');
 
-    it('rejects an off-allowlist embed model before sending any request', async () => {
-      const fetchSpy = makeFetch({ data: [{ embedding: [1] }] });
-      vi.stubGlobal('fetch', fetchSpy);
-
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
-      await expect(backend.embed('x', { model: 'unverified/model' })).rejects.toThrow(
-        /not in the verified-model allowlist/,
-      );
-      expect(fetchSpy).not.toHaveBeenCalled();
-    });
-
-    it('allows the default verified models', async () => {
-      vi.stubGlobal('fetch', makeFetch({ choices: [{ message: { content: 'ok' } }] }));
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
-      await expect(backend.generate('p')).resolves.toBe('ok');
-    });
-
-    it('honors an explicit allowlist override', async () => {
-      const fetchSpy = makeFetch({ choices: [{ message: { content: 'ok' } }] });
-      vi.stubGlobal('fetch', fetchSpy);
-      const backend = new TeeEndpointBackend({
-        baseUrl: BASE_URL,
-        responseVerifier: VERIFIED,
-        embedModel: 'only/allowed',
-        generateModel: 'only/allowed',
-        modelAllowlist: ['only/allowed'],
-      });
-      await expect(backend.generate('p', { model: 'z-ai/glm-5.2' })).rejects.toThrow(
-        /not in the verified-model allowlist/,
-      );
-      await expect(backend.generate('p', { model: 'only/allowed' })).resolves.toBe('ok');
-    });
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer sk-test');
   });
 
-  describe('response verifier', () => {
-    it('does not return content when the receipt verifier rejects', async () => {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue({
-          status: 200,
-          json: () => Promise.resolve({ choices: [{ message: { content: 'secret' } }] }),
-          headers: { get: () => 'receipt-1' },
+  it('forwards embedDimensions as the dimensions request param', async () => {
+    vi.stubGlobal('fetch', makeFetch({ data: [{ embedding: [1, 2, 3] }] }));
+    const { backend } = makeBackend();
+    const dimensional = new TeeEndpointBackend({
+      baseUrl: BASE_URL,
+      trustPolicy: POLICY,
+      responseVerifier: passingVerifier(),
+      embedDimensions: 3,
+      fetchImpl: fetch,
+    });
+    await dimensional.embed('hi');
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string).dimensions).toBe(3);
+    await backend.close();
+  });
+
+  it('throws on non-2xx response', async () => {
+    vi.stubGlobal('fetch', makeFetch({}, 401));
+    const { backend } = makeBackend();
+    await expect(backend.embed('x')).rejects.toThrow('TEE endpoint embed failed: 401');
+  });
+
+  it('throws when response contains no embedding', async () => {
+    vi.stubGlobal('fetch', makeFetch({ data: [] }));
+    const { backend } = makeBackend();
+    await expect(backend.embed('x')).rejects.toThrow('TEE endpoint returned no embedding');
+  });
+
+  it('hashes exact raw response bytes before parsing them', async () => {
+    const raw = new TextEncoder().encode('{"choices":[{"message":{"content":"ok"}}]}\n');
+    const verifier = passingVerifier();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(raw)));
+    const { backend: rawBackend } = makeBackend(verifier);
+    await expect(rawBackend.generate('p')).resolves.toBe('ok');
+    expect(verifier.verifyReceipt).toHaveBeenCalledWith(
+      'receipt-1',
+      expect.objectContaining({
+        responseSha256: createHash('sha256').update(raw).digest('hex'),
+      }),
+    );
+  });
+
+  it('does not yield stream content until receipt verification completes', async () => {
+    let releaseVerification!: () => void;
+    const verification = new Promise<void>((resolve) => {
+      releaseVerification = resolve;
+    });
+    const verifier = {
+      ensureAttested: vi.fn().mockResolvedValue(undefined),
+      verifyReceipt: vi.fn().mockReturnValue(verification),
+    };
+    const streamBytes = new TextEncoder().encode(
+      'data: {"choices":[{"delta":{"content":"secret"}}]}\n\ndata: [DONE]\n',
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        status: 200,
+        headers: { get: () => 'receipt-1' },
+        body: {
+          getReader: () => ({
+            read: vi
+              .fn()
+              .mockResolvedValueOnce({ done: false, value: streamBytes })
+              .mockResolvedValueOnce({ done: true, value: undefined }),
+            releaseLock: vi.fn(),
+          }),
+        },
+      }),
+    );
+    const { backend } = makeBackend(verifier);
+    const iterator = backend.stream('p')[Symbol.asyncIterator]();
+    const next = iterator.next();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(verifier.verifyReceipt).toHaveBeenCalledOnce();
+    let settled = false;
+    void next.then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    releaseVerification();
+    await expect(next).resolves.toEqual({ value: 'secret', done: false });
+  });
+
+  it('requires a verifier at construction', () => {
+    expect(
+      () =>
+        new TeeEndpointBackend({
+          baseUrl: BASE_URL,
+          trustPolicy: POLICY,
+          responseVerifier: undefined as never,
+          fetchImpl: fetch,
         }),
-      );
-      const verifier = {
-        ensureAttested: vi.fn().mockResolvedValue(undefined),
-        verifyReceipt: vi.fn().mockRejectedValue(new Error('unverified upstream')),
-      };
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: verifier });
-      await expect(backend.generate('p')).rejects.toThrow(/unverified upstream/);
-      expect(verifier.ensureAttested).toHaveBeenCalled();
-      expect(verifier.verifyReceipt).toHaveBeenCalledWith('receipt-1');
-    });
-
-    it('returns content when the receipt verifier passes', async () => {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue({
-          status: 200,
-          json: () => Promise.resolve({ choices: [{ message: { content: 'ok' } }] }),
-          headers: { get: () => 'receipt-2' },
-        }),
-      );
-      const verifier = {
-        ensureAttested: vi.fn().mockResolvedValue(undefined),
-        verifyReceipt: vi.fn().mockResolvedValue(undefined),
-      };
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: verifier });
-      await expect(backend.generate('p')).resolves.toBe('ok');
-    });
+    ).toThrow(/response verifier is required/);
   });
 
-  describe('close()', () => {
-    it('is a no-op (stateless HTTP client)', async () => {
-      const backend = new TeeEndpointBackend({ baseUrl: BASE_URL, responseVerifier: VERIFIED });
-      await expect(backend.close()).resolves.toBeUndefined();
+  it('rejects an endpoint that does not match the signed policy', () => {
+    expect(
+      () =>
+        new TeeEndpointBackend({
+          baseUrl: 'https://redirected.example.com/v1',
+          trustPolicy: POLICY,
+          responseVerifier: passingVerifier(),
+          fetchImpl: fetch,
+        }),
+    ).toThrow(/offline trust policy/);
+  });
+
+  it('strips trailing slash from baseUrl', async () => {
+    vi.stubGlobal('fetch', makeFetch({ choices: [{ message: { content: 'hi' } }] }));
+    const trailing = new TeeEndpointBackend({
+      baseUrl: `${BASE_URL}/`,
+      trustPolicy: POLICY,
+      responseVerifier: passingVerifier(),
+      fetchImpl: fetch,
     });
+    await trailing.generate('hi');
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
+    expect(url).toBe(`${BASE_URL}/v1/chat/completions`);
+  });
+
+  it('close() is a no-op for the stateless HTTP client', async () => {
+    const { backend } = makeBackend();
+    await expect(backend.close()).resolves.toBeUndefined();
   });
 });

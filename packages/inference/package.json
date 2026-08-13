@@ -21,6 +21,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
+    "@folklore/contracts": "workspace:*",
     "@folklore/telemetry": "workspace:*",
     "@folklore/utils": "workspace:*",
     "zod": "^3.23.8"

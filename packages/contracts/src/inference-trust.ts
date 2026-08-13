@@ -35,6 +35,8 @@ const routeSchema = z
     /^\/(?:[A-Za-z0-9][A-Za-z0-9._~!$&'()*+,;=:@-]*(?:\/[A-Za-z0-9][A-Za-z0-9._~!$&'()*+,;=:@-]*)*)?$/,
   );
 
+const spkiPinSchema = digestSchema;
+
 function isExactHttpsOrigin(value: string): boolean {
   try {
     const parsed = new URL(value);
@@ -77,6 +79,29 @@ const receiptKeySchema = z
   })
   .strict();
 
+export type InferenceSigningKeyV1 = z.infer<typeof receiptKeySchema>;
+
+export const inferenceModelRoleSchema = z.enum(['embed', 'generate', 'judge', 'critique']);
+export type InferenceModelRole = z.infer<typeof inferenceModelRoleSchema>;
+
+const roleModelSchema = z
+  .object({
+    model: providerModelSchema,
+    revision: identifierSchema,
+  })
+  .strict();
+
+export type InferenceRoleModelV1 = z.infer<typeof roleModelSchema>;
+
+const roleModelsSchema = z
+  .object({
+    embed: roleModelSchema,
+    generate: roleModelSchema,
+    judge: roleModelSchema,
+    critique: roleModelSchema,
+  })
+  .strict();
+
 const permittedModelSchema = z
   .object({
     model: providerModelSchema,
@@ -91,16 +116,22 @@ export const inferenceTrustPolicyV1Schema = z
     origin: exactHttpsOriginSchema,
     route: routeSchema,
     redirectOrigins: z.array(exactHttpsOriginSchema).max(MAX_POLICY_ITEMS),
+    tlsSpkiSha256: z.array(spkiPinSchema).min(1).max(2),
     workloadId: identifierSchema,
     quoteRootDigests: z.array(digestSchema).min(1).max(MAX_POLICY_ITEMS),
     workloadMeasurements: z.array(measurementSchema).min(1).max(MAX_POLICY_ITEMS),
+    attestationKeys: z.array(receiptKeySchema).min(1).max(MAX_POLICY_ITEMS),
     receiptKeys: z.array(receiptKeySchema).min(1).max(MAX_POLICY_ITEMS),
     permittedModels: z.array(permittedModelSchema).min(1).max(MAX_POLICY_ITEMS),
+    roleModels: roleModelsSchema,
   })
   .strict()
   .superRefine((policy, context) => {
     if (!sortedUnique(policy.redirectOrigins)) {
       addSortedIssue(context, ['redirectOrigins'], 'redirect origins must be sorted and unique');
+    }
+    if (!sortedUnique(policy.tlsSpkiSha256)) {
+      addSortedIssue(context, ['tlsSpkiSha256'], 'TLS SPKI pins must be sorted and unique');
     }
     if (!sortedUnique(policy.quoteRootDigests)) {
       addSortedIssue(context, ['quoteRootDigests'], 'quote roots must be sorted and unique');
@@ -112,6 +143,9 @@ export const inferenceTrustPolicyV1Schema = z
         'workload measurements must be sorted and unique',
       );
     }
+    if (!sortedUnique(policy.attestationKeys.map((key) => key.keyId))) {
+      addSortedIssue(context, ['attestationKeys'], 'attestation keys must be sorted and unique');
+    }
     if (!sortedUnique(policy.receiptKeys.map((key) => key.keyId))) {
       addSortedIssue(context, ['receiptKeys'], 'receipt keys must be sorted and unique');
     }
@@ -120,8 +154,60 @@ export const inferenceTrustPolicyV1Schema = z
     ) {
       addSortedIssue(context, ['permittedModels'], 'permitted models must be sorted and unique');
     }
+    for (const role of inferenceModelRoleSchema.options) {
+      const binding = policy.roleModels[role];
+      if (
+        !policy.permittedModels.some(
+          (model) => model.model === binding.model && model.revision === binding.revision,
+        )
+      ) {
+        addSortedIssue(
+          context,
+          ['roleModels', role],
+          'role model must also be present in permittedModels',
+        );
+      }
+    }
   });
 export type InferenceTrustPolicyV1 = z.infer<typeof inferenceTrustPolicyV1Schema>;
+
+export interface InferenceAttestationV1PayloadInput {
+  workloadId: string;
+  workloadKeysetDigest: string;
+  channelKeyDigest: string;
+  quoteRootDigest: string;
+  workloadMeasurement: string;
+  receiptKeysetDigest: string;
+  trustPolicyGeneration: number;
+  route: string;
+  signerKeyId: string;
+}
+
+export function inferenceAttestationV1Payload(input: InferenceAttestationV1PayloadInput): string {
+  return [
+    'folklore.inference-attestation.v1',
+    input.workloadId,
+    input.workloadKeysetDigest,
+    input.channelKeyDigest,
+    input.quoteRootDigest,
+    input.workloadMeasurement,
+    input.receiptKeysetDigest,
+    input.trustPolicyGeneration,
+    input.route,
+    input.signerKeyId,
+  ].join('\u0000');
+}
+
+export function inferenceReceiptKeysetV1Payload(keys: readonly InferenceSigningKeyV1[]): string {
+  const parsed = keys.map((key) => receiptKeySchema.parse(key));
+  const sorted = [...parsed].sort((left, right) =>
+    left.keyId < right.keyId ? -1 : left.keyId > right.keyId ? 1 : 0,
+  );
+  return [
+    'folklore.inference-receipt-keyset.v1',
+    ...sorted.flatMap((key) => [key.keyId, key.algorithm, key.publicKey]),
+  ].join('\u0000');
+}
 
 export const inferenceReceiptV1Schema = z
   .object({

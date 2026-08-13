@@ -27,6 +27,34 @@ function receiptFixture(): Record<string, unknown> {
 }
 
 describe('inferenceTrustPolicyV1Schema', () => {
+  it('requires offline-authorized TLS SPKI pins alongside attestation keys and role bindings', () => {
+    expect(() =>
+      inferenceTrustPolicyV1Schema.parse({
+        version: 1,
+        generation: 2,
+        origin: 'https://inference.example',
+        route: '/v1/inference',
+        redirectOrigins: [],
+        workloadId: 'workload-1',
+        quoteRootDigests: ['a'.repeat(64)],
+        workloadMeasurements: ['b'.repeat(96)],
+        attestationKeys: [
+          { keyId: 'attestation-key-1', algorithm: 'Ed25519', publicKey: 'A'.repeat(43) + '=' },
+        ],
+        receiptKeys: [
+          { keyId: 'receipt-key-1', algorithm: 'Ed25519', publicKey: 'A'.repeat(43) + '=' },
+        ],
+        permittedModels: [{ model: 'z-ai/glm-5.2', revision: '2026-08-09' }],
+        roleModels: {
+          embed: { model: 'z-ai/glm-5.2', revision: '2026-08-09' },
+          generate: { model: 'z-ai/glm-5.2', revision: '2026-08-09' },
+          judge: { model: 'z-ai/glm-5.2', revision: '2026-08-09' },
+          critique: { model: 'z-ai/glm-5.2', revision: '2026-08-09' },
+        },
+      }),
+    ).toThrow();
+  });
+
   it('accepts only offline-pinned exact origins, routes, roots, measurements, keys, and models', () => {
     const policy = inferenceTrustPolicyV1Schema.parse({
       version: 1,
@@ -34,13 +62,23 @@ describe('inferenceTrustPolicyV1Schema', () => {
       origin: 'https://inference.example',
       route: '/v1/inference',
       redirectOrigins: ['https://backup.example'],
+      tlsSpkiSha256: ['a'.repeat(64)],
       workloadId: 'workload-1',
       quoteRootDigests: ['a'.repeat(64)],
       workloadMeasurements: ['b'.repeat(96)],
+      attestationKeys: [
+        { keyId: 'attestation-key-1', algorithm: 'Ed25519', publicKey: 'A'.repeat(43) + '=' },
+      ],
       receiptKeys: [
         { keyId: 'receipt-key-1', algorithm: 'Ed25519', publicKey: 'A'.repeat(43) + '=' },
       ],
       permittedModels: [{ model: 'z-ai/glm-5.2', revision: '2026-08-09' }],
+      roleModels: {
+        embed: { model: 'z-ai/glm-5.2', revision: '2026-08-09' },
+        generate: { model: 'z-ai/glm-5.2', revision: '2026-08-09' },
+        judge: { model: 'z-ai/glm-5.2', revision: '2026-08-09' },
+        critique: { model: 'z-ai/glm-5.2', revision: '2026-08-09' },
+      },
     });
 
     expect(policy.origin).toBe('https://inference.example');
@@ -71,7 +109,7 @@ describe('inferenceTrustPolicyV1Schema', () => {
         permittedModels: [
           { model: 'qwen/qwen3-32b', revision: '2026-08-09' },
           { model: 'qwen/qwen3-embedding-8b', revision: '2026-08-10' },
-          { model: 'z-ai/glm-5.2', revision: '2026-08-11' },
+          { model: 'z-ai/glm-5.2', revision: '2026-08-09' },
         ],
       }).permittedModels,
     ).toHaveLength(3);
@@ -92,13 +130,23 @@ describe('inferenceTrustPolicyV1Schema', () => {
       origin: 'https://inference.example',
       route: '/v1/inference',
       redirectOrigins: [],
+      tlsSpkiSha256: ['a'.repeat(64)],
       workloadId: 'workload-1',
       quoteRootDigests: ['a'.repeat(64)],
       workloadMeasurements: ['b'.repeat(96)],
+      attestationKeys: [
+        { keyId: 'attestation-key-1', algorithm: 'Ed25519', publicKey: 'A'.repeat(43) + '=' },
+      ],
       receiptKeys: [
         { keyId: 'receipt-key-1', algorithm: 'Ed25519', publicKey: 'A'.repeat(43) + '=' },
       ],
       permittedModels: [{ model: 'z-ai/glm-5.2', revision: '2026-08-09' }],
+      roleModels: {
+        embed: { model: 'z-ai/glm-5.2', revision: '2026-08-09' },
+        generate: { model: 'z-ai/glm-5.2', revision: '2026-08-09' },
+        judge: { model: 'z-ai/glm-5.2', revision: '2026-08-09' },
+        critique: { model: 'z-ai/glm-5.2', revision: '2026-08-09' },
+      },
     });
 
     for (const route of ['/v1/inference', '/v1/chat/completions', '/v1/embeddings']) {

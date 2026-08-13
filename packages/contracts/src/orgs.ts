@@ -124,6 +124,65 @@ export const provisionOperationSchema = z
   .strict();
 export type ProvisionOperation = z.infer<typeof provisionOperationSchema>;
 
+const commissioningProvisioningDeploymentStateSchema = z
+  .object({
+    id: z.string().min(1),
+    orgId: z.string().uuid(),
+    accountId: z.string().uuid(),
+    version: z.string().min(1),
+    healthStatus: z.string().min(1),
+    licenseStatus: z.string().min(1),
+    mode: z.literal('managed'),
+    region: z.string().min(1),
+    tier: z.string().min(1),
+    provisioningStatus: z.literal('pending'),
+    provisioningPhase: z.literal('metadata'),
+    provisionOperationId: z.string().uuid(),
+    recoveryKeyVersion: z.number().int().positive(),
+    recoveryKeyFingerprint: z.string().min(1),
+    recoveryPubkey: z.string().min(1),
+    lastSeenAt: z.null(),
+    prerequisiteGeneration: z.null(),
+    agentTokenHash: z.null(),
+    agentCheckinTokenHash: z.null(),
+    expectedSourceSha: z.null(),
+    expectedEifSha256: z.null(),
+    expectedPcr0: z.null(),
+    enclaveArtifactKey: z.null(),
+    provisioningStartedAt: z.null(),
+    provisioningCompletedAt: z.null(),
+    provisioningFailedAt: z.null(),
+    provisioningFailureCode: z.null(),
+    readyAt: z.null(),
+    sharedEnclaveId: z.null(),
+    instanceId: z.null(),
+    enclaveRoleArn: z.null(),
+    bootManifestHash: z.null(),
+    bootManifestGeneration: z.null(),
+    bootManifestSignerKeyId: z.null(),
+    attestationGeneration: z.null(),
+    attestationSessionKeySha256: z.null(),
+    attestationValidUntil: z.null(),
+    responseEncryptionPublicKeyHex: z.null(),
+    ingestPublicKeyHex: z.null(),
+  })
+  .strict();
+
+export const commissioningProvisioningPreconditionSchema = z
+  .object({
+    version: z.literal(1),
+    orgId: z.string().uuid(),
+    ownerAccountId: z.string().uuid(),
+    operationId: z.string().uuid(),
+    deploymentId: z.string().min(1),
+    expectedDeployment: commissioningProvisioningDeploymentStateSchema,
+    zeroCheckinProof: z.object({ generation: z.literal(0), count: z.literal(0) }).strict(),
+  })
+  .strict();
+export type CommissioningProvisioningPrecondition = z.infer<
+  typeof commissioningProvisioningPreconditionSchema
+>;
+
 export const provisioningStatusSchema = provisionOperationSchema
   .extend({ readyAt: z.string().datetime().nullable() })
   .strict();

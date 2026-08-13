@@ -7,10 +7,11 @@ const BASE_URL = 'http://vllm:8000';
 const MODEL = 'qwen2.5:7b';
 
 function makeFetch(response: object, status = 200) {
+  const bytes = new TextEncoder().encode(JSON.stringify(response));
   return vi.fn().mockResolvedValue({
     status,
     ok: status >= 200 && status < 300,
-    json: () => Promise.resolve(response),
+    arrayBuffer: () => Promise.resolve(bytes.buffer as ArrayBuffer),
     body: null,
   });
 }
