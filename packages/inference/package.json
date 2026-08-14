@@ -24,6 +24,8 @@
     "@folklore/contracts": "workspace:*",
     "@folklore/telemetry": "workspace:*",
     "@folklore/utils": "workspace:*",
+    "@noble/curves": "^1.9.7",
+    "jsonc-parser": "^3.3.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -2,10 +2,20 @@
 import { generateKeyPairSync, sign, verify } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
+  aciReceiptSchema,
+  aciSessionSchema,
+  aciWorkloadReportSchema,
   inferenceReceiptV1Payload,
   inferenceReceiptV1Schema,
   inferenceTrustPolicyV1Schema,
+  inferenceTrustPolicyV2Schema,
 } from '../src/inference-trust.js';
+import {
+  ACI_POLICY_FIXTURE,
+  ACI_RECEIPT_FIXTURE,
+  ACI_REPORT_FIXTURE,
+  ACI_SESSION_FIXTURE,
+} from './fixtures/aci-v1.js';
 
 function receiptFixture(): Record<string, unknown> {
   return {
@@ -24,6 +34,55 @@ function receiptFixture(): Record<string, unknown> {
     algorithm: 'Ed25519',
     signature: 'A'.repeat(86) + '==',
   };
+}
+
+function policyV1Fixture(): Record<string, unknown> {
+  const model = { model: 'z-ai/glm-5.2', revision: '2026-08-09' };
+  return {
+    version: 1,
+    generation: 2,
+    origin: 'https://inference.example',
+    route: '/v1/inference',
+    redirectOrigins: [],
+    tlsSpkiSha256: ['a'.repeat(64)],
+    workloadId: 'workload-1',
+    quoteRootDigests: ['a'.repeat(64)],
+    workloadMeasurements: ['b'.repeat(96)],
+    attestationKeys: [
+      { keyId: 'attestation-key-1', algorithm: 'Ed25519', publicKey: 'A'.repeat(43) + '=' },
+    ],
+    receiptKeys: [
+      { keyId: 'receipt-key-1', algorithm: 'Ed25519', publicKey: 'A'.repeat(43) + '=' },
+    ],
+    permittedModels: [model],
+    roleModels: {
+      embed: model,
+      generate: model,
+      judge: model,
+      critique: model,
+    },
+  };
+}
+
+function policyDigests(count: number): string[] {
+  return Array.from({ length: count }, (_, index) => index.toString(16).padStart(64, '0'));
+}
+
+function policyModels(count: number): Array<{ model: string; revision: string }> {
+  return Array.from({ length: count }, (_, index) => ({
+    model: `provider/model-${index.toString().padStart(2, '0')}`,
+    revision: '2026-08-09',
+  }));
+}
+
+function policyBindings(count: number): Array<{
+  type: 'tls_spki_sha256';
+  domains: string[];
+}> {
+  return Array.from({ length: count }, (_, index) => ({
+    type: 'tls_spki_sha256',
+    domains: [`${index.toString().padStart(2, '0')}.example.com`],
+  }));
 }
 
 describe('inferenceTrustPolicyV1Schema', () => {
@@ -235,5 +294,817 @@ describe('inferenceReceiptV1Schema', () => {
     expect(() =>
       inferenceReceiptV1Schema.parse({ ...receipt, response: 'customer content' }),
     ).toThrow();
+  });
+});
+
+describe('inferenceTrustPolicyV2Schema', () => {
+  it('accepts reviewed evidence, provenance, channel, model, and role bindings', () => {
+    const policy = inferenceTrustPolicyV2Schema.parse(ACI_POLICY_FIXTURE);
+
+    expect(policy.version).toBe(2);
+    expect(policy.origin).toBe('https://inference.phala.com');
+    expect(policy.route).toBe('/v1/chat/completions');
+    expect(policy.roleModels.judge).toEqual({ model: 'z-ai/glm-5.2', revision: '2026-08-09' });
+  });
+
+  it('rejects unsorted or duplicate anchors and unpermitted role models', () => {
+    expect(() =>
+      inferenceTrustPolicyV2Schema.parse({
+        ...ACI_POLICY_FIXTURE,
+        evidence: {
+          ...ACI_POLICY_FIXTURE.evidence,
+          quoteRootDigests: ['b'.repeat(64), 'a'.repeat(64)],
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      inferenceTrustPolicyV2Schema.parse({
+        ...ACI_POLICY_FIXTURE,
+        roleModels: {
+          ...ACI_POLICY_FIXTURE.roleModels,
+          judge: { model: 'qwen/qwen3-32b', revision: '2026-08-09' },
+        },
+      }),
+    ).toThrow();
+  });
+
+  it('rejects duplicates across shared policy anchor refinements', () => {
+    const duplicateCases: unknown[] = [
+      {
+        ...ACI_POLICY_FIXTURE,
+        requiredSessionClaims: ['tee_attested', 'tee_attested'],
+      },
+      {
+        ...ACI_POLICY_FIXTURE,
+        permittedClaimSources: ['hardware_proven', 'hardware_proven'],
+      },
+      {
+        ...ACI_POLICY_FIXTURE,
+        evidence: {
+          ...ACI_POLICY_FIXTURE.evidence,
+          runtimeMeasurements: ['b'.repeat(96), 'b'.repeat(96)],
+        },
+      },
+      {
+        ...ACI_POLICY_FIXTURE,
+        evidence: {
+          ...ACI_POLICY_FIXTURE.evidence,
+          runtimeRtmrs: ['b'.repeat(96), 'b'.repeat(96)],
+        },
+      },
+      {
+        ...ACI_POLICY_FIXTURE,
+        evidence: {
+          ...ACI_POLICY_FIXTURE.evidence,
+          runtimeIdentities: ['runtime:inference', 'runtime:inference'],
+        },
+      },
+      {
+        ...ACI_POLICY_FIXTURE,
+        sourceProvenance: {
+          ...ACI_POLICY_FIXTURE.sourceProvenance,
+          repositories: [
+            {
+              ...ACI_POLICY_FIXTURE.sourceProvenance.repositories[0],
+              commits: [
+                ACI_POLICY_FIXTURE.sourceProvenance.repositories[0].commits[0],
+                ACI_POLICY_FIXTURE.sourceProvenance.repositories[0].commits[0],
+              ],
+            },
+          ],
+        },
+      },
+      {
+        ...ACI_POLICY_FIXTURE,
+        permittedModels: [
+          ACI_POLICY_FIXTURE.permittedModels[0],
+          ACI_POLICY_FIXTURE.permittedModels[0],
+        ],
+      },
+      {
+        ...ACI_POLICY_FIXTURE,
+        channelPolicy: {
+          acceptedBindings: [
+            {
+              type: 'tls_spki_sha256',
+              domains: ['inference.phala.com', 'inference.phala.com'],
+            },
+          ],
+        },
+      },
+      {
+        ...ACI_POLICY_FIXTURE,
+        channelPolicy: {
+          acceptedBindings: [
+            {
+              type: 'e2ee_public_key_sha256',
+              domains: ['inference.phala.com'],
+              algorithms: ['x25519-aes-256-gcm-hkdf-sha256', 'x25519-aes-256-gcm-hkdf-sha256'],
+            },
+          ],
+        },
+      },
+      {
+        ...ACI_POLICY_FIXTURE,
+        channelPolicy: {
+          acceptedBindings: [
+            ACI_POLICY_FIXTURE.channelPolicy.acceptedBindings[0],
+            ACI_POLICY_FIXTURE.channelPolicy.acceptedBindings[0],
+          ],
+        },
+      },
+    ];
+
+    for (const duplicate of duplicateCases) {
+      expect(inferenceTrustPolicyV2Schema.safeParse(duplicate).success).toBe(false);
+    }
+  });
+
+  it('enforces representative array minima and maxima', () => {
+    const digestsAtMaximum = policyDigests(32);
+    const modelsAtMaximum = policyModels(32);
+    const bindingsAtMaximum = policyBindings(32);
+    const roleModel = modelsAtMaximum[0];
+
+    expect(() =>
+      inferenceTrustPolicyV2Schema.parse({
+        ...ACI_POLICY_FIXTURE,
+        evidence: { ...ACI_POLICY_FIXTURE.evidence, quoteRootDigests: digestsAtMaximum },
+        permittedModels: modelsAtMaximum,
+        roleModels: {
+          embed: roleModel,
+          generate: roleModel,
+          critique: roleModel,
+          judge: roleModel,
+        },
+        channelPolicy: { acceptedBindings: bindingsAtMaximum },
+      }),
+    ).not.toThrow();
+
+    const rejectedCases: unknown[] = [
+      { ...ACI_POLICY_FIXTURE, requiredSessionClaims: [] },
+      { ...ACI_POLICY_FIXTURE, permittedClaimSources: [] },
+      { ...ACI_POLICY_FIXTURE, permittedModels: [] },
+      { ...ACI_POLICY_FIXTURE, channelPolicy: { acceptedBindings: [] } },
+      {
+        ...ACI_POLICY_FIXTURE,
+        evidence: { ...ACI_POLICY_FIXTURE.evidence, quoteRootDigests: policyDigests(33) },
+      },
+      {
+        ...ACI_POLICY_FIXTURE,
+        permittedModels: policyModels(33),
+        roleModels: {
+          embed: policyModels(33)[0],
+          generate: policyModels(33)[0],
+          critique: policyModels(33)[0],
+          judge: policyModels(33)[0],
+        },
+      },
+      { ...ACI_POLICY_FIXTURE, channelPolicy: { acceptedBindings: policyBindings(33) } },
+      {
+        ...ACI_POLICY_FIXTURE,
+        channelPolicy: {
+          acceptedBindings: [{ type: 'tls_spki_sha256', domains: [] }],
+        },
+      },
+      {
+        ...ACI_POLICY_FIXTURE,
+        channelPolicy: {
+          acceptedBindings: [
+            {
+              type: 'tls_spki_sha256',
+              domains: policyBindings(33).map(({ domains }) => domains[0]),
+            },
+          ],
+        },
+      },
+    ];
+
+    for (const rejected of rejectedCases) {
+      expect(inferenceTrustPolicyV2Schema.safeParse(rejected).success).toBe(false);
+    }
+  });
+
+  it('enforces representative string, domain, and lifetime boundaries', () => {
+    const maximumDomain = ['a'.repeat(63), 'b'.repeat(63), 'c'.repeat(63), 'd'.repeat(61)].join(
+      '.',
+    );
+    const maximumModel = `p/${'m'.repeat(254)}`;
+    const maximumRoute = `/${'a'.repeat(2_047)}`;
+    const boundaryModel = { model: maximumModel, revision: 'r' };
+    const boundaryPolicy = {
+      ...ACI_POLICY_FIXTURE,
+      route: maximumRoute,
+      channelPolicy: {
+        acceptedBindings: [{ type: 'tls_spki_sha256', domains: [maximumDomain] }],
+      },
+      permittedModels: [boundaryModel],
+      roleModels: {
+        embed: boundaryModel,
+        generate: boundaryModel,
+        critique: boundaryModel,
+        judge: boundaryModel,
+      },
+      maxKeysetLifetimeSeconds: 1,
+      maxSessionLifetimeSeconds: 31_536_000,
+      clockSkewSeconds: 0,
+    };
+
+    expect(() => inferenceTrustPolicyV2Schema.parse(boundaryPolicy)).not.toThrow();
+    expect(() =>
+      inferenceTrustPolicyV2Schema.parse({ ...boundaryPolicy, clockSkewSeconds: 3_600 }),
+    ).not.toThrow();
+
+    const rejectedCases: unknown[] = [
+      { ...boundaryPolicy, route: `${maximumRoute}a` },
+      {
+        ...boundaryPolicy,
+        permittedModels: [{ model: `${maximumModel}m`, revision: 'r' }],
+        roleModels: {
+          embed: { model: `${maximumModel}m`, revision: 'r' },
+          generate: { model: `${maximumModel}m`, revision: 'r' },
+          critique: { model: `${maximumModel}m`, revision: 'r' },
+          judge: { model: `${maximumModel}m`, revision: 'r' },
+        },
+      },
+      {
+        ...boundaryPolicy,
+        channelPolicy: {
+          acceptedBindings: [{ type: 'tls_spki_sha256', domains: [`${maximumDomain}d`] }],
+        },
+      },
+      { ...boundaryPolicy, maxKeysetLifetimeSeconds: 0 },
+      { ...boundaryPolicy, maxSessionLifetimeSeconds: 31_536_001 },
+      { ...boundaryPolicy, clockSkewSeconds: -1 },
+      { ...boundaryPolicy, clockSkewSeconds: 3_601 },
+    ];
+
+    for (const rejected of rejectedCases) {
+      expect(inferenceTrustPolicyV2Schema.safeParse(rejected).success).toBe(false);
+    }
+  });
+
+  it('rejects V1 identity fields, unknown fields, and incomplete provenance', () => {
+    expect(() =>
+      inferenceTrustPolicyV2Schema.parse({ ...ACI_POLICY_FIXTURE, workloadId: 'workload-1' }),
+    ).toThrow();
+    expect(() =>
+      inferenceTrustPolicyV2Schema.parse({
+        ...ACI_POLICY_FIXTURE,
+        workloadKeysetDigest: 'sha256:' + 'a'.repeat(64),
+      }),
+    ).toThrow();
+    expect(() =>
+      inferenceTrustPolicyV2Schema.parse({
+        ...ACI_POLICY_FIXTURE,
+        providerKeyUrl: 'https://example.com',
+      }),
+    ).toThrow();
+    expect(() =>
+      inferenceTrustPolicyV2Schema.parse({
+        ...ACI_POLICY_FIXTURE,
+        sourceProvenance: { repositories: [], imageDigests: [] },
+      }),
+    ).toThrow();
+    expect(() =>
+      inferenceTrustPolicyV2Schema.parse({
+        ...ACI_POLICY_FIXTURE,
+        origin: 'https://inference.phala.com/path',
+      }),
+    ).toThrow();
+  });
+});
+
+describe('aciWorkloadReportSchema', () => {
+  it('accepts the official ACI/1 report shape and only designated extensions', () => {
+    const report = aciWorkloadReportSchema.parse({
+      ...ACI_REPORT_FIXTURE,
+      attestation: {
+        ...ACI_REPORT_FIXTURE.attestation,
+        evidence: { provider_extension: { status: 'redacted' } },
+      },
+      service_capabilities: {
+        ...ACI_REPORT_FIXTURE.service_capabilities,
+        provider_extension: 'ignored-by-generic-verifiers',
+      },
+    });
+
+    expect(report.api_version).toBe('aci/1');
+    expect(report.attestation.workload_keyset.keyset_epoch.not_after).toBe(1_800_000_000);
+    expect(report.attestation.evidence.provider_extension).toEqual({ status: 'redacted' });
+    expect(report.service_capabilities.provider_extension).toBe('ignored-by-generic-verifiers');
+  });
+
+  it('accepts official optional workload identity subject and TLS public keys', () => {
+    const keyset = ACI_REPORT_FIXTURE.attestation.workload_keyset;
+
+    expect(
+      aciWorkloadReportSchema.parse({
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...ACI_REPORT_FIXTURE.attestation,
+          workload_keyset: {
+            ...keyset,
+            workload_identity: {
+              public_key: keyset.workload_identity.public_key,
+            },
+            tls_public_keys: undefined,
+          },
+        },
+      }).attestation.workload_keyset.workload_identity.subject,
+    ).toBeUndefined();
+  });
+
+  it('rejects unknown fields in every fixed nested report shape', () => {
+    const keyset = ACI_REPORT_FIXTURE.attestation.workload_keyset;
+    const attestation = ACI_REPORT_FIXTURE.attestation;
+    const nestedUnknownCases: unknown[] = [
+      {
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...attestation,
+          workload_keyset: { ...keyset, unexpected: true },
+        },
+      },
+      {
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...attestation,
+          workload_keyset: {
+            ...keyset,
+            workload_identity: { ...keyset.workload_identity, unexpected: true },
+          },
+        },
+      },
+      {
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...attestation,
+          workload_keyset: {
+            ...keyset,
+            workload_identity: {
+              ...keyset.workload_identity,
+              public_key: { ...keyset.workload_identity.public_key, unexpected: true },
+            },
+          },
+        },
+      },
+      {
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...attestation,
+          workload_keyset: {
+            ...keyset,
+            keyset_epoch: { ...keyset.keyset_epoch, unexpected: true },
+          },
+        },
+      },
+      {
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...attestation,
+          workload_keyset: {
+            ...keyset,
+            receipt_signing_keys: [{ ...keyset.receipt_signing_keys[0], unexpected: true }],
+          },
+        },
+      },
+      {
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...attestation,
+          workload_keyset: {
+            ...keyset,
+            e2ee_public_keys: [{ ...keyset.e2ee_public_keys[0], unexpected: true }],
+          },
+        },
+      },
+      {
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...attestation,
+          workload_keyset: {
+            ...keyset,
+            tls_public_keys: [{ ...keyset.tls_public_keys[0], unexpected: true }],
+          },
+        },
+      },
+      {
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...attestation,
+          keyset_endorsement: { ...attestation.keyset_endorsement, unexpected: true },
+        },
+      },
+      {
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...attestation,
+          source_provenance: { ...attestation.source_provenance, unexpected: true },
+        },
+      },
+      {
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...attestation,
+          freshness: { ...attestation.freshness, unexpected: true },
+        },
+      },
+    ];
+
+    for (const nestedUnknown of nestedUnknownCases) {
+      expect(aciWorkloadReportSchema.safeParse(nestedUnknown).success).toBe(false);
+    }
+  });
+
+  it('rejects V1 fields, malformed nonce-bound report data, invalid expiry, and fixed-shape extras', () => {
+    expect(() => aciWorkloadReportSchema.parse({ ...ACI_REPORT_FIXTURE, version: 1 })).toThrow();
+    expect(() =>
+      aciWorkloadReportSchema.parse({ ...ACI_REPORT_FIXTURE, nonce: 'test-nonce' }),
+    ).toThrow();
+    expect(() =>
+      aciWorkloadReportSchema.parse({
+        ...ACI_REPORT_FIXTURE,
+        attestation: { ...ACI_REPORT_FIXTURE.attestation, report_data: 'A'.repeat(64) },
+      }),
+    ).toThrow();
+    expect(() =>
+      aciWorkloadReportSchema.parse({
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...ACI_REPORT_FIXTURE.attestation,
+          freshness: { fetched_at: 1_750_003_600, stale_after: 1_750_000_000 },
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      aciWorkloadReportSchema.parse({
+        ...ACI_REPORT_FIXTURE,
+        unexpected: true,
+      }),
+    ).toThrow();
+    expect(() =>
+      aciWorkloadReportSchema.parse({
+        ...ACI_REPORT_FIXTURE,
+        attestation: { ...ACI_REPORT_FIXTURE.attestation, unexpected: true },
+      }),
+    ).toThrow();
+  });
+
+  it('requires repository provenance or an independently verified image digest', () => {
+    expect(() =>
+      aciWorkloadReportSchema.parse({
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...ACI_REPORT_FIXTURE.attestation,
+          source_provenance: {
+            repo_url: null,
+            repo_commit: null,
+            image_digest: null,
+            image_provenance: null,
+          },
+        },
+      }),
+    ).toThrow();
+    expect(
+      aciWorkloadReportSchema.parse({
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...ACI_REPORT_FIXTURE.attestation,
+          source_provenance: {
+            repo_url: null,
+            repo_commit: null,
+            image_digest: 'sha256:' + 'e'.repeat(64),
+            image_provenance: null,
+          },
+        },
+      }).attestation.source_provenance.image_digest,
+    ).toBe('sha256:' + 'e'.repeat(64));
+  });
+
+  it('accepts the exact 64-byte ECDSA r||s keyset endorsement and rejects a 65-byte value', () => {
+    const ecdsaReport = {
+      ...ACI_REPORT_FIXTURE,
+      attestation: {
+        ...ACI_REPORT_FIXTURE.attestation,
+        workload_keyset: {
+          ...ACI_REPORT_FIXTURE.attestation.workload_keyset,
+          workload_identity: {
+            ...ACI_REPORT_FIXTURE.attestation.workload_keyset.workload_identity,
+            public_key: {
+              algo: 'ecdsa-secp256k1',
+              public_key: '02' + 'a'.repeat(64),
+            },
+          },
+        },
+        keyset_endorsement: {
+          algo: 'ecdsa-secp256k1',
+          value: 'a'.repeat(128),
+        },
+      },
+    };
+
+    expect(() => aciWorkloadReportSchema.parse(ecdsaReport)).not.toThrow();
+    expect(() =>
+      aciWorkloadReportSchema.parse({
+        ...ecdsaReport,
+        attestation: {
+          ...ecdsaReport.attestation,
+          keyset_endorsement: {
+            ...ecdsaReport.attestation.keyset_endorsement,
+            value: 'a'.repeat(130),
+          },
+        },
+      }),
+    ).toThrow();
+  });
+
+  it('enforces algorithm-specific E2EE public-key lengths', () => {
+    const keyset = ACI_REPORT_FIXTURE.attestation.workload_keyset;
+    const invalidX25519 = {
+      ...ACI_REPORT_FIXTURE,
+      attestation: {
+        ...ACI_REPORT_FIXTURE.attestation,
+        workload_keyset: {
+          ...keyset,
+          e2ee_public_keys: [{ ...keyset.e2ee_public_keys[0], public_key: 'ab'.repeat(31) }],
+        },
+      },
+    };
+    expect(() => aciWorkloadReportSchema.parse(invalidX25519)).toThrow();
+
+    const invalidSecp256k1 = {
+      ...ACI_REPORT_FIXTURE,
+      attestation: {
+        ...ACI_REPORT_FIXTURE.attestation,
+        workload_keyset: {
+          ...keyset,
+          e2ee_public_keys: [
+            {
+              ...keyset.e2ee_public_keys[0],
+              algo: 'secp256k1-aes-256-gcm-hkdf-sha256',
+              public_key: 'ab'.repeat(33),
+            },
+          ],
+        },
+      },
+    };
+    expect(() => aciWorkloadReportSchema.parse(invalidSecp256k1)).toThrow();
+  });
+});
+
+describe('aciSessionSchema', () => {
+  it('accepts official null session endpoint', () => {
+    expect(
+      aciSessionSchema.parse({
+        ...ACI_SESSION_FIXTURE,
+        endpoint: null,
+      }).endpoint,
+    ).toBeNull();
+  });
+
+  it('accepts the official session claims extension and evidence reference', () => {
+    const session = aciSessionSchema.parse({
+      ...ACI_SESSION_FIXTURE,
+      claims: { ...ACI_SESSION_FIXTURE.claims, extra: { tcb_status: 'redacted' } },
+    });
+
+    expect(session.api_version).toBe('aci/1');
+    expect(session.claims.tee_attested.status).toBe('asserted');
+    expect(session.claims.extra?.tcb_status).toBe('redacted');
+  });
+
+  it('accepts bounded verifier-specific session identity fields', () => {
+    const session = aciSessionSchema.parse({
+      ...ACI_SESSION_FIXTURE,
+      identity: { provider_key: 'redacted', nested: { tier: 'hardware' } },
+    });
+
+    expect(session.identity?.provider_key).toBe('redacted');
+  });
+
+  it('fails safely instead of recursing on deeply nested identity fields', () => {
+    let identity: Record<string, unknown> = { value: 'leaf' };
+    for (let index = 0; index < 12_000; index += 1) {
+      identity = { nested: identity };
+    }
+
+    const parsed = aciSessionSchema.safeParse({ ...ACI_SESSION_FIXTURE, identity });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('requires claim source and reason only for known claim outcomes', () => {
+    expect(() =>
+      aciSessionSchema.parse({
+        ...ACI_SESSION_FIXTURE,
+        claims: {
+          ...ACI_SESSION_FIXTURE.claims,
+          tee_attested: { status: 'asserted' },
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      aciSessionSchema.parse({
+        ...ACI_SESSION_FIXTURE,
+        claims: {
+          ...ACI_SESSION_FIXTURE.claims,
+          tee_attested: {
+            status: 'unknown',
+            source: 'hardware_proven',
+            reason: 'must be omitted for unknown',
+          },
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      aciSessionSchema.parse({
+        ...ACI_SESSION_FIXTURE,
+        claims: { ...ACI_SESSION_FIXTURE.claims, unknown_claim: { status: 'unknown' } },
+      }),
+    ).toThrow();
+  });
+
+  it('rejects stale session expiry, malformed channel bindings, evidence data, and fixed extras', () => {
+    expect(() =>
+      aciSessionSchema.parse({
+        ...ACI_SESSION_FIXTURE,
+        expires_at: ACI_SESSION_FIXTURE.established_at,
+      }),
+    ).toThrow();
+    expect(() =>
+      aciSessionSchema.parse({
+        ...ACI_SESSION_FIXTURE,
+        channel_binding: [
+          {
+            type: 'tls_spki_sha256',
+            origin: 'http://upstream.example.com',
+            spki_sha256: 'd1'.repeat(32),
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      aciSessionSchema.parse({
+        ...ACI_SESSION_FIXTURE,
+        evidence: { ...ACI_SESSION_FIXTURE.evidence, unexpected: true },
+      }),
+    ).toThrow();
+    expect(() => aciSessionSchema.parse({ ...ACI_SESSION_FIXTURE, unexpected: true })).toThrow();
+  });
+});
+
+describe('aciReceiptSchema', () => {
+  it('accepts official receipt events and preserves explicitly allowed event extensions', () => {
+    const receipt = aciReceiptSchema.parse({
+      ...ACI_RECEIPT_FIXTURE,
+      event_log: [
+        { ...ACI_RECEIPT_FIXTURE.event_log[0], verifier_extension: 'preserved' },
+        ...ACI_RECEIPT_FIXTURE.event_log.slice(1),
+        { seq: 4, type: 'router.decision', decision: 'redacted' },
+      ],
+    });
+
+    expect(receipt.event_log[0]?.verifier_extension).toBe('preserved');
+    expect(receipt.event_log[2]?.type).toBe('upstream.verified');
+    expect(receipt.event_log[4]?.decision).toBe('redacted');
+  });
+
+  it('requires response transparency before response.returned', () => {
+    const responseModifiedAfterReturn = [
+      ACI_RECEIPT_FIXTURE.event_log[0],
+      ACI_RECEIPT_FIXTURE.event_log[1],
+      ACI_RECEIPT_FIXTURE.event_log[2],
+      ACI_RECEIPT_FIXTURE.event_log[3],
+      { seq: 4, type: 'transparency.response_modified' },
+    ];
+
+    expect(() =>
+      aciReceiptSchema.parse({
+        ...ACI_RECEIPT_FIXTURE,
+        event_log: responseModifiedAfterReturn,
+      }),
+    ).toThrow();
+  });
+
+  it('enforces event order, required hashes, session/model identity, and signature shape', () => {
+    expect(() =>
+      aciReceiptSchema.parse({
+        ...ACI_RECEIPT_FIXTURE,
+        event_log: [
+          { ...ACI_RECEIPT_FIXTURE.event_log[0], seq: 1 },
+          ...ACI_RECEIPT_FIXTURE.event_log.slice(1),
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      aciReceiptSchema.parse({
+        ...ACI_RECEIPT_FIXTURE,
+        event_log: [
+          { ...ACI_RECEIPT_FIXTURE.event_log[0], seq: 0 },
+          { ...ACI_RECEIPT_FIXTURE.event_log[3], seq: 1 },
+          { ...ACI_RECEIPT_FIXTURE.event_log[1], seq: 2 },
+          { ...ACI_RECEIPT_FIXTURE.event_log[2], seq: 3 },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      aciReceiptSchema.parse({
+        ...ACI_RECEIPT_FIXTURE,
+        event_log: ACI_RECEIPT_FIXTURE.event_log.filter(
+          (event) => event.type !== 'request.forwarded',
+        ),
+      }),
+    ).toThrow();
+    const multipleAttempts = aciReceiptSchema.parse({
+      ...ACI_RECEIPT_FIXTURE,
+      event_log: [
+        ...ACI_RECEIPT_FIXTURE.event_log.slice(0, 2),
+        { ...ACI_RECEIPT_FIXTURE.event_log[2], seq: 2, upstream_name: 'other-upstream' },
+        { ...ACI_RECEIPT_FIXTURE.event_log[2], seq: 3 },
+        { ...ACI_RECEIPT_FIXTURE.event_log[3], seq: 4 },
+      ],
+    });
+    expect(
+      multipleAttempts.event_log.filter((event) => event.type === 'upstream.verified'),
+    ).toHaveLength(2);
+    expect(() =>
+      aciReceiptSchema.parse({
+        ...ACI_RECEIPT_FIXTURE,
+        event_log: ACI_RECEIPT_FIXTURE.event_log.map((event) =>
+          event.type === 'upstream.verified' ? { ...event, model_id: '' } : event,
+        ),
+      }),
+    ).toThrow();
+    expect(() =>
+      aciReceiptSchema.parse({
+        ...ACI_RECEIPT_FIXTURE,
+        event_log: ACI_RECEIPT_FIXTURE.event_log.map((event) =>
+          event.type === 'upstream.verified'
+            ? { ...event, result: 'failed', reason: 'redacted' }
+            : event,
+        ),
+      }),
+    ).toThrow();
+    expect(() =>
+      aciReceiptSchema.parse({
+        ...ACI_RECEIPT_FIXTURE,
+        signature: { ...ACI_RECEIPT_FIXTURE.signature, value: 'A'.repeat(128) },
+      }),
+    ).toThrow();
+    expect(() =>
+      aciReceiptSchema.parse({
+        ...ACI_RECEIPT_FIXTURE,
+        signature: { algo: 'ecdsa-secp256k1', key_id: 'receipt-1', value: 'a'.repeat(128) },
+      }),
+    ).toThrow();
+  });
+
+  it('accepts ordered sparse event sequences and verified events without a sealed session', () => {
+    const sequenceNumbers = [0, 2, 5, 9] as const;
+    const receipt = aciReceiptSchema.parse({
+      ...ACI_RECEIPT_FIXTURE,
+      event_log: ACI_RECEIPT_FIXTURE.event_log.map((event, index) => {
+        const sparseEvent: Record<string, unknown> = {
+          ...event,
+          seq: sequenceNumbers[index],
+        };
+        if (event.type === 'upstream.verified') {
+          delete sparseEvent.session_id;
+          delete sparseEvent.claims;
+        }
+        return sparseEvent;
+      }),
+    });
+
+    expect(receipt.event_log.map((event) => event.seq)).toEqual([0, 2, 5, 9]);
+  });
+
+  it('rejects top-level V1 fields while allowing explicitly permitted event extensions', () => {
+    expect(() => aciReceiptSchema.parse({ ...ACI_RECEIPT_FIXTURE, version: 1 })).toThrow();
+    expect(() =>
+      aciReceiptSchema.parse({ ...ACI_RECEIPT_FIXTURE, model_revision: 'revision-1' }),
+    ).toThrow();
+    expect(
+      aciReceiptSchema.parse({
+        ...ACI_RECEIPT_FIXTURE,
+        event_log: ACI_RECEIPT_FIXTURE.event_log.map((event) =>
+          event.type === 'request.received' ? { ...event, verifier_extension: 'preserved' } : event,
+        ),
+      }).event_log[0]?.verifier_extension,
+    ).toBe('preserved');
+    expect(() =>
+      aciReceiptSchema.parse({ ...ACI_RECEIPT_FIXTURE, response: 'customer content' }),
+    ).toThrow();
+  });
+});
+
+describe('official ACI parsers reject V1 objects', () => {
+  it('rejects complete legacy objects that their corresponding V1 schemas accept', () => {
+    const legacyPolicy = inferenceTrustPolicyV1Schema.parse(policyV1Fixture());
+    const legacyReceipt = inferenceReceiptV1Schema.parse(receiptFixture());
+
+    expect(inferenceTrustPolicyV2Schema.safeParse(legacyPolicy).success).toBe(false);
+    expect(aciReceiptSchema.safeParse(legacyReceipt).success).toBe(false);
   });
 });
