@@ -722,7 +722,7 @@ export const sealedGitHubInstallationSubmissionSchema = z
     deploymentId: z.string().min(1).max(128),
     orgId: z.string().min(1).max(128),
     accountId: z.string().uuid().optional(),
-    sourceKind: z.union([z.literal('github'), z.literal('code')]),
+    sourceKind: z.literal('github'),
     connectionId: z.string().uuid(),
     activationGeneration: z.string().uuid(),
     attestationGeneration: z.string().min(1).max(128),
@@ -1054,6 +1054,48 @@ export const encryptedSourceConnectionSchema = z
   })
   .strict();
 export type EncryptedSourceConnection = z.infer<typeof encryptedSourceConnectionSchema>;
+
+export const githubCodebaseCapabilityProjectionSchema = z
+  .object({
+    capability: z.literal('codebase'),
+    isEnabled: z.boolean(),
+    activationGeneration: z.string().uuid(),
+  })
+  .strict();
+export type GitHubCodebaseCapabilityProjection = z.infer<
+  typeof githubCodebaseCapabilityProjectionSchema
+>;
+
+export const enclaveSourceConnectionProjectionSchema = encryptedSourceConnectionSchema
+  .extend({
+    deploymentId: z.string().min(1),
+    activationGeneration: z.string().uuid(),
+  })
+  .strict();
+export type EnclaveSourceConnectionProjection = z.infer<
+  typeof enclaveSourceConnectionProjectionSchema
+>;
+
+export const enclaveSourceConnectionsResponseSchema = z
+  .object({
+    connections: z.array(enclaveSourceConnectionProjectionSchema),
+    capabilities: z.array(githubCodebaseCapabilityProjectionSchema).max(1),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      value.capabilities.length > 0 &&
+      !value.connections.some((connection) => connection.kind === 'github')
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'github capability requires github parent',
+      });
+    }
+  });
+export type EnclaveSourceConnectionsResponse = z.infer<
+  typeof enclaveSourceConnectionsResponseSchema
+>;
 
 export const oauthDisconnectCleanupCommandSchema = z
   .object({

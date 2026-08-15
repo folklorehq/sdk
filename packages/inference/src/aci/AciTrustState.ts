@@ -13,7 +13,11 @@ import type {
   VerifiedAciSession,
   VerifiedAciSessionSet,
   VerifiedAciTrustSnapshot,
+  AciTrustContext,
+  AciV2TrustStatePort,
+  TrustedTimeAuthorityPort,
 } from '../ports.js';
+import { isTrustedTimeContext, readTrustedTimeSample } from './trusted-time.js';
 
 const ROLES: readonly InferenceModelRole[] = ['embed', 'generate', 'critique', 'judge'];
 const PREFIXED_DIGEST = /^sha256:[0-9a-f]{64}$/;
@@ -31,6 +35,7 @@ export type AciTrustStateErrorCode =
   | 'candidate_invalid'
   | 'channel_pins_mismatch'
   | 'clock_invalid'
+  | 'context_mismatch'
   | 'expected_generation_invalid'
   | 'keyset_current'
   | 'keyset_expired'
@@ -63,33 +68,96 @@ interface CloneBudget {
   readonly seen: WeakSet<object>;
 }
 
-export class AciTrustState {
+export class AciTrustState implements AciV2TrustStatePort {
   private readonly policy: InferenceTrustPolicyV2;
   private readonly clock: () => number;
-  private snapshot: VerifiedAciTrustSnapshot | undefined;
-  constructor(policy: InferenceTrustPolicyV2, clock: () => number) {
+  private readonly trustedTimeAuthority: TrustedTimeAuthorityPort | undefined;
+  private legacySnapshot: VerifiedAciTrustSnapshot | undefined;
+  private readonly snapshots = new Map<string, VerifiedAciTrustSnapshot>();
+  constructor(
+    policy: InferenceTrustPolicyV2,
+    clock: (() => number) | TrustedTimeAuthorityPort,
+    trustedTimeAuthority?: TrustedTimeAuthorityPort,
+  ) {
     const parsed = inferenceTrustPolicyV2Schema.safeParse(policy);
     if (!parsed.success) throw new AciTrustStateError('policy_invalid');
-    if (typeof clock !== 'function') throw new AciTrustStateError('clock_invalid');
+    if (typeof clock !== 'function' && typeof clock?.read !== 'function') {
+      throw new AciTrustStateError('clock_invalid');
+    }
     this.policy = this.freeze(this.clone(parsed.data));
-    this.clock = clock;
+    this.clock =
+      typeof clock === 'function'
+        ? clock
+        : () => {
+            throw new Error('trusted_time_required');
+          };
+    this.trustedTimeAuthority = typeof clock === 'function' ? trustedTimeAuthority : clock;
   }
   acquire(): VerifiedAciTrustSnapshot | undefined {
-    const now = this.now();
-    if (this.snapshot !== undefined && this.snapshot.expiresAt <= now) {
+    return this.acquireAt(this.legacySnapshot, this.now());
+  }
+
+  async acquireWithTrustedTime(
+    context: AciTrustContext,
+  ): Promise<VerifiedAciTrustSnapshot | undefined> {
+    const now = await this.readTrustedTime(context);
+    const snapshot = this.snapshots.get(this.namespaceKey(context));
+    if (snapshot === undefined) {
+      if (this.snapshots.size > 0 || this.legacySnapshot !== undefined) {
+        throw new AciTrustStateError('context_mismatch');
+      }
+      return undefined;
+    }
+    this.assertSnapshotContext(snapshot, context);
+    return this.acquireAt(snapshot, now);
+  }
+
+  private acquireAt(
+    snapshot: VerifiedAciTrustSnapshot | undefined,
+    now: number,
+  ): VerifiedAciTrustSnapshot | undefined {
+    if (snapshot !== undefined && snapshot.expiresAt <= now) {
       throw new AciTrustStateError('snapshot_expired');
     }
-    return this.snapshot;
+    return snapshot;
   }
   refresh(expectedGeneration: number, candidate: VerifiedAciTrustSnapshot): boolean {
+    return this.refreshAt(expectedGeneration, candidate, this.now());
+  }
+
+  async refreshWithTrustedTime(
+    expectedGeneration: number,
+    candidate: VerifiedAciTrustSnapshot,
+    context: AciTrustContext,
+  ): Promise<boolean> {
+    return this.refreshAt(
+      expectedGeneration,
+      candidate,
+      await this.readTrustedTime(context),
+      context,
+    );
+  }
+
+  private refreshAt(
+    expectedGeneration: number,
+    candidate: VerifiedAciTrustSnapshot,
+    now: number,
+    context?: AciTrustContext,
+  ): boolean {
     if (!this.isNonNegativeInteger(expectedGeneration)) {
       throw new AciTrustStateError('expected_generation_invalid');
     }
-    const current = this.snapshot;
+    const namespace = context === undefined ? undefined : this.namespaceKey(context);
+    const current = namespace === undefined ? this.legacySnapshot : this.snapshots.get(namespace);
     if ((current?.generation ?? 0) !== expectedGeneration) return false;
-    const prepared = this.prepare(candidate, expectedGeneration, current);
-    if ((this.snapshot?.generation ?? 0) !== expectedGeneration) return false;
-    this.snapshot = prepared;
+    const prepared = this.prepare(candidate, expectedGeneration, current, now, context);
+    const active = namespace === undefined ? this.legacySnapshot : this.snapshots.get(namespace);
+    if ((active?.generation ?? 0) !== expectedGeneration) return false;
+    if (namespace === undefined) {
+      this.legacySnapshot = prepared;
+    } else {
+      this.snapshots.set(namespace, prepared);
+    }
     return true;
   }
 
@@ -97,6 +165,8 @@ export class AciTrustState {
     candidate: VerifiedAciTrustSnapshot,
     expectedGeneration: number,
     current: VerifiedAciTrustSnapshot | undefined,
+    now: number,
+    context?: AciTrustContext,
   ): VerifiedAciTrustSnapshot {
     let copy: VerifiedAciTrustSnapshot;
     try {
@@ -104,8 +174,10 @@ export class AciTrustState {
     } catch {
       throw new AciTrustStateError('candidate_invalid');
     }
-    const now = this.now();
     this.validateSnapshot(copy);
+    if (context !== undefined) {
+      this.assertCandidateContext(copy, context);
+    }
     if (copy.generation !== expectedGeneration + 1) {
       throw new AciTrustStateError('candidate_generation_mismatch');
     }
@@ -118,19 +190,24 @@ export class AciTrustState {
   }
 
   private validateSnapshot(snapshot: VerifiedAciTrustSnapshot): void {
+    const snapshotKeys = [
+      'generation',
+      'policyGeneration',
+      'activationGeneration',
+      'expiresAt',
+      'keyset',
+      'channelPins',
+      'sessions',
+      'supersededKeysetDigests',
+    ] as const;
     if (
       !this.isRecord(snapshot) ||
-      !this.hasExactKeys(snapshot, [
-        'generation',
-        'policyGeneration',
-        'activationGeneration',
-        'expiresAt',
-        'keyset',
-        'channelPins',
-        'sessions',
-        'supersededKeysetDigests',
-      ])
+      (!this.hasExactKeys(snapshot, snapshotKeys) &&
+        !this.hasExactKeys(snapshot, [...snapshotKeys, 'trustContext']))
     ) {
+      throw new AciTrustStateError('candidate_invalid');
+    }
+    if ('trustContext' in snapshot && !isTrustedTimeContext(snapshot.trustContext)) {
       throw new AciTrustStateError('candidate_invalid');
     }
     if (
@@ -489,6 +566,39 @@ export class AciTrustState {
     );
   }
 
+  private assertCandidateContext(
+    snapshot: VerifiedAciTrustSnapshot,
+    context: AciTrustContext,
+  ): void {
+    if (snapshot.trustContext === undefined || !this.sameContext(snapshot.trustContext, context)) {
+      throw new AciTrustStateError('context_mismatch');
+    }
+  }
+
+  private assertSnapshotContext(
+    snapshot: VerifiedAciTrustSnapshot,
+    context: AciTrustContext,
+  ): void {
+    if (snapshot.trustContext === undefined || !this.sameContext(snapshot.trustContext, context)) {
+      throw new AciTrustStateError('context_mismatch');
+    }
+  }
+
+  private sameContext(left: AciTrustContext, right: AciTrustContext): boolean {
+    return (
+      left.orgId === right.orgId &&
+      left.deploymentId === right.deploymentId &&
+      left.bootEpoch === right.bootEpoch &&
+      left.checkpointDigest === right.checkpointDigest
+    );
+  }
+
+  private namespaceKey(context: AciTrustContext): string {
+    return [context.orgId, context.deploymentId, context.bootEpoch, context.checkpointDigest].join(
+      '\u0000',
+    );
+  }
+
   private now(): number {
     let value: number;
     try {
@@ -498,6 +608,15 @@ export class AciTrustState {
     }
     if (!this.isNonNegativeInteger(value)) throw new AciTrustStateError('clock_invalid');
     return value;
+  }
+
+  private async readTrustedTime(context: AciTrustContext): Promise<number> {
+    if (this.trustedTimeAuthority === undefined) throw new AciTrustStateError('clock_invalid');
+    try {
+      return (await readTrustedTimeSample(this.trustedTimeAuthority, context)).trustedNow;
+    } catch {
+      throw new AciTrustStateError('clock_invalid');
+    }
   }
 
   private clone<T>(value: T): T {

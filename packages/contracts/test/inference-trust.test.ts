@@ -5,6 +5,8 @@ import {
   aciReceiptSchema,
   aciSessionSchema,
   aciWorkloadReportSchema,
+  ACTIVE_INFERENCE_TRUST_POLICY_V2_CANONICAL_DOMAIN,
+  activeInferenceTrustPolicyV2Schema,
   inferenceReceiptV1Payload,
   inferenceReceiptV1Schema,
   inferenceTrustPolicyV1Schema,
@@ -60,6 +62,201 @@ function policyV1Fixture(): Record<string, unknown> {
       generate: model,
       judge: model,
       critique: model,
+    },
+  };
+}
+
+function policyV2Fixture(): Record<string, unknown> {
+  const model = { model: 'z-ai/glm-5.2', revision: '2026-08-09' };
+  return {
+    version: 2,
+    generation: 3,
+    origin: 'https://inference.phala.com',
+    route: '/v1/chat/completions',
+    channelPolicy: {
+      acceptedBindings: [{ type: 'tls_spki_sha256', domains: ['inference.phala.com'] }],
+    },
+    evidence: {
+      teeTypes: ['tdx'],
+      quoteRootDigests: ['a'.repeat(64)],
+      tcbStatuses: ['up_to_date'],
+      runtimeMeasurements: ['b'.repeat(96)],
+      runtimeRtmrs: ['c'.repeat(96)],
+      runtimeIdentities: ['runtime:inference'],
+      dstackAppIdentities: ['app:inference'],
+      measuredComposeDigests: ['sha256:' + 'd'.repeat(64)],
+      imageDigests: [],
+      dstackKmsRoots: ['e'.repeat(64)],
+    },
+    sourceProvenance: {
+      repositories: [
+        {
+          repoUrl: 'https://github.com/example/inference',
+          commits: ['0123456789abcdef0123456789abcdef01234567'],
+        },
+      ],
+      imageDigests: [],
+    },
+    requiredSessionClaims: ['tcb_up_to_date', 'tee_attested'],
+    permittedClaimSources: ['hardware_proven', 'verifier_derived'],
+    permittedModels: [model],
+    roleModels: { embed: model, generate: model, critique: model, judge: model },
+    maxKeysetLifetimeSeconds: 86_400,
+    maxSessionLifetimeSeconds: 3_600,
+    clockSkewSeconds: 60,
+  };
+}
+
+function activeRoleFixture(
+  role: 'embed' | 'generate' | 'critique' | 'judge',
+  model: string,
+  modelRevision: string,
+  modelArtifactDigest: string,
+): Record<string, unknown> {
+  return {
+    orgId: 'org-1',
+    deploymentId: 'deployment-1',
+    tenantContextDigest: 'a'.repeat(64),
+    role,
+    sessionId: `session-${role}`,
+    model,
+    modelRevision,
+    modelArtifactDigest,
+    upstreamIdentityDigest: 'b'.repeat(64),
+    workloadKeysetDigest: 'c'.repeat(64),
+    channelKeyDigest: 'd'.repeat(64),
+    channelPins: ['e'.repeat(64)],
+    routeIdentityDigest: 'f'.repeat(64),
+    requiredSessionClaims: ['tcb_up_to_date', 'tee_attested'],
+    permittedClaimSources: ['hardware_proven', 'verifier_derived'],
+    capabilities: {
+      embeddingDimension: role === 'embed' ? 4096 : null,
+      maxOutputTokens: role === 'embed' ? null : 8192,
+      temperature: 0,
+      structuredOutput: role !== 'embed',
+    },
+    establishedAt: 1_700_000_000_000,
+    expiresAt: 1_700_000_060_000,
+  };
+}
+
+function activePolicyFixture(): Record<string, unknown> {
+  const models = [
+    {
+      model: 'provider/model-critique',
+      modelRevision: 'revision-critique',
+      modelArtifactDigest: '1'.repeat(64),
+    },
+    {
+      model: 'provider/model-embed',
+      modelRevision: 'revision-embed',
+      modelArtifactDigest: '2'.repeat(64),
+    },
+    {
+      model: 'provider/model-generate',
+      modelRevision: 'revision-generate',
+      modelArtifactDigest: '3'.repeat(64),
+    },
+    {
+      model: 'provider/model-judge',
+      modelRevision: 'revision-judge',
+      modelArtifactDigest: '4'.repeat(64),
+    },
+  ];
+  return {
+    schema: 'active-inference-trust-policy-v2',
+    version: 2,
+    orgId: 'org-1',
+    deploymentId: 'deployment-1',
+    policyGeneration: 7,
+    activationGeneration: 3,
+    configurationGeneration: 11,
+    policyAuthorityKeyId: 'policy-authority-1',
+    authorizationEnvelopeDigest: '5'.repeat(64),
+    policyDigest: '6'.repeat(64),
+    route: {
+      origin: 'https://model.example',
+      path: '/v1/chat/completions',
+      method: 'POST',
+      redirectOrigins: [],
+    },
+    channel: {
+      tlsSpkiSha256: ['7'.repeat(64)],
+      e2eeKeyId: 'e2ee-key-1',
+      channelKeyDigest: '8'.repeat(64),
+      exporterLabel: 'EXPORTER-ACI-CHANNEL',
+    },
+    verifier: {
+      dstackSourceCommit: 'a'.repeat(40),
+      dstackArchiveSha256: '9'.repeat(64),
+      verifierSourceCommit: 'b'.repeat(40),
+      verifierArchiveSha256: 'a'.repeat(64),
+      quoteRootDigests: ['b'.repeat(64)],
+      acceptedTcbStatuses: ['up_to_date'],
+      runtimeIdentityDigest: 'c'.repeat(64),
+      workloadIdentityDigest: 'd'.repeat(64),
+      workloadArtifactDigest: 'e'.repeat(64),
+      routeIdentityDigest: 'f'.repeat(64),
+    },
+    permittedModels: models,
+    roles: {
+      embed: activeRoleFixture(
+        'embed',
+        models[1].model,
+        models[1].modelRevision,
+        models[1].modelArtifactDigest,
+      ),
+      generate: activeRoleFixture(
+        'generate',
+        models[2].model,
+        models[2].modelRevision,
+        models[2].modelArtifactDigest,
+      ),
+      critique: activeRoleFixture(
+        'critique',
+        models[0].model,
+        models[0].modelRevision,
+        models[0].modelArtifactDigest,
+      ),
+      judge: activeRoleFixture(
+        'judge',
+        models[3].model,
+        models[3].modelRevision,
+        models[3].modelArtifactDigest,
+      ),
+    },
+    proof: {
+      version: 'pre-forward-route-proof.v1',
+      issuerWorkloadId: 'workload-1',
+      pinnedTrustRootDigest: '1'.repeat(64),
+      proofKeysetDigest: '2'.repeat(64),
+      maximumLifetimeMs: 60_000,
+    },
+    minimumHighWater: {
+      policyGeneration: 7,
+      activationGeneration: 3,
+      keysetEpoch: 4,
+      keysetDigest: '3'.repeat(64),
+    },
+    lifetime: {
+      snapshotExpiresAt: 1_700_000_060_000,
+      maximumSessionLifetimeMs: 3_600_000,
+      maximumKeysetLifetimeMs: 86_400_000,
+      admissionLeaseLifetimeMs: 60_000,
+      clockSkewMs: 60_000,
+    },
+    sourceProvenance: {
+      protectedSourceCommit: 'c'.repeat(40),
+      sourceArchiveSha256: '4'.repeat(64),
+      releaseId: 'release-1',
+      eifDigest: '5'.repeat(64),
+      pcr0: 'd'.repeat(96),
+      releaseProvenanceDigest: '6'.repeat(64),
+    },
+    rollbackFloor: {
+      minimumPolicyGeneration: 7,
+      minimumActivationGeneration: 3,
+      priorPolicyDigest: null,
     },
   };
 }
@@ -572,6 +769,72 @@ describe('inferenceTrustPolicyV2Schema', () => {
         origin: 'https://inference.phala.com/path',
       }),
     ).toThrow();
+  });
+});
+
+describe('activeInferenceTrustPolicyV2Schema', () => {
+  it('accepts the exact active tag, four roles, ownership, provenance, and artifact tuples', () => {
+    const policy = activeInferenceTrustPolicyV2Schema.parse(activePolicyFixture());
+
+    expect(ACTIVE_INFERENCE_TRUST_POLICY_V2_CANONICAL_DOMAIN).toBe(
+      'folklore.inference-trust-policy-v2-active',
+    );
+    expect(policy.schema).toBe('active-inference-trust-policy-v2');
+    expect(Object.keys(policy.roles).sort()).toEqual(['critique', 'embed', 'generate', 'judge']);
+    expect(policy.roles.embed.modelArtifactDigest).toBe('2'.repeat(64));
+    expect(policy.sourceProvenance.pcr0).toBe('d'.repeat(96));
+  });
+
+  it('rejects dormant or content-bearing fields and incomplete artifact bindings', () => {
+    const policy = activePolicyFixture();
+    const rejected: unknown[] = [
+      { ...policy, inferenceAttestation: {} },
+      {
+        ...policy,
+        permittedModels: policy.permittedModels.map((model, index) =>
+          index === 1 ? { ...model, modelArtifactDigest: undefined } : model,
+        ),
+      },
+      {
+        ...policy,
+        roles: {
+          ...policy.roles,
+          embed: {
+            ...policy.roles.embed,
+            modelArtifactDigest: 'f'.repeat(64),
+          },
+        },
+      },
+      { ...policy, prompt: 'sentinel' },
+      { ...policy, schema: 'inference-trust-policy-v2' },
+      {
+        ...policy,
+        channel: { ...policy.channel, exporterLabel: 'provider generated narrative' },
+      },
+    ];
+
+    for (const candidate of rejected) {
+      expect(activeInferenceTrustPolicyV2Schema.safeParse(candidate).success).toBe(false);
+    }
+  });
+
+  it('rejects cross-namespace role bindings and unsorted active anchors', () => {
+    const policy = activePolicyFixture();
+    expect(
+      activeInferenceTrustPolicyV2Schema.safeParse({
+        ...policy,
+        roles: {
+          ...policy.roles,
+          embed: { ...policy.roles.embed, deploymentId: 'other-deployment' },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      activeInferenceTrustPolicyV2Schema.safeParse({
+        ...policy,
+        channel: { ...policy.channel, tlsSpkiSha256: ['b'.repeat(64), 'a'.repeat(64)] },
+      }).success,
+    ).toBe(false);
   });
 });
 

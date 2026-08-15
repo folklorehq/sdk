@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { ACI_POLICY_FIXTURE } from '../../contracts/test/fixtures/aci-v1.js';
 import { AciTrustState } from '../src/aci/AciTrustState.js';
 import type {
+  AciTrustContext,
+  TrustedTimeReadContext,
   VerifiedAciChannelPin,
   VerifiedAciKeyset,
   VerifiedAciSession,
@@ -30,6 +32,18 @@ const UPSTREAM_CHANNEL_PINS: readonly VerifiedAciChannelPin[] = [
 ];
 const UPSTREAM_CHANNEL_KEY_DIGEST = `sha256:${'6'.repeat(64)}`;
 const UPSTREAM_IDENTITY_DIGEST = `sha256:${'7'.repeat(64)}`;
+const TRUST_CONTEXT: AciTrustContext = {
+  orgId: 'org-1',
+  deploymentId: 'deployment-1',
+  bootEpoch: 'boot-1',
+  checkpointDigest: 'a'.repeat(64),
+};
+const SECOND_TRUST_CONTEXT: AciTrustContext = {
+  orgId: 'org-2',
+  deploymentId: 'deployment-2',
+  bootEpoch: 'boot-2',
+  checkpointDigest: 'b'.repeat(64),
+};
 const POLICY: InferenceTrustPolicyV2 = {
   ...ACI_POLICY_FIXTURE,
   channelPolicy: {
@@ -114,6 +128,74 @@ function candidate(overrides: Record<string, unknown> = {}): VerifiedAciTrustSna
 }
 
 describe('AciTrustState', () => {
+  it('keeps V2 snapshots separate for each trust context namespace', async () => {
+    const state = new AciTrustState(POLICY, {
+      read: async (context) => ({
+        trustedNow: NOW,
+        ...TRUST_CONTEXT,
+        ...context,
+      }),
+    });
+
+    expect(
+      await state.refreshWithTrustedTime(
+        0,
+        candidate({ trustContext: TRUST_CONTEXT }),
+        TRUST_CONTEXT,
+      ),
+    ).toBe(true);
+    expect(
+      await state.refreshWithTrustedTime(
+        0,
+        candidate({ trustContext: SECOND_TRUST_CONTEXT }),
+        SECOND_TRUST_CONTEXT,
+      ),
+    ).toBe(true);
+
+    expect((await state.acquireWithTrustedTime(TRUST_CONTEXT))?.trustContext).toEqual(
+      TRUST_CONTEXT,
+    );
+    expect((await state.acquireWithTrustedTime(SECOND_TRUST_CONTEXT))?.trustContext).toEqual(
+      SECOND_TRUST_CONTEXT,
+    );
+  });
+
+  it('rejects a V2 snapshot lookup across org, deployment, boot, or checkpoint namespaces', async () => {
+    const state = new AciTrustState(POLICY, {
+      read: async (context) => ({
+        trustedNow: NOW,
+        ...TRUST_CONTEXT,
+        ...context,
+      }),
+    });
+    await state.refreshWithTrustedTime(
+      0,
+      candidate({ trustContext: TRUST_CONTEXT }),
+      TRUST_CONTEXT,
+    );
+
+    for (const context of [
+      { ...TRUST_CONTEXT, orgId: 'org-2' },
+      { ...TRUST_CONTEXT, deploymentId: 'deployment-2' },
+      { ...TRUST_CONTEXT, bootEpoch: 'boot-2' },
+      { ...TRUST_CONTEXT, checkpointDigest: 'b'.repeat(64) },
+    ]) {
+      await expect(state.acquireWithTrustedTime(context)).rejects.toMatchObject({
+        code: 'context_mismatch',
+      });
+    }
+  });
+
+  it('fails closed on the V2 host-clock-only path', async () => {
+    const state = new AciTrustState(POLICY, () => NOW);
+
+    await expect(state.acquireWithTrustedTime(TRUST_CONTEXT)).rejects.toMatchObject({
+      code: 'clock_invalid',
+    });
+    await expect(state.refreshWithTrustedTime(0, candidate(), TRUST_CONTEXT)).rejects.toMatchObject(
+      { code: 'clock_invalid' },
+    );
+  });
   it('publishes one immutable snapshot without aliasing candidate input', () => {
     const input = candidate();
     const state = new AciTrustState(POLICY, () => NOW);
@@ -682,6 +764,34 @@ describe('AciTrustState', () => {
       throw new Error('secret-content-marker');
     });
     expectTrustError(() => throwingClockState.acquire(), 'clock_invalid');
+  });
+
+  it('uses the injected trusted-time seam without mapping legacy generation to V2 fields', async () => {
+    let reads = 0;
+    const contexts: TrustedTimeReadContext[] = [];
+    const state = new AciTrustState(POLICY, {
+      read: async (context) => {
+        reads += 1;
+        contexts.push(context ?? {});
+        return {
+          trustedNow: NOW,
+          ...TRUST_CONTEXT,
+        };
+      },
+    });
+
+    expect(
+      await state.refreshWithTrustedTime(
+        0,
+        candidate({ trustContext: TRUST_CONTEXT }),
+        TRUST_CONTEXT,
+      ),
+    ).toBe(true);
+    expect((await state.acquireWithTrustedTime(TRUST_CONTEXT))?.policyGeneration).toBe(
+      POLICY.generation,
+    );
+    expect(reads).toBe(2);
+    expect(contexts).toEqual([TRUST_CONTEXT, TRUST_CONTEXT]);
   });
 });
 

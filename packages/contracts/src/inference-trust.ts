@@ -1207,3 +1207,370 @@ export const inferenceTrustPolicyV2Schema = z
     }
   });
 export type InferenceTrustPolicyV2 = z.infer<typeof inferenceTrustPolicyV2Schema>;
+
+export const ACTIVE_INFERENCE_TRUST_POLICY_V2_CANONICAL_DOMAIN =
+  'folklore.inference-trust-policy-v2-active' as const;
+
+export interface ActiveInferenceRoleBindingV2 {
+  orgId: string;
+  deploymentId: string;
+  tenantContextDigest: string;
+  role: InferenceModelRole;
+  sessionId: string;
+  model: string;
+  modelRevision: string;
+  modelArtifactDigest: string;
+  upstreamIdentityDigest: string;
+  workloadKeysetDigest: string;
+  channelKeyDigest: string;
+  channelPins: readonly string[];
+  routeIdentityDigest: string;
+  requiredSessionClaims: readonly string[];
+  permittedClaimSources: readonly string[];
+  capabilities: {
+    embeddingDimension: number | null;
+    maxOutputTokens: number | null;
+    temperature: number;
+    structuredOutput: boolean;
+  };
+  establishedAt: number;
+  expiresAt: number;
+}
+
+export interface ActiveInferenceTrustPolicyV2 {
+  schema: 'active-inference-trust-policy-v2';
+  version: 2;
+  orgId: string;
+  deploymentId: string;
+  policyGeneration: number;
+  activationGeneration: number;
+  configurationGeneration: number;
+  policyAuthorityKeyId: string;
+  authorizationEnvelopeDigest: string;
+  policyDigest: string;
+  route: {
+    origin: string;
+    path: string;
+    method: 'POST';
+    redirectOrigins: readonly string[];
+  };
+  channel: {
+    tlsSpkiSha256: readonly string[];
+    e2eeKeyId: string;
+    channelKeyDigest: string;
+    exporterLabel: string;
+  };
+  verifier: {
+    dstackSourceCommit: string;
+    dstackArchiveSha256: string;
+    verifierSourceCommit: string;
+    verifierArchiveSha256: string;
+    quoteRootDigests: readonly string[];
+    acceptedTcbStatuses: readonly string[];
+    runtimeIdentityDigest: string;
+    workloadIdentityDigest: string;
+    workloadArtifactDigest: string;
+    routeIdentityDigest: string;
+  };
+  permittedModels: readonly {
+    model: string;
+    modelRevision: string;
+    modelArtifactDigest: string;
+  }[];
+  roles: Readonly<Record<InferenceModelRole, ActiveInferenceRoleBindingV2>>;
+  proof: {
+    version: 'pre-forward-route-proof.v1';
+    issuerWorkloadId: string;
+    pinnedTrustRootDigest: string;
+    proofKeysetDigest: string;
+    maximumLifetimeMs: number;
+  };
+  minimumHighWater: {
+    policyGeneration: number;
+    activationGeneration: number;
+    keysetEpoch: number;
+    keysetDigest: string;
+  };
+  lifetime: {
+    snapshotExpiresAt: number;
+    maximumSessionLifetimeMs: number;
+    maximumKeysetLifetimeMs: number;
+    admissionLeaseLifetimeMs: number;
+    clockSkewMs: number;
+  };
+  sourceProvenance: {
+    protectedSourceCommit: string;
+    sourceArchiveSha256: string;
+    releaseId: string;
+    eifDigest: string;
+    pcr0: string;
+    releaseProvenanceDigest: string;
+  };
+  rollbackFloor: {
+    minimumPolicyGeneration: number;
+    minimumActivationGeneration: number;
+    priorPolicyDigest: string | null;
+  };
+}
+
+const activePolicyModelSchema = z
+  .object({
+    model: providerModelSchema,
+    modelRevision: identifierSchema,
+    modelArtifactDigest: digestSchema,
+  })
+  .strict();
+
+const activeRoleBindingSchema = z
+  .object({
+    orgId: identifierSchema,
+    deploymentId: identifierSchema,
+    tenantContextDigest: digestSchema,
+    role: inferenceModelRoleSchema,
+    sessionId: identifierSchema,
+    model: providerModelSchema,
+    modelRevision: identifierSchema,
+    modelArtifactDigest: digestSchema,
+    upstreamIdentityDigest: digestSchema,
+    workloadKeysetDigest: digestSchema,
+    channelKeyDigest: digestSchema,
+    channelPins: z.array(digestSchema).min(1).max(2),
+    routeIdentityDigest: digestSchema,
+    requiredSessionClaims: z.array(aciClaimNameSchema).min(1).max(MAX_POLICY_ITEMS),
+    permittedClaimSources: z.array(aciClaimSourceSchema).min(1).max(MAX_POLICY_ITEMS),
+    capabilities: z
+      .object({
+        embeddingDimension: z.number().int().safe().positive().max(1_000_000).nullable(),
+        maxOutputTokens: z.number().int().safe().positive().max(1_000_000).nullable(),
+        temperature: z.number().finite().min(0).max(2),
+        structuredOutput: z.boolean(),
+      })
+      .strict(),
+    establishedAt: positiveSafeIntegerSchema,
+    expiresAt: positiveSafeIntegerSchema,
+  })
+  .strict()
+  .superRefine((binding, context) => {
+    if (binding.expiresAt <= binding.establishedAt) {
+      addSortedIssue(context, ['expiresAt'], 'role binding must expire after establishment');
+    }
+    if (!sortedUnique(binding.channelPins)) {
+      addSortedIssue(context, ['channelPins'], 'channel pins must be sorted and unique');
+    }
+    if (!sortedUnique(binding.requiredSessionClaims)) {
+      addSortedIssue(
+        context,
+        ['requiredSessionClaims'],
+        'required session claims must be sorted and unique',
+      );
+    }
+    if (!sortedUnique(binding.permittedClaimSources)) {
+      addSortedIssue(
+        context,
+        ['permittedClaimSources'],
+        'permitted claim sources must be sorted and unique',
+      );
+    }
+  });
+
+const activeRoleBindingsSchema = z
+  .object({
+    embed: activeRoleBindingSchema,
+    generate: activeRoleBindingSchema,
+    judge: activeRoleBindingSchema,
+    critique: activeRoleBindingSchema,
+  })
+  .strict();
+
+export const activeInferenceTrustPolicyV2Schema = z
+  .object({
+    schema: z.literal('active-inference-trust-policy-v2'),
+    version: z.literal(2),
+    orgId: identifierSchema,
+    deploymentId: identifierSchema,
+    policyGeneration: positiveSafeIntegerSchema,
+    activationGeneration: positiveSafeIntegerSchema,
+    configurationGeneration: positiveSafeIntegerSchema,
+    policyAuthorityKeyId: identifierSchema,
+    authorizationEnvelopeDigest: digestSchema,
+    policyDigest: digestSchema,
+    route: z
+      .object({
+        origin: exactHttpsOriginSchema,
+        path: routeSchema,
+        method: z.literal('POST'),
+        redirectOrigins: z.array(exactHttpsOriginSchema).max(MAX_POLICY_ITEMS),
+      })
+      .strict(),
+    channel: z
+      .object({
+        tlsSpkiSha256: z.array(digestSchema).min(1).max(2),
+        e2eeKeyId: identifierSchema,
+        channelKeyDigest: digestSchema,
+        exporterLabel: identifierSchema,
+      })
+      .strict(),
+    verifier: z
+      .object({
+        dstackSourceCommit: aciCommitSchema,
+        dstackArchiveSha256: digestSchema,
+        verifierSourceCommit: aciCommitSchema,
+        verifierArchiveSha256: digestSchema,
+        quoteRootDigests: z.array(digestSchema).min(1).max(MAX_POLICY_ITEMS),
+        acceptedTcbStatuses: z.array(identifierSchema).min(1).max(MAX_POLICY_ITEMS),
+        runtimeIdentityDigest: digestSchema,
+        workloadIdentityDigest: digestSchema,
+        workloadArtifactDigest: digestSchema,
+        routeIdentityDigest: digestSchema,
+      })
+      .strict(),
+    permittedModels: z.array(activePolicyModelSchema).min(1).max(MAX_POLICY_ITEMS),
+    roles: activeRoleBindingsSchema,
+    proof: z
+      .object({
+        version: z.literal('pre-forward-route-proof.v1'),
+        issuerWorkloadId: identifierSchema,
+        pinnedTrustRootDigest: digestSchema,
+        proofKeysetDigest: digestSchema,
+        maximumLifetimeMs: positiveSafeIntegerSchema,
+      })
+      .strict(),
+    minimumHighWater: z
+      .object({
+        policyGeneration: positiveSafeIntegerSchema,
+        activationGeneration: positiveSafeIntegerSchema,
+        keysetEpoch: positiveSafeIntegerSchema,
+        keysetDigest: digestSchema,
+      })
+      .strict(),
+    lifetime: z
+      .object({
+        snapshotExpiresAt: positiveSafeIntegerSchema,
+        maximumSessionLifetimeMs: positiveSafeIntegerSchema,
+        maximumKeysetLifetimeMs: positiveSafeIntegerSchema,
+        admissionLeaseLifetimeMs: positiveSafeIntegerSchema,
+        clockSkewMs: z.number().int().safe().nonnegative().max(86_400_000),
+      })
+      .strict(),
+    sourceProvenance: z
+      .object({
+        protectedSourceCommit: aciCommitSchema,
+        sourceArchiveSha256: digestSchema,
+        releaseId: identifierSchema,
+        eifDigest: digestSchema,
+        pcr0: measurementSchema,
+        releaseProvenanceDigest: digestSchema,
+      })
+      .strict(),
+    rollbackFloor: z
+      .object({
+        minimumPolicyGeneration: positiveSafeIntegerSchema,
+        minimumActivationGeneration: positiveSafeIntegerSchema,
+        priorPolicyDigest: digestSchema.nullable(),
+      })
+      .strict(),
+  })
+  .strict()
+  .superRefine((policy, context) => {
+    if (!sortedUnique(policy.route.redirectOrigins)) {
+      addSortedIssue(
+        context,
+        ['route', 'redirectOrigins'],
+        'redirect origins must be sorted and unique',
+      );
+    }
+    if (!sortedUnique(policy.channel.tlsSpkiSha256)) {
+      addSortedIssue(context, ['channel', 'tlsSpkiSha256'], 'TLS pins must be sorted and unique');
+    }
+    if (!sortedUnique(policy.verifier.quoteRootDigests)) {
+      addSortedIssue(
+        context,
+        ['verifier', 'quoteRootDigests'],
+        'quote roots must be sorted and unique',
+      );
+    }
+    if (!sortedUnique(policy.verifier.acceptedTcbStatuses)) {
+      addSortedIssue(
+        context,
+        ['verifier', 'acceptedTcbStatuses'],
+        'TCB statuses must be sorted and unique',
+      );
+    }
+    if (
+      !sortedUnique(
+        policy.permittedModels.map(
+          (model) => `${model.model}\u0000${model.modelRevision}\u0000${model.modelArtifactDigest}`,
+        ),
+      )
+    ) {
+      addSortedIssue(
+        context,
+        ['permittedModels'],
+        'permitted model tuples must be sorted and unique',
+      );
+    }
+    for (const role of inferenceModelRoleSchema.options) {
+      const binding = policy.roles[role];
+      if (binding.role !== role) {
+        addSortedIssue(context, ['roles', role, 'role'], 'role binding key and role must match');
+      }
+      if (binding.orgId !== policy.orgId || binding.deploymentId !== policy.deploymentId) {
+        addSortedIssue(context, ['roles', role], 'role binding must use the policy namespace');
+      }
+      const matchingModels = policy.permittedModels.filter(
+        (model) =>
+          model.model === binding.model &&
+          model.modelRevision === binding.modelRevision &&
+          model.modelArtifactDigest === binding.modelArtifactDigest,
+      );
+      if (matchingModels.length !== 1) {
+        addSortedIssue(
+          context,
+          ['roles', role],
+          'role binding must match one permitted model artifact tuple',
+        );
+      }
+      if (binding.expiresAt > policy.lifetime.snapshotExpiresAt) {
+        addSortedIssue(
+          context,
+          ['roles', role, 'expiresAt'],
+          'role binding exceeds snapshot lifetime',
+        );
+      }
+    }
+    if (policy.minimumHighWater.policyGeneration > policy.policyGeneration) {
+      addSortedIssue(
+        context,
+        ['minimumHighWater', 'policyGeneration'],
+        'policy high-water cannot exceed the active policy generation',
+      );
+    }
+    if (policy.minimumHighWater.activationGeneration > policy.activationGeneration) {
+      addSortedIssue(
+        context,
+        ['minimumHighWater', 'activationGeneration'],
+        'activation high-water cannot exceed the active activation generation',
+      );
+    }
+    if (policy.rollbackFloor.minimumPolicyGeneration > policy.policyGeneration) {
+      addSortedIssue(
+        context,
+        ['rollbackFloor', 'minimumPolicyGeneration'],
+        'policy rollback floor cannot exceed the active policy generation',
+      );
+    }
+    if (policy.rollbackFloor.minimumActivationGeneration > policy.activationGeneration) {
+      addSortedIssue(
+        context,
+        ['rollbackFloor', 'minimumActivationGeneration'],
+        'activation rollback floor cannot exceed the active activation generation',
+      );
+    }
+    if (policy.proof.maximumLifetimeMs > policy.lifetime.maximumSessionLifetimeMs) {
+      addSortedIssue(
+        context,
+        ['proof', 'maximumLifetimeMs'],
+        'proof lifetime cannot exceed the maximum session lifetime',
+      );
+    }
+  });

@@ -1,18 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from 'node:crypto';
 import type { AciSession, InferenceModelRole, InferenceTrustPolicyV2 } from '@folklore/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ACI_POLICY_FIXTURE, ACI_SESSION_FIXTURE } from '../../contracts/test/fixtures/aci-v1.js';
 import { AciSessionVerifier } from '../src/aci/AciSessionVerifier.js';
 import type {
+  AciTrustContext,
   AciSessionCandidate,
   AciSessionEvidenceVerifierPort,
   AciSessionVerificationInput,
+  TrustedTimeReadContext,
   VerifiedAciKeyset,
   VerifiedAciSessionEvidenceBindings,
 } from '../src/ports.js';
 
 const NOW = 1_750_000_100;
+const TRUST_CONTEXT: AciTrustContext = {
+  orgId: 'org-1',
+  deploymentId: 'deployment-1',
+  bootEpoch: 'boot-1',
+  checkpointDigest: 'a'.repeat(64),
+};
 const ACTIVATION_GENERATION = 11;
 const UPSTREAM_CHANNEL_KEY_DIGEST =
   'sha256:a4bfdc16981feebca6c891c30594fd12093328893084ee4765ffb3b9f166fc3c';
@@ -88,8 +96,22 @@ class AciSessionEvidenceVerifierDouble implements AciSessionEvidenceVerifierPort
 function createVerifier(
   policy = POLICY,
   evidenceVerifier = new AciSessionEvidenceVerifierDouble(),
+  contexts: TrustedTimeReadContext[] = [],
 ) {
-  return new AciSessionVerifier({ policy, clock: () => NOW, evidenceVerifier });
+  return new AciSessionVerifier({
+    policy,
+    trustedTimeAuthority: {
+      read: async (context) => {
+        contexts.push(context ?? {});
+        return {
+          trustedNow: NOW,
+          ...TRUST_CONTEXT,
+        };
+      },
+    },
+    trustedTimeContext: TRUST_CONTEXT,
+    evidenceVerifier,
+  });
 }
 
 function encodeSession(session: AciSession): Uint8Array {
@@ -198,6 +220,29 @@ async function expectCode(promise: Promise<unknown>, code: string): Promise<void
 }
 
 describe('AciSessionVerifier', () => {
+  it('passes the configured context to every security trusted-time read', async () => {
+    const contexts: TrustedTimeReadContext[] = [];
+    await createVerifier(POLICY, new AciSessionEvidenceVerifierDouble(), contexts).verifyAndSelect(
+      input(),
+    );
+
+    expect(contexts).toEqual([TRUST_CONTEXT, TRUST_CONTEXT]);
+  });
+  it('fails closed when V2 trusted time is not configured', async () => {
+    await expectCode(
+      new AciSessionVerifier({
+        policy: POLICY,
+        trustedTimeAuthority: {
+          read: async () => {
+            throw new Error('missing trusted time');
+          },
+        },
+        trustedTimeContext: TRUST_CONTEXT,
+        evidenceVerifier: new AciSessionEvidenceVerifierDouble(),
+      }).verifyAndSelect(input()),
+      'clock_invalid',
+    );
+  });
   it('rejects a malformed trust policy at construction', () => {
     const policy = { ...POLICY, requiredSessionClaims: [] } as unknown as InferenceTrustPolicyV2;
 
@@ -256,15 +301,21 @@ describe('AciSessionVerifier', () => {
   });
 
   it('rejects evidence that resolves after the aggregate verification deadline', async () => {
-    const originalNow = Date.now;
-    let wallClock = 10_000;
-    Date.now = () => wallClock;
+    const monotonicNow = vi.spyOn(performance, 'now');
+    let elapsed = 10_000;
+    monotonicNow.mockImplementation(() => elapsed);
     const verifier = new AciSessionVerifier({
       policy: POLICY,
-      clock: () => NOW,
+      trustedTimeAuthority: {
+        read: async () => ({
+          trustedNow: NOW,
+          ...TRUST_CONTEXT,
+        }),
+      },
+      trustedTimeContext: TRUST_CONTEXT,
       evidenceVerifierTimeoutMs: 100,
       evidenceVerifier: new AciSessionEvidenceVerifierDouble((_session, bindings) => {
-        wallClock = 10_101;
+        elapsed = 10_101;
         return bindings;
       }),
     });
@@ -272,21 +323,27 @@ describe('AciSessionVerifier', () => {
     try {
       await expectCode(verifier.verifyAndSelect(input()), 'session_evidence_verification_failed');
     } finally {
-      Date.now = originalNow;
+      monotonicNow.mockRestore();
     }
   });
 
   it('rejects evidence that resolves at the exact aggregate verification deadline', async () => {
-    const originalNow = Date.now;
-    let wallClock = 20_000;
-    Date.now = () => wallClock;
+    const monotonicNow = vi.spyOn(performance, 'now');
+    let elapsed = 20_000;
+    monotonicNow.mockImplementation(() => elapsed);
     const evidenceVerifier = new AciSessionEvidenceVerifierDouble((_session, bindings) => {
-      wallClock = 20_100;
+      elapsed = 20_100;
       return bindings;
     });
     const verifier = new AciSessionVerifier({
       policy: POLICY,
-      clock: () => NOW,
+      trustedTimeAuthority: {
+        read: async () => ({
+          trustedNow: NOW,
+          ...TRUST_CONTEXT,
+        }),
+      },
+      trustedTimeContext: TRUST_CONTEXT,
       evidenceVerifierTimeoutMs: 100,
       evidenceVerifier,
     });
@@ -295,16 +352,19 @@ describe('AciSessionVerifier', () => {
       await expectCode(verifier.verifyAndSelect(input()), 'session_evidence_verification_failed');
       expect(evidenceVerifier.calls).toBe(1);
     } finally {
-      Date.now = originalNow;
+      monotonicNow.mockRestore();
     }
   });
 
   it('normalizes injected clock failures to content-free clock_invalid', async () => {
     const verifier = new AciSessionVerifier({
       policy: POLICY,
-      clock: () => {
-        throw new Error('secret-clock-content');
+      trustedTimeAuthority: {
+        read: async () => {
+          throw new Error('secret-clock-content');
+        },
       },
+      trustedTimeContext: TRUST_CONTEXT,
       evidenceVerifier: new AciSessionEvidenceVerifierDouble(),
     });
 
@@ -904,7 +964,10 @@ describe('AciSessionVerifier', () => {
     for (const invalidTime of invalidTimes) {
       const verifier = new AciSessionVerifier({
         policy: POLICY,
-        clock: () => invalidTime,
+        trustedTimeAuthority: {
+          read: async () => ({ trustedNow: invalidTime, ...TRUST_CONTEXT }),
+        },
+        trustedTimeContext: TRUST_CONTEXT,
         evidenceVerifier: new AciSessionEvidenceVerifierDouble(),
       });
       await expectCode(verifier.verifyAndSelect(input()), 'clock_invalid');

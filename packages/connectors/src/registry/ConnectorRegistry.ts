@@ -2,6 +2,7 @@
 import type { Logger } from '@folklore/core';
 import type { Connector, ConnectorContext, WebhookEvent } from '../connector.js';
 import type { NormalizedRecords } from '../normalized.js';
+import type { CodebaseRepositorySelection } from '../code-selection.js';
 
 /** Enclave/runtime deps for constructing a pull-capable connector instance. */
 export interface PullConnectorDeps {
@@ -11,6 +12,7 @@ export interface PullConnectorDeps {
   httpsProxyAgent?: unknown;
   gmailLabelAllowlist?: string[];
   m365FolderAllowlist?: string[];
+  codebaseSelection?: CodebaseRepositorySelection;
 }
 
 export type WebhookConnectorFactory = (ctx: ConnectorContext) => Connector;

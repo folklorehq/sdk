@@ -1,15 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
+import { createHash } from 'node:crypto';
+
 import type { InferenceModelRole, InferenceTrustPolicyV2 } from '@folklore/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ACI_POLICY_FIXTURE } from '../../contracts/test/fixtures/aci-v1.js';
 import { OfficialAciExchange } from '../src/aci/OfficialAciExchange.js';
 import type {
+  AciTrustContext,
+  ForwardLease,
   OfficialAciExchangeConfig,
   OfficialAciRequest,
   VerifiedAciSessionSet,
   VerifiedAciTrustSnapshot,
 } from '../src/ports.js';
+import { ForwardLeaseStore } from '../src/aci/ForwardLeaseStore.js';
 import { AciReceiptVerifierDouble } from './doubles/aci/AciReceiptVerifierDouble.js';
 import { AciTrustStateDouble } from './doubles/aci/AciTrustStateDouble.js';
 
@@ -17,6 +22,12 @@ const REQUEST_BODY = { messages: [{ content: 'hi', role: 'user' }], model: 'demo
 const REQUEST_BYTES = new TextEncoder().encode(JSON.stringify(REQUEST_BODY));
 const RESPONSE_TEXT = '{"choices":[{"message":{"content":"verified"}}]}';
 const RESPONSE_BYTES = new TextEncoder().encode(RESPONSE_TEXT);
+const TRUST_CONTEXT: AciTrustContext = {
+  orgId: 'org-1',
+  deploymentId: 'deployment-1',
+  bootEpoch: 'boot-1',
+  checkpointDigest: 'a'.repeat(64),
+};
 const ROLES: readonly InferenceModelRole[] = ['embed', 'generate', 'critique', 'judge'];
 const POLICY: InferenceTrustPolicyV2 = {
   ...ACI_POLICY_FIXTURE,
@@ -51,6 +62,7 @@ function snapshot(generation = 1): VerifiedAciTrustSnapshot {
     ]),
   ) as VerifiedAciSessionSet;
   return {
+    trustContext: TRUST_CONTEXT,
     generation,
     policyGeneration: POLICY.generation,
     activationGeneration: generation,
@@ -78,6 +90,54 @@ const REQUEST: OfficialAciRequest = {
   method: 'POST',
   body: REQUEST_BODY,
 };
+
+function serializedLease(bytes: Uint8Array): Omit<ForwardLease, 'leaseId'> {
+  const requestWireSha256 = createHash('sha256').update(bytes).digest('hex');
+  const currentSnapshot = snapshot();
+  return {
+    orgId: 'org-1',
+    deploymentId: 'deployment-1',
+    tenantId: 'org-1',
+    assignmentDigest: 'a'.repeat(64),
+    workloadId: currentSnapshot.keyset.workloadId,
+    runtimeIdentityDigest: 'b'.repeat(64),
+    workloadArtifactDigest: 'c'.repeat(64),
+    pinnedTrustRootDigest: 'd'.repeat(64),
+    workloadKeysetDigest: currentSnapshot.keyset.workloadKeysetDigest,
+    tenantAadDigest: 'f'.repeat(64),
+    bootEpoch: 'boot-1',
+    trustedTimeCheckpointDigest: TRUST_CONTEXT.checkpointDigest,
+    gatewayNonce: 'gateway-nonce-1',
+    proofId: 'proof-1',
+    requestId: 'request-1',
+    snapshotDigest: 'a'.repeat(64),
+    policyDigest: 'b'.repeat(64),
+    role: 'generate',
+    sessionId: currentSnapshot.sessions.generate.sessionId,
+    model: 'demo/model',
+    modelRevision: 'revision-1',
+    modelArtifactDigest: 'c'.repeat(64),
+    capabilityDigest: 'd'.repeat(64),
+    origin: POLICY.origin,
+    route: '/v1/chat/completions',
+    method: 'POST',
+    routeIdentityDigest: 'e'.repeat(64),
+    channelKeyDigest: currentSnapshot.sessions.generate.channelKeyDigest,
+    exporterLabel: 'EXPORTER-ACI-CHANNEL',
+    exporterDigest: 'a'.repeat(64),
+    transcriptDigest: 'b'.repeat(64),
+    policyGeneration: POLICY.generation,
+    activationGeneration: 1,
+    requestWireSha256,
+    requestWireByteLength: bytes.byteLength,
+    privateRequestWire: { bytes, requestWireSha256, byteLength: bytes.byteLength },
+    proofIssuedAt: 1_750_000_000,
+    proofExpiresAt: 1_750_000_200,
+    snapshotExpiresAt: 1_750_000_200,
+    admissionExpiresAt: 1_750_000_200,
+    boundedWriteValidUntil: 1_750_000_200,
+  };
+}
 
 function response(
   body = RESPONSE_TEXT,
@@ -111,7 +171,10 @@ function setup(overrides: Partial<OfficialAciExchangeConfig> = {}): {
       receiptVerifier,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       apiKey: 'secret',
-      clock: () => 1_750_000_100,
+      trustedTimeAuthority: {
+        read: async () => trustedTimeSample(1_750_000_100),
+      },
+      trustedTimeContext: TRUST_CONTEXT,
       timeoutMs: 50,
       ...overrides,
     }),
@@ -159,6 +222,28 @@ describe('OfficialAciExchange', () => {
     });
     expect(receiptVerifier.inputs[0]?.requestBytes).toEqual(REQUEST_BYTES);
     expect(receiptVerifier.inputs[0]?.responseBytes).toEqual(RESPONSE_BYTES);
+  });
+
+  it('uses injected trusted-time acquisition instead of a synchronous host clock', async () => {
+    const current = snapshot();
+    const trustState = {
+      acquire: () => {
+        throw new Error('host wall clock must not be used');
+      },
+      acquireWithTrustedTime: async () => current,
+    };
+    const { exchange } = setup({ trustState });
+
+    await expect(exchange.execute(REQUEST, () => 'decoded')).resolves.toBe('decoded');
+  });
+
+  it('fails closed for V2 freshness when trusted time is absent', async () => {
+    const { exchange } = setup({ trustedTimeAuthority: undefined });
+
+    await expectCode(
+      exchange.execute(REQUEST, () => 'decoded'),
+      'clock_invalid',
+    );
   });
 
   it('does not invoke decode until receipt verification succeeds', async () => {
@@ -307,6 +392,32 @@ describe('OfficialAciExchange', () => {
     expect(configured.fetchImpl).not.toHaveBeenCalled();
   });
 
+  it('rejects a snapshot from another trust namespace before consuming or fetching', async () => {
+    const leaseStore = new ForwardLeaseStore();
+    const foreignContext: AciTrustContext = {
+      ...TRUST_CONTEXT,
+      deploymentId: 'deployment-2',
+    };
+    const { exchange, fetchImpl } = setup({
+      leaseStore,
+      trustState: new AciTrustStateDouble({
+        ...snapshot(),
+        trustContext: foreignContext,
+      } as VerifiedAciTrustSnapshot),
+    });
+    const lease = await leaseStore.reserve(serializedLease(REQUEST_BYTES));
+
+    await expectCode(
+      exchange.executeSerialized(
+        { role: 'generate', endpoint: '/v1/chat/completions', method: 'POST' },
+        lease,
+        () => 'decoded',
+      ),
+      'trust_mismatch',
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('fails closed on status, missing receipt id, timeout, and oversized responses', async () => {
     await expectCode(
       setup({
@@ -364,4 +475,266 @@ describe('OfficialAciExchange', () => {
       'inference_fetch_failed',
     );
   });
+
+  it('executes only the already serialized official bytes after consuming a lease', async () => {
+    const leaseStore = new ForwardLeaseStore();
+    const { exchange, fetchImpl } = setup({ leaseStore });
+    const wire = await exchange.serialize(REQUEST);
+    const lease = await leaseStore.reserve(serializedLease(wire.bytes));
+
+    const decoded = await exchange.executeSerialized(
+      { role: 'generate', endpoint: '/v1/chat/completions', method: 'POST' },
+      lease,
+      (bytes) => new TextDecoder().decode(bytes),
+    );
+
+    expect(decoded).toBe(RESPONSE_TEXT);
+    const [, init] = fetchImpl.mock.calls[0] as [URL, RequestInit];
+    expect(new Uint8Array(init.body as ArrayBuffer)).toEqual(REQUEST_BYTES);
+    expect(new TextDecoder().decode(init.body as ArrayBuffer)).not.toContain('model_revision');
+  });
+
+  it('does not fetch until delayed consumption completes and erases the returned lease wire', async () => {
+    let releaseConsume: (() => void) | undefined;
+    const consumeGate = new Promise<void>((resolve) => {
+      releaseConsume = resolve;
+    });
+    const consume = vi.fn(async () => consumeGate);
+    const fetchImpl = vi.fn(async () => response());
+    const { exchange } = setup({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      leaseStore: { consume } as unknown as OfficialAciExchangeConfig['leaseStore'],
+    });
+    const lease = {
+      ...serializedLease(REQUEST_BYTES),
+      leaseId: 'lease-1',
+      boundedWriteValidUntil: 1_750_000_200,
+    } as ForwardLease;
+
+    const pending = exchange.executeSerialized(
+      { role: 'generate', endpoint: '/v1/chat/completions', method: 'POST' },
+      lease,
+      () => 'decoded',
+    );
+    await vi.waitFor(() => expect(consume).toHaveBeenCalledOnce());
+    expect(fetchImpl).not.toHaveBeenCalled();
+    releaseConsume?.();
+
+    await expect(pending).resolves.toBe('decoded');
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(lease.privateRequestWire.bytes).toEqual(new Uint8Array(REQUEST_BYTES.length));
+  });
+
+  it('does not fetch when trusted time expires while lease consumption is pending', async () => {
+    let releaseConsume: (() => void) | undefined;
+    const consumeGate = new Promise<void>((resolve) => {
+      releaseConsume = resolve;
+    });
+    let consumedWire: Uint8Array | undefined;
+    const consume = vi.fn(async (input: { candidateRequestWire: { bytes: Uint8Array } }) => {
+      consumedWire = input.candidateRequestWire.bytes;
+      return consumeGate;
+    });
+    const fetchImpl = vi.fn(async () => response());
+    const trustedTimeAuthority = {
+      read: vi
+        .fn()
+        .mockResolvedValueOnce(trustedTimeSample(1_750_000_100))
+        .mockResolvedValueOnce(trustedTimeSample(1_750_000_100))
+        .mockResolvedValueOnce(trustedTimeSample(1_750_000_201)),
+    };
+    const leaseBytes = new TextEncoder().encode(JSON.stringify(REQUEST_BODY));
+    const expectedLeaseBytes = Uint8Array.from(leaseBytes);
+    const { exchange } = setup({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      leaseStore: { consume } as unknown as OfficialAciExchangeConfig['leaseStore'],
+      trustedTimeAuthority,
+    });
+    const lease = {
+      ...serializedLease(leaseBytes),
+      leaseId: 'lease-1',
+    } as ForwardLease;
+
+    const pending = exchange.executeSerialized(
+      { role: 'generate', endpoint: '/v1/chat/completions', method: 'POST' },
+      lease,
+      () => 'decoded',
+    );
+    await vi.waitFor(() => expect(consume).toHaveBeenCalledOnce());
+    expect(fetchImpl).not.toHaveBeenCalled();
+    releaseConsume?.();
+
+    await expectCode(pending, 'trust_expired');
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(consumedWire).toEqual(new Uint8Array(expectedLeaseBytes.length));
+  });
+
+  it('does not consume or fetch when the immediate final trusted-time check fails', async () => {
+    const consume = vi.fn(async () => undefined);
+    const fetchImpl = vi.fn(async () => response());
+    const trustedTimeAuthority = {
+      read: vi
+        .fn()
+        .mockResolvedValueOnce(trustedTimeSample(1_750_000_100))
+        .mockResolvedValueOnce(trustedTimeSample(1_750_000_201)),
+    };
+    const { exchange } = setup({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      leaseStore: { consume } as unknown as OfficialAciExchangeConfig['leaseStore'],
+      trustedTimeAuthority,
+    });
+    const lease = {
+      ...serializedLease(REQUEST_BYTES),
+      leaseId: 'lease-1',
+    } as ForwardLease;
+
+    await expectCode(
+      exchange.executeSerialized(
+        { role: 'generate', endpoint: '/v1/chat/completions', method: 'POST' },
+        lease,
+        () => 'decoded',
+      ),
+      'trust_expired',
+    );
+    expect(consume).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('rejects a trusted-time sample from a different lease boot epoch', async () => {
+    const leaseStore = new ForwardLeaseStore();
+    const { exchange, fetchImpl } = setup({
+      leaseStore,
+      trustedTimeAuthority: {
+        read: async () => trustedTimeSample(1_750_000_100, { bootEpoch: 'boot-2' }),
+      },
+    });
+    const lease = await leaseStore.reserve(serializedLease(REQUEST_BYTES));
+
+    await expectCode(
+      exchange.executeSerialized(
+        { role: 'generate', endpoint: '/v1/chat/completions', method: 'POST' },
+        lease,
+        () => 'decoded',
+      ),
+      'clock_invalid',
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('revalidates every expiry bound before releasing the decoded response', async () => {
+    const leaseStore = new ForwardLeaseStore();
+    const decode = vi.fn(() => 'decoded');
+    const { exchange } = setup({
+      leaseStore,
+      trustedTimeAuthority: {
+        read: vi
+          .fn()
+          .mockResolvedValueOnce(trustedTimeSample(1_750_000_100))
+          .mockResolvedValueOnce(trustedTimeSample(1_750_000_100))
+          .mockResolvedValueOnce(trustedTimeSample(1_750_000_100))
+          .mockResolvedValueOnce(trustedTimeSample(1_750_000_201)),
+      },
+    });
+    const lease = await leaseStore.reserve({
+      ...serializedLease(REQUEST_BYTES),
+      boundedWriteValidUntil: 1_750_000_200,
+    });
+
+    await expectCode(
+      exchange.executeSerialized(
+        { role: 'generate', endpoint: '/v1/chat/completions', method: 'POST' },
+        lease,
+        decode,
+      ),
+      'trust_expired',
+    );
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it('reads the injected trusted time before write, receipt verification, and response release', async () => {
+    const leaseStore = new ForwardLeaseStore();
+    const reads: number[] = [];
+    const { exchange } = setup({
+      leaseStore,
+      trustedTimeAuthority: {
+        read: async () => {
+          const trustedNow = 1_750_000_100 + reads.length;
+          reads.push(trustedNow);
+          return trustedTimeSample(trustedNow);
+        },
+      },
+    });
+    const lease = await leaseStore.reserve(serializedLease(REQUEST_BYTES));
+
+    await exchange.executeSerialized(
+      { role: 'generate', endpoint: '/v1/chat/completions', method: 'POST' },
+      lease,
+      (bytes) => new TextDecoder().decode(bytes),
+    );
+
+    expect(reads).toEqual([
+      1_750_000_100, 1_750_000_101, 1_750_000_102, 1_750_000_103, 1_750_000_104,
+    ]);
+  });
+
+  it('propagates the lease trust context to state, every time read, and receipt verification', async () => {
+    const stateContexts: unknown[] = [];
+    const timeContexts: unknown[] = [];
+    const leaseStore = new ForwardLeaseStore();
+    const receiptVerifier = new AciReceiptVerifierDouble();
+    const trustedTimeAuthority = {
+      read: async (context: unknown) => {
+        timeContexts.push(context);
+        return trustedTimeSample(1_750_000_100);
+      },
+    };
+    const trustState = {
+      acquireWithTrustedTime: async (context: unknown) => {
+        stateContexts.push(context);
+        return snapshot();
+      },
+    };
+    const { exchange } = setup({
+      leaseStore,
+      receiptVerifier,
+      trustState,
+      trustedTimeAuthority,
+    });
+    const lease = await leaseStore.reserve(serializedLease(REQUEST_BYTES));
+
+    await exchange.executeSerialized(
+      { role: 'generate', endpoint: '/v1/chat/completions', method: 'POST' },
+      lease,
+      (bytes) => new TextDecoder().decode(bytes),
+    );
+
+    expect(stateContexts).toEqual([TRUST_CONTEXT]);
+    expect(timeContexts).toEqual([
+      TRUST_CONTEXT,
+      TRUST_CONTEXT,
+      TRUST_CONTEXT,
+      TRUST_CONTEXT,
+      TRUST_CONTEXT,
+    ]);
+    expect(receiptVerifier.inputs[0]?.trustedTimeContext).toEqual(TRUST_CONTEXT);
+  });
 });
+
+function trustedTimeSample(
+  trustedNow: number,
+  overrides: Partial<{
+    orgId: string;
+    deploymentId: string;
+    bootEpoch: string;
+    checkpointDigest: string;
+  }> = {},
+) {
+  return {
+    trustedNow,
+    checkpointDigest: 'a'.repeat(64),
+    bootEpoch: 'boot-1',
+    orgId: 'org-1',
+    deploymentId: 'deployment-1',
+    ...overrides,
+  };
+}

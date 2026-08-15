@@ -16,10 +16,18 @@ import type {
   AciEvidenceVerificationInput,
   AciEvidenceVerifierPort,
   AciReportVerifierConfig,
+  AciTrustContext,
+  TrustedTimeReadContext,
   VerifiedAciEvidenceBindings,
 } from '../src/ports.js';
 
 const NOW = 1_750_000_000;
+const TRUST_CONTEXT: AciTrustContext = {
+  orgId: 'org-1',
+  deploymentId: 'deployment-1',
+  bootEpoch: 'boot-1',
+  checkpointDigest: 'a'.repeat(64),
+};
 const NONCE = Uint8Array.from(Array.from({ length: 32 }, (_, index) => index + 1));
 const SECOND_NONCE = Uint8Array.from(Array.from({ length: 32 }, (_, index) => 255 - index));
 const SOURCE_REVISION = ACI_REPORT_FIXTURE.attestation.source_provenance.repo_commit;
@@ -263,7 +271,13 @@ function verifierFor(
     policy: ACI_POLICY_FIXTURE,
     fetchImpl: fetchReport(report),
     nonceSource: () => NONCE,
-    clock: () => NOW,
+    trustedTimeAuthority: {
+      read: async () => ({
+        trustedNow: NOW,
+        ...TRUST_CONTEXT,
+      }),
+    },
+    trustedTimeContext: TRUST_CONTEXT,
     evidenceVerifier: { verify: vi.fn(async () => bindings) },
     ...overrides,
   });
@@ -278,6 +292,27 @@ async function expectCode(promise: Promise<unknown>, code: string): Promise<void
 }
 
 describe('AciReportVerifier', () => {
+  it('fails closed when V2 trusted time is not configured', async () => {
+    await expectCode(
+      verifierFor(undefined, undefined, { trustedTimeAuthority: undefined }).verify(),
+      'clock_invalid',
+    );
+  });
+
+  it('passes the configured context to every security trusted-time read', async () => {
+    const contexts: TrustedTimeReadContext[] = [];
+    const verified = await verifierFor(undefined, undefined, {
+      trustedTimeAuthority: {
+        read: async (context) => {
+          contexts.push(context ?? {});
+          return { trustedNow: NOW, ...TRUST_CONTEXT };
+        },
+      },
+    }).verify();
+
+    expect(verified.workloadId).toBeDefined();
+    expect(contexts).toEqual([TRUST_CONTEXT, TRUST_CONTEXT]);
+  });
   // Source: spec/test-vectors.md at ed312b94c97d1efd1d4db6a8a166196dbd46c861, sha256 deab05b8f256ed259c2c5388cb730862b580f0c357d08d23174625f201134755.
   it('matches the pinned upstream workload, keyset, report-data, and Ed25519 vectors', async () => {
     const keyset = structuredClone(ACI_REPORT_FIXTURE.attestation.workload_keyset);
@@ -310,7 +345,15 @@ describe('AciReportVerifier', () => {
     attestation.evidence = publicEvidence(channelKeyDigest(keyset));
 
     const verified = await verifierFor(report, nativeBindings(report, NONCE), {
-      clock: () => PINNED_VECTOR_NOW,
+      trustedTimeAuthority: {
+        read: async () => ({
+          trustedNow: PINNED_VECTOR_NOW,
+          checkpointDigest: 'a'.repeat(64),
+          bootEpoch: 'boot-1',
+          orgId: 'org-1',
+          deploymentId: 'deployment-1',
+        }),
+      },
     }).verify();
 
     expect(verified.workloadId).toBe(PINNED_WORKLOAD_ID);
@@ -443,7 +486,13 @@ describe('AciReportVerifier', () => {
     const verifier = new AciReportVerifier({
       apiKey: 'fetch-only-secret',
       baseUrl: 'https://inference.phala.com/v1',
-      clock: () => NOW,
+      trustedTimeAuthority: {
+        read: async () => ({
+          trustedNow: NOW,
+          ...TRUST_CONTEXT,
+        }),
+      },
+      trustedTimeContext: TRUST_CONTEXT,
       evidenceVerifier,
       fetchImpl,
       nonceSource: () => {
@@ -786,7 +835,7 @@ describe('AciReportVerifier', () => {
       ),
     };
 
-    const startedAt = Date.now();
+    const startedAt = performance.now();
 
     await expectCode(
       verifierFor(report, nativeBindings(report, NONCE), {
@@ -834,7 +883,7 @@ describe('AciReportVerifier', () => {
 
   it('rejects a native result that completes at the deadline before the timer runs', async () => {
     const report = reportFor();
-    const now = vi.spyOn(Date, 'now');
+    const now = vi.spyOn(performance, 'now');
     now.mockReturnValueOnce(100).mockReturnValueOnce(100).mockReturnValue(105);
     let signal: AbortSignal | undefined;
     const evidenceVerifier: AciEvidenceVerifierPort = {

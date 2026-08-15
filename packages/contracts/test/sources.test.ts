@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { sourceCatalogResponseSchema } from '../src/sources.js';
+import { sourceCapabilitiesResponseSchema, sourceCatalogResponseSchema } from '../src/sources.js';
 
 describe('sourceCatalogResponseSchema', () => {
-  it('round-trips an enabledKinds list', () => {
+  it('preserves the legacy enabledKinds-only response exactly', () => {
     const parsed = sourceCatalogResponseSchema.parse({ enabledKinds: ['github', 'slack'] });
     expect(parsed).toEqual({ enabledKinds: ['github', 'slack'] });
   });
@@ -13,6 +13,31 @@ describe('sourceCatalogResponseSchema', () => {
   });
 
   it('rejects unknown keys', () => {
-    expect(() => sourceCatalogResponseSchema.parse({ enabledKinds: [], other: true })).toThrow();
+    expect(() =>
+      sourceCatalogResponseSchema.parse({
+        enabledKinds: [],
+        other: true,
+      }),
+    ).toThrow();
+  });
+
+  it('rejects a capability field added to the legacy response', () => {
+    expect(() =>
+      sourceCatalogResponseSchema.parse({ enabledKinds: [], codebaseAvailable: false }),
+    ).toThrow();
+  });
+});
+
+describe('sourceCapabilitiesResponseSchema', () => {
+  it('requires an explicit Codebase availability decision', () => {
+    expect(sourceCapabilitiesResponseSchema.parse({ codebaseAvailable: false })).toEqual({
+      codebaseAvailable: false,
+    });
+  });
+
+  it('rejects unknown fields', () => {
+    expect(() =>
+      sourceCapabilitiesResponseSchema.parse({ codebaseAvailable: true, enabledKinds: [] }),
+    ).toThrow();
   });
 });

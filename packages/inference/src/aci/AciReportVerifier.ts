@@ -10,9 +10,11 @@ import { AciNativeEvidenceVerifier } from './AciNativeEvidenceVerifier.js';
 import { AciReportBindingVerifier } from './AciReportBindingVerifier.js';
 import { AciVerificationError } from './AciVerificationError.js';
 import { parseStrictJsonBytes } from './strict-json.js';
+import { isTrustedTimeContext, readTrustedTimeSample } from './trusted-time.js';
 import type {
   AciEvidencePolicyAnchors,
   AciReportVerifierConfig,
+  AciTrustContext,
   VerifiedAciChannelPin,
   VerifiedAciKeyset,
 } from '../ports.js';
@@ -32,7 +34,8 @@ export class AciReportVerifier {
   private readonly nativeEvidenceVerifier: AciNativeEvidenceVerifier;
   private readonly fetchImpl: typeof fetch;
   private readonly nonceSource: () => Uint8Array | Promise<Uint8Array>;
-  private readonly clock: () => number;
+  private readonly trustedTimeAuthority: AciReportVerifierConfig['trustedTimeAuthority'];
+  private readonly trustedTimeContext: AciTrustContext;
   private readonly fetchTimeoutMs: number;
   private readonly maxReportBytes: number;
   private readonly apiKey: string | undefined;
@@ -48,7 +51,8 @@ export class AciReportVerifier {
     }
     this.fetchImpl = config.fetchImpl;
     this.nonceSource = config.nonceSource ?? (() => randomBytes(NONCE_BYTES));
-    this.clock = config.clock ?? (() => Date.now() / 1_000);
+    this.trustedTimeAuthority = config.trustedTimeAuthority;
+    this.trustedTimeContext = config.trustedTimeContext;
     this.fetchTimeoutMs = this.boundedInteger(
       config.fetchTimeoutMs,
       DEFAULT_FETCH_TIMEOUT_MS,
@@ -81,7 +85,7 @@ export class AciReportVerifier {
     const report = this.parseReport(reportBytes);
     const { evidenceBytes } = this.bindingVerifier.parseEvidence(report.attestation.evidence);
     const expected = this.bindingVerifier.verify(report, evidenceBytes, nonce);
-    this.verifyFreshness(report);
+    await this.verifyFreshness(report, this.trustedTimeContext);
     this.verifySourceProvenance(report, expected.sourceRevision);
     const channelPins = this.createChannelPins(report);
     await this.nativeEvidenceVerifier.verify(
@@ -93,7 +97,7 @@ export class AciReportVerifier {
       },
       expected,
     );
-    this.verifyFreshness(report);
+    await this.verifyFreshness(report, this.trustedTimeContext);
     return this.publishKeyset(report, channelPins, expected.channelKeyDigest);
   }
 
@@ -244,13 +248,11 @@ export class AciReportVerifier {
     }
   }
 
-  private verifyFreshness(report: AciWorkloadReport): void {
-    let now: number;
-    try {
-      now = this.clock();
-    } catch {
-      throw new AciVerificationError('clock_invalid');
-    }
+  private async verifyFreshness(
+    report: AciWorkloadReport,
+    context: AciTrustContext,
+  ): Promise<void> {
+    const now = await this.readTrustedTime(context);
     if (!Number.isFinite(now) || now < 0) throw new AciVerificationError('clock_invalid');
     const freshness = report.attestation.freshness;
     const notAfter = report.attestation.workload_keyset.keyset_epoch.not_after;
@@ -366,6 +368,20 @@ export class AciReportVerifier {
         permittedClaimSources: this.policy.permittedClaimSources,
       }),
     );
+  }
+
+  private async readTrustedTime(context: AciTrustContext): Promise<number> {
+    if (this.trustedTimeAuthority === undefined) {
+      throw new AciVerificationError('clock_invalid');
+    }
+    if (!isTrustedTimeContext(context)) {
+      throw new AciVerificationError('clock_invalid');
+    }
+    try {
+      return (await readTrustedTimeSample(this.trustedTimeAuthority, context)).trustedNow;
+    } catch {
+      throw new AciVerificationError('clock_invalid');
+    }
   }
 
   private headers(): Record<string, string> {

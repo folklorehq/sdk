@@ -21,6 +21,7 @@ import {
 } from '../../contracts/test/fixtures/aci-v1.js';
 import { AciReceiptVerifier } from '../src/aci/AciReceiptVerifier.js';
 import type {
+  AciTrustContext,
   AciReceiptVerificationInput,
   VerifiedAciChannelPin,
   VerifiedAciKeyset,
@@ -29,6 +30,12 @@ import type {
 } from '../src/ports.js';
 
 const NOW = 1_750_000_100;
+const TRUST_CONTEXT: AciTrustContext = {
+  orgId: 'org-1',
+  deploymentId: 'deployment-1',
+  bootEpoch: 'boot-1',
+  checkpointDigest: 'a'.repeat(64),
+};
 const REQUEST = new TextEncoder().encode(
   '{"messages":[{"content":"hi","role":"user"}],"model":"demo-model"}',
 );
@@ -128,6 +135,7 @@ const INPUT: AciReceiptVerificationInput = {
   role: 'generate',
   endpoint: '/v1/chat/completions',
   method: 'POST',
+  trustedTimeContext: TRUST_CONTEXT,
 };
 function secp256k1PublicKey(publicKey: KeyObject): string {
   const jwk = publicKey.export({ format: 'jwk' });
@@ -222,7 +230,15 @@ function verifier(
     baseUrl: 'https://inference.phala.com',
     policy: POLICY,
     fetchImpl,
-    clock: () => NOW,
+    trustedTimeAuthority: {
+      read: async () => ({
+        trustedNow: NOW,
+        checkpointDigest: 'a'.repeat(64),
+        bootEpoch: 'boot-1',
+        orgId: 'org-1',
+        deploymentId: 'deployment-1',
+      }),
+    },
     fetchTimeoutMs: 50,
     ...overrides,
   });
@@ -237,6 +253,12 @@ async function expectCode(promise: Promise<unknown>, code: string): Promise<void
 }
 
 describe('AciReceiptVerifier', () => {
+  it('fails closed when V2 trusted time is not configured', async () => {
+    await expectCode(
+      verifier(ACI_RECEIPT_FIXTURE, { trustedTimeAuthority: undefined }).verify(INPUT),
+      'clock_invalid',
+    );
+  });
   it('accepts the pinned upstream receipt vector', async () => {
     const result = await verifier(ACI_RECEIPT_FIXTURE).verify(INPUT);
     expect(result).toEqual({
@@ -374,6 +396,32 @@ describe('AciReceiptVerifier', () => {
     const replayVerifier = verifier(ACI_RECEIPT_FIXTURE);
     await replayVerifier.verify(INPUT);
     await expectCode(replayVerifier.verify(INPUT), 'receipt_replay');
+  });
+
+  it('namespaces receipt replay by the organization, deployment, boot, and checkpoint context', async () => {
+    const contextAware = verifier(ACI_RECEIPT_FIXTURE, {
+      trustedTimeAuthority: {
+        read: async (context) => ({
+          trustedNow: NOW,
+          checkpointDigest: context?.checkpointDigest ?? TRUST_CONTEXT.checkpointDigest,
+          bootEpoch: context?.bootEpoch ?? TRUST_CONTEXT.bootEpoch,
+          orgId: context?.orgId ?? TRUST_CONTEXT.orgId,
+          deploymentId: context?.deploymentId ?? TRUST_CONTEXT.deploymentId,
+        }),
+      },
+    });
+
+    await contextAware.verify(INPUT);
+    await expect(
+      contextAware.verify({
+        ...INPUT,
+        trustedTimeContext: {
+          ...TRUST_CONTEXT,
+          deploymentId: 'deployment-2',
+        },
+      }),
+    ).resolves.toMatchObject({ receiptId: ACI_RECEIPT_FIXTURE.receipt_id });
+    await expectCode(contextAware.verify(INPUT), 'receipt_replay');
   });
 
   it('fails closed when bounded replay history reaches capacity instead of evicting', async () => {

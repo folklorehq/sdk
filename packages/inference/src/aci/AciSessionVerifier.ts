@@ -12,11 +12,13 @@ import { z } from 'zod';
 
 import { AciSessionVerificationError } from './AciSessionVerificationError.js';
 import { parseStrictJsonBytes } from './strict-json.js';
+import { isTrustedTimeContext, readTrustedTimeSample } from './trusted-time.js';
 import type {
   AciSessionCandidate,
   AciSessionEvidenceVerifierPort,
   AciSessionVerificationInput,
   AciSessionVerifierConfig,
+  AciTrustContext,
   VerifiedAciChannelPin,
   VerifiedAciSession,
   VerifiedAciSessionSet,
@@ -122,13 +124,15 @@ interface StructuralNode {
 }
 
 export class AciSessionVerifier {
-  private readonly clock: () => number;
+  private readonly trustedTimeAuthority: AciSessionVerifierConfig['trustedTimeAuthority'];
+  private readonly trustedTimeContext: AciTrustContext;
   private readonly evidenceVerifier: AciSessionEvidenceVerifierPort;
   private readonly evidenceVerifierTimeoutMs: number;
   private readonly policy: AciSessionVerifierConfig['policy'];
 
   constructor(config: AciSessionVerifierConfig) {
-    this.clock = config.clock ?? (() => Math.floor(Date.now() / 1_000));
+    this.trustedTimeAuthority = config.trustedTimeAuthority;
+    this.trustedTimeContext = config.trustedTimeContext;
     const policy = inferenceTrustPolicyV2Schema.safeParse(config.policy);
     if (!policy.success) throw new AciSessionVerificationError('policy_invalid');
     this.policy = this.deepFreeze(policy.data);
@@ -148,21 +152,20 @@ export class AciSessionVerifier {
 
   async verifyAndSelect(input: AciSessionVerificationInput): Promise<VerifiedAciSessionSet> {
     input = this.parseInput(input);
-    this.validateState(input);
+    this.validateState(input, await this.readTrustedTime(this.trustedTimeContext));
     this.validateCandidateBindings(input.candidates);
     await this.verifyCandidateEvidence(
       input.candidates,
-      Date.now() + this.evidenceVerifierTimeoutMs,
+      performance.now() + this.evidenceVerifierTimeoutMs,
     );
-    return this.selectSessions(input, this.now());
+    return this.selectSessions(input, await this.readTrustedTime(this.trustedTimeContext));
   }
 
-  private validateState(input: AciSessionVerificationInput): void {
+  private validateState(input: AciSessionVerificationInput, now: number): void {
     const candidateRoles = new Set(input.candidates.map((candidate) => candidate.role));
     if (REQUIRED_ROLES.some((role) => !candidateRoles.has(role))) {
       throw new AciSessionVerificationError('role_incomplete');
     }
-    const now = this.now();
     if (input.keyset.notAfter <= now) {
       throw new AciSessionVerificationError('keyset_expired');
     }
@@ -227,7 +230,7 @@ export class AciSessionVerifier {
       const controller = new AbortController();
       let timeout: ReturnType<typeof setTimeout> | undefined;
       try {
-        const remainingMs = deadline - Date.now();
+        const remainingMs = deadline - performance.now();
         if (remainingMs <= 0) {
           throw new AciSessionVerificationError('session_evidence_verification_failed');
         }
@@ -246,7 +249,7 @@ export class AciSessionVerifier {
             }, remainingMs);
           }),
         ]);
-        if (Date.now() >= deadline) {
+        if (performance.now() >= deadline) {
           throw new AciSessionVerificationError('session_evidence_verification_failed');
         }
         if (
@@ -372,19 +375,6 @@ export class AciSessionVerifier {
     return nodes;
   }
 
-  private now(): number {
-    let now: number;
-    try {
-      now = this.clock();
-    } catch {
-      throw new AciSessionVerificationError('clock_invalid');
-    }
-    if (!Number.isSafeInteger(now) || now < 0) {
-      throw new AciSessionVerificationError('clock_invalid');
-    }
-    return now;
-  }
-
   private parseSession(session: unknown, sessionBytes: Uint8Array): AciSession {
     this.assertBoundedStructure(session);
     const supplied = aciSessionSchema.safeParse(session);
@@ -464,6 +454,20 @@ export class AciSessionVerifier {
       Object.freeze(current);
     }
     return value;
+  }
+
+  private async readTrustedTime(context: AciTrustContext): Promise<number> {
+    if (this.trustedTimeAuthority === undefined) {
+      throw new AciSessionVerificationError('clock_invalid');
+    }
+    if (!isTrustedTimeContext(context)) {
+      throw new AciSessionVerificationError('clock_invalid');
+    }
+    try {
+      return (await readTrustedTimeSample(this.trustedTimeAuthority, context)).trustedNow;
+    } catch {
+      throw new AciSessionVerificationError('clock_invalid');
+    }
   }
 
   private sessionContentId(session: AciSession): string {

@@ -14,6 +14,7 @@ import type {
   AciReceiptVerificationInput,
   AciReceiptVerifierPort,
   AciReceiptVerifierConfig,
+  AciTrustContext,
   VerifiedAciChannelPin,
   VerifiedAciReceipt,
   VerifiedAciSession,
@@ -23,6 +24,7 @@ import {
   type AciReceiptVerificationErrorCode,
 } from './AciReceiptVerificationError.js';
 import { parseStrictJsonBytes } from './strict-json.js';
+import { isTrustedTimeContext, readTrustedTimeSample } from './trusted-time.js';
 
 const DEFAULT_FETCH_TIMEOUT_MS = 5_000;
 const DEFAULT_MAX_RECEIPT_BYTES = 1_048_576;
@@ -40,12 +42,12 @@ export class AciReceiptVerifier implements AciReceiptVerifierPort {
   private readonly policy: InferenceTrustPolicyV2;
   private readonly fetchImpl: typeof fetch;
   private readonly apiKey: string | undefined;
-  private readonly clock: () => number;
+  private readonly trustedTimeAuthority: AciReceiptVerifierConfig['trustedTimeAuthority'];
   private readonly fetchTimeoutMs: number;
   private readonly maxReceiptBytes: number;
   private readonly replayCapacity: number;
-  private readonly inFlightReceiptIds = new Set<string>();
-  private readonly verifiedReceiptIds = new Set<string>();
+  private readonly inFlightReceiptKeys = new Set<string>();
+  private readonly verifiedReceiptKeys = new Set<string>();
   private readonly replayOrder: string[] = [];
 
   constructor(config: AciReceiptVerifierConfig) {
@@ -55,7 +57,7 @@ export class AciReceiptVerifier implements AciReceiptVerifierPort {
     this.baseUrl = this.validateBaseUrl(config.baseUrl);
     this.fetchImpl = config.fetchImpl;
     this.apiKey = config.apiKey;
-    this.clock = config.clock ?? (() => Math.floor(Date.now() / 1_000));
+    this.trustedTimeAuthority = config.trustedTimeAuthority;
     this.fetchTimeoutMs = this.boundedInteger(
       config.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS,
       MAX_FETCH_TIMEOUT_MS,
@@ -75,19 +77,20 @@ export class AciReceiptVerifier implements AciReceiptVerifierPort {
 
   async verify(input: AciReceiptVerificationInput): Promise<VerifiedAciReceipt> {
     const receiptId = this.validateReceiptId(input.receiptId);
-    this.claimReceiptId(receiptId);
+    const replayKey = this.receiptReplayKey(input.trustedTimeContext, receiptId);
+    this.claimReceiptKey(replayKey);
     try {
       const receipt = await this.fetchReceipt(receiptId);
-      const session = this.validateReceipt(receipt, input, receiptId);
+      const session = await this.validateReceipt(receipt, input, receiptId);
       this.verifyReceiptSignature(receipt, input);
-      this.rememberReceiptId(receiptId);
+      this.rememberReceiptKey(replayKey);
       return Object.freeze({
         receiptId,
         servedAt: receipt.served_at,
         sessionId: session.sessionId,
       });
     } finally {
-      this.inFlightReceiptIds.delete(receiptId);
+      this.inFlightReceiptKeys.delete(replayKey);
     }
   }
 
@@ -128,22 +131,22 @@ export class AciReceiptVerifier implements AciReceiptVerifierPort {
     return value;
   }
 
-  private claimReceiptId(receiptId: string): void {
-    if (this.inFlightReceiptIds.has(receiptId) || this.verifiedReceiptIds.has(receiptId)) {
+  private claimReceiptKey(replayKey: string): void {
+    if (this.inFlightReceiptKeys.has(replayKey) || this.verifiedReceiptKeys.has(replayKey)) {
       throw new AciReceiptVerificationError('receipt_replay');
     }
     if (this.replayOrder.length >= this.replayCapacity) {
       throw new AciReceiptVerificationError('replay_capacity_exhausted');
     }
-    this.inFlightReceiptIds.add(receiptId);
+    this.inFlightReceiptKeys.add(replayKey);
   }
 
-  private rememberReceiptId(receiptId: string): void {
+  private rememberReceiptKey(replayKey: string): void {
     if (this.replayOrder.length >= this.replayCapacity) {
       throw new AciReceiptVerificationError('replay_capacity_exhausted');
     }
-    this.verifiedReceiptIds.add(receiptId);
-    this.replayOrder.push(receiptId);
+    this.verifiedReceiptKeys.add(replayKey);
+    this.replayOrder.push(replayKey);
   }
 
   private async fetchReceipt(receiptId: string): Promise<AciReceipt> {
@@ -250,11 +253,11 @@ export class AciReceiptVerifier implements AciReceiptVerifierPort {
     }
   }
 
-  private validateReceipt(
+  private async validateReceipt(
     receipt: AciReceipt,
     input: AciReceiptVerificationInput,
     receiptId: string,
-  ): VerifiedAciSession {
+  ): Promise<VerifiedAciSession> {
     const session = input.snapshot.sessions[input.role];
     if (session === undefined) throw new AciReceiptVerificationError('snapshot_invalid');
     if (receipt.receipt_id !== receiptId) {
@@ -272,23 +275,18 @@ export class AciReceiptVerifier implements AciReceiptVerifierPort {
     }
     if (receipt.method !== input.method) throw new AciReceiptVerificationError('method_mismatch');
     this.validateEventOrder(receipt);
-    this.validateServingTime(receipt.served_at, input, session);
+    await this.validateServingTime(receipt.served_at, input, session);
     this.validateHashes(receipt, input);
     this.validateUpstreamSession(receipt, session);
     return session;
   }
 
-  private validateServingTime(
+  private async validateServingTime(
     servedAt: number,
     input: AciReceiptVerificationInput,
     session: VerifiedAciSession,
-  ): void {
-    let now: number;
-    try {
-      now = this.clock();
-    } catch {
-      throw new AciReceiptVerificationError('clock_invalid');
-    }
+  ): Promise<void> {
+    const now = await this.readTrustedTime(input.trustedTimeContext);
     if (
       !Number.isSafeInteger(now) ||
       now <= 0 ||
@@ -491,5 +489,32 @@ export class AciReceiptVerifier implements AciReceiptVerifierPort {
 
   private digest(bytes: Uint8Array): string {
     return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+  }
+
+  private receiptReplayKey(context: AciTrustContext, receiptId: string): string {
+    if (!isTrustedTimeContext(context)) {
+      throw new AciReceiptVerificationError('clock_invalid');
+    }
+    return [
+      context.orgId,
+      context.deploymentId,
+      context.bootEpoch,
+      context.checkpointDigest,
+      receiptId,
+    ].join('\u0000');
+  }
+
+  private async readTrustedTime(context: AciTrustContext): Promise<number> {
+    if (this.trustedTimeAuthority === undefined) {
+      throw new AciReceiptVerificationError('clock_invalid');
+    }
+    if (!isTrustedTimeContext(context)) {
+      throw new AciReceiptVerificationError('clock_invalid');
+    }
+    try {
+      return (await readTrustedTimeSample(this.trustedTimeAuthority, context)).trustedNow;
+    } catch {
+      throw new AciReceiptVerificationError('clock_invalid');
+    }
   }
 }

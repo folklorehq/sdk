@@ -62,7 +62,7 @@ export class AciNativeEvidenceVerifier {
     input: Omit<AciEvidenceVerificationInput, 'deadline' | 'signal'>,
   ): Promise<VerifiedAciEvidenceBindings> {
     const controller = new AbortController();
-    const deadline = Date.now() + this.timeoutMs;
+    const deadline = performance.now() + this.timeoutMs;
     const timeoutError = new AciVerificationError('native_verifier_timeout');
     let didTimeout = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -82,7 +82,7 @@ export class AciNativeEvidenceVerifier {
       if (timer !== undefined) clearTimeout(timer);
       throw new AciVerificationError('native_verification_failed');
     }
-    if (Date.now() >= deadline) {
+    if (performance.now() >= deadline) {
       didTimeout = true;
       controller.abort(timeoutError);
       if (timer !== undefined) clearTimeout(timer);
@@ -97,7 +97,7 @@ export class AciNativeEvidenceVerifier {
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }
-    if (Date.now() >= deadline) {
+    if (performance.now() >= deadline) {
       controller.abort(timeoutError);
       throw timeoutError;
     }

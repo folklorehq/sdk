@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { AciSession, InferenceModelRole, InferenceTrustPolicyV2 } from '@folklore/contracts';
+import type {
+  AciSession,
+  InferenceModelRole,
+  InferenceTrustPolicyV2,
+  PreForwardRouteProofV1,
+} from '@folklore/contracts';
 
 /** InferenceBackend port — all inference MUST happen inside the customer's box; sending fact content to an external API is structurally prohibited. */
 
@@ -233,6 +238,7 @@ export interface VerifiedAciSession {
 export type VerifiedAciSessionSet = Readonly<Record<InferenceModelRole, VerifiedAciSession>>;
 
 export interface VerifiedAciTrustSnapshot {
+  readonly trustContext?: AciTrustContext;
   readonly generation: number;
   readonly policyGeneration: number;
   readonly activationGeneration: number;
@@ -243,6 +249,13 @@ export interface VerifiedAciTrustSnapshot {
   readonly supersededKeysetDigests: readonly string[];
 }
 
+export interface AciTrustContext {
+  readonly orgId: string;
+  readonly deploymentId: string;
+  readonly bootEpoch: string;
+  readonly checkpointDigest: string;
+}
+
 export interface AciReceiptVerificationInput {
   readonly snapshot: VerifiedAciTrustSnapshot;
   readonly receiptId: string | null;
@@ -251,6 +264,7 @@ export interface AciReceiptVerificationInput {
   readonly role: InferenceModelRole;
   readonly endpoint: string;
   readonly method: string;
+  readonly trustedTimeContext: AciTrustContext;
 }
 
 export interface VerifiedAciReceipt {
@@ -264,10 +278,10 @@ export interface AciReceiptVerifierConfig {
   readonly policy: InferenceTrustPolicyV2;
   readonly fetchImpl: typeof fetch;
   readonly apiKey?: string;
-  readonly clock?: () => number;
   readonly fetchTimeoutMs?: number;
   readonly maxReceiptBytes?: number;
   readonly replayCapacity?: number;
+  readonly trustedTimeAuthority: TrustedTimeAuthorityPort;
 }
 
 export interface AciReceiptVerifierPort {
@@ -276,6 +290,15 @@ export interface AciReceiptVerifierPort {
 
 export interface AciTrustStatePort {
   acquire(): VerifiedAciTrustSnapshot | undefined;
+}
+
+export interface AciV2TrustStatePort {
+  acquireWithTrustedTime(context: AciTrustContext): Promise<VerifiedAciTrustSnapshot | undefined>;
+  refreshWithTrustedTime(
+    expectedGeneration: number,
+    candidate: VerifiedAciTrustSnapshot,
+    context: AciTrustContext,
+  ): Promise<boolean>;
 }
 
 export interface OfficialAciRequest {
@@ -288,14 +311,16 @@ export interface OfficialAciRequest {
 export interface OfficialAciExchangeConfig {
   readonly baseUrl: string;
   readonly policy: InferenceTrustPolicyV2;
-  readonly trustState: AciTrustStatePort;
+  readonly trustState: AciV2TrustStatePort;
   readonly receiptVerifier: AciReceiptVerifierPort;
   readonly fetchImpl: typeof fetch;
   readonly apiKey?: string;
-  readonly clock?: () => number;
   readonly timeoutMs?: number;
   readonly maxRequestBytes?: number;
   readonly maxResponseBytes?: number;
+  readonly trustedTimeAuthority: TrustedTimeAuthorityPort;
+  readonly trustedTimeContext: AciTrustContext;
+  readonly leaseStore?: ForwardLeaseStorePort;
 }
 
 export interface AciReportVerifierConfig {
@@ -304,18 +329,207 @@ export interface AciReportVerifierConfig {
   evidenceVerifier: AciEvidenceVerifierPort;
   fetchImpl: typeof fetch;
   nonceSource?: () => Uint8Array | Promise<Uint8Array>;
-  clock?: () => number;
   fetchTimeoutMs?: number;
   nativeVerifierTimeoutMs?: number;
   maxReportBytes?: number;
   apiKey?: string;
+  trustedTimeAuthority: TrustedTimeAuthorityPort;
+  trustedTimeContext: AciTrustContext;
 }
 
 export interface AciSessionVerifierConfig {
   readonly policy: InferenceTrustPolicyV2;
   readonly evidenceVerifier: AciSessionEvidenceVerifierPort;
-  readonly clock?: () => number;
   readonly evidenceVerifierTimeoutMs?: number;
+  readonly trustedTimeAuthority: TrustedTimeAuthorityPort;
+  readonly trustedTimeContext: AciTrustContext;
+}
+
+export interface PreForwardRouteBinding {
+  orgId: string;
+  deploymentId: string;
+  tenantId: string;
+  assignmentDigest: string;
+  proofId: string;
+  workloadId: string;
+  runtimeIdentityDigest: string;
+  workloadArtifactDigest: string;
+  pinnedTrustRootDigest: string;
+  channelKeyDigest: string;
+  exporterLabel: string;
+  exporterDigest: string;
+  transcriptDigest: string;
+  snapshotDigest: string;
+  policyDigest: string;
+  tenantAadDigest: string;
+  origin: string;
+  route: string;
+  method: 'POST';
+  routeIdentityDigest: string;
+  role: InferenceModelRole;
+  sessionId: string;
+  model: string;
+  modelRevision: string;
+  modelArtifactDigest: string;
+  workloadKeysetDigest: string;
+  capabilityDigest: string;
+  policyGeneration: number;
+  activationGeneration: number;
+  gatewayNonce: string;
+  requestId: string;
+  bootEpoch: string;
+  trustedTimeCheckpointDigest: string;
+}
+
+export interface TrustedTimeReadContext {
+  readonly orgId?: string;
+  readonly deploymentId?: string;
+  readonly bootEpoch?: string;
+  readonly checkpointDigest?: string;
+}
+
+export interface TrustedTimeSample {
+  trustedNow: number;
+  checkpointDigest: string;
+  bootEpoch: string;
+  orgId: string;
+  deploymentId: string;
+}
+
+export interface TrustedTimeAuthorityPort {
+  read(context?: TrustedTimeReadContext): Promise<TrustedTimeSample>;
+}
+
+export interface PreForwardRouteProofVerificationInput {
+  encodedProof: Uint8Array;
+  expected: PreForwardRouteBinding;
+}
+
+export interface PreForwardRouteProofVerifierPort {
+  verify(input: PreForwardRouteProofVerificationInput): Promise<PreForwardRouteProofV1>;
+}
+
+export interface PrivateOfficialAciRequestWire {
+  readonly bytes: Uint8Array;
+  readonly requestWireSha256: string;
+  readonly byteLength: number;
+}
+
+export interface MutuallyAttestedChannel {
+  readonly channelKeyDigest: string;
+  readonly exporterLabel: string;
+  readonly exporterDigest: string;
+  readonly transcriptDigest: string;
+  sendControl(message: Uint8Array): Promise<void>;
+  receiveControlProof(): Promise<Uint8Array>;
+  writeBody(requestWireBytes: Uint8Array): Promise<void>;
+  close(): Promise<void>;
+}
+
+export interface MutuallyAttestedChannelPort {
+  open(input: {
+    orgId: string;
+    deploymentId: string;
+    workloadId: string;
+    routeIdentityDigest: string;
+    pinnedTrustRootDigest: string;
+    channelKeyDigest: string;
+  }): Promise<MutuallyAttestedChannel>;
+}
+
+export interface ControlProofExchangePort {
+  exchange(input: {
+    channel: MutuallyAttestedChannel;
+    challenge: { gatewayNonce: string; requestId: string; bootEpoch: string };
+    descriptor: {
+      role: InferenceModelRole;
+      method: 'POST';
+      route: string;
+      tenantId: string;
+      assignmentDigest: string;
+      tenantAadDigest: string;
+      capabilityDigest: string;
+      contentLength: number;
+      sessionId: string;
+      model: string;
+      modelRevision: string;
+      modelArtifactDigest: string;
+      policyGeneration: number;
+      activationGeneration: number;
+    };
+  }): Promise<Uint8Array>;
+}
+
+export interface OfficialAciRequestWireSerializerPort {
+  serialize(request: OfficialAciRequest): Promise<PrivateOfficialAciRequestWire>;
+}
+
+export interface ForwardProofReservation {
+  orgId: string;
+  deploymentId: string;
+  tenantId: string;
+  assignmentDigest: string;
+  workloadId: string;
+  runtimeIdentityDigest: string;
+  workloadArtifactDigest: string;
+  pinnedTrustRootDigest: string;
+  workloadKeysetDigest: string;
+  tenantAadDigest: string;
+  bootEpoch: string;
+  trustedTimeCheckpointDigest: string;
+  gatewayNonce: string;
+  proofId: string;
+  requestId: string;
+  snapshotDigest: string;
+  policyDigest: string;
+  role: InferenceModelRole;
+  sessionId: string;
+  model: string;
+  modelRevision: string;
+  modelArtifactDigest: string;
+  capabilityDigest: string;
+  origin: string;
+  route: string;
+  method: 'POST';
+  routeIdentityDigest: string;
+  channelKeyDigest: string;
+  exporterLabel: string;
+  exporterDigest: string;
+  transcriptDigest: string;
+  policyGeneration: number;
+  activationGeneration: number;
+  requestWireSha256: string;
+  requestWireByteLength: number;
+  privateRequestWire: PrivateOfficialAciRequestWire;
+  proofIssuedAt: number;
+  proofExpiresAt: number;
+  snapshotExpiresAt: number;
+  admissionExpiresAt: number;
+  boundedWriteValidUntil: number;
+}
+
+export interface ForwardLease extends ForwardProofReservation {
+  leaseId: string;
+}
+
+export interface ForwardLeaseStorePort {
+  reserve(input: ForwardProofReservation): Promise<ForwardLease>;
+  consume(input: {
+    lease: ForwardLease;
+    candidateRequestWire: PrivateOfficialAciRequestWire;
+  }): Promise<void>;
+}
+
+export interface PreForwardAdmissionPort {
+  authorize(input: {
+    orgId: string;
+    deploymentId: string;
+    tenantId: string;
+    assignmentDigest: string;
+    tenantAadDigest: string;
+    operation: InferenceModelRole;
+    contentLength: number;
+  }): Promise<ForwardLease>;
 }
 
 export interface InferenceBackend {

@@ -1,13 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
+import { createHash } from 'node:crypto';
+
 import { inferenceTrustPolicyV2Schema, type InferenceTrustPolicyV2 } from '@folklore/contracts';
 
 import type {
   OfficialAciExchangeConfig,
   OfficialAciRequest,
+  ForwardLease,
+  AciTrustContext,
+  OfficialAciRequestWireSerializerPort,
+  PrivateOfficialAciRequestWire,
+  TrustedTimeSample,
   VerifiedAciSession,
   VerifiedAciTrustSnapshot,
 } from '../ports.js';
+import { AciTrustStateError } from './AciTrustState.js';
 import { OfficialAciExchangeError } from './OfficialAciExchangeError.js';
+import { isTrustedTimeContext, readTrustedTimeSample } from './trusted-time.js';
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_REQUEST_BYTES = 16_777_216;
@@ -16,14 +25,16 @@ const MAX_TIMEOUT_MS = 300_000;
 const MAX_BODY_BYTES = 67_108_864;
 const RECEIPT_ID_HEADER = 'x-receipt-id';
 
-export class OfficialAciExchange {
+export class OfficialAciExchange implements OfficialAciRequestWireSerializerPort {
   private readonly baseUrl: string;
   private readonly policy: InferenceTrustPolicyV2;
   private readonly trustState: OfficialAciExchangeConfig['trustState'];
   private readonly receiptVerifier: OfficialAciExchangeConfig['receiptVerifier'];
   private readonly fetchImpl: typeof fetch;
   private readonly apiKey: string | undefined;
-  private readonly clock: () => number;
+  private readonly trustedTimeAuthority: OfficialAciExchangeConfig['trustedTimeAuthority'];
+  private readonly trustedTimeContext: AciTrustContext;
+  private readonly leaseStore: OfficialAciExchangeConfig['leaseStore'];
   private readonly timeoutMs: number;
   private readonly maxRequestBytes: number;
   private readonly maxResponseBytes: number;
@@ -37,7 +48,9 @@ export class OfficialAciExchange {
     this.receiptVerifier = config.receiptVerifier;
     this.fetchImpl = config.fetchImpl;
     this.apiKey = config.apiKey;
-    this.clock = config.clock ?? (() => Math.floor(Date.now() / 1_000));
+    this.trustedTimeAuthority = config.trustedTimeAuthority;
+    this.trustedTimeContext = config.trustedTimeContext;
+    this.leaseStore = config.leaseStore;
     this.timeoutMs = this.boundedInteger(config.timeoutMs ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
     this.maxRequestBytes = this.boundedInteger(
       config.maxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES,
@@ -53,20 +66,25 @@ export class OfficialAciExchange {
     request: OfficialAciRequest,
     decode: (verifiedRawResponse: Uint8Array) => T,
   ): Promise<T> {
-    const snapshot = this.trustState.acquire();
+    const snapshot = await this.acquireSnapshot(this.trustedTimeContext);
     if (snapshot === undefined) throw new OfficialAciExchangeError('trust_unavailable');
-    const session = this.validateTrust(snapshot, request);
-    const { requestText, requestBytes } = this.serializeRequest(request.body, session);
-    const { receiptId, responseBytes } = await this.fetchInference(request, requestText);
+    this.validateSnapshotContext(snapshot, this.trustedTimeContext);
+    const session = await this.validateTrust(snapshot, request, this.trustedTimeContext);
+    const requestWire = this.serializeRequest(request.body, session);
+    const { receiptId, responseBytes } = await this.fetchInference(
+      request,
+      new TextDecoder().decode(requestWire.bytes),
+    );
     try {
       await this.receiptVerifier.verify({
         snapshot,
         receiptId,
-        requestBytes: Uint8Array.from(requestBytes),
+        requestBytes: Uint8Array.from(requestWire.bytes),
         responseBytes: Uint8Array.from(responseBytes),
         role: request.role,
         endpoint: request.endpoint,
         method: request.method,
+        trustedTimeContext: this.trustedTimeContext,
       });
     } catch {
       throw new OfficialAciExchangeError('receipt_verification_failed');
@@ -75,6 +93,117 @@ export class OfficialAciExchange {
       return decode(Uint8Array.from(responseBytes));
     } catch {
       throw new OfficialAciExchangeError('decode_failed');
+    }
+  }
+
+  async serialize(request: OfficialAciRequest): Promise<PrivateOfficialAciRequestWire> {
+    const snapshot = await this.acquireSnapshot(this.trustedTimeContext);
+    if (snapshot === undefined) throw new OfficialAciExchangeError('trust_unavailable');
+    this.validateSnapshotContext(snapshot, this.trustedTimeContext);
+    const session = await this.validateTrust(snapshot, request, this.trustedTimeContext);
+    return this.serializeRequest(request.body, session);
+  }
+
+  async executeSerialized<T>(
+    request: Omit<OfficialAciRequest, 'body'>,
+    lease: ForwardLease,
+    decode: (verifiedRawResponse: Uint8Array) => T,
+  ): Promise<T> {
+    if (this.leaseStore === undefined) throw new OfficialAciExchangeError('trust_unavailable');
+    const trustContext = this.leaseTimeContext(lease);
+    const snapshot = await this.acquireSnapshot(trustContext);
+    if (snapshot === undefined) throw new OfficialAciExchangeError('trust_unavailable');
+    this.validateSnapshotContext(snapshot, trustContext);
+    this.validateSerializedRequest(snapshot, request, lease);
+    const initialTime = await this.readTrustedTime(trustContext);
+    this.validateLeaseTime(lease, snapshot, request.role, initialTime);
+    const requestWire = this.copyRequestWire(lease.privateRequestWire);
+    this.validateRequestWire(requestWire, lease);
+    const beforeWrite = await this.readTrustedTime(trustContext);
+    this.validateLeaseTime(lease, snapshot, request.role, beforeWrite);
+    this.validateRequestWire(requestWire, lease);
+    try {
+      await this.leaseStore.consume({ lease, candidateRequestWire: requestWire });
+    } catch {
+      throw new OfficialAciExchangeError('trust_mismatch');
+    }
+    try {
+      const afterConsume = await this.readTrustedTime(trustContext);
+      this.validateLeaseTime(lease, snapshot, request.role, afterConsume);
+    } catch (error) {
+      requestWire.bytes.fill(0);
+      throw error;
+    } finally {
+      lease.privateRequestWire.bytes.fill(0);
+    }
+    let responseBytes: Uint8Array | undefined;
+    try {
+      const response = await this.fetchInference(request, requestWire.bytes);
+      responseBytes = response.responseBytes;
+      const { receiptId } = response;
+      try {
+        const beforeReceipt = await this.readTrustedTime(trustContext);
+        this.validateLeaseTime(lease, snapshot, request.role, beforeReceipt);
+        await this.receiptVerifier.verify({
+          snapshot,
+          receiptId,
+          requestBytes: Uint8Array.from(requestWire.bytes),
+          responseBytes: Uint8Array.from(responseBytes),
+          role: request.role,
+          endpoint: request.endpoint,
+          method: request.method,
+          trustedTimeContext: trustContext,
+        });
+      } catch (error) {
+        if (error instanceof OfficialAciExchangeError) throw error;
+        throw new OfficialAciExchangeError('receipt_verification_failed');
+      }
+      const beforeRelease = await this.readTrustedTime(trustContext);
+      this.validateLeaseTime(lease, snapshot, request.role, beforeRelease);
+      try {
+        return decode(Uint8Array.from(responseBytes));
+      } catch {
+        throw new OfficialAciExchangeError('decode_failed');
+      }
+    } finally {
+      requestWire.bytes.fill(0);
+      responseBytes?.fill(0);
+    }
+  }
+
+  private async acquireSnapshot(
+    context: AciTrustContext,
+  ): Promise<VerifiedAciTrustSnapshot | undefined> {
+    if (!isTrustedTimeContext(context)) {
+      throw new OfficialAciExchangeError('trust_unavailable');
+    }
+    if (typeof this.trustState.acquireWithTrustedTime !== 'function') {
+      throw new OfficialAciExchangeError('trust_unavailable');
+    }
+    try {
+      return await this.trustState.acquireWithTrustedTime(context);
+    } catch (error) {
+      if (error instanceof OfficialAciExchangeError) throw error;
+      if (error instanceof AciTrustStateError && error.code === 'context_mismatch') {
+        throw new OfficialAciExchangeError('trust_mismatch');
+      }
+      throw new OfficialAciExchangeError('clock_invalid');
+    }
+  }
+
+  private validateSnapshotContext(
+    snapshot: VerifiedAciTrustSnapshot,
+    context: AciTrustContext,
+  ): void {
+    const snapshotContext = snapshot.trustContext;
+    if (
+      snapshotContext === undefined ||
+      snapshotContext.orgId !== context.orgId ||
+      snapshotContext.deploymentId !== context.deploymentId ||
+      snapshotContext.bootEpoch !== context.bootEpoch ||
+      snapshotContext.checkpointDigest !== context.checkpointDigest
+    ) {
+      throw new OfficialAciExchangeError('trust_mismatch');
     }
   }
 
@@ -105,14 +234,16 @@ export class OfficialAciExchange {
     return value;
   }
 
-  private validateTrust(
+  private async validateTrust(
     snapshot: VerifiedAciTrustSnapshot,
     request: OfficialAciRequest,
-  ): VerifiedAciSession {
+    context: AciTrustContext,
+  ): Promise<VerifiedAciSession> {
     const session = snapshot.sessions[request.role];
     const model = this.policy.roleModels[request.role];
     if (
       session === undefined ||
+      model === undefined ||
       snapshot.policyGeneration !== this.policy.generation ||
       session.role !== request.role ||
       session.model !== model.model ||
@@ -123,15 +254,7 @@ export class OfficialAciExchange {
     if (request.endpoint !== this.policy.route || request.method !== 'POST') {
       throw new OfficialAciExchangeError('endpoint_mismatch');
     }
-    let now: number;
-    try {
-      now = this.clock();
-    } catch {
-      throw new OfficialAciExchangeError('clock_invalid');
-    }
-    if (!Number.isSafeInteger(now) || now <= 0) {
-      throw new OfficialAciExchangeError('clock_invalid');
-    }
+    const now = (await this.readTrustedTime(context)).trustedNow;
     if (
       snapshot.expiresAt <= now ||
       snapshot.keyset.notAfter <= now ||
@@ -146,7 +269,7 @@ export class OfficialAciExchange {
   private serializeRequest(
     body: unknown,
     session: VerifiedAciSession,
-  ): { requestText: string; requestBytes: Uint8Array } {
+  ): PrivateOfficialAciRequestWire {
     let requestText: string | undefined;
     try {
       requestText = JSON.stringify(body);
@@ -170,12 +293,16 @@ export class OfficialAciExchange {
     const record = parsed as Record<string, unknown>;
     if (record['model'] !== session.model) throw new OfficialAciExchangeError('model_mismatch');
     if (record['stream'] === true) throw new OfficialAciExchangeError('streaming_unsupported');
-    return { requestText, requestBytes };
+    return {
+      bytes: requestBytes,
+      requestWireSha256: this.digest(requestBytes),
+      byteLength: requestBytes.byteLength,
+    };
   }
 
   private async fetchInference(
-    request: OfficialAciRequest,
-    body: string,
+    request: Omit<OfficialAciRequest, 'body'> | OfficialAciRequest,
+    body: string | Uint8Array,
   ): Promise<{ receiptId: string; responseBytes: Uint8Array }> {
     const controller = new AbortController();
     try {
@@ -189,14 +316,14 @@ export class OfficialAciExchange {
   }
 
   private async performFetch(
-    request: OfficialAciRequest,
-    body: string,
+    request: Omit<OfficialAciRequest, 'body'> | OfficialAciRequest,
+    body: string | Uint8Array,
     signal: AbortSignal,
   ): Promise<{ receiptId: string; responseBytes: Uint8Array }> {
     const response = await this.fetchImpl(new URL(request.endpoint, this.baseUrl), {
       method: request.method,
       headers: this.headers(),
-      body,
+      body: typeof body === 'string' ? body : Buffer.from(body),
       redirect: 'error',
       signal,
     });
@@ -285,5 +412,122 @@ export class OfficialAciExchange {
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }
+  }
+
+  private validateSerializedRequest(
+    snapshot: VerifiedAciTrustSnapshot,
+    request: Omit<OfficialAciRequest, 'body'>,
+    lease: ForwardLease,
+  ): void {
+    const session = snapshot.sessions[request.role];
+    if (
+      session === undefined ||
+      request.method !== 'POST' ||
+      request.endpoint !== lease.route ||
+      lease.origin !== this.policy.origin ||
+      lease.route !== this.policy.route ||
+      lease.method !== 'POST' ||
+      lease.role !== request.role ||
+      lease.policyGeneration !== snapshot.policyGeneration ||
+      lease.activationGeneration !== snapshot.activationGeneration ||
+      lease.sessionId !== session.sessionId ||
+      lease.model !== session.model ||
+      lease.modelRevision !== session.modelRevision ||
+      lease.workloadKeysetDigest !== snapshot.keyset.workloadKeysetDigest ||
+      lease.channelKeyDigest !== session.channelKeyDigest ||
+      lease.workloadId !== snapshot.keyset.workloadId
+    ) {
+      throw new OfficialAciExchangeError('trust_mismatch');
+    }
+  }
+
+  private validateLeaseTime(
+    lease: ForwardLease,
+    snapshot: VerifiedAciTrustSnapshot,
+    role: ForwardLease['role'],
+    sample: TrustedTimeSample,
+  ): void {
+    this.validateLeaseTimes(lease);
+    const session = snapshot.sessions[role];
+    if (
+      session === undefined ||
+      lease.snapshotExpiresAt > snapshot.expiresAt ||
+      sample.trustedNow >= lease.proofExpiresAt ||
+      sample.trustedNow >= lease.snapshotExpiresAt ||
+      sample.trustedNow >= lease.admissionExpiresAt ||
+      sample.trustedNow >= lease.boundedWriteValidUntil ||
+      sample.trustedNow >= snapshot.expiresAt ||
+      sample.trustedNow >= snapshot.keyset.notAfter ||
+      sample.trustedNow >= session.expiresAt ||
+      lease.proofIssuedAt > sample.trustedNow ||
+      session.establishedAt > sample.trustedNow + this.policy.clockSkewSeconds
+    ) {
+      throw new OfficialAciExchangeError('trust_expired');
+    }
+  }
+
+  private validateLeaseTimes(lease: ForwardLease): void {
+    const values = [
+      lease.proofIssuedAt,
+      lease.proofExpiresAt,
+      lease.snapshotExpiresAt,
+      lease.admissionExpiresAt,
+      lease.boundedWriteValidUntil,
+    ];
+    const expiries = [lease.proofExpiresAt, lease.snapshotExpiresAt, lease.admissionExpiresAt];
+    if (
+      values.some((value) => !Number.isSafeInteger(value) || value <= 0) ||
+      expiries.some((value) => value <= lease.proofIssuedAt) ||
+      lease.boundedWriteValidUntil <= lease.proofIssuedAt ||
+      lease.boundedWriteValidUntil > Math.min(...expiries)
+    ) {
+      throw new OfficialAciExchangeError('trust_mismatch');
+    }
+  }
+
+  private leaseTimeContext(lease: ForwardLease): AciTrustContext {
+    return {
+      orgId: lease.orgId,
+      deploymentId: lease.deploymentId,
+      bootEpoch: lease.bootEpoch,
+      checkpointDigest: lease.trustedTimeCheckpointDigest,
+    };
+  }
+
+  private validateRequestWire(wire: PrivateOfficialAciRequestWire, lease: ForwardLease): void {
+    if (
+      wire.byteLength !== lease.requestWireByteLength ||
+      wire.bytes.byteLength !== lease.requestWireByteLength ||
+      wire.requestWireSha256 !== lease.requestWireSha256 ||
+      this.digest(wire.bytes) !== lease.requestWireSha256
+    ) {
+      throw new OfficialAciExchangeError('request_malformed');
+    }
+  }
+
+  private copyRequestWire(wire: PrivateOfficialAciRequestWire): PrivateOfficialAciRequestWire {
+    return {
+      bytes: Uint8Array.from(wire.bytes),
+      requestWireSha256: wire.requestWireSha256,
+      byteLength: wire.byteLength,
+    };
+  }
+
+  private async readTrustedTime(context: AciTrustContext): Promise<TrustedTimeSample> {
+    if (this.trustedTimeAuthority === undefined) {
+      throw new OfficialAciExchangeError('clock_invalid');
+    }
+    if (!isTrustedTimeContext(context)) {
+      throw new OfficialAciExchangeError('clock_invalid');
+    }
+    try {
+      return await readTrustedTimeSample(this.trustedTimeAuthority, context);
+    } catch {
+      throw new OfficialAciExchangeError('clock_invalid');
+    }
+  }
+
+  private digest(bytes: Uint8Array): string {
+    return createHash('sha256').update(bytes).digest('hex');
   }
 }

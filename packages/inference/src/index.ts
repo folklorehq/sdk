@@ -29,14 +29,31 @@ export type {
   VerifiedAciSession,
   VerifiedAciSessionSet,
   VerifiedAciTrustSnapshot,
+  AciTrustContext,
   AciSessionVerifierConfig,
   AciReceiptVerificationInput,
   VerifiedAciReceipt,
   AciReceiptVerifierConfig,
   AciReceiptVerifierPort,
   AciTrustStatePort,
+  AciV2TrustStatePort,
   OfficialAciRequest,
   OfficialAciExchangeConfig,
+  PreForwardRouteBinding,
+  TrustedTimeReadContext,
+  TrustedTimeSample,
+  TrustedTimeAuthorityPort,
+  PreForwardRouteProofVerificationInput,
+  PreForwardRouteProofVerifierPort,
+  PrivateOfficialAciRequestWire,
+  MutuallyAttestedChannel,
+  MutuallyAttestedChannelPort,
+  ControlProofExchangePort,
+  OfficialAciRequestWireSerializerPort,
+  ForwardProofReservation,
+  ForwardLease,
+  ForwardLeaseStorePort,
+  PreForwardAdmissionPort,
 } from './ports.js';
 export { TeeEndpointBackend, type TeeEndpointConfig } from './TeeEndpointBackend.js';
 export {
@@ -81,3 +98,15 @@ export {
   OfficialAciExchangeError,
   type OfficialAciExchangeErrorCode,
 } from './aci/OfficialAciExchangeError.js';
+export {
+  ForwardLeaseStore,
+  ForwardLeaseStoreError,
+  type ForwardLeaseStoreConfig,
+  type ForwardLeaseStoreErrorCode,
+} from './aci/ForwardLeaseStore.js';
+export {
+  PreForwardRouteProofVerifier,
+  PreForwardRouteProofVerificationError,
+  preForwardRouteProofPayload,
+  type PreForwardRouteProofVerifierConfig,
+} from './aci/PreForwardRouteProofVerifier.js';
