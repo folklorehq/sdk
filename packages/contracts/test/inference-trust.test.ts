@@ -165,6 +165,7 @@ function activePolicyFixture(): Record<string, unknown> {
   ];
   return {
     schema: 'active-inference-trust-policy-v2',
+    canonicalDomain: 'folklore.inference-trust-policy-v2-active',
     version: 2,
     orgId: 'org-1',
     deploymentId: 'deployment-1',

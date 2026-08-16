@@ -4,7 +4,11 @@ import type {
   InferenceModelRole,
   InferenceTrustPolicyV2,
   PreForwardRouteProofV1,
+  TrustedTimeBindingV1,
+  TrustedTimeSampleV1,
 } from '@folklore/contracts';
+
+export type { TrustedTimeBindingV1, TrustedTimeSampleV1 } from '@folklore/contracts';
 
 /** InferenceBackend port — all inference MUST happen inside the customer's box; sending fact content to an external API is structurally prohibited. */
 
@@ -396,8 +400,43 @@ export interface TrustedTimeSample {
   deploymentId: string;
 }
 
+export type TrustedTimeDecisionReason =
+  | 'proof'
+  | 'lease'
+  | 'first-byte'
+  | 'receipt'
+  | 'expiry'
+  | 'rollback'
+  | 'release';
+
+export interface NsmAttestationDocumentV1 {
+  readonly timestampMs: number;
+  readonly nonce: Uint8Array;
+  readonly userData: Uint8Array;
+  readonly pcr0: string;
+  readonly documentDigest: string;
+  readonly publicKey: Uint8Array | null;
+  readonly chainVerified: boolean;
+  readonly rootVerified: boolean;
+  readonly signatureVerified: boolean;
+}
+
+export interface NsmTrustedTimeSourcePort {
+  attest(input: { nonce: Uint8Array; userData: Uint8Array }): Promise<NsmAttestationDocumentV1>;
+}
+
+export interface MonotonicRawClockPort {
+  readNanoseconds(): bigint;
+}
+
 export interface TrustedTimeAuthorityPort {
   read(context?: TrustedTimeReadContext): Promise<TrustedTimeSample>;
+}
+
+export interface TrustedTimeAuthorityV1Port extends TrustedTimeAuthorityPort {
+  initialize(binding: TrustedTimeBindingV1): Promise<void>;
+  sample(reason: TrustedTimeDecisionReason): Promise<TrustedTimeSampleV1>;
+  isHealthy(): boolean;
 }
 
 export interface PreForwardRouteProofVerificationInput {

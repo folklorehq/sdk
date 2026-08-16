@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0
+import {
+  digest64Schema,
+  identifierSchema,
+  trustedTimeSampleV1Schema,
+  type TrustedTimeSampleV1,
+} from '@folklore/contracts';
 import type {
   AciTrustContext,
   TrustedTimeAuthorityPort,
+  TrustedTimeAuthorityV1Port,
   TrustedTimeReadContext,
   TrustedTimeSample,
 } from '../ports.js';
-
-const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
-const DIGEST = /^[0-9a-f]{64}$/;
 
 export function isTrustedTimeContext(value: unknown): value is AciTrustContext {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
   const context = value as Record<string, unknown>;
   return (
-    typeof context['orgId'] === 'string' &&
-    IDENTIFIER.test(context['orgId']) &&
-    typeof context['deploymentId'] === 'string' &&
-    IDENTIFIER.test(context['deploymentId']) &&
-    typeof context['bootEpoch'] === 'string' &&
-    IDENTIFIER.test(context['bootEpoch']) &&
-    typeof context['checkpointDigest'] === 'string' &&
-    DIGEST.test(context['checkpointDigest'])
+    identifierSchema.safeParse(context['orgId']).success &&
+    identifierSchema.safeParse(context['deploymentId']).success &&
+    identifierSchema.safeParse(context['bootEpoch']).success &&
+    digest64Schema.safeParse(context['checkpointDigest']).success
   );
 }
 
@@ -28,8 +28,40 @@ export async function readTrustedTimeSample(
   authority: TrustedTimeAuthorityPort,
   context: TrustedTimeReadContext = {},
 ): Promise<TrustedTimeSample> {
-  const sample = await authority.read(context);
-  if (!isTrustedTimeSample(sample)) throw new Error();
+  const sample = isV1Authority(authority)
+    ? toLegacyTrustedTimeSample(await authority.sample('proof'))
+    : await authority.read(context);
+  if (!isTrustedTimeSample(sample)) throw new Error('trusted_time_unavailable');
+  assertTrustedTimeContext(sample, context);
+  return sample;
+}
+
+function isV1Authority(
+  authority: TrustedTimeAuthorityPort,
+): authority is TrustedTimeAuthorityV1Port {
+  const candidate = authority as Partial<TrustedTimeAuthorityV1Port>;
+  return (
+    typeof candidate.initialize === 'function' &&
+    typeof candidate.sample === 'function' &&
+    typeof candidate.isHealthy === 'function'
+  );
+}
+
+function toLegacyTrustedTimeSample(sample: TrustedTimeSampleV1): TrustedTimeSample {
+  if (!isTrustedTimeSampleV1(sample)) throw new Error('trusted_time_sample_invalid');
+  return {
+    trustedNow: sample.trustedNowMs,
+    checkpointDigest: sample.checkpointDigest,
+    bootEpoch: sample.bootEpoch,
+    orgId: sample.orgId,
+    deploymentId: sample.deploymentId,
+  };
+}
+
+function assertTrustedTimeContext(
+  sample: TrustedTimeSample,
+  context: TrustedTimeReadContext,
+): void {
   if (context.orgId !== undefined && sample.orgId !== context.orgId) throw new Error();
   if (context.deploymentId !== undefined && sample.deploymentId !== context.deploymentId) {
     throw new Error();
@@ -41,7 +73,10 @@ export async function readTrustedTimeSample(
   ) {
     throw new Error();
   }
-  return sample;
+}
+
+export function isTrustedTimeSampleV1(value: unknown): value is TrustedTimeSampleV1 {
+  return trustedTimeSampleV1Schema.safeParse(value).success;
 }
 
 function isTrustedTimeSample(value: unknown): value is TrustedTimeSample {
@@ -56,13 +91,9 @@ function isTrustedTimeSample(value: unknown): value is TrustedTimeSample {
     typeof trustedNow === 'number' &&
     Number.isSafeInteger(trustedNow) &&
     trustedNow > 0 &&
-    typeof checkpointDigest === 'string' &&
-    DIGEST.test(checkpointDigest) &&
-    typeof bootEpoch === 'string' &&
-    IDENTIFIER.test(bootEpoch) &&
-    typeof orgId === 'string' &&
-    IDENTIFIER.test(orgId) &&
-    typeof deploymentId === 'string' &&
-    IDENTIFIER.test(deploymentId)
+    digest64Schema.safeParse(checkpointDigest).success &&
+    identifierSchema.safeParse(bootEpoch).success &&
+    identifierSchema.safeParse(orgId).success &&
+    identifierSchema.safeParse(deploymentId).success
   );
 }

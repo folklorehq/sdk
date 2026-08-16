@@ -1239,6 +1239,7 @@ export interface ActiveInferenceRoleBindingV2 {
 
 export interface ActiveInferenceTrustPolicyV2 {
   schema: 'active-inference-trust-policy-v2';
+  canonicalDomain: typeof ACTIVE_INFERENCE_TRUST_POLICY_V2_CANONICAL_DOMAIN;
   version: 2;
   orgId: string;
   deploymentId: string;
@@ -1385,6 +1386,7 @@ const activeRoleBindingsSchema = z
 export const activeInferenceTrustPolicyV2Schema = z
   .object({
     schema: z.literal('active-inference-trust-policy-v2'),
+    canonicalDomain: z.literal(ACTIVE_INFERENCE_TRUST_POLICY_V2_CANONICAL_DOMAIN),
     version: z.literal(2),
     orgId: identifierSchema,
     deploymentId: identifierSchema,
@@ -1574,3 +1576,45 @@ export const activeInferenceTrustPolicyV2Schema = z
       );
     }
   });
+
+const protectedPolicyReferenceSchema = z
+  .string()
+  .min(1)
+  .max(2_048)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/);
+
+export interface ActivePolicyAuthorizationEnvelopeV1 {
+  schema: 'active-inference-trust-policy-v2-authorization';
+  orgId: string;
+  deploymentId: string;
+  policyDigest: string;
+  protectedPolicyReference: string;
+  policyGeneration: number;
+  activationGeneration: number;
+  configurationGeneration: number;
+  keysetHighWater: { epoch: number; digest: string };
+  signerPurpose: 'policy-authority';
+  signerKeyId: string;
+  signatureAlgorithm: 'Ed25519';
+  policySignature: string;
+  signature: string;
+}
+
+export const activePolicyAuthorizationEnvelopeV1Schema = z
+  .object({
+    schema: z.literal('active-inference-trust-policy-v2-authorization'),
+    orgId: identifierSchema,
+    deploymentId: identifierSchema,
+    policyDigest: digestSchema,
+    protectedPolicyReference: protectedPolicyReferenceSchema,
+    policyGeneration: positiveSafeIntegerSchema,
+    activationGeneration: positiveSafeIntegerSchema,
+    configurationGeneration: positiveSafeIntegerSchema,
+    keysetHighWater: z.object({ epoch: positiveSafeIntegerSchema, digest: digestSchema }).strict(),
+    signerPurpose: z.literal('policy-authority'),
+    signerKeyId: identifierSchema,
+    signatureAlgorithm: z.literal('Ed25519'),
+    policySignature: ed25519SignatureSchema,
+    signature: ed25519SignatureSchema,
+  })
+  .strict();

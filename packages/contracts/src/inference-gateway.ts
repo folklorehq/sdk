@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
+import {
+  base64Ed25519SignatureSchema,
+  digest64Schema,
+  gitCommitSchema,
+  measurement96Schema,
+  type Digest64,
+  type GitCommit,
+  type Measurement96,
+} from './shared.js';
 import { inferenceModelRoleSchema, type InferenceModelRole } from './inference-trust.js';
 
 const MAX_GATEWAY_STRING_LENGTH = 512;
@@ -606,3 +615,286 @@ export const v2CutoverRecordSchema = z
       );
     }
   });
+
+const EVIDENCE_VALUE_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const EVIDENCE_VALUE_MAX_COUNT = 1_000_000_000;
+const EVIDENCE_VALUE_MAX_ENTRIES = 64;
+
+const evidenceStateSchema = z.enum([
+  'admitted',
+  'bound',
+  'disabled',
+  'failed',
+  'healthy',
+  'pending',
+  'rejected',
+  'recorded',
+  'verified',
+]);
+
+const evidenceFailureCodeSchema = z.enum([
+  'admission_proof_invalid',
+  'digest_recomputation_failed',
+  'evidence_invalid',
+  'high_water_not_durable',
+  'nsm_attestation_invalid',
+  'nsm_attestation_missing',
+  'policy_invalid',
+  'recording_boundary_violation',
+  'release_provenance_digest_mismatch',
+  'release_provenance_mismatch',
+  'route_proof_invalid',
+  'route_proof_missing',
+  'signer_purpose_mismatch',
+  'tenant_context_mismatch',
+]);
+
+export const evidenceValueV1Schema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('identifier'), value: identifierSchema }).strict(),
+  z.object({ kind: z.literal('digest'), value: digest64Schema }).strict(),
+  z
+    .object({
+      kind: z.literal('boundedCount'),
+      value: z.number().int().nonnegative().safe().max(EVIDENCE_VALUE_MAX_COUNT),
+    })
+    .strict(),
+  z.object({ kind: z.literal('timestamp'), value: timestampSchema }).strict(),
+  z.object({ kind: z.literal('boolean'), value: z.boolean() }).strict(),
+  z.object({ kind: z.literal('state'), value: evidenceStateSchema }).strict(),
+  z.object({ kind: z.literal('failureCode'), value: evidenceFailureCodeSchema }).strict(),
+]);
+
+export type EvidenceValueV1 = z.infer<typeof evidenceValueV1Schema>;
+
+export const TYPED_EVIDENCE_PROVENANCE_VALUE_KEYS = Object.freeze([
+  'policyDigest',
+  'policyGeneration',
+  'activationGeneration',
+  'keysetHighWaterEpoch',
+  'keysetHighWaterDigest',
+  'runtimeIdentityDigest',
+  'recipientKmsReceiptDigest',
+  'assignmentAcknowledgmentDigest',
+  'routeProofDigest',
+  'admissionProofDigest',
+  'queueChecksDigest',
+  'dlqChecksDigest',
+  'aciReportSignatureDigest',
+  'releaseProvenanceDigest',
+  'finalCommitMarker',
+] as const);
+
+const forbiddenEvidenceValueKeyPattern =
+  /^(?:prompt|source|fact|wiki|embedding|body|requestbody|responsebody|rawaci|quote|collateral|eventlog|wire|proof|receipt|exchange|credential|stack|callback)/i;
+
+export const typedGatewayEvidenceValuesSchema = z
+  .record(evidenceValueV1Schema)
+  .refine((values) => Object.keys(values).length <= EVIDENCE_VALUE_MAX_ENTRIES, {
+    message: 'evidence values exceed the bounded entry limit',
+  })
+  .superRefine((values, context) => {
+    for (const key of Object.keys(values)) {
+      if (!EVIDENCE_VALUE_KEY_PATTERN.test(key)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: 'invalid evidence value key',
+        });
+      }
+      if (forbiddenEvidenceValueKeyPattern.test(key.replaceAll('_', '').replaceAll('-', ''))) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: 'forbidden evidence value key',
+        });
+      }
+    }
+    for (const key of TYPED_EVIDENCE_PROVENANCE_VALUE_KEYS) {
+      if (!(key in values)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: 'required provenance value is missing',
+        });
+      }
+    }
+  });
+
+export type TypedGatewayEvidenceValuesV1 = Readonly<Record<string, EvidenceValueV1>>;
+
+export interface ReleaseProvenanceContextV1 {
+  orgId: string;
+  deploymentId: string;
+  releaseId: string;
+  protectedSourceCommit: GitCommit;
+  eifArtifactPath: string;
+  eifDigest: Digest64;
+  pcr0: Measurement96;
+  bootRootDigest: Digest64;
+  policyDigest: Digest64;
+  policyGeneration: number;
+  activationGeneration: number;
+  keysetHighWaterEpoch: number;
+  keysetHighWaterDigest: Digest64;
+}
+
+export interface ReleaseProvenanceBindingV1 {
+  protectedSourceCommit: GitCommit;
+  eifArtifactPath: string;
+  eifDigest: Digest64;
+  pcr0: Measurement96;
+  bootRootDigest: Digest64;
+  deploymentId: string;
+  runtimeIdentityDigest: Digest64;
+  recipientKmsReceiptDigest: Digest64;
+  assignmentAcknowledgmentDigest: Digest64;
+  routeProofDigest: Digest64;
+  admissionProofDigest: Digest64;
+  queueChecksDigest: Digest64;
+  dlqChecksDigest: Digest64;
+  aciReportSignatureDigest: Digest64;
+  releaseProvenanceDigest: Digest64;
+  finalCommitMarker: Digest64;
+}
+
+export type UnsignedReleaseProvenanceBindingV1 = Omit<
+  ReleaseProvenanceBindingV1,
+  'releaseProvenanceDigest' | 'finalCommitMarker'
+>;
+
+const releaseProvenanceBindingShape = {
+  protectedSourceCommit: gitCommitSchema,
+  eifArtifactPath: eifArtifactPathSchema,
+  eifDigest: digest64Schema,
+  pcr0: measurement96Schema,
+  bootRootDigest: digest64Schema,
+  deploymentId: identifierSchema,
+  runtimeIdentityDigest: digest64Schema,
+  recipientKmsReceiptDigest: digest64Schema,
+  assignmentAcknowledgmentDigest: digest64Schema,
+  routeProofDigest: digest64Schema,
+  admissionProofDigest: digest64Schema,
+  queueChecksDigest: digest64Schema,
+  dlqChecksDigest: digest64Schema,
+  aciReportSignatureDigest: digest64Schema,
+  releaseProvenanceDigest: digest64Schema,
+  finalCommitMarker: digest64Schema,
+} as const;
+
+export const releaseProvenanceBindingV1Schema = z.object(releaseProvenanceBindingShape).strict();
+
+export function releaseProvenancePayloadV1(input: {
+  context: ReleaseProvenanceContextV1;
+  binding: UnsignedReleaseProvenanceBindingV1;
+}): readonly unknown[] {
+  return [
+    'folklore.release-provenance.v1',
+    input.context.orgId,
+    input.context.deploymentId,
+    input.context.releaseId,
+    input.context.protectedSourceCommit,
+    input.context.eifArtifactPath,
+    input.context.eifDigest,
+    input.context.pcr0,
+    input.context.bootRootDigest,
+    input.context.policyDigest,
+    input.context.policyGeneration,
+    input.context.activationGeneration,
+    input.context.keysetHighWaterEpoch,
+    input.context.keysetHighWaterDigest,
+    input.binding.protectedSourceCommit,
+    input.binding.eifArtifactPath,
+    input.binding.eifDigest,
+    input.binding.pcr0,
+    input.binding.bootRootDigest,
+    input.binding.deploymentId,
+    input.binding.runtimeIdentityDigest,
+    input.binding.recipientKmsReceiptDigest,
+    input.binding.assignmentAcknowledgmentDigest,
+    input.binding.routeProofDigest,
+    input.binding.admissionProofDigest,
+    input.binding.queueChecksDigest,
+    input.binding.dlqChecksDigest,
+    input.binding.aciReportSignatureDigest,
+  ];
+}
+
+export function finalCommitMarkerPayloadV1(input: {
+  context: ReleaseProvenanceContextV1;
+  binding: UnsignedReleaseProvenanceBindingV1;
+  releaseProvenanceDigest: Digest64;
+}): readonly unknown[] {
+  return [
+    'folklore.release-provenance-final-marker.v1',
+    ...releaseProvenancePayloadV1(input),
+    input.releaseProvenanceDigest,
+  ];
+}
+
+export interface TypedGatewayEvidenceEnvelopeV1 {
+  schema: 'GatewayEvidenceEnvelopeV1';
+  canonicalDomain: 'folklore.aci-gateway-evidence.v1';
+  orgId: string;
+  deploymentId: string;
+  releaseId: string;
+  protectedSourceCommit: GitCommit;
+  eifArtifactPath: string;
+  eifDigest: Digest64;
+  pcr0: Measurement96;
+  bootRootDigest: Digest64;
+  values: TypedGatewayEvidenceValuesV1;
+  signerPurpose: 'evidence-envelope';
+  signerKeyId: string;
+  signature: string;
+}
+
+export type TypedGatewayEvidenceInputV1 = Omit<
+  TypedGatewayEvidenceEnvelopeV1,
+  'signerPurpose' | 'signerKeyId' | 'signature'
+>;
+
+export interface EvidenceRecorderPort {
+  record(input: TypedGatewayEvidenceInputV1): Promise<{
+    evidenceDigest: Digest64;
+    state: 'recorded';
+  }>;
+}
+
+const typedGatewayEvidenceFields = {
+  schema: z.literal('GatewayEvidenceEnvelopeV1'),
+  canonicalDomain: z.literal('folklore.aci-gateway-evidence.v1'),
+  orgId: identifierSchema,
+  deploymentId: identifierSchema,
+  releaseId: identifierSchema,
+  protectedSourceCommit: gitCommitSchema,
+  eifArtifactPath: eifArtifactPathSchema,
+  eifDigest: digest64Schema,
+  pcr0: measurement96Schema,
+  bootRootDigest: digest64Schema,
+  values: typedGatewayEvidenceValuesSchema,
+} as const;
+
+export const typedGatewayEvidenceInputV1Schema = z
+  .object(typedGatewayEvidenceFields)
+  .strict()
+  .superRefine((input, context) => {
+    if (input.orgId === input.deploymentId) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['deploymentId'],
+        message: 'organization and deployment identifiers must be distinct',
+      });
+    }
+  });
+
+export const typedGatewayEvidenceEnvelopeSchema = z
+  .object({
+    ...typedGatewayEvidenceFields,
+    signerPurpose: z.literal('evidence-envelope'),
+    signerKeyId: identifierSchema,
+    signature: base64Ed25519SignatureSchema,
+  })
+  .strict();
+
+export const gatewayEvidenceEnvelopeV1Schema = typedGatewayEvidenceEnvelopeSchema;
+export type GatewayEvidenceEnvelopeContentFreeV1 = TypedGatewayEvidenceEnvelopeV1;
