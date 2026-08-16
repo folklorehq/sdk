@@ -277,8 +277,7 @@ export class OfficialAciExchange implements OfficialAciRequestWireSerializerPort
       throw new OfficialAciExchangeError('request_malformed');
     }
     if (requestText === undefined) throw new OfficialAciExchangeError('request_malformed');
-    const requestBytes = new TextEncoder().encode(requestText);
-    if (requestBytes.byteLength > this.maxRequestBytes) {
+    if (new TextEncoder().encode(requestText).byteLength > this.maxRequestBytes) {
       throw new OfficialAciExchangeError('request_too_large');
     }
     let parsed: unknown;
@@ -293,10 +292,39 @@ export class OfficialAciExchange implements OfficialAciRequestWireSerializerPort
     const record = parsed as Record<string, unknown>;
     if (record['model'] !== session.model) throw new OfficialAciExchangeError('model_mismatch');
     if (record['stream'] === true) throw new OfficialAciExchangeError('streaming_unsupported');
+    const provider = this.bindOfficialProviderControls(record['provider'], session);
+    const boundRequestBytes = new TextEncoder().encode(JSON.stringify({ ...record, provider }));
+    if (boundRequestBytes.byteLength > this.maxRequestBytes) {
+      throw new OfficialAciExchangeError('request_too_large');
+    }
     return {
-      bytes: requestBytes,
-      requestWireSha256: this.digest(requestBytes),
-      byteLength: requestBytes.byteLength,
+      bytes: boundRequestBytes,
+      requestWireSha256: this.digest(boundRequestBytes),
+      byteLength: boundRequestBytes.byteLength,
+    };
+  }
+
+  private bindOfficialProviderControls(
+    value: unknown,
+    session: VerifiedAciSession,
+  ): Record<string, unknown> {
+    if (
+      value !== undefined &&
+      (typeof value !== 'object' || value === null || Array.isArray(value))
+    ) {
+      throw new OfficialAciExchangeError('request_malformed');
+    }
+    const provider = (value ?? {}) as Record<string, unknown>;
+    if (
+      Object.prototype.hasOwnProperty.call(provider, 'aci_verified') ||
+      Object.prototype.hasOwnProperty.call(provider, 'aci_session_ids')
+    ) {
+      throw new OfficialAciExchangeError('trust_mismatch');
+    }
+    return {
+      ...provider,
+      aci_verified: true,
+      aci_session_ids: [session.sessionId],
     };
   }
 

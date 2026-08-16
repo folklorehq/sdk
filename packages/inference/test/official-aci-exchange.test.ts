@@ -19,7 +19,12 @@ import { AciReceiptVerifierDouble } from './doubles/aci/AciReceiptVerifierDouble
 import { AciTrustStateDouble } from './doubles/aci/AciTrustStateDouble.js';
 
 const REQUEST_BODY = { messages: [{ content: 'hi', role: 'user' }], model: 'demo/model' };
-const REQUEST_BYTES = new TextEncoder().encode(JSON.stringify(REQUEST_BODY));
+const SESSION_ID = `as_${'0'.repeat(63)}1`;
+const REQUEST_WIRE_BODY = {
+  ...REQUEST_BODY,
+  provider: { aci_verified: true, aci_session_ids: [SESSION_ID] },
+};
+const REQUEST_BYTES = new TextEncoder().encode(JSON.stringify(REQUEST_WIRE_BODY));
 const RESPONSE_TEXT = '{"choices":[{"message":{"content":"verified"}}]}';
 const RESPONSE_BYTES = new TextEncoder().encode(RESPONSE_TEXT);
 const TRUST_CONTEXT: AciTrustContext = {
@@ -193,6 +198,71 @@ async function expectCode(promise: Promise<unknown>, code: string): Promise<void
 }
 
 describe('OfficialAciExchange', () => {
+  it('binds the official provider controls to the verified session before serialization', async () => {
+    const { exchange } = setup();
+
+    const wire = await exchange.serialize({
+      ...REQUEST,
+      body: {
+        ...REQUEST_BODY,
+        provider: { order: ['phala'] },
+      },
+    });
+
+    expect(JSON.parse(new TextDecoder().decode(wire.bytes))).toEqual({
+      ...REQUEST_BODY,
+      provider: {
+        order: ['phala'],
+        aci_verified: true,
+        aci_session_ids: [snapshot().sessions.generate.sessionId],
+      },
+    });
+  });
+
+  it.each([{ aci_verified: false }, { aci_session_ids: ['as_caller_selected'] }])(
+    'rejects caller-controlled official provider trust fields %#',
+    async (provider) => {
+      const { exchange, fetchImpl } = setup();
+
+      await expectCode(
+        exchange.execute({ ...REQUEST, body: { ...REQUEST_BODY, provider } }, () => undefined),
+        'trust_mismatch',
+      );
+      expect(fetchImpl).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects oversized requests before parsing provider trust fields', async () => {
+    const { exchange, fetchImpl } = setup({ maxRequestBytes: 64 });
+
+    await expectCode(
+      exchange.execute(
+        {
+          ...REQUEST,
+          body: {
+            ...REQUEST_BODY,
+            padding: 'x'.repeat(128),
+            provider: { aci_verified: false },
+          },
+        },
+        () => undefined,
+      ),
+      'request_too_large',
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('rejects a request that exceeds the bound only after provider controls are injected', async () => {
+    const callerBytes = new TextEncoder().encode(JSON.stringify(REQUEST_BODY)).byteLength;
+    const { exchange, fetchImpl } = setup({ maxRequestBytes: callerBytes + 1 });
+
+    await expectCode(
+      exchange.execute(REQUEST, () => undefined),
+      'request_too_large',
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('sends one exact official request and releases only receipt-verified response bytes', async () => {
     const { exchange, fetchImpl, receiptVerifier } = setup();
     const decoded = await exchange.execute(REQUEST, (bytes) =>
@@ -349,7 +419,9 @@ describe('OfficialAciExchange', () => {
 
   it('preserves valid fractional inference parameters in the exact request', async () => {
     const body = { ...REQUEST_BODY, temperature: 0.7 };
-    const expected = new TextEncoder().encode(JSON.stringify(body));
+    const expected = new TextEncoder().encode(
+      JSON.stringify({ ...body, provider: REQUEST_WIRE_BODY.provider }),
+    );
     const { exchange, receiptVerifier } = setup();
     await exchange.execute({ ...REQUEST, body }, () => 'decoded');
     expect(receiptVerifier.inputs[0]?.requestBytes).toEqual(expected);
