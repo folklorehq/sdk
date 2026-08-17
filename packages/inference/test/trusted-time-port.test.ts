@@ -36,7 +36,7 @@ const SAMPLE: TrustedTimeSampleV1 = {
 };
 
 const LEGACY_SAMPLE = {
-  trustedNow: SAMPLE.trustedNowMs,
+  trustedNow: Math.floor(SAMPLE.trustedNowMs / 1_000),
   checkpointDigest: SAMPLE.checkpointDigest,
   bootEpoch: SAMPLE.bootEpoch,
   orgId: SAMPLE.orgId,
@@ -51,7 +51,7 @@ const CANONICAL_SAMPLE: TrustedTimeSampleV1 = {
   bootEpoch: MAX_CANONICAL_IDENTIFIER,
 };
 const CANONICAL_LEGACY_SAMPLE = {
-  trustedNow: CANONICAL_SAMPLE.trustedNowMs,
+  trustedNow: Math.floor(CANONICAL_SAMPLE.trustedNowMs / 1_000),
   checkpointDigest: CANONICAL_SAMPLE.checkpointDigest,
   bootEpoch: CANONICAL_SAMPLE.bootEpoch,
   orgId: CANONICAL_SAMPLE.orgId,
@@ -175,6 +175,24 @@ describe('trusted-time ports', () => {
         checkpointDigest: CANONICAL_SAMPLE.checkpointDigest,
       }),
     ).resolves.toEqual(CANONICAL_LEGACY_SAMPLE);
+  });
+
+  it('fails closed when canonical milliseconds cannot produce a positive safe integer second', async () => {
+    const tooSmall: TrustedTimeAuthorityV1Port = {
+      initialize: async () => undefined,
+      sample: async () => ({ ...SAMPLE, trustedNowMs: 999 }),
+      isHealthy: () => true,
+      read: async () => LEGACY_SAMPLE,
+    };
+    const overflowing: TrustedTimeAuthorityV1Port = {
+      initialize: async () => undefined,
+      sample: async () => ({ ...SAMPLE, trustedNowMs: Number.MAX_VALUE }),
+      isHealthy: () => true,
+      read: async () => LEGACY_SAMPLE,
+    };
+
+    await expect(readTrustedTimeSample(tooSmall)).rejects.toThrow('trusted_time_sample_invalid');
+    await expect(readTrustedTimeSample(overflowing)).rejects.toThrow('trusted_time_sample_invalid');
   });
 
   it('rejects identifiers outside the canonical grammar or length', () => {

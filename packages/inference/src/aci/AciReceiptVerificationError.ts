@@ -7,6 +7,7 @@ export type AciReceiptVerificationErrorCode =
   | 'model_mismatch'
   | 'policy_invalid'
   | 'replay_capacity_exhausted'
+  | 'replay_store_required'
   | 'receipt_fetch_failed'
   | 'event_order_invalid'
   | 'receipt_id_invalid'
@@ -23,8 +24,7 @@ export type AciReceiptVerificationErrorCode =
   | 'signature_invalid'
   | 'signer_not_found'
   | 'snapshot_invalid'
-  | 'upstream_session_mismatch'
-  | 'workload_mismatch';
+  | 'upstream_session_mismatch';
 
 export class AciReceiptVerificationError extends Error {
   readonly code: AciReceiptVerificationErrorCode;

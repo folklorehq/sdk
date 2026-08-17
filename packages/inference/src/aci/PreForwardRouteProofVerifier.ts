@@ -10,6 +10,9 @@ import type {
   PreForwardRouteProofVerificationInput,
   PreForwardRouteProofVerifierPort,
   TrustedTimeAuthorityPort,
+  ForwardReplayAuthorityPort,
+  VerifiedPreForwardRouteProof,
+  AciTrustContext,
 } from '../ports.js';
 import { readTrustedTimeSample } from './trusted-time.js';
 
@@ -22,7 +25,6 @@ const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 const ED25519_RAW_LENGTH = 32;
 const ED25519_DER_LENGTH = 44;
 const BASE64_SIGNATURE_LENGTH = 64;
-const MAX_REPLAY_CAPACITY = 65_536;
 
 type PreForwardIssuerKey = KeyObject | Uint8Array | string;
 
@@ -30,7 +32,8 @@ type PreForwardRouteProofVerificationErrorCode =
   | 'proof_invalid'
   | 'proof_replay'
   | 'proof_stale'
-  | 'trusted_time_unavailable';
+  | 'trusted_time_unavailable'
+  | 'replay_authority_unavailable';
 
 export class PreForwardRouteProofVerificationError extends Error {
   readonly code: PreForwardRouteProofVerificationErrorCode;
@@ -44,6 +47,7 @@ export class PreForwardRouteProofVerificationError extends Error {
 
 export interface PreForwardRouteProofVerifierConfig {
   readonly trustedTimeAuthority: TrustedTimeAuthorityPort;
+  readonly replayAuthority: ForwardReplayAuthorityPort;
   readonly issuerKeys?:
     | ReadonlyMap<string, PreForwardIssuerKey>
     | Readonly<Record<string, PreForwardIssuerKey>>;
@@ -54,7 +58,6 @@ export interface PreForwardRouteProofVerifierConfig {
   ) => PreForwardIssuerKey | undefined | Promise<PreForwardIssuerKey | undefined>;
   readonly maximumProofLifetimeMs?: number;
   readonly maxProofBytes?: number;
-  readonly replayCapacity?: number;
 }
 
 export function preForwardRouteProofPayload(value: unknown): string {
@@ -84,15 +87,21 @@ export class PreForwardRouteProofVerifier implements PreForwardRouteProofVerifie
     | undefined;
   private readonly maximumProofLifetimeMs: number;
   private readonly maxProofBytes: number;
-  private readonly reservedProofs = new Set<string>();
-  private readonly pendingProofs = new Set<string>();
-  private readonly replayCapacity: number;
+  private readonly replayAuthority: ForwardReplayAuthorityPort;
 
   constructor(config: PreForwardRouteProofVerifierConfig) {
     if (typeof config.trustedTimeAuthority?.read !== 'function') {
       throw new PreForwardRouteProofVerificationError('trusted_time_unavailable');
     }
+    if (
+      typeof config.replayAuthority?.claimProof !== 'function' ||
+      typeof config.replayAuthority?.releaseProof !== 'function' ||
+      typeof config.replayAuthority?.cleanup !== 'function'
+    ) {
+      throw new PreForwardRouteProofVerificationError('replay_authority_unavailable');
+    }
     this.trustedTimeAuthority = config.trustedTimeAuthority;
+    this.replayAuthority = config.replayAuthority;
     this.issuerKeys = config.issuerKeys;
     this.issuerPublicKey = config.issuerPublicKey;
     this.issuerPublicKeyId = config.issuerPublicKeyId;
@@ -105,18 +114,12 @@ export class PreForwardRouteProofVerifier implements PreForwardRouteProofVerifie
       config.maxProofBytes ?? DEFAULT_MAX_PROOF_BYTES,
       MAX_PROOF_BYTES,
     );
-    this.replayCapacity = this.boundedReplayCapacity(config.replayCapacity ?? MAX_REPLAY_CAPACITY);
   }
 
-  async verify(input: PreForwardRouteProofVerificationInput): Promise<PreForwardRouteProofV1> {
+  async verify(
+    input: PreForwardRouteProofVerificationInput,
+  ): Promise<VerifiedPreForwardRouteProof> {
     const proof = this.parse(input.encodedProof);
-    const proofKey = this.proofKey(proof);
-    if (this.reservedProofs.has(proofKey) || this.pendingProofs.has(proofKey)) {
-      throw new PreForwardRouteProofVerificationError('proof_replay');
-    }
-    if (this.reservedProofs.size >= this.replayCapacity) {
-      throw new PreForwardRouteProofVerificationError('proof_replay');
-    }
     let issuerKey: PreForwardIssuerKey | undefined;
     try {
       issuerKey = await this.findIssuerKey(proof.issuer.keyId);
@@ -127,13 +130,15 @@ export class PreForwardRouteProofVerifier implements PreForwardRouteProofVerifie
       throw new PreForwardRouteProofVerificationError('proof_invalid');
     }
     this.verifyBindings(proof, input.expected);
-    if (this.reservedProofs.has(proofKey) || this.pendingProofs.has(proofKey)) {
+    const scope = this.scope(proof);
+    try {
+      await this.replayAuthority.claimProof({
+        ...scope,
+        expiresAt: proof.expiresAt,
+      });
+    } catch {
       throw new PreForwardRouteProofVerificationError('proof_replay');
     }
-    if (this.pendingProofs.size >= this.replayCapacity) {
-      throw new PreForwardRouteProofVerificationError('proof_replay');
-    }
-    this.pendingProofs.add(proofKey);
     try {
       const trustedNow = await this.readTrustedTime(input.expected);
       if (
@@ -143,16 +148,42 @@ export class PreForwardRouteProofVerifier implements PreForwardRouteProofVerifie
       ) {
         throw new PreForwardRouteProofVerificationError('proof_stale');
       }
-      this.reservedProofs.add(proofKey);
-      return proof;
-    } finally {
-      this.pendingProofs.delete(proofKey);
+      return this.freeze(proof);
+    } catch (error) {
+      try {
+        await this.replayAuthority.releaseProof({ ...scope, expiresAt: proof.expiresAt });
+      } catch {
+        throw new PreForwardRouteProofVerificationError('replay_authority_unavailable');
+      }
+      if (error instanceof PreForwardRouteProofVerificationError) throw error;
+      throw new PreForwardRouteProofVerificationError('trusted_time_unavailable');
+    }
+  }
+
+  async release(proof: VerifiedPreForwardRouteProof): Promise<void> {
+    try {
+      await this.replayAuthority.releaseProof({ ...this.scope(proof), expiresAt: proof.expiresAt });
+    } catch {
+      throw new PreForwardRouteProofVerificationError('replay_authority_unavailable');
+    }
+  }
+
+  async cleanup(input: {
+    readonly context: AciTrustContext;
+    readonly trustedNow: number;
+  }): Promise<void> {
+    try {
+      await this.replayAuthority.cleanup(input);
+    } catch {
+      throw new PreForwardRouteProofVerificationError('replay_authority_unavailable');
     }
   }
 
   private parse(encodedProof: Uint8Array): PreForwardRouteProofV1 {
     try {
-      const decoded = parseStrictJsonBytes(encodedProof, this.maxProofBytes);
+      const decoded = parseStrictJsonBytes(encodedProof, this.maxProofBytes, {
+        asciiMemberNames: true,
+      });
       const parsed = preForwardRouteProofSchema.safeParse(decoded);
       if (!parsed.success) throw new Error();
       return parsed.data;
@@ -272,12 +303,6 @@ export class PreForwardRouteProofVerifier implements PreForwardRouteProofVerifie
     }
   }
 
-  private proofKey(proof: PreForwardRouteProofV1): string {
-    return [proof.orgId, proof.deploymentId, proof.challenge.bootEpoch, proof.proofId].join(
-      '\u0000',
-    );
-  }
-
   private positiveBoundedInteger(value: number, maximum: number): number {
     if (!Number.isSafeInteger(value) || value <= 0 || value > maximum) {
       throw new PreForwardRouteProofVerificationError('proof_invalid');
@@ -285,9 +310,20 @@ export class PreForwardRouteProofVerifier implements PreForwardRouteProofVerifie
     return value;
   }
 
-  private boundedReplayCapacity(value: number): number {
-    if (!Number.isSafeInteger(value) || value <= 0 || value > MAX_REPLAY_CAPACITY) {
-      throw new PreForwardRouteProofVerificationError('proof_invalid');
+  private scope(proof: VerifiedPreForwardRouteProof) {
+    return {
+      orgId: proof.orgId,
+      deploymentId: proof.deploymentId,
+      bootEpoch: proof.challenge.bootEpoch,
+      proofId: proof.proofId,
+      requestId: proof.requestId,
+    };
+  }
+
+  private freeze<T>(value: T): T {
+    if (value !== null && typeof value === 'object') {
+      for (const nested of Object.values(value)) this.freeze(nested);
+      Object.freeze(value);
     }
     return value;
   }

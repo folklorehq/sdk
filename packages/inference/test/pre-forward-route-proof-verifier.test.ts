@@ -9,12 +9,14 @@ import {
   PreForwardRouteProofVerifier,
   preForwardRouteProofPayload,
 } from '../src/aci/PreForwardRouteProofVerifier.js';
+import { parseStrictJsonBytes } from '../src/aci/strict-json.js';
 import type {
   PreForwardRouteBinding,
   PreForwardRouteProofVerifierConfig,
   TrustedTimeAuthorityPort,
   TrustedTimeSample,
 } from '../src/ports.js';
+import { InMemoryForwardReplayAuthority } from './doubles/aci/InMemoryAciStores.js';
 
 const DIGEST_A = 'a'.repeat(64);
 const DIGEST_B = 'b'.repeat(64);
@@ -150,9 +152,10 @@ function authority(
   };
 }
 
-function verifier(time = authority()): PreForwardRouteProofVerifier {
+function verifier(time = authority(), replayCapacity = 4_096): PreForwardRouteProofVerifier {
   return new PreForwardRouteProofVerifier({
     trustedTimeAuthority: time,
+    replayAuthority: new InMemoryForwardReplayAuthority(replayCapacity),
     issuerKeys: new Map([['key-1', publicKey]]),
     maximumProofLifetimeMs: 60_000,
   });
@@ -313,6 +316,7 @@ describe('PreForwardRouteProofVerifier', () => {
     for (const issuerPublicKey of [publicKeyRaw, publicKeyDer]) {
       const configured = new PreForwardRouteProofVerifier({
         trustedTimeAuthority: authority(),
+        replayAuthority: new InMemoryForwardReplayAuthority(),
         issuerPublicKey,
         issuerPublicKeyId: expectedProofKeyId(),
       } as PreForwardRouteProofVerifierConfig);
@@ -328,6 +332,7 @@ describe('PreForwardRouteProofVerifier', () => {
       () =>
         new PreForwardRouteProofVerifier({
           trustedTimeAuthority: authority(),
+          replayAuthority: new InMemoryForwardReplayAuthority(),
           issuerKeys: new Map([['key-1', publicKey]]),
           maximumProofLifetimeMs: 300_001,
         }),
@@ -340,6 +345,7 @@ describe('PreForwardRouteProofVerifier', () => {
       () =>
         new PreForwardRouteProofVerifier({
           trustedTimeAuthority: authority(),
+          replayAuthority: new InMemoryForwardReplayAuthority(),
           issuerKeys: new Map([['key-1', publicKey]]),
           maxProofBytes: 1_048_577,
         }),
@@ -353,6 +359,7 @@ describe('PreForwardRouteProofVerifier', () => {
   it('requires the single-key fallback to match its configured key id', async () => {
     const configured = new PreForwardRouteProofVerifier({
       trustedTimeAuthority: authority(),
+      replayAuthority: new InMemoryForwardReplayAuthority(),
       issuerPublicKey: publicKey,
       issuerPublicKeyId: 'different-key',
     } as PreForwardRouteProofVerifierConfig);
@@ -381,8 +388,8 @@ describe('PreForwardRouteProofVerifier', () => {
   it('bounds retained proof replay markers', async () => {
     const configured = new PreForwardRouteProofVerifier({
       trustedTimeAuthority: authority(),
+      replayAuthority: new InMemoryForwardReplayAuthority(1),
       issuerKeys: new Map([['key-1', publicKey]]),
-      replayCapacity: 1,
     } as PreForwardRouteProofVerifierConfig);
     const secondExpected = { ...expected, proofId: 'proof-2' };
 
@@ -420,6 +427,17 @@ describe('PreForwardRouteProofVerifier', () => {
       expect((error as Error).message).not.toContain('sentinel');
     }
     expect(preForwardRouteProofSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it('rejects non-ASCII member names at the ACI strict parser boundary', () => {
+    const valid = JSON.parse(new TextDecoder().decode(signedProof())) as Record<string, unknown>;
+    const nonAscii = { ...valid, ['proéfId']: 'proof-1' };
+
+    expect(() =>
+      parseStrictJsonBytes(new TextEncoder().encode(JSON.stringify(nonAscii)), 1_048_576, {
+        asciiMemberNames: true,
+      }),
+    ).toThrow();
   });
 
   it('rejects concurrent reuse while the first verification is awaiting trusted time', async () => {

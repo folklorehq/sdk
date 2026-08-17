@@ -9,10 +9,12 @@ import type {
   AciSessionCandidate,
   AciSessionEvidenceVerifierPort,
   AciSessionVerificationInput,
+  AciTrustHighWater,
   TrustedTimeReadContext,
   VerifiedAciKeyset,
   VerifiedAciSessionEvidenceBindings,
 } from '../src/ports.js';
+import { InMemoryAciKeysetHighWaterAuthority } from './doubles/aci/InMemoryAciStores.js';
 
 const NOW = 1_750_000_100;
 const TRUST_CONTEXT: AciTrustContext = {
@@ -62,6 +64,21 @@ const KEYSET: VerifiedAciKeyset = {
 };
 const SESSION = ACI_SESSION_FIXTURE;
 
+function keysetAuthority(
+  overrides: Partial<AciTrustHighWater> = {},
+): InMemoryAciKeysetHighWaterAuthority {
+  return new InMemoryAciKeysetHighWaterAuthority({
+    generation: 1,
+    policyGeneration: POLICY.generation,
+    activationGeneration: ACTIVATION_GENERATION,
+    keysetVersion: KEYSET.version,
+    currentKeysetDigest: KEYSET.workloadKeysetDigest,
+    supersededKeysetDigests: [],
+    trustContext: TRUST_CONTEXT,
+    ...overrides,
+  });
+}
+
 type CandidateOverrides = Partial<AciSessionCandidate> & { readonly session?: AciSession };
 
 class AciSessionEvidenceVerifierDouble implements AciSessionEvidenceVerifierPort {
@@ -78,7 +95,7 @@ class AciSessionEvidenceVerifierDouble implements AciSessionEvidenceVerifierPort
     this.calls += 1;
     const session = JSON.parse(new TextDecoder().decode(input.sessionBytes)) as AciSession;
     const bindings = {
-      sessionId: session.session_id,
+      sessionId: sessionId(session),
       claims: session.claims,
       identity: session.identity ?? null,
       channelBindings: session.channel_binding,
@@ -97,6 +114,7 @@ function createVerifier(
   policy = POLICY,
   evidenceVerifier = new AciSessionEvidenceVerifierDouble(),
   contexts: TrustedTimeReadContext[] = [],
+  authority = keysetAuthority(),
 ) {
   return new AciSessionVerifier({
     policy,
@@ -111,6 +129,7 @@ function createVerifier(
     },
     trustedTimeContext: TRUST_CONTEXT,
     evidenceVerifier,
+    keysetHighWaterAuthority: authority,
   });
 }
 
@@ -131,6 +150,8 @@ function candidate(
     ...baseCandidate(role),
     ...overrides,
     session,
+    sessionId: overrides.sessionId ?? safeSessionId(session),
+    channelKeyDigest: overrides.channelKeyDigest ?? safeChannelKeyDigest(session),
     sessionBytes: overrides.sessionBytes ?? encodeSession(session),
   };
 }
@@ -141,6 +162,7 @@ function baseCandidate(role: InferenceModelRole): AciSessionCandidate {
     role,
     model: roleModel.model,
     modelRevision: roleModel.revision,
+    sessionId: sessionId(SESSION),
     workloadKeysetDigest: KEYSET.workloadKeysetDigest,
     channelKeyDigest: UPSTREAM_CHANNEL_KEY_DIGEST,
     policyGeneration: POLICY.generation,
@@ -150,9 +172,12 @@ function baseCandidate(role: InferenceModelRole): AciSessionCandidate {
   };
 }
 
-function input(candidates = ROLES.map((role) => candidate(role))) {
+function input(
+  candidates = ROLES.map((role) => candidate(role)),
+  keyset: VerifiedAciKeyset = KEYSET,
+) {
   return {
-    keyset: KEYSET,
+    keyset,
     candidates,
     highWater: {
       minimumPolicyGeneration: POLICY.generation,
@@ -180,20 +205,8 @@ function withDerivedBindings(session: AciSession): {
   channelKeyDigest: string;
   upstreamIdentityDigest: string;
 } {
-  const material = {
-    upstream_name: session.upstream_name,
-    endpoint: session.endpoint ?? null,
-    verifier_id: session.verifier_id,
-    identity: session.identity ?? null,
-    channel_binding: session.channel_binding,
-    claims: session.claims,
-    evidence_digest: session.evidence.digest ?? null,
-  };
   return {
-    session: {
-      ...session,
-      session_id: `as_${createHash('sha256').update(canonicalJson(material)).digest('hex')}`,
-    },
+    session,
     channelKeyDigest: `sha256:${createHash('sha256')
       .update(canonicalJson({ channel_binding: session.channel_binding }))
       .digest('hex')}`,
@@ -211,6 +224,26 @@ function withDerivedBindings(session: AciSession): {
   };
 }
 
+function safeChannelKeyDigest(session: AciSession): string {
+  try {
+    return withDerivedBindings(session).channelKeyDigest;
+  } catch {
+    return UPSTREAM_CHANNEL_KEY_DIGEST;
+  }
+}
+
+function sessionId(session: AciSession): string {
+  return createHash('sha256').update(canonicalJson(session)).digest('hex');
+}
+
+function safeSessionId(session: AciSession): string {
+  try {
+    return sessionId(session);
+  } catch {
+    return '0'.repeat(64);
+  }
+}
+
 async function expectCode(promise: Promise<unknown>, code: string): Promise<void> {
   await expect(promise).rejects.toMatchObject({
     code,
@@ -220,6 +253,27 @@ async function expectCode(promise: Promise<unknown>, code: string): Promise<void
 }
 
 describe('AciSessionVerifier', () => {
+  it('rejects unknown fields on fixed normalized keysets and key entries', async () => {
+    const keyset = {
+      ...KEYSET,
+      provider_extension: { version: 1 },
+      receiptSigningKeys: KEYSET.receiptSigningKeys.map((key) => ({
+        ...key,
+        provider_extension: 'receipt',
+      })),
+      e2eePublicKeys: KEYSET.e2eePublicKeys.map((key) => ({
+        ...key,
+        provider_extension: 'e2ee',
+      })),
+      tlsPublicKeys: KEYSET.tlsPublicKeys.map((key) => ({
+        ...key,
+        provider_extension: 'tls',
+      })),
+    } as unknown as VerifiedAciKeyset;
+
+    await expectCode(createVerifier().verifyAndSelect(input(undefined, keyset)), 'input_invalid');
+  });
+
   it('passes the configured context to every security trusted-time read', async () => {
     const contexts: TrustedTimeReadContext[] = [];
     await createVerifier(POLICY, new AciSessionEvidenceVerifierDouble(), contexts).verifyAndSelect(
@@ -239,10 +293,25 @@ describe('AciSessionVerifier', () => {
         },
         trustedTimeContext: TRUST_CONTEXT,
         evidenceVerifier: new AciSessionEvidenceVerifierDouble(),
+        keysetHighWaterAuthority: keysetAuthority(),
       }).verifyAndSelect(input()),
       'clock_invalid',
     );
   });
+
+  it('rejects non-ASCII member names in an official session artifact', async () => {
+    const session = {
+      ...SESSION,
+      claims: { ...SESSION.claims, ['é']: 'not-an-official-member' },
+    };
+    const sessionBytes = new TextEncoder().encode(JSON.stringify(session));
+    const candidates = ROLES.map((role) =>
+      candidate(role, role === 'generate' ? { session, sessionBytes } : undefined),
+    );
+
+    await expectCode(createVerifier().verifyAndSelect(input(candidates)), 'session_malformed');
+  });
+
   it('rejects a malformed trust policy at construction', () => {
     const policy = { ...POLICY, requiredSessionClaims: [] } as unknown as InferenceTrustPolicyV2;
 
@@ -292,11 +361,10 @@ describe('AciSessionVerifier', () => {
         },
       ],
     }).session;
-    const channelKeyDigest = withDerivedBindings(session).channelKeyDigest;
-    const candidates = ROLES.map((role) => candidate(role, { session, channelKeyDigest }));
+    const candidates = ROLES.map((role) => candidate(role, { session }));
 
     await expect(createVerifier(base).verifyAndSelect(input(candidates))).resolves.toMatchObject({
-      generate: { sessionId: session.session_id },
+      generate: { sessionId: sessionId(session) },
     });
   });
 
@@ -318,6 +386,7 @@ describe('AciSessionVerifier', () => {
         elapsed = 10_101;
         return bindings;
       }),
+      keysetHighWaterAuthority: keysetAuthority(),
     });
 
     try {
@@ -346,6 +415,7 @@ describe('AciSessionVerifier', () => {
       trustedTimeContext: TRUST_CONTEXT,
       evidenceVerifierTimeoutMs: 100,
       evidenceVerifier,
+      keysetHighWaterAuthority: keysetAuthority(),
     });
 
     try {
@@ -366,6 +436,7 @@ describe('AciSessionVerifier', () => {
       },
       trustedTimeContext: TRUST_CONTEXT,
       evidenceVerifier: new AciSessionEvidenceVerifierDouble(),
+      keysetHighWaterAuthority: keysetAuthority(),
     });
 
     await expectCode(verifier.verifyAndSelect(input()), 'clock_invalid');
@@ -401,12 +472,18 @@ describe('AciSessionVerifier', () => {
         role,
         model: 'z-ai/glm-5.2',
         modelRevision: '2026-08-09',
-        sessionId: ACI_SESSION_FIXTURE.session_id,
+        sessionId: sessionId(SESSION),
         establishedAt: 1_750_000_000,
         expiresAt: 1_750_003_600,
         workloadKeysetDigest: `sha256:${'2'.repeat(64)}`,
         channelKeyDigest: UPSTREAM_CHANNEL_KEY_DIGEST,
         upstreamIdentityDigest: withDerivedBindings(SESSION).upstreamIdentityDigest,
+        upstreamIdentity: {
+          upstreamName: SESSION.upstream_name,
+          urlOrigin: SESSION.endpoint,
+          verifierId: SESSION.verifier_id,
+          claims: SESSION.claims,
+        },
         channelPins: [
           {
             type: 'tls_spki_sha256',
@@ -423,19 +500,31 @@ describe('AciSessionVerifier', () => {
       ...SESSION,
       identity: { provider_key: 'redacted', nested: { tier: 'hardware' } },
     });
-    const candidates = ROLES.map((role) =>
-      candidate(role, { session: derived.session, channelKeyDigest: derived.channelKeyDigest }),
-    );
+    const candidates = ROLES.map((role) => candidate(role, { session: derived.session }));
 
     const selected = await createVerifier().verifyAndSelect(input(candidates));
 
-    expect(selected.embed.sessionId).toBe(derived.session.session_id);
+    expect(selected.embed.sessionId).toBe(sessionId(derived.session));
   });
 
   it('rejects when verified session evidence bindings do not match TS-derived values', async () => {
     const evidenceVerifier = new AciSessionEvidenceVerifierDouble((_session, bindings) => ({
       ...bindings,
-      sessionId: 'as_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      sessionId: 'a'.repeat(64),
+    }));
+
+    await expectCode(
+      createVerifier(POLICY, evidenceVerifier).verifyAndSelect(input()),
+      'session_evidence_binding_mismatch',
+    );
+  });
+
+  it('bounds malicious verifier bindings before deep comparison', async () => {
+    let identity: Record<string, unknown> = { leaf: 'redacted' };
+    for (let index = 0; index < 12_000; index += 1) identity = { nested: identity };
+    const evidenceVerifier = new AciSessionEvidenceVerifierDouble((_session, bindings) => ({
+      ...bindings,
+      identity,
     }));
 
     await expectCode(
@@ -450,7 +539,7 @@ describe('AciSessionVerifier', () => {
       createVerifier().verifyAndSelect(
         input(ROLES.map((role) => candidate(role, { session: missingEvidence }))),
       ),
-      'session_evidence_missing',
+      'session_malformed',
     );
 
     const rejectingVerifier = new AciSessionEvidenceVerifierDouble(() => {
@@ -476,41 +565,42 @@ describe('AciSessionVerifier', () => {
   });
 
   it('rejects generation rollback and superseded keyset replay', async () => {
-    const verifier = createVerifier();
     const baseline = input();
 
     await expectCode(
-      verifier.verifyAndSelect({
-        ...baseline,
-        highWater: { ...baseline.highWater, minimumPolicyGeneration: POLICY.generation + 1 },
-      }),
+      createVerifier(
+        POLICY,
+        new AciSessionEvidenceVerifierDouble(),
+        [],
+        keysetAuthority({ policyGeneration: POLICY.generation + 1 }),
+      ).verifyAndSelect(baseline),
       'policy_generation_decreased',
     );
     await expectCode(
-      verifier.verifyAndSelect({
-        ...baseline,
-        highWater: { ...baseline.highWater, minimumKeysetVersion: KEYSET.version + 1 },
-      }),
+      createVerifier(
+        POLICY,
+        new AciSessionEvidenceVerifierDouble(),
+        [],
+        keysetAuthority({ keysetVersion: KEYSET.version + 1 }),
+      ).verifyAndSelect(baseline),
       'keyset_version_decreased',
     );
     await expectCode(
-      verifier.verifyAndSelect({
-        ...baseline,
-        highWater: {
-          ...baseline.highWater,
-          minimumActivationGeneration: ACTIVATION_GENERATION + 1,
-        },
-      }),
+      createVerifier(
+        POLICY,
+        new AciSessionEvidenceVerifierDouble(),
+        [],
+        keysetAuthority({ activationGeneration: ACTIVATION_GENERATION + 1 }),
+      ).verifyAndSelect(baseline),
       'activation_generation_decreased',
     );
     await expectCode(
-      verifier.verifyAndSelect({
-        ...baseline,
-        highWater: {
-          ...baseline.highWater,
-          supersededKeysetDigests: [KEYSET.workloadKeysetDigest],
-        },
-      }),
+      createVerifier(
+        POLICY,
+        new AciSessionEvidenceVerifierDouble(),
+        [],
+        keysetAuthority({ supersededKeysetDigests: [KEYSET.workloadKeysetDigest] }),
+      ).verifyAndSelect(baseline),
       'keyset_superseded',
     );
   });
@@ -529,6 +619,12 @@ describe('AciSessionVerifier', () => {
           index === 0 ? { ...item, channelKeyDigest: 'not-a-digest' } : item,
         ),
       },
+      {
+        ...baseline,
+        candidates: baseline.candidates.map((item, index) =>
+          index === 0 ? { ...item, sessionId: `as_${'a'.repeat(64)}` } : item,
+        ),
+      },
     ];
 
     for (const malformed of malformedInputs) {
@@ -539,10 +635,9 @@ describe('AciSessionVerifier', () => {
     }
   });
 
-  it('rejects candidates associated with mixed keyset or generation state', async () => {
+  it('rejects candidates associated with mixed generation state', async () => {
     const verifier = createVerifier();
     const mismatches = [
-      { workloadKeysetDigest: `sha256:${'6'.repeat(64)}` },
       { policyGeneration: POLICY.generation + 1 },
       { activationGeneration: ACTIVATION_GENERATION + 1 },
     ];
@@ -553,11 +648,30 @@ describe('AciSessionVerifier', () => {
     }
   });
 
+  it('keeps upstream keyset and channel bindings independent from the aggregator keyset', async () => {
+    const verifier = createVerifier();
+    const upstreamDigest = `sha256:${'6'.repeat(64)}`;
+    const selected = await verifier.verifyAndSelect(
+      input(
+        ROLES.map((role) =>
+          candidate(role, {
+            workloadKeysetDigest: upstreamDigest,
+            channelKeyDigest: UPSTREAM_CHANNEL_KEY_DIGEST,
+          }),
+        ),
+      ),
+    );
+
+    expect(selected.embed.workloadKeysetDigest).toBe(upstreamDigest);
+    expect(selected.embed.channelKeyDigest).toBe(UPSTREAM_CHANNEL_KEY_DIGEST);
+  });
+
   it('rejects a session whose content-addressed identifier does not match its material', async () => {
     const verifier = createVerifier();
     const candidates = ROLES.map((role) =>
       candidate(role, {
         session: { ...SESSION, upstream_name: 'substituted-upstream' },
+        sessionId: sessionId(SESSION),
       }),
     );
 
@@ -639,7 +753,6 @@ describe('AciSessionVerifier', () => {
     const verifier = createVerifier();
     const session = withDerivedBindings({
       api_version: SESSION.api_version,
-      session_id: SESSION.session_id,
       upstream_name: SESSION.upstream_name,
       verifier_id: SESSION.verifier_id,
       established_at: SESSION.established_at,
@@ -651,7 +764,7 @@ describe('AciSessionVerifier', () => {
     const candidates = ROLES.map((role) => candidate(role, { session }));
 
     const selected = await verifier.verifyAndSelect(input(candidates));
-    expect(selected.embed.sessionId).toBe(session.session_id);
+    expect(selected.embed.sessionId).toBe(sessionId(session));
   });
 
   it('rejects evidence bytes that do not match the session evidence digest', async () => {
@@ -695,9 +808,7 @@ describe('AciSessionVerifier', () => {
         data: `data:application/octet-stream;base64,${evidenceBytes.toString('base64url')}`,
       },
     });
-    const candidates = ROLES.map((role) =>
-      candidate(role, { session: derived.session, channelKeyDigest: derived.channelKeyDigest }),
-    );
+    const candidates = ROLES.map((role) => candidate(role, { session: derived.session }));
 
     await expectCode(verifier.verifyAndSelect(input(candidates)), 'evidence_digest_mismatch');
   });
@@ -730,9 +841,7 @@ describe('AciSessionVerifier', () => {
 
   it('appraises upstream bindings independently from aggregator keyset pins', async () => {
     const verifier = createVerifier();
-    const candidates = ROLES.map((role) =>
-      candidate(role, { channelKeyDigest: UPSTREAM_CHANNEL_KEY_DIGEST }),
-    );
+    const candidates = ROLES.map((role) => candidate(role));
     const baseline = input(candidates);
 
     const selected = await verifier.verifyAndSelect({
@@ -757,6 +866,47 @@ describe('AciSessionVerifier', () => {
         domain: 'upstream.example.com',
       },
     ]);
+  });
+
+  it('accepts documented future channel-binding extensions after an enforceable binding', async () => {
+    const session = withDerivedBindings({
+      ...SESSION,
+      channel_binding: [
+        ...SESSION.channel_binding,
+        {
+          type: 'future_channel_binding_v1',
+          binding_digest: `sha256:${'6'.repeat(64)}`,
+          purpose: 'extension compatibility',
+        },
+      ],
+    });
+    const candidates = ROLES.map((role) => candidate(role, { session: session.session }));
+
+    const selected = await createVerifier().verifyAndSelect(input(candidates));
+
+    expect(selected.embed.channelPins).toEqual([
+      {
+        type: 'tls_spki_sha256',
+        value: 'd1'.repeat(32),
+        domain: 'upstream.example.com',
+      },
+    ]);
+    expect(selected.embed.channelKeyDigest).toBe(session.channelKeyDigest);
+    expect(selected.embed.upstreamIdentityDigest).toBe(session.upstreamIdentityDigest);
+  });
+
+  it('retains the selected upstream channel digest independently from aggregator keyset pins', async () => {
+    const verifier = createVerifier();
+    const upstream = withDerivedBindings(SESSION).channelKeyDigest;
+    expect(KEYSET.channelKeyDigest).not.toBe(upstream);
+
+    const selected = await verifier.verifyAndSelect(
+      input(
+        ROLES.map((role) => candidate(role, { channelKeyDigest: UPSTREAM_CHANNEL_KEY_DIGEST })),
+      ),
+    );
+
+    expect(selected.embed.channelKeyDigest).toBe(UPSTREAM_CHANNEL_KEY_DIGEST);
   });
 
   it('normalizes E2EE session pins from the official binding without an endpoint domain', async () => {
@@ -786,11 +936,7 @@ describe('AciSessionVerifier', () => {
     });
     const verifier = createVerifier(policy);
     const selected = await verifier.verifyAndSelect({
-      ...input(
-        ROLES.map((role) =>
-          candidate(role, { session: session.session, channelKeyDigest: session.channelKeyDigest }),
-        ),
-      ),
+      ...input(ROLES.map((role) => candidate(role, { session: session.session }))),
     });
 
     expect(selected.embed.channelPins).toEqual([
@@ -804,7 +950,7 @@ describe('AciSessionVerifier', () => {
     ]);
   });
 
-  it('accepts a policy-authorized TLS certificate binding', async () => {
+  it('rejects TLS certificate bindings as an enforceable policy binding', () => {
     const policy = {
       ...POLICY,
       channelPolicy: {
@@ -813,27 +959,19 @@ describe('AciSessionVerifier', () => {
         ],
       },
     };
-    const verifier = createVerifier(policy);
-    const derived = withDerivedBindings({
-      ...SESSION,
-      channel_binding: [
-        {
-          type: 'tls_certificate_sha256',
-          origin: 'https://upstream.example.com',
-          certificate_sha256: 'ab'.repeat(32),
-        },
-      ],
-    });
-    const candidates = ROLES.map((role) =>
-      candidate(role, { session: derived.session, channelKeyDigest: derived.channelKeyDigest }),
-    );
+    expect(() => createVerifier(policy)).toThrow('ACI session verification failed: policy_invalid');
+  });
 
-    const selected = await verifier.verifyAndSelect(input(candidates));
+  it('accepts partial upstream identity extensions while binding present fields', async () => {
+    const derived = withDerivedBindings(SESSION);
+    const candidates = ROLES.map((role) => candidate(role, { session: derived.session }));
+    const selected = await createVerifier().verifyAndSelect(input(candidates));
 
-    expect(selected.embed.channelPins[0]).toEqual({
-      type: 'tls_certificate_sha256',
-      value: 'ab'.repeat(32),
-      domain: 'upstream.example.com',
+    expect(selected.embed.upstreamIdentity).toEqual({
+      upstreamName: SESSION.upstream_name,
+      urlOrigin: SESSION.endpoint,
+      verifierId: SESSION.verifier_id,
+      claims: SESSION.claims,
     });
   });
 
@@ -850,9 +988,7 @@ describe('AciSessionVerifier', () => {
         },
       ],
     } as AciSession);
-    const candidates = ROLES.map((role) =>
-      candidate(role, { session: derived.session, channelKeyDigest: derived.channelKeyDigest }),
-    );
+    const candidates = ROLES.map((role) => candidate(role, { session: derived.session }));
 
     await expectCode(verifier.verifyAndSelect(input(candidates)), 'session_malformed');
   });
@@ -883,9 +1019,7 @@ describe('AciSessionVerifier', () => {
         },
       ],
     });
-    const candidates = ROLES.map((role) =>
-      candidate(role, { session: derived.session, channelKeyDigest: derived.channelKeyDigest }),
-    );
+    const candidates = ROLES.map((role) => candidate(role, { session: derived.session }));
 
     const selected = await verifier.verifyAndSelect(input(candidates));
     expect(selected.embed.channelPins[0]).toMatchObject({
@@ -907,13 +1041,15 @@ describe('AciSessionVerifier', () => {
     await expectCode(verifier.verifyAndSelect(input(rejected)), 'channel_binding_mismatch');
   });
 
-  it('rejects a candidate channel digest that does not match its canonical binding material', async () => {
+  it('accepts a candidate channel digest that is independent from the upstream session material', async () => {
     const verifier = createVerifier();
+    const digest = `sha256:${'7'.repeat(64)}`;
     const candidates = ROLES.map((role) =>
-      candidate(role, role === 'embed' ? { channelKeyDigest: `sha256:${'7'.repeat(64)}` } : {}),
+      candidate(role, role === 'embed' ? { channelKeyDigest: digest } : {}),
     );
 
-    await expectCode(verifier.verifyAndSelect(input(candidates)), 'channel_binding_mismatch');
+    const selected = await verifier.verifyAndSelect(input(candidates));
+    expect(selected.embed.channelKeyDigest).toBe(digest);
   });
 
   it('enforces maximum lifetime, current eligibility, and future clock skew', async () => {
@@ -969,6 +1105,7 @@ describe('AciSessionVerifier', () => {
         },
         trustedTimeContext: TRUST_CONTEXT,
         evidenceVerifier: new AciSessionEvidenceVerifierDouble(),
+        keysetHighWaterAuthority: keysetAuthority(),
       });
       await expectCode(verifier.verifyAndSelect(input()), 'clock_invalid');
     }
@@ -989,7 +1126,7 @@ describe('AciSessionVerifier', () => {
         }).session,
     );
     const tiedCandidates = tiedSessions.map((session) => candidate('embed', { session }));
-    const expectedSessionId = tiedSessions.map((session) => session.session_id).sort()[0];
+    const expectedSessionId = tiedSessions.map(sessionId).sort()[0];
     const otherRoles = ROLES.filter((role) => role !== 'embed').map((role) => candidate(role));
     const candidates = [older, ...tiedCandidates, ...otherRoles];
 

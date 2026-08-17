@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-import { ECDH, createHash, createPublicKey, verify as verifySignature } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import type { AciWorkloadReport } from '@folklore/contracts';
 import { canonicalJson } from '@folklore/utils';
 import { AciVerificationError } from './AciVerificationError.js';
 import type { VerifiedAciEvidenceBindings } from '../ports.js';
 
 const REPORT_DATA_PURPOSE = 'aci.report_data.v1';
-const KEYSET_ENDORSEMENT_PURPOSE = 'aci.keyset.endorsement.v1';
 const MAX_EVIDENCE_CANONICALIZATION_DEPTH = 32;
 const MAX_EVIDENCE_CANONICALIZATION_NODES = 4_096;
-const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 export type ExpectedAciEvidenceBindings = Pick<
   VerifiedAciEvidenceBindings,
   | 'workloadId'
@@ -41,12 +39,6 @@ export class AciReportBindingVerifier {
     evidenceBytes: Uint8Array,
     nonce: Uint8Array,
   ): ExpectedAciEvidenceBindings {
-    const workloadId = this.prefixedDigest(
-      canonicalJson(report.attestation.workload_keyset.workload_identity.public_key),
-    );
-    if (report.workload_id !== workloadId) {
-      throw new AciVerificationError('workload_id_mismatch');
-    }
     const workloadKeysetDigest = this.prefixedDigest(
       canonicalJson(report.attestation.workload_keyset),
     );
@@ -56,16 +48,14 @@ export class AciReportBindingVerifier {
     const nonceHex = Buffer.from(nonce).toString('hex');
     const reportDataStatementDigest = this.digest(
       canonicalJson({
+        keyset_digest: workloadKeysetDigest,
         nonce: nonceHex,
         purpose: REPORT_DATA_PURPOSE,
-        workload_id: workloadId,
-        workload_keyset_digest: workloadKeysetDigest,
       }),
     );
     if (report.attestation.report_data !== reportDataStatementDigest) {
       throw new AciVerificationError('report_data_mismatch');
     }
-    this.verifyEndorsement(report, workloadKeysetDigest);
     const channelKeyDigest = this.prefixedDigest(
       canonicalJson({
         e2ee_public_keys: report.attestation.workload_keyset.e2ee_public_keys,
@@ -74,13 +64,13 @@ export class AciReportBindingVerifier {
     );
     const sourceRevision = this.sourceRevision(report);
     return {
-      workloadId,
+      workloadId: workloadKeysetDigest,
       nonce: nonceHex,
       reportDataStatementDigest,
       workloadKeysetDigest,
       channelKeyDigest,
       teeType: report.attestation.tee_type,
-      imageDigest: report.attestation.source_provenance.image_digest,
+      imageDigest: report.attestation.source_provenance?.image_digest ?? null,
       sourceRevision,
       evidenceTranscriptDigest: this.prefixedDigest(evidenceBytes),
     };
@@ -124,54 +114,9 @@ export class AciReportBindingVerifier {
     return true;
   }
 
-  private verifyEndorsement(report: AciWorkloadReport, keysetDigest: string): void {
-    const identityKey = report.attestation.workload_keyset.workload_identity.public_key;
-    const payload = Buffer.from(
-      canonicalJson({
-        purpose: KEYSET_ENDORSEMENT_PURPOSE,
-        workload_keyset_digest: keysetDigest,
-      }),
-    );
-    const signature = Buffer.from(report.attestation.keyset_endorsement.value, 'hex');
-    let isValid = false;
-    try {
-      if (identityKey.algo === 'ed25519') {
-        const key = createPublicKey({
-          format: 'der',
-          key: Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(identityKey.public_key, 'hex')]),
-          type: 'spki',
-        });
-        isValid = verifySignature(null, payload, key, signature);
-      } else {
-        const point = Buffer.from(
-          ECDH.convertKey(
-            Buffer.from(identityKey.public_key, 'hex'),
-            'secp256k1',
-            undefined,
-            undefined,
-            'uncompressed',
-          ),
-        );
-        const key = createPublicKey({
-          format: 'jwk',
-          key: {
-            crv: 'secp256k1',
-            kty: 'EC',
-            x: point.subarray(1, 33).toString('base64url'),
-            y: point.subarray(33, 65).toString('base64url'),
-          },
-        });
-        isValid = verifySignature('sha256', payload, { dsaEncoding: 'ieee-p1363', key }, signature);
-      }
-    } catch {
-      isValid = false;
-    }
-    if (!isValid) throw new AciVerificationError('endorsement_invalid');
-  }
-
   private sourceRevision(report: AciWorkloadReport): string {
     const provenance = report.attestation.source_provenance;
-    return provenance.repo_commit ?? provenance.image_digest ?? '';
+    return provenance?.repo_commit ?? provenance?.image_digest ?? '';
   }
 
   private digest(value: string | Uint8Array): string {

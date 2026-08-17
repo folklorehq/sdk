@@ -1,10 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 export type OfficialAciExchangeErrorCode =
+  | 'admission_required'
   | 'clock_invalid'
+  | 'channel_binding_mismatch'
+  | 'channel_open_failed'
+  | 'channel_transport_required'
   | 'decode_failed'
   | 'endpoint_mismatch'
   | 'inference_fetch_failed'
+  | 'inference_refused'
   | 'inference_timeout'
+  | 'lease_required'
+  | 'lease_invalid'
   | 'model_mismatch'
   | 'policy_invalid'
   | 'receipt_id_missing'
@@ -15,7 +22,8 @@ export type OfficialAciExchangeErrorCode =
   | 'streaming_unsupported'
   | 'trust_expired'
   | 'trust_mismatch'
-  | 'trust_unavailable';
+  | 'trust_unavailable'
+  | 'test_only_path_unavailable';
 
 export class OfficialAciExchangeError extends Error {
   readonly code: OfficialAciExchangeErrorCode;

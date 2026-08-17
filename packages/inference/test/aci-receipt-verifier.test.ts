@@ -1,13 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import {
-  ECDH,
-  createHash,
-  createPrivateKey,
-  generateKeyPairSync,
-  sign,
-  type KeyObject,
-} from 'node:crypto';
-import { secp256k1 } from '@noble/curves/secp256k1.js';
+import { createHash, createPrivateKey, sign } from 'node:crypto';
 
 import type { AciReceipt, InferenceModelRole, InferenceTrustPolicyV2 } from '@folklore/contracts';
 import { canonicalJson } from '@folklore/utils';
@@ -18,6 +10,7 @@ import {
   ACI_RECEIPT_FIXTURE,
   ACI_REPORT_FIXTURE,
   ACI_SESSION_FIXTURE,
+  ACI_SESSION_ID,
 } from '../../contracts/test/fixtures/aci-v1.js';
 import { AciReceiptVerifier } from '../src/aci/AciReceiptVerifier.js';
 import type {
@@ -28,6 +21,7 @@ import type {
   VerifiedAciSessionSet,
   VerifiedAciTrustSnapshot,
 } from '../src/ports.js';
+import { InMemoryAciReceiptReplayStore } from './doubles/aci/InMemoryAciStores.js';
 
 const NOW = 1_750_000_100;
 const TRUST_CONTEXT: AciTrustContext = {
@@ -67,10 +61,10 @@ const POLICY: InferenceTrustPolicyV2 = {
   ) as InferenceTrustPolicyV2['roleModels'],
 };
 const KEYSET: VerifiedAciKeyset = {
-  workloadId: ACI_RECEIPT_FIXTURE.workload_id,
+  workloadId: ACI_RECEIPT_FIXTURE.workload_keyset_digest,
   workloadKeysetDigest: ACI_RECEIPT_FIXTURE.workload_keyset_digest,
-  version: ACI_REPORT_FIXTURE.attestation.workload_keyset.keyset_epoch.version,
-  notAfter: ACI_REPORT_FIXTURE.attestation.workload_keyset.keyset_epoch.not_after,
+  version: POLICY.generation,
+  notAfter: ACI_REPORT_FIXTURE.attestation.workload_keyset.not_after,
   receiptSigningKeys: ACI_REPORT_FIXTURE.attestation.workload_keyset.receipt_signing_keys.map(
     (key) => ({ keyId: key.key_id, algorithm: key.algo, publicKey: key.public_key }),
   ),
@@ -93,13 +87,19 @@ const SESSIONS = Object.fromEntries(
       role,
       model: 'demo-model',
       modelRevision: 'revision-1',
-      sessionId: ACI_SESSION_FIXTURE.session_id,
+      sessionId: ACI_SESSION_ID,
       establishedAt: ACI_SESSION_FIXTURE.established_at,
       expiresAt: ACI_SESSION_FIXTURE.expires_at,
       workloadKeysetDigest: KEYSET.workloadKeysetDigest,
       channelKeyDigest: `sha256:${'9'.repeat(64)}`,
       channelPins: SESSION_PINS,
       upstreamIdentityDigest: UPSTREAM_IDENTITY_DIGEST,
+      upstreamIdentity: {
+        upstreamName: ACI_SESSION_FIXTURE.upstream_name,
+        urlOrigin: ACI_SESSION_FIXTURE.endpoint,
+        verifierId: ACI_SESSION_FIXTURE.verifier_id,
+        claims: ACI_SESSION_FIXTURE.claims,
+      },
     },
   ]),
 ) as VerifiedAciSessionSet;
@@ -113,20 +113,6 @@ const SNAPSHOT: VerifiedAciTrustSnapshot = {
   sessions: SESSIONS,
   supersededKeysetDigests: [],
 };
-const SECP256K1_KEY_PAIR = generateKeyPairSync('ec', { namedCurve: 'secp256k1' });
-const SECP256K1_SNAPSHOT: VerifiedAciTrustSnapshot = {
-  ...SNAPSHOT,
-  keyset: {
-    ...SNAPSHOT.keyset,
-    receiptSigningKeys: [
-      {
-        keyId: 'receipt-secp256k1',
-        algorithm: 'ecdsa-secp256k1',
-        publicKey: secp256k1PublicKey(SECP256K1_KEY_PAIR.publicKey),
-      },
-    ],
-  },
-};
 const INPUT: AciReceiptVerificationInput = {
   snapshot: SNAPSHOT,
   receiptId: ACI_RECEIPT_FIXTURE.receipt_id,
@@ -137,24 +123,10 @@ const INPUT: AciReceiptVerificationInput = {
   method: 'POST',
   trustedTimeContext: TRUST_CONTEXT,
 };
-function secp256k1PublicKey(publicKey: KeyObject): string {
-  const jwk = publicKey.export({ format: 'jwk' });
-  if (typeof jwk.x !== 'string' || typeof jwk.y !== 'string') {
-    throw new Error('secp256k1_public_key_missing_coordinates');
-  }
-  const x = Buffer.from(jwk.x, 'base64url');
-  const y = Buffer.from(jwk.y, 'base64url');
-  const lastYByte = y.at(-1);
-  if (x.length !== 32 || y.length !== 32 || lastYByte === undefined) {
-    throw new Error('secp256k1_public_key_invalid_coordinates');
-  }
-  return Buffer.concat([Buffer.from([lastYByte % 2 === 0 ? 0x02 : 0x03]), x]).toString('hex');
-}
-
 function signedReceipt(overrides: Record<string, unknown> = {}): AciReceipt {
   const receipt = structuredClone({ ...ACI_RECEIPT_FIXTURE, ...overrides }) as AciReceipt;
-  const { value: _value, ...signature } = receipt.signature;
-  const bytes = Buffer.from(canonicalJson({ ...receipt, signature }));
+  const { signature: _signature, ...unsigned } = receipt;
+  const bytes = Buffer.from(canonicalJson(unsigned));
   const key = createPrivateKey({
     key: Buffer.from(`302e020100300506032b657004220420${'02'.repeat(32)}`, 'hex'),
     format: 'der',
@@ -162,53 +134,20 @@ function signedReceipt(overrides: Record<string, unknown> = {}): AciReceipt {
   });
   return {
     ...receipt,
-    signature: { ...receipt.signature, value: sign(null, bytes, key).toString('hex') },
+    signature: sign(null, bytes, key).toString('hex'),
   };
-}
-
-function signedSecp256k1Receipt(recoveryId?: number): AciReceipt {
-  const receipt = structuredClone(ACI_RECEIPT_FIXTURE) as AciReceipt;
-  receipt.signature = {
-    algo: 'ecdsa-secp256k1',
-    key_id: 'receipt-secp256k1',
-    value: '0'.repeat(130),
-  };
-  const { value: _value, ...signature } = receipt.signature;
-  const bytes = Buffer.from(canonicalJson({ ...receipt, signature }));
-  const signatureBytes = sign('sha256', bytes, {
-    dsaEncoding: 'ieee-p1363',
-    key: SECP256K1_KEY_PAIR.privateKey,
-  });
-  const expectedPublicKey = SECP256K1_SNAPSHOT.keyset.receiptSigningKeys[0]?.publicKey;
-  const digest = createHash('sha256').update(bytes).digest();
-  const selectedRecoveryId =
-    recoveryId ??
-    [0, 1, 2, 3].find((candidate) => {
-      try {
-        return (
-          secp256k1.Signature.fromCompact(signatureBytes)
-            .addRecoveryBit(candidate)
-            .recoverPublicKey(digest)
-            .toHex(true) === expectedPublicKey
-        );
-      } catch {
-        return false;
-      }
-    });
-  if (selectedRecoveryId === undefined) throw new Error('secp256k1_recovery_id_not_found');
-  receipt.signature.value = Buffer.concat([
-    signatureBytes,
-    Buffer.from([selectedRecoveryId]),
-  ]).toString('hex');
-  return receipt;
-}
-
-function eventLogWithSequence(events: readonly AciReceipt['event_log'][number][]) {
-  return events.map((event, seq) => ({ ...event, seq })) as AciReceipt['event_log'];
 }
 
 function receiptResponse(receipt: unknown): Response {
   const response = Response.json(receipt);
+  Object.defineProperty(response, 'url', {
+    value: 'https://inference.phala.com/v1/aci/receipts/rcpt-0001',
+  });
+  return response;
+}
+
+function receiptResponseBytes(bytes: Uint8Array): Response {
+  const response = new Response(bytes, { headers: { 'content-type': 'application/json' } });
   Object.defineProperty(response, 'url', {
     value: 'https://inference.phala.com/v1/aci/receipts/rcpt-0001',
   });
@@ -225,6 +164,7 @@ function verifier(
   receipt: unknown,
   overrides: Partial<ConstructorParameters<typeof AciReceiptVerifier>[0]> = {},
 ) {
+  const { replayCapacity, replayStore, ...verifierOverrides } = overrides;
   const fetchImpl = vi.fn(async () => receiptResponse(receipt)) as unknown as typeof fetch;
   return new AciReceiptVerifier({
     baseUrl: 'https://inference.phala.com',
@@ -239,8 +179,9 @@ function verifier(
         deploymentId: 'deployment-1',
       }),
     },
+    replayStore: replayStore ?? new InMemoryAciReceiptReplayStore(replayCapacity),
     fetchTimeoutMs: 50,
-    ...overrides,
+    ...verifierOverrides,
   });
 }
 
@@ -262,84 +203,68 @@ describe('AciReceiptVerifier', () => {
   it('accepts the pinned upstream receipt vector', async () => {
     const result = await verifier(ACI_RECEIPT_FIXTURE).verify(INPUT);
     expect(result).toEqual({
+      outcome: 'served',
       receiptId: ACI_RECEIPT_FIXTURE.receipt_id,
       servedAt: ACI_RECEIPT_FIXTURE.served_at,
-      sessionId: ACI_SESSION_FIXTURE.session_id,
+      sessionId: ACI_SESSION_ID,
     });
   });
 
-  it('verifies a secp256k1 receipt signature with a compressed public point', async () => {
-    await expect(
-      verifier(signedSecp256k1Receipt()).verify({ ...INPUT, snapshot: SECP256K1_SNAPSHOT }),
-    ).resolves.toMatchObject({ receiptId: ACI_RECEIPT_FIXTURE.receipt_id });
-  });
-
-  it('rejects a secp256k1 receipt signature with an invalid recovery id', async () => {
-    await expectCode(
-      verifier(signedSecp256k1Receipt(4)).verify({ ...INPUT, snapshot: SECP256K1_SNAPSHOT }),
-      'signature_invalid',
-    );
-  });
-
-  it('rejects a secp256k1 receipt signature whose recovery byte names another public key', async () => {
-    const receipt = signedSecp256k1Receipt();
-    const { value: signatureValue } = receipt.signature;
-    const signatureBytes = Buffer.from(signatureValue, 'hex');
-    const { value: _value, ...signature } = receipt.signature;
-    const signedBytes = Buffer.from(canonicalJson({ ...receipt, signature }));
-    const digest = createHash('sha256').update(signedBytes).digest();
-    const compact = signatureBytes.subarray(0, 64);
-    const signerPoint = Buffer.from(
-      ECDH.convertKey(
-        Buffer.from(SECP256K1_SNAPSHOT.keyset.receiptSigningKeys[0]?.publicKey ?? '', 'hex'),
-        'secp256k1',
-        undefined,
-        undefined,
-        'uncompressed',
+  it('rejects non-ASCII member names in the official receipt artifact', async () => {
+    const receipt = signedReceipt({
+      event_log: ACI_RECEIPT_FIXTURE.event_log.map((event, index) =>
+        index === 0 ? { ...event, ['é']: 'not-an-official-member' } : event,
       ),
-    );
-    const validRecoveryId = [0, 1, 2, 3].find((recoveryId) => {
-      try {
-        const recovered = secp256k1.Signature.fromCompact(compact)
-          .addRecoveryBit(recoveryId)
-          .recoverPublicKey(digest)
-          .toRawBytes(false);
-        return Buffer.from(recovered).equals(signerPoint);
-      } catch {
-        return false;
-      }
     });
-    if (validRecoveryId === undefined) throw new Error('aci_recovery_id_missing');
-    const wrongRecoveryId = (validRecoveryId + 1) % 4;
-    receipt.signature.value = Buffer.concat([compact, Buffer.from([wrongRecoveryId])]).toString(
-      'hex',
-    );
-
+    const receiptBytes = new TextEncoder().encode(JSON.stringify(receipt));
+    const fetchImpl = vi.fn(async () =>
+      receiptResponseBytes(receiptBytes),
+    ) as unknown as typeof fetch;
     await expectCode(
-      verifier(receipt).verify({ ...INPUT, snapshot: SECP256K1_SNAPSHOT }),
-      'signature_invalid',
+      verifier(ACI_RECEIPT_FIXTURE, { fetchImpl }).verify(INPUT),
+      'receipt_malformed',
     );
   });
 
-  it('rejects a secp256k1 receipt signature whose compressed signer point is invalid', async () => {
-    const snapshot = {
-      ...SECP256K1_SNAPSHOT,
-      keyset: {
-        ...SECP256K1_SNAPSHOT.keyset,
-        receiptSigningKeys: [
-          {
-            keyId: 'receipt-secp256k1',
-            algorithm: 'ecdsa-secp256k1' as const,
-            publicKey: `02${'00'.repeat(32)}`,
-          },
-        ],
-      },
-    };
+  it('rejects a served receipt without upstream verification', async () => {
+    const receipt = signedReceipt({
+      event_log: [fixtureEvent(0), fixtureEvent(3)],
+    });
 
-    await expectCode(
-      verifier(signedSecp256k1Receipt()).verify({ ...INPUT, snapshot }),
-      'signature_invalid',
-    );
+    await expectCode(verifier(receipt).verify(INPUT), 'upstream_session_mismatch');
+  });
+
+  it('accepts a failed upstream attempt before a later required successful verification', async () => {
+    const eventLog = [...ACI_RECEIPT_FIXTURE.event_log];
+    eventLog.splice(2, 0, {
+      type: 'upstream.verified',
+      model_id: 'demo-model',
+      result: 'failed',
+      required: true,
+      reason: 'transient upstream failure',
+    });
+
+    await expect(
+      verifier(signedReceipt({ event_log: eventLog })).verify(INPUT),
+    ).resolves.toMatchObject({
+      outcome: 'served',
+      sessionId: ACI_SESSION_ID,
+    });
+  });
+
+  it('accepts a signed provider-rewritten forwarded hash without equating it to request.received', async () => {
+    const receipt = signedReceipt({
+      event_log: ACI_RECEIPT_FIXTURE.event_log.map((event) =>
+        event.type === 'request.forwarded'
+          ? { ...event, body_hash: `sha256:${'f'.repeat(64)}` }
+          : event,
+      ),
+    });
+
+    await expect(verifier(receipt).verify(INPUT)).resolves.toMatchObject({
+      outcome: 'served',
+      receiptId: ACI_RECEIPT_FIXTURE.receipt_id,
+    });
   });
 
   it('rejects request, response, identity, route, and model mutations', async () => {
@@ -350,7 +275,6 @@ describe('AciReceiptVerifier', () => {
     ][] = [
       [{}, { requestBytes: new TextEncoder().encode('other') }, 'request_hash_mismatch'],
       [{}, { responseBytes: new TextEncoder().encode('other') }, 'response_hash_mismatch'],
-      [{ workload_id: `sha256:${'f'.repeat(64)}` }, {}, 'workload_mismatch'],
       [{ workload_keyset_digest: `sha256:${'f'.repeat(64)}` }, {}, 'keyset_mismatch'],
       [{ model: 'other-model' }, {}, 'model_mismatch'],
       [{ endpoint: '/v1/other' }, {}, 'endpoint_mismatch'],
@@ -364,10 +288,10 @@ describe('AciReceiptVerifier', () => {
     }
   });
 
-  it('requires returned cleartext hash to equal exact plaintext response bytes', async () => {
+  it('requires response.returned.body_hash to equal exact response bytes', async () => {
     const eventLog = ACI_RECEIPT_FIXTURE.event_log.map((event) =>
       event.type === 'response.returned'
-        ? { ...event, cleartext_hash: `sha256:${'f'.repeat(64)}` }
+        ? { ...event, body_hash: `sha256:${'f'.repeat(64)}` }
         : event,
     );
 
@@ -381,7 +305,7 @@ describe('AciReceiptVerifier', () => {
     await expectCode(
       verifier({
         ...ACI_RECEIPT_FIXTURE,
-        signature: { ...ACI_RECEIPT_FIXTURE.signature, value: '00'.repeat(64) },
+        signature: '00'.repeat(64),
       }).verify(INPUT),
       'signature_invalid',
     );
@@ -396,6 +320,15 @@ describe('AciReceiptVerifier', () => {
     const replayVerifier = verifier(ACI_RECEIPT_FIXTURE);
     await replayVerifier.verify(INPUT);
     await expectCode(replayVerifier.verify(INPUT), 'receipt_replay');
+  });
+
+  it('retains a verified replay claim across verifier restart', async () => {
+    const replayStore = new InMemoryAciReceiptReplayStore();
+    await verifier(ACI_RECEIPT_FIXTURE, { replayStore }).verify(INPUT);
+    await expectCode(
+      verifier(ACI_RECEIPT_FIXTURE, { replayStore }).verify(INPUT),
+      'receipt_replay',
+    );
   });
 
   it('namespaces receipt replay by the organization, deployment, boot, and checkpoint context', async () => {
@@ -435,7 +368,7 @@ describe('AciReceiptVerifier', () => {
       .mockResolvedValueOnce(receiptResponse(thirdReceipt));
     const replayVerifier = verifier(firstReceipt, {
       fetchImpl: fetchImpl as unknown as typeof fetch,
-      replayCapacity: 1,
+      replayStore: new InMemoryAciReceiptReplayStore(1),
     });
 
     await replayVerifier.verify(INPUT);
@@ -452,9 +385,7 @@ describe('AciReceiptVerifier', () => {
       verifier(
         signedReceipt({
           event_log: ACI_RECEIPT_FIXTURE.event_log.map((event) =>
-            event.type === 'upstream.verified'
-              ? { ...event, session_id: `as_${'f'.repeat(64)}` }
-              : event,
+            event.type === 'upstream.verified' ? { ...event, session_id: 'f'.repeat(64) } : event,
           ),
         }),
       ).verify(INPUT),
@@ -467,60 +398,123 @@ describe('AciReceiptVerifier', () => {
     expect(upstream.type).toBe('upstream.verified');
   });
 
-  it('rejects a forwarded request hash that differs even when transparency records the mutation', async () => {
-    const eventLog = eventLogWithSequence([
+  it('accepts a signed refusal without request.forwarded', async () => {
+    const refusalEvent: Extract<AciReceipt['event_log'][number], { type: 'upstream.verified' }> = {
+      type: 'upstream.verified',
+      result: 'failed',
+      required: true,
+      model_id: 'demo-model',
+      reason: 'upstream verification refused the request',
+    };
+    const receipt = signedReceipt({
+      event_log: [fixtureEvent(0), refusalEvent, fixtureEvent(3)],
+    });
+
+    await expect(verifier(receipt).verify(INPUT)).resolves.toEqual({
+      outcome: 'refused',
+      receiptId: ACI_RECEIPT_FIXTURE.receipt_id,
+      servedAt: ACI_RECEIPT_FIXTURE.served_at,
+    });
+  });
+
+  it('rejects a refusal receipt whose exact request hash does not match', async () => {
+    const refusalEvent: Extract<AciReceipt['event_log'][number], { type: 'upstream.verified' }> = {
+      type: 'upstream.verified',
+      result: 'failed',
+      required: true,
+      model_id: 'demo-model',
+      reason: 'upstream verification refused the request',
+    };
+    const receipt = signedReceipt({
+      event_log: [
+        { ...fixtureEvent(0), body_hash: `sha256:${'f'.repeat(64)}` },
+        refusalEvent,
+        fixtureEvent(3),
+      ],
+    });
+
+    await expectCode(verifier(receipt).verify(INPUT), 'request_hash_mismatch');
+  });
+
+  it('rejects a malformed refusal receipt instead of treating it as a refusal', async () => {
+    const receipt = signedReceipt({
+      event_log: [
+        fixtureEvent(0),
+        {
+          type: 'upstream.verified',
+          result: 'failed',
+          required: true,
+          model_id: 'demo-model',
+        },
+        fixtureEvent(3),
+      ],
+    });
+
+    await expectCode(verifier(receipt).verify(INPUT), 'receipt_malformed');
+  });
+
+  it('rejects an unexpected successful upstream event in a refusal receipt', async () => {
+    const refusalEvent: Extract<AciReceipt['event_log'][number], { type: 'upstream.verified' }> = {
+      type: 'upstream.verified',
+      result: 'failed',
+      required: true,
+      model_id: 'demo-model',
+      reason: 'upstream verification refused the request',
+    };
+    const receipt = signedReceipt({
+      event_log: [
+        fixtureEvent(0),
+        refusalEvent,
+        { ...fixtureEvent(2), required: false },
+        fixtureEvent(3),
+      ],
+    });
+
+    await expectCode(verifier(receipt).verify(INPUT), 'receipt_malformed');
+  });
+
+  it('accepts partial optional upstream identity fields while rejecting changed present fields', async () => {
+    const eventLog = ACI_RECEIPT_FIXTURE.event_log.map((event) =>
+      event.type === 'upstream.verified'
+        ? {
+            ...event,
+            upstream_name: ACI_SESSION_FIXTURE.upstream_name,
+          }
+        : event,
+    ) as AciReceipt['event_log'];
+
+    await expect(
+      verifier(signedReceipt({ event_log: eventLog })).verify(INPUT),
+    ).resolves.toMatchObject({ outcome: 'served' });
+    const changed = eventLog.map((event) =>
+      event.type === 'upstream.verified' ? { ...event, upstream_name: 'other-upstream' } : event,
+    ) as AciReceipt['event_log'];
+    await expectCode(
+      verifier(signedReceipt({ event_log: changed })).verify(INPUT),
+      'upstream_session_mismatch',
+    );
+  });
+
+  it('accepts a provider-rewritten forwarded hash while preserving the received hash check', async () => {
+    const eventLog = [
       fixtureEvent(0),
       { ...fixtureEvent(1), body_hash: `sha256:${'f'.repeat(64)}` },
-      { seq: 2, type: 'transparency.request_modified' },
       fixtureEvent(2),
       fixtureEvent(3),
-    ]);
+    ] as AciReceipt['event_log'];
 
-    await expectCode(
+    await expect(
       verifier(signedReceipt({ event_log: eventLog })).verify(INPUT),
-      'request_hash_mismatch',
-    );
+    ).resolves.toMatchObject({ outcome: 'served' });
   });
 
   it('rejects an upstream verification event that occurs after the response was returned', async () => {
-    const eventLog = eventLogWithSequence([
+    const eventLog = [
       fixtureEvent(0),
       fixtureEvent(1),
       fixtureEvent(3),
       fixtureEvent(2),
-    ]);
-
-    await expectCode(
-      verifier(signedReceipt({ event_log: eventLog })).verify(INPUT),
-      'receipt_malformed',
-    );
-  });
-
-  it('rejects response transparency after response.returned', async () => {
-    const eventLog = eventLogWithSequence([
-      fixtureEvent(0),
-      fixtureEvent(1),
-      fixtureEvent(2),
-      fixtureEvent(3),
-      { seq: 4, type: 'transparency.response_modified' },
-    ]);
-
-    await expectCode(
-      verifier(signedReceipt({ event_log: eventLog })).verify(INPUT),
-      'receipt_malformed',
-    );
-  });
-
-  it('rejects a second response transparency event after response.returned', async () => {
-    const eventLog = eventLogWithSequence([
-      fixtureEvent(0),
-      fixtureEvent(1),
-      fixtureEvent(2),
-      { seq: 3, type: 'response.received' },
-      { seq: 4, type: 'transparency.response_modified' },
-      fixtureEvent(3),
-      { seq: 6, type: 'transparency.response_modified' },
-    ]);
+    ] as AciReceipt['event_log'];
 
     await expectCode(
       verifier(signedReceipt({ event_log: eventLog })).verify(INPUT),
@@ -529,12 +523,12 @@ describe('AciReceiptVerifier', () => {
   });
 
   it('rejects upstream verification before request.forwarded', async () => {
-    const eventLog = eventLogWithSequence([
+    const eventLog = [
       fixtureEvent(0),
       fixtureEvent(2),
       fixtureEvent(1),
       fixtureEvent(3),
-    ]);
+    ] as AciReceipt['event_log'];
 
     await expectCode(
       verifier(signedReceipt({ event_log: eventLog })).verify(INPUT),
@@ -547,15 +541,15 @@ describe('AciReceiptVerifier', () => {
     const alternate = {
       ...serving,
       upstream_name: 'other-upstream',
-      session_id: `as_${'f'.repeat(64)}`,
+      session_id: 'f'.repeat(64),
     };
-    const eventLog = eventLogWithSequence([
+    const eventLog = [
       fixtureEvent(0),
       fixtureEvent(1),
       alternate,
       serving,
       fixtureEvent(3),
-    ]);
+    ] as AciReceipt['event_log'];
 
     await expect(
       verifier(signedReceipt({ event_log: eventLog })).verify(INPUT),
@@ -583,11 +577,6 @@ describe('AciReceiptVerifier', () => {
   });
 
   it('normalizes E2EE receipt bindings with the provider identity and no derived domain', async () => {
-    const upstreamEvent = ACI_RECEIPT_FIXTURE.event_log.find(
-      (event): event is Extract<AciReceipt['event_log'][number], { type: 'upstream.verified' }> =>
-        event.type === 'upstream.verified',
-    );
-    if (upstreamEvent === undefined) throw new Error('aci_fixture_upstream_event_missing');
     const binding = {
       type: 'e2ee_public_key_sha256' as const,
       provider: 'upstream-provider',
@@ -610,17 +599,7 @@ describe('AciReceiptVerifier', () => {
               algorithm: binding.algorithm,
             },
           ] as unknown as VerifiedAciSessionSet['generate']['channelPins'],
-          upstreamIdentityDigest: `sha256:${createHash('sha256')
-            .update(
-              canonicalJson({
-                upstream_name: upstreamEvent.upstream_name,
-                url_origin: upstreamEvent.url_origin,
-                verifier_id: upstreamEvent.verifier_id,
-                channel_bindings: [binding],
-                claims: upstreamEvent.claims,
-              }),
-            )
-            .digest('hex')}`,
+          upstreamIdentityDigest: SESSIONS.generate.upstreamIdentityDigest,
         },
       },
     };
@@ -631,6 +610,81 @@ describe('AciReceiptVerifier', () => {
     await expect(
       verifier(signedReceipt({ event_log: eventLog })).verify({ ...INPUT, snapshot }),
     ).resolves.toMatchObject({ receiptId: ACI_RECEIPT_FIXTURE.receipt_id });
+  });
+
+  it('ignores documented future receipt channel-binding extensions after matching known pins', async () => {
+    const extension = {
+      type: 'future_channel_binding_v1',
+      binding_digest: `sha256:${'6'.repeat(64)}`,
+      purpose: 'extension compatibility',
+    };
+    const eventLog = ACI_RECEIPT_FIXTURE.event_log.map((event) =>
+      event.type === 'upstream.verified'
+        ? { ...event, channel_bindings: [...ACI_SESSION_FIXTURE.channel_binding, extension] }
+        : event,
+    ) as AciReceipt['event_log'];
+
+    await expect(verifier(signedReceipt({ event_log: eventLog })).verify(INPUT)).resolves.toEqual({
+      outcome: 'served',
+      receiptId: ACI_RECEIPT_FIXTURE.receipt_id,
+      servedAt: ACI_RECEIPT_FIXTURE.served_at,
+      sessionId: ACI_SESSION_ID,
+    });
+  });
+
+  it('rejects legacy receipt fields and nonofficial response hashes', async () => {
+    const signed = signedReceipt();
+    const responseEvent = fixtureEvent(3);
+    const cases: readonly unknown[] = [
+      { ...signed, workload_id: 'legacy-workload' },
+      {
+        ...signed,
+        signature: { key_id: 'receipt-1', algo: 'ed25519', value: signed.signature },
+      },
+      {
+        ...signed,
+        signature: 'AA'.repeat(64),
+      },
+      {
+        ...signed,
+        event_log: signed.event_log.map((event) =>
+          event.type === 'upstream.verified' ? { ...event, seq: 1 } : event,
+        ),
+      },
+      {
+        ...signed,
+        event_log: signed.event_log.map((event) =>
+          event.type === 'response.returned'
+            ? { ...event, wire_hash: responseEvent.body_hash }
+            : event,
+        ),
+      },
+      {
+        ...signed,
+        event_log: signed.event_log.map((event) =>
+          event.type === 'response.returned'
+            ? { ...event, cleartext_hash: responseEvent.body_hash }
+            : event,
+        ),
+      },
+    ];
+
+    for (const receipt of cases) {
+      await expectCode(verifier(receipt).verify(INPUT), 'receipt_malformed');
+    }
+  });
+
+  it('rejects an unknown signer and a mutation after signing', async () => {
+    await expectCode(
+      verifier(signedReceipt({ key_id: 'unknown-receipt-key' })).verify(INPUT),
+      'signer_not_found',
+    );
+
+    const signed = signedReceipt();
+    await expectCode(
+      verifier({ ...signed, chat_id: 'mutated-chat-id' }).verify(INPUT),
+      'signature_invalid',
+    );
   });
 
   it('fails closed on malformed, duplicate-key, status, timeout, and oversized receipts', async () => {

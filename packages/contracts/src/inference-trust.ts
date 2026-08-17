@@ -69,6 +69,18 @@ function addSortedIssue(
   context.addIssue({ code: z.ZodIssueCode.custom, message, path });
 }
 
+function rejectFields(
+  value: Record<string, unknown>,
+  fields: readonly string[],
+  context: z.RefinementCtx,
+): void {
+  for (const field of fields) {
+    if (Object.prototype.hasOwnProperty.call(value, field)) {
+      addSortedIssue(context, [field], `${field} is not part of the official ACI/1 wire shape`);
+    }
+  }
+}
+
 const exactHttpsOriginSchema = z.string().min(1).max(2_048).refine(isExactHttpsOrigin);
 
 const receiptKeySchema = z
@@ -258,7 +270,6 @@ const MAX_ACI_JSON_DEPTH = 64;
 const MAX_ACI_JSON_NODES = 4_096;
 
 const aciPrefixedDigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
-const aciHexSchema = z.string().regex(/^[0-9a-f]+$/);
 const aciReportDataSchema = z.string().regex(/^[0-9a-f]{64}$/);
 
 function hasControlCharacters(value: string): boolean {
@@ -275,8 +286,6 @@ const aciStringSchema = z
   .refine((value) => !hasControlCharacters(value));
 const aciNullableStringSchema = aciStringSchema.nullable();
 const aciPositiveIntegerSchema = z.number().int().safe().positive();
-const aciNonNegativeIntegerSchema = z.number().int().safe().nonnegative();
-const aciSignatureAlgorithmSchema = z.enum(['ed25519', 'ecdsa-secp256k1']);
 const aciClaimNameSchema = z.enum([
   'tee_attested',
   'gpu_attested',
@@ -291,6 +300,7 @@ const aciClaimSourceSchema = z.enum([
   'provider_asserted',
   'operator_asserted',
 ]);
+type AciKnownTeeType = 'tdx' | 'sev_snp';
 
 function isExactHttpsUrl(value: string): boolean {
   try {
@@ -317,72 +327,36 @@ const aciModelSchema = z
   .min(1)
   .max(MAX_MODEL_ID_LENGTH)
   .refine((value) => !hasControlCharacters(value));
-const aciSessionIdSchema = z.string().regex(/^as_[0-9a-f]{64}$/);
-const aciEvidenceObjectSchema = z.record(z.string(), z.unknown());
+const aciSessionIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
+const aciBoundedJsonValueSchema = z.custom<unknown>(
+  (value) => validateAciBoundedJson(value, false),
+  'expected bounded JSON value',
+);
+const aciEvidenceObjectSchema = z.custom<Record<string, unknown>>(
+  (value) => isAciBoundedJsonObject(value),
+  'expected bounded JSON object',
+);
 
 const aciPublicKeySchema = z
   .string()
-  .min(64)
-  .max(130)
-  .regex(/^[0-9a-f]+$/)
-  .refine((value) => value.length % 2 === 0);
-
-const aciWorkloadIdentitySchema = z
-  .object({
-    public_key: z
-      .object({
-        algo: aciSignatureAlgorithmSchema,
-        public_key: aciPublicKeySchema,
-      })
-      .strict()
-      .superRefine((key, context) => {
-        if (key.algo === 'ed25519' && key.public_key.length !== 64) {
-          addSortedIssue(context, ['public_key'], 'Ed25519 public keys must be 32 bytes');
-        }
-        if (key.algo === 'ecdsa-secp256k1' && ![66, 130].includes(key.public_key.length)) {
-          addSortedIssue(
-            context,
-            ['public_key'],
-            'secp256k1 public keys must be compressed or uncompressed',
-          );
-        }
-      }),
-    subject: aciNullableStringSchema.optional(),
-  })
-  .strict();
-
-const aciKeysetEpochSchema = z
-  .object({
-    version: aciPositiveIntegerSchema,
-    not_after: aciPositiveIntegerSchema,
-  })
-  .strict();
+  .min(1)
+  .max(MAX_ACI_STRING_LENGTH)
+  .refine((value) => !hasControlCharacters(value));
 
 const aciReceiptSigningKeySchema = z
   .object({
     key_id: identifierSchema,
-    algo: aciSignatureAlgorithmSchema,
+    algo: aciStringSchema,
     public_key: aciPublicKeySchema,
   })
   .strict()
   .superRefine((key, context) => {
-    if (key.algo === 'ed25519' && key.public_key.length !== 64) {
+    if (key.algo === 'ed25519' && !/^[0-9a-f]{64}$/.test(key.public_key)) {
       addSortedIssue(context, ['public_key'], 'Ed25519 public keys must be 32 bytes');
-    }
-    if (key.algo === 'ecdsa-secp256k1' && ![66, 130].includes(key.public_key.length)) {
-      addSortedIssue(
-        context,
-        ['public_key'],
-        'secp256k1 public keys must be compressed or uncompressed',
-      );
     }
   });
 
-const aciE2eeAlgorithmSchema = z
-  .string()
-  .min(1)
-  .max(MAX_IDENTIFIER_LENGTH)
-  .regex(/^[A-Za-z0-9][A-Za-z0-9._:+-]*$/);
+const aciE2eeAlgorithmSchema = aciStringSchema;
 
 const aciE2eePublicKeySchema = z
   .object({
@@ -393,10 +367,13 @@ const aciE2eePublicKeySchema = z
   .strict()
   .superRefine((key, context) => {
     const length = key.public_key.length;
-    if (key.algo === 'x25519-aes-256-gcm-hkdf-sha256' && length !== 64) {
+    if (key.algo === 'x25519-aes-256-gcm-hkdf-sha256' && !/^[0-9a-f]{64}$/.test(key.public_key)) {
       addSortedIssue(context, ['public_key'], 'X25519 public keys must be 32 bytes');
     }
-    if (key.algo === 'secp256k1-aes-256-gcm-hkdf-sha256' && ![128, 130].includes(length)) {
+    if (
+      key.algo === 'secp256k1-aes-256-gcm-hkdf-sha256' &&
+      (!/^[0-9a-f]+$/.test(key.public_key) || ![128, 130].includes(length))
+    ) {
       addSortedIssue(context, ['public_key'], 'secp256k1 E2EE public keys must be 64 or 65 bytes');
     }
   });
@@ -418,14 +395,15 @@ const aciTlsPublicKeySchema = z
 
 const aciWorkloadKeysetSchema = z
   .object({
-    workload_identity: aciWorkloadIdentitySchema,
-    keyset_epoch: aciKeysetEpochSchema,
+    subject: aciNullableStringSchema.optional(),
+    not_after: aciPositiveIntegerSchema,
     receipt_signing_keys: z.array(aciReceiptSigningKeySchema).min(1).max(MAX_POLICY_ITEMS),
-    e2ee_public_keys: z.array(aciE2eePublicKeySchema).min(1).max(MAX_POLICY_ITEMS),
+    e2ee_public_keys: z.array(aciE2eePublicKeySchema).max(MAX_POLICY_ITEMS),
     tls_public_keys: z.array(aciTlsPublicKeySchema).max(MAX_POLICY_ITEMS).optional(),
   })
   .strict()
   .superRefine((keyset, context) => {
+    rejectFields(keyset, ['workload_id', 'workload_identity', 'keyset_epoch'], context);
     const receiptIds = keyset.receipt_signing_keys.map((key) => key.key_id);
     const e2eeIds = keyset.e2ee_public_keys.map((key) => key.key_id);
     const receiptPublicKeys = keyset.receipt_signing_keys.map((key) => key.public_key);
@@ -439,103 +417,46 @@ const aciWorkloadKeysetSchema = z
     if (receiptPublicKeys.some((key) => e2eePublicKeys.includes(key))) {
       addSortedIssue(context, ['e2ee_public_keys'], 'operational keys must be distinct by role');
     }
-    if (
-      !keyset.e2ee_public_keys.some((key) =>
-        ['x25519-aes-256-gcm-hkdf-sha256', 'secp256k1-aes-256-gcm-hkdf-sha256'].includes(key.algo),
-      )
-    ) {
-      addSortedIssue(context, ['e2ee_public_keys'], 'at least one ACI E2EE key is required');
-    }
-  });
-
-const aciKeysetEndorsementSchema = z
-  .object({
-    algo: aciSignatureAlgorithmSchema,
-    value: aciHexSchema,
-  })
-  .strict()
-  .superRefine((endorsement, context) => {
-    const expectedLength = 128;
-    if (endorsement.value.length !== expectedLength) {
-      addSortedIssue(context, ['value'], 'keyset endorsement has the wrong signature length');
-    }
   });
 
 const aciSourceProvenanceSchema = z
   .object({
-    repo_url: aciHttpsUrlSchema.nullable(),
-    repo_commit: aciCommitSchema.nullable(),
-    image_digest: aciPrefixedDigestSchema.nullable(),
-    image_provenance: aciEvidenceObjectSchema.nullable(),
+    repo_url: aciHttpsUrlSchema.nullable().optional(),
+    repo_commit: aciCommitSchema.nullable().optional(),
+    image_digest: aciPrefixedDigestSchema.nullable().optional(),
+    image_provenance: aciBoundedJsonValueSchema.optional(),
   })
-  .strict()
-  .superRefine((provenance, context) => {
-    const hasRepository = provenance.repo_url !== null || provenance.repo_commit !== null;
-    if (hasRepository && (provenance.repo_url === null || provenance.repo_commit === null)) {
-      addSortedIssue(context, [], 'repository provenance requires both repo_url and repo_commit');
-    }
-    if (
-      provenance.repo_url === null &&
-      provenance.repo_commit === null &&
-      provenance.image_digest === null
-    ) {
-      addSortedIssue(context, [], 'source provenance requires a repository commit or image digest');
-    }
-    if (provenance.image_provenance !== null && provenance.image_digest === null) {
-      addSortedIssue(context, ['image_provenance'], 'image provenance requires image_digest');
-    }
-  });
-
-const aciFreshnessSchema = z
-  .object({
-    fetched_at: aciPositiveIntegerSchema,
-    stale_after: aciPositiveIntegerSchema,
-  })
-  .strict()
-  .superRefine((freshness, context) => {
-    if (freshness.stale_after <= freshness.fetched_at) {
-      addSortedIssue(context, ['stale_after'], 'stale_after must be later than fetched_at');
-    }
-  });
+  .catchall(aciBoundedJsonValueSchema);
 
 const aciServiceCapabilitiesSchema = z
   .object({
-    supported_e2ee_versions: z.array(z.literal('2')).min(1).max(4),
+    supported_e2ee_versions: z.array(aciStringSchema).max(4).optional(),
   })
-  .passthrough();
+  .catchall(aciBoundedJsonValueSchema);
 
 const aciAttestationSchema = z
   .object({
-    vendor: aciStringSchema,
-    tee_type: z.enum(['tdx', 'sev_snp']),
+    tee_type: aciStringSchema.transform((teeType): AciKnownTeeType => teeType as AciKnownTeeType),
     workload_keyset: aciWorkloadKeysetSchema,
     report_data: aciReportDataSchema,
-    keyset_endorsement: aciKeysetEndorsementSchema,
-    source_provenance: aciSourceProvenanceSchema,
-    freshness: aciFreshnessSchema,
-    evidence: aciEvidenceObjectSchema,
+    source_provenance: aciSourceProvenanceSchema.nullable().optional(),
+    evidence: aciEvidenceObjectSchema.optional(),
   })
-  .strict()
+  .catchall(aciBoundedJsonValueSchema)
   .superRefine((attestation, context) => {
-    if (
-      attestation.keyset_endorsement.algo !==
-      attestation.workload_keyset.workload_identity.public_key.algo
-    ) {
-      addSortedIssue(
-        context,
-        ['keyset_endorsement', 'algo'],
-        'keyset endorsement algorithm must match the identity key algorithm',
-      );
-    }
+    rejectFields(
+      attestation,
+      ['vendor', 'freshness', 'keyset_endorsement', 'workload_id'],
+      context,
+    );
   });
 
 export const aciWorkloadReportSchema = z
   .object({
     api_version: z.literal('aci/1'),
-    workload_id: aciPrefixedDigestSchema,
     workload_keyset_digest: aciPrefixedDigestSchema,
     attestation: aciAttestationSchema,
-    service_capabilities: aciServiceCapabilitiesSchema,
+    service_capabilities: aciServiceCapabilitiesSchema.optional(),
   })
   .strict();
 export type AciWorkloadReport = z.infer<typeof aciWorkloadReportSchema>;
@@ -553,57 +474,65 @@ const aciClaimSchema = z.union([
 
 const aciSessionClaimsSchema = z
   .object({
-    tee_attested: aciClaimSchema,
-    gpu_attested: aciClaimSchema,
-    tcb_up_to_date: aciClaimSchema,
-    os_known_good: aciClaimSchema,
-    serving_software_known_good: aciClaimSchema,
-    model_weights_provenance: aciClaimSchema,
+    tee_attested: aciClaimSchema.optional(),
+    gpu_attested: aciClaimSchema.optional(),
+    tcb_up_to_date: aciClaimSchema.optional(),
+    os_known_good: aciClaimSchema.optional(),
+    serving_software_known_good: aciClaimSchema.optional(),
+    model_weights_provenance: aciClaimSchema.optional(),
     extra: aciEvidenceObjectSchema.optional(),
   })
-  .strict();
+  .catchall(aciBoundedJsonValueSchema);
 
-const aciChannelBindingSchema = z.discriminatedUnion('type', [
-  z
-    .object({
-      type: z.literal('tls_spki_sha256'),
-      origin: aciOriginSchema,
-      spki_sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal('tls_certificate_sha256'),
-      origin: aciOriginSchema,
-      certificate_sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal('e2ee_public_key_sha256'),
-      provider: aciStringSchema,
-      key_id: identifierSchema.optional(),
-      algorithm: aciE2eeAlgorithmSchema,
-      public_key_sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    })
-    .strict(),
+const aciKnownChannelBindingTypes = new Set(['tls_spki_sha256', 'e2ee_public_key_sha256']);
+
+const aciTlsSpkiChannelBindingSchema = z
+  .object({
+    type: z.literal('tls_spki_sha256'),
+    origin: aciOriginSchema,
+    spki_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  })
+  .catchall(aciBoundedJsonValueSchema);
+const aciE2eeChannelBindingSchema = z
+  .object({
+    type: z.literal('e2ee_public_key_sha256'),
+    provider: aciStringSchema,
+    key_id: identifierSchema.optional(),
+    algorithm: aciE2eeAlgorithmSchema,
+    public_key_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  })
+  .catchall(aciBoundedJsonValueSchema);
+const aciKnownChannelBindingSchema = z.union([
+  aciTlsSpkiChannelBindingSchema,
+  aciE2eeChannelBindingSchema,
 ]);
+const aciUnknownChannelBindingSchema = z
+  .object({
+    type: aciStringSchema.refine((type) => !aciKnownChannelBindingTypes.has(type)),
+  })
+  .catchall(aciBoundedJsonValueSchema);
+const aciChannelBindingSchema = z.union([
+  aciKnownChannelBindingSchema,
+  aciUnknownChannelBindingSchema,
+]);
+const aciSessionChannelBindingsSchema = z
+  .array(aciChannelBindingSchema)
+  .min(1)
+  .max(MAX_ACI_CHANNEL_BINDINGS);
+const aciEventChannelBindingsSchema = z
+  .array(aciChannelBindingSchema)
+  .max(MAX_ACI_CHANNEL_BINDINGS);
 
 const aciEvidenceRefSchema = z
   .object({
-    digest: aciPrefixedDigestSchema.optional(),
+    digest: aciPrefixedDigestSchema,
     data: z
       .string()
       .max(MAX_ACI_EVIDENCE_DATA_LENGTH)
       .regex(/^data:[^,]{1,256};base64,[A-Za-z0-9+/=_-]*$/)
       .optional(),
   })
-  .strict()
-  .superRefine((evidence, context) => {
-    if (evidence.data !== undefined && evidence.digest === undefined) {
-      addSortedIssue(context, ['digest'], 'evidence data requires a digest');
-    }
-  });
+  .catchall(aciBoundedJsonValueSchema);
 
 type AciBoundedJson =
   | string
@@ -671,14 +600,13 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 export const aciSessionSchema = z
   .object({
     api_version: z.literal('aci/1'),
-    session_id: aciSessionIdSchema,
     upstream_name: aciStringSchema,
     endpoint: aciOriginSchema.nullable().optional(),
     verifier_id: aciStringSchema,
     established_at: aciPositiveIntegerSchema,
     expires_at: aciPositiveIntegerSchema,
     identity: aciIdentitySchema.optional(),
-    channel_binding: z.array(aciChannelBindingSchema).min(1).max(MAX_ACI_CHANNEL_BINDINGS),
+    channel_binding: aciSessionChannelBindingsSchema,
     claims: aciSessionClaimsSchema,
     evidence: aciEvidenceRefSchema,
   })
@@ -687,92 +615,60 @@ export const aciSessionSchema = z
     if (session.expires_at <= session.established_at) {
       addSortedIssue(context, ['expires_at'], 'expires_at must be later than established_at');
     }
+    rejectFields(session, ['session_id'], context);
   });
 export type AciSession = z.infer<typeof aciSessionSchema>;
 
-const aciEventBase = {
-  seq: aciNonNegativeIntegerSchema,
-};
-
 const aciBodyHashSchema = aciPrefixedDigestSchema;
 const aciRequestReceivedEventSchema = z
-  .object({ ...aciEventBase, type: z.literal('request.received'), body_hash: aciBodyHashSchema })
-  .passthrough();
+  .object({ type: z.literal('request.received'), body_hash: aciBodyHashSchema })
+  .catchall(aciBoundedJsonValueSchema);
 const aciRequestForwardedEventSchema = z
-  .object({ ...aciEventBase, type: z.literal('request.forwarded'), body_hash: aciBodyHashSchema })
-  .passthrough();
-const aciResponseReceivedEventSchema = z
-  .object({
-    ...aciEventBase,
-    type: z.literal('response.received'),
-    cleartext_hash: aciBodyHashSchema,
-  })
-  .passthrough();
+  .object({ type: z.literal('request.forwarded'), body_hash: aciBodyHashSchema })
+  .catchall(aciBoundedJsonValueSchema);
 const aciResponseReturnedEventSchema = z
-  .object({
-    ...aciEventBase,
-    type: z.literal('response.returned'),
-    cleartext_hash: aciBodyHashSchema,
-    wire_hash: aciBodyHashSchema,
-  })
-  .passthrough();
-const aciTransparencyRequestEventSchema = z
-  .object({ ...aciEventBase, type: z.literal('transparency.request_modified') })
-  .passthrough();
-const aciTransparencyResponseEventSchema = z
-  .object({ ...aciEventBase, type: z.literal('transparency.response_modified') })
-  .passthrough();
+  .object({ type: z.literal('response.returned'), body_hash: aciBodyHashSchema })
+  .catchall(aciBoundedJsonValueSchema);
 
 const aciUpstreamVerifiedEventSchema = z
   .object({
-    ...aciEventBase,
     type: z.literal('upstream.verified'),
-    upstream_name: aciStringSchema,
-    provider_type: aciNullableStringSchema,
+    upstream_name: aciStringSchema.optional(),
+    provider_type: aciNullableStringSchema.optional(),
     model_id: aciModelSchema,
-    url_origin: aciOriginSchema.nullable(),
-    verifier_id: aciStringSchema,
+    url_origin: aciOriginSchema.nullable().optional(),
+    verifier_id: aciStringSchema.optional(),
     result: z.enum(['verified', 'failed']),
     required: z.boolean(),
-    reason: aciNullableStringSchema,
-    channel_bindings: z.array(aciChannelBindingSchema).max(MAX_ACI_CHANNEL_BINDINGS),
-    provider_claims: aciEvidenceObjectSchema.nullable(),
+    reason: aciNullableStringSchema.optional(),
+    channel_bindings: aciEventChannelBindingsSchema.optional(),
+    provider_claims: aciEvidenceObjectSchema.nullable().optional(),
     session_id: aciSessionIdSchema.optional(),
     claims: aciSessionClaimsSchema.optional(),
   })
-  .passthrough()
+  .catchall(aciBoundedJsonValueSchema)
   .superRefine((event, context) => {
-    const hasSession = event.session_id !== undefined;
-    const hasClaims = event.claims !== undefined;
     if (event.result === 'verified') {
-      if (hasSession !== hasClaims) {
+      if (event.session_id === undefined) {
         addSortedIssue(
           context,
-          [],
-          'verified upstream session_id and claims must be present together',
+          ['session_id'],
+          'verified upstream events require a bare session id',
         );
       }
-      if (event.reason !== null) {
+      if (event.reason !== undefined && event.reason !== null) {
         addSortedIssue(
           context,
           ['reason'],
           'verified upstream events cannot carry a failure reason',
         );
       }
-      const channelBindings = event.channel_bindings as z.infer<typeof aciChannelBindingSchema>[];
-      if (channelBindings.length === 0) {
-        addSortedIssue(
-          context,
-          ['channel_bindings'],
-          'verified upstream events require a channel binding',
-        );
-      }
     } else {
-      if (hasSession || hasClaims) {
-        addSortedIssue(context, [], 'failed upstream events cannot carry a session or claims');
-      }
-      if (event.reason === null) {
+      if (event.reason === undefined || event.reason === null) {
         addSortedIssue(context, ['reason'], 'failed upstream events require a failure reason');
+      }
+      if (event.session_id !== undefined) {
+        addSortedIssue(context, ['session_id'], 'failed upstream events cannot carry a session id');
       }
     }
   });
@@ -780,55 +676,39 @@ const aciUpstreamVerifiedEventSchema = z
 const aciKnownEventTypes = new Set([
   'request.received',
   'request.forwarded',
-  'response.received',
   'response.returned',
   'upstream.verified',
-  'transparency.request_modified',
-  'transparency.response_modified',
 ]);
 
 const aciExtensionEventSchema = z
   .object({
-    seq: aciNonNegativeIntegerSchema,
     type: aciStringSchema.refine((type) => !aciKnownEventTypes.has(type)),
   })
-  .passthrough();
+  .catchall(aciBoundedJsonValueSchema);
 
-const aciReceiptEventSchema = z.union([
+const aciKnownReceiptEventSchema = z.union([
   aciRequestReceivedEventSchema,
   aciRequestForwardedEventSchema,
-  aciResponseReceivedEventSchema,
   aciResponseReturnedEventSchema,
-  aciTransparencyRequestEventSchema,
-  aciTransparencyResponseEventSchema,
   aciUpstreamVerifiedEventSchema,
-  aciExtensionEventSchema,
 ]);
+type AciKnownReceiptEvent = z.infer<typeof aciKnownReceiptEventSchema>;
+const aciReceiptEventSchema = z
+  .union([aciKnownReceiptEventSchema, aciExtensionEventSchema])
+  .transform((event): AciKnownReceiptEvent => event as AciKnownReceiptEvent);
 
-const aciReceiptSignatureSchema = z.discriminatedUnion('algo', [
-  z
-    .object({
-      algo: z.literal('ed25519'),
-      key_id: identifierSchema,
-      value: z.string().regex(/^[0-9a-f]{128}$/),
-    })
-    .strict(),
-  z
-    .object({
-      algo: z.literal('ecdsa-secp256k1'),
-      key_id: identifierSchema,
-      value: z.string().regex(/^[0-9a-f]{130}$/),
-    })
-    .strict(),
-]);
+function isAciUpstreamVerifiedEvent(
+  event: z.infer<typeof aciReceiptEventSchema>,
+): event is z.infer<typeof aciUpstreamVerifiedEventSchema> {
+  return event.type === 'upstream.verified';
+}
 
 export const aciReceiptSchema = z
   .object({
     api_version: z.literal('aci/1'),
     receipt_id: aciStringSchema,
-    chat_id: aciNullableStringSchema,
-    model: aciNullableStringSchema,
-    workload_id: aciPrefixedDigestSchema,
+    chat_id: aciNullableStringSchema.optional(),
+    model: aciNullableStringSchema.optional(),
     workload_keyset_digest: aciPrefixedDigestSchema,
     endpoint: aciRouteSchema,
     method: z
@@ -836,29 +716,17 @@ export const aciReceiptSchema = z
       .regex(/^[A-Z][A-Z0-9-]*$/)
       .max(16),
     served_at: aciPositiveIntegerSchema,
-    event_log: z.array(aciReceiptEventSchema).min(3).max(MAX_ACI_EVENTS),
-    signature: aciReceiptSignatureSchema,
+    event_log: z.array(aciReceiptEventSchema).min(2).max(MAX_ACI_EVENTS),
+    key_id: identifierSchema,
+    signature: z.string().regex(/^[0-9a-f]{128}$/),
   })
   .strict()
   .superRefine((receipt, context) => {
     const eventTypes = receipt.event_log.map((event) => event.type);
-    for (const [index, event] of receipt.event_log.entries()) {
-      const previous = receipt.event_log[index - 1];
-      if (
-        (index === 0 && event.seq !== 0) ||
-        (previous !== undefined && event.seq <= previous.seq)
-      ) {
-        addSortedIssue(
-          context,
-          ['event_log', index, 'seq'],
-          'event sequence must start at zero and be strictly increasing',
-        );
-      }
-    }
     if (eventTypes[0] !== 'request.received') {
       addSortedIssue(context, ['event_log', 0, 'type'], 'the first event must be request.received');
     }
-    for (const required of ['request.received', 'request.forwarded', 'response.returned']) {
+    for (const required of ['request.received', 'response.returned']) {
       if (eventTypes.filter((type) => type === required).length !== 1) {
         addSortedIssue(
           context,
@@ -870,97 +738,64 @@ export const aciReceiptSchema = z
     const requestReceivedIndex = eventTypes.indexOf('request.received');
     const requestForwardedIndex = eventTypes.indexOf('request.forwarded');
     const responseReturnedIndex = eventTypes.indexOf('response.returned');
-    const responseReceivedIndex = eventTypes.indexOf('response.received');
-    const responseModifiedIndexes = eventTypes
-      .map((type, index) => (type === 'transparency.response_modified' ? index : -1))
+    const upstreamIndexes = eventTypes
+      .map((type, index) => (type === 'upstream.verified' ? index : -1))
       .filter((index) => index >= 0);
+    if (requestForwardedIndex >= 0 && requestForwardedIndex <= requestReceivedIndex) {
+      addSortedIssue(context, ['event_log'], 'request.forwarded must follow request.received');
+    }
     if (
-      requestReceivedIndex >= 0 &&
       requestForwardedIndex >= 0 &&
       responseReturnedIndex >= 0 &&
-      (requestForwardedIndex <= requestReceivedIndex ||
-        responseReturnedIndex <= requestForwardedIndex)
+      requestForwardedIndex >= responseReturnedIndex
     ) {
-      addSortedIssue(context, ['event_log'], 'request events must precede response.returned');
+      addSortedIssue(context, ['event_log'], 'request.forwarded must precede response.returned');
     }
-    if (responseReturnedIndex >= 0) {
-      for (const [index, event] of receipt.event_log.entries()) {
-        if (
-          (event.type === 'upstream.verified' || event.type === 'response.received') &&
-          index >= responseReturnedIndex
-        ) {
-          addSortedIssue(
-            context,
-            ['event_log', index],
-            'response.returned must be last among response events',
-          );
-        }
-      }
-    }
-    for (const responseModifiedIndex of responseModifiedIndexes) {
+    for (const upstreamIndex of upstreamIndexes) {
       if (
-        responseReceivedIndex < 0 ||
-        responseModifiedIndex <= responseReceivedIndex ||
-        responseModifiedIndex >= responseReturnedIndex
+        upstreamIndex <= requestReceivedIndex ||
+        (requestForwardedIndex >= 0 && upstreamIndex <= requestForwardedIndex) ||
+        upstreamIndex >= responseReturnedIndex
       ) {
         addSortedIssue(
           context,
-          ['event_log', responseModifiedIndex],
-          'response transparency must follow response.received and precede response.returned',
+          ['event_log', upstreamIndex],
+          'upstream verification must follow request events and precede response.returned',
         );
       }
+    }
+    const successfulUpstream = receipt.event_log.some(
+      (event) => isAciUpstreamVerifiedEvent(event) && event.result === 'verified',
+    );
+    const failedRequiredUpstream = receipt.event_log.some(
+      (event) => isAciUpstreamVerifiedEvent(event) && event.result === 'failed' && event.required,
+    );
+    if (successfulUpstream && requestForwardedIndex < 0) {
+      addSortedIssue(
+        context,
+        ['event_log'],
+        'successful upstream verification requires forwarding',
+      );
+    }
+    if (failedRequiredUpstream && requestForwardedIndex >= 0 && !successfulUpstream) {
+      addSortedIssue(context, ['event_log'], 'required refusal must not carry request.forwarded');
     }
     for (const [index, event] of receipt.event_log.entries()) {
-      if (
-        event.type === 'upstream.verified' &&
-        (index <= requestForwardedIndex || index >= responseReturnedIndex)
-      ) {
+      const eventType = event.type as string;
+      if (Object.prototype.hasOwnProperty.call(event, 'seq')) {
         addSortedIssue(
           context,
-          ['event_log', index],
-          'upstream verification must follow request.forwarded and precede response.returned',
+          ['event_log', index, 'seq'],
+          'ACI/1 events do not carry sequence numbers',
         );
       }
-    }
-    const received = receipt.event_log.find(
-      (event): event is z.infer<typeof aciRequestReceivedEventSchema> =>
-        event.type === 'request.received',
-    );
-    const forwarded = receipt.event_log.find(
-      (event): event is z.infer<typeof aciRequestForwardedEventSchema> =>
-        event.type === 'request.forwarded',
-    );
-    if (
-      received &&
-      forwarded &&
-      received.body_hash !== forwarded.body_hash &&
-      !eventTypes.includes('transparency.request_modified')
-    ) {
-      addSortedIssue(
-        context,
-        ['event_log'],
-        'modified requests require transparency.request_modified',
-      );
-    }
-    const receivedResponse = receipt.event_log.find(
-      (event): event is z.infer<typeof aciResponseReceivedEventSchema> =>
-        event.type === 'response.received',
-    );
-    const returned = receipt.event_log.find(
-      (event): event is z.infer<typeof aciResponseReturnedEventSchema> =>
-        event.type === 'response.returned',
-    );
-    if (
-      receivedResponse &&
-      returned &&
-      receivedResponse.cleartext_hash !== returned.cleartext_hash &&
-      !eventTypes.includes('transparency.response_modified')
-    ) {
-      addSortedIssue(
-        context,
-        ['event_log'],
-        'modified responses require transparency.response_modified',
-      );
+      if (
+        (eventType === 'response.returned' || eventType === 'response.received') &&
+        (Object.prototype.hasOwnProperty.call(event, 'wire_hash') ||
+          Object.prototype.hasOwnProperty.call(event, 'cleartext_hash'))
+      ) {
+        addSortedIssue(context, ['event_log', index], 'response events carry only body_hash');
+      }
     }
   });
 export type AciReceipt = z.infer<typeof aciReceiptSchema>;
@@ -979,7 +814,7 @@ const aciDstackIdentitySchema = aciStringSchema;
 const aciPolicyChannelBindingSchema = z.discriminatedUnion('type', [
   z
     .object({
-      type: z.enum(['tls_spki_sha256', 'tls_certificate_sha256']),
+      type: z.literal('tls_spki_sha256'),
       domains: z.array(aciHostnameSchema).min(1).max(MAX_POLICY_ITEMS),
     })
     .strict(),

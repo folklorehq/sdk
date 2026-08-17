@@ -17,6 +17,7 @@ export type AciSessionVerificationErrorCode =
   | 'session_evidence_missing'
   | 'session_evidence_verification_failed'
   | 'evidence_verifier_unavailable'
+  | 'high_water_unavailable'
   | 'session_malformed'
   | 'session_id_mismatch';
 

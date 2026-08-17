@@ -38,6 +38,19 @@ const RAW_DIGEST = /^[0-9a-f]{64}$/;
 const HEX = /^[0-9a-f]+$/;
 const DEFAULT_EVIDENCE_VERIFIER_TIMEOUT_MS = 5_000;
 
+type AciTlsSpkiBinding = {
+  readonly type: 'tls_spki_sha256';
+  readonly origin: string;
+  readonly spki_sha256: string;
+};
+type AciE2eeBinding = {
+  readonly type: 'e2ee_public_key_sha256';
+  readonly provider: string;
+  readonly algorithm: string;
+  readonly public_key_sha256: string;
+  readonly key_id?: string;
+};
+
 const boundedStringSchema = z.string().min(1).max(512);
 const keyRecordSchema = z
   .object({
@@ -48,7 +61,7 @@ const keyRecordSchema = z
   .strict();
 const channelPinSchema = z
   .object({
-    type: z.enum(['tls_spki_sha256', 'tls_certificate_sha256', 'e2ee_public_key_sha256']),
+    type: z.enum(['tls_spki_sha256', 'e2ee_public_key_sha256']),
     value: z.string().regex(RAW_DIGEST),
     domain: z.string().min(1).max(253).optional(),
     algorithm: boundedStringSchema.optional(),
@@ -85,6 +98,7 @@ const candidateEnvelopeSchema = z
     role: z.enum(REQUIRED_ROLES as [InferenceModelRole, ...InferenceModelRole[]]),
     model: z.string().min(1).max(256),
     modelRevision: boundedStringSchema,
+    sessionId: z.string().regex(RAW_DIGEST),
     workloadKeysetDigest: z.string().regex(PREFIXED_DIGEST),
     channelKeyDigest: z.string().regex(PREFIXED_DIGEST),
     policyGeneration: z.number().int().safe().nonnegative(),
@@ -129,10 +143,17 @@ export class AciSessionVerifier {
   private readonly evidenceVerifier: AciSessionEvidenceVerifierPort;
   private readonly evidenceVerifierTimeoutMs: number;
   private readonly policy: AciSessionVerifierConfig['policy'];
+  private readonly keysetHighWaterAuthority: NonNullable<
+    AciSessionVerifierConfig['keysetHighWaterAuthority']
+  >;
 
   constructor(config: AciSessionVerifierConfig) {
     this.trustedTimeAuthority = config.trustedTimeAuthority;
     this.trustedTimeContext = config.trustedTimeContext;
+    if (typeof config.keysetHighWaterAuthority?.read !== 'function') {
+      throw new AciSessionVerificationError('high_water_unavailable');
+    }
+    this.keysetHighWaterAuthority = config.keysetHighWaterAuthority;
     const policy = inferenceTrustPolicyV2Schema.safeParse(config.policy);
     if (!policy.success) throw new AciSessionVerificationError('policy_invalid');
     this.policy = this.deepFreeze(policy.data);
@@ -152,13 +173,37 @@ export class AciSessionVerifier {
 
   async verifyAndSelect(input: AciSessionVerificationInput): Promise<VerifiedAciSessionSet> {
     input = this.parseInput(input);
-    this.validateState(input, await this.readTrustedTime(this.trustedTimeContext));
-    this.validateCandidateBindings(input.candidates);
+    const durable = await this.keysetHighWaterAuthority.read(this.trustedTimeContext);
+    if (durable === undefined) throw new AciSessionVerificationError('high_water_unavailable');
+    if (durable.currentKeysetDigest !== input.keyset.workloadKeysetDigest) {
+      throw new AciSessionVerificationError('keyset_superseded');
+    }
+    this.validateState(
+      { ...input, highWater: this.highWaterFor(durable) },
+      await this.readTrustedTime(this.trustedTimeContext),
+    );
+    this.validateCandidateBindings(input);
     await this.verifyCandidateEvidence(
       input.candidates,
       performance.now() + this.evidenceVerifierTimeoutMs,
     );
     return this.selectSessions(input, await this.readTrustedTime(this.trustedTimeContext));
+  }
+
+  private highWaterFor(
+    durable: Readonly<{
+      policyGeneration: number;
+      activationGeneration: number;
+      keysetVersion: number;
+      supersededKeysetDigests: readonly string[];
+    }>,
+  ): AciSessionVerificationInput['highWater'] {
+    return {
+      minimumPolicyGeneration: durable.policyGeneration,
+      minimumActivationGeneration: durable.activationGeneration,
+      minimumKeysetVersion: durable.keysetVersion,
+      supersededKeysetDigests: durable.supersededKeysetDigests,
+    };
   }
 
   private validateState(input: AciSessionVerificationInput, now: number): void {
@@ -188,7 +233,6 @@ export class AciSessionVerifier {
     if (
       input.candidates.some(
         (candidate) =>
-          candidate.workloadKeysetDigest !== input.keyset.workloadKeysetDigest ||
           candidate.policyGeneration !== this.policy.generation ||
           candidate.activationGeneration !== activationGeneration,
       )
@@ -197,10 +241,11 @@ export class AciSessionVerifier {
     }
   }
 
-  private validateCandidateBindings(candidates: readonly AciSessionCandidate[]): void {
+  private validateCandidateBindings(input: AciSessionVerificationInput): void {
+    const { candidates } = input;
     if (
       candidates.some(
-        (candidate) => candidate.session.session_id !== this.sessionContentId(candidate.session),
+        (candidate) => candidate.sessionId !== this.sessionContentId(candidate.session),
       )
     ) {
       throw new AciSessionVerificationError('session_id_mismatch');
@@ -208,13 +253,7 @@ export class AciSessionVerifier {
     if (candidates.some((candidate) => !this.evidenceDigestMatches(candidate.session))) {
       throw new AciSessionVerificationError('evidence_digest_mismatch');
     }
-    if (
-      candidates.some(
-        (candidate) =>
-          !this.channelBindingsAccepted(candidate.session) ||
-          candidate.channelKeyDigest !== this.sessionChannelKeyDigest(candidate.session),
-      )
-    ) {
+    if (candidates.some((candidate) => !this.channelBindingsAccepted(candidate.session))) {
       throw new AciSessionVerificationError('channel_binding_mismatch');
     }
   }
@@ -253,14 +292,14 @@ export class AciSessionVerifier {
           throw new AciSessionVerificationError('session_evidence_verification_failed');
         }
         if (
-          verified.sessionId !== candidate.session.session_id ||
+          verified.sessionId !== candidate.sessionId ||
           verified.establishedAt !== candidate.session.established_at ||
           verified.expiresAt !== candidate.session.expires_at ||
           verified.channelKeyDigest !== this.sessionChannelKeyDigest(candidate.session) ||
           verified.upstreamIdentityDigest !== this.upstreamIdentityDigest(candidate.session) ||
-          !isDeepStrictEqual(verified.claims, candidate.session.claims) ||
-          !isDeepStrictEqual(verified.identity, candidate.session.identity ?? null) ||
-          !isDeepStrictEqual(verified.channelBindings, candidate.session.channel_binding)
+          !this.matchesBoundedValue(verified.claims, candidate.session.claims) ||
+          !this.matchesBoundedValue(verified.identity, candidate.session.identity ?? null) ||
+          !this.matchesBoundedValue(verified.channelBindings, candidate.session.channel_binding)
         ) {
           throw new AciSessionVerificationError('session_evidence_binding_mismatch');
         }
@@ -277,10 +316,7 @@ export class AciSessionVerifier {
   private selectSessions(input: AciSessionVerificationInput, now: number): VerifiedAciSessionSet {
     return this.deepFreeze(
       Object.fromEntries(
-        REQUIRED_ROLES.map((role) => [
-          role,
-          this.selectSession(role, input.candidates, input.keyset.workloadKeysetDigest, now),
-        ]),
+        REQUIRED_ROLES.map((role) => [role, this.selectSession(role, input.candidates, now)]),
       ) as VerifiedAciSessionSet,
     );
   }
@@ -288,7 +324,6 @@ export class AciSessionVerifier {
   private selectSession(
     role: InferenceModelRole,
     candidates: readonly AciSessionCandidate[],
-    workloadKeysetDigest: string,
     now: number,
   ): VerifiedAciSession {
     const expected = this.policy.roleModels[role];
@@ -308,40 +343,52 @@ export class AciSessionVerifier {
         if (left.session.established_at !== right.session.established_at) {
           return left.session.established_at > right.session.established_at ? -1 : 1;
         }
-        if (left.session.session_id === right.session.session_id) return 0;
-        return left.session.session_id < right.session.session_id ? -1 : 1;
+        if (left.sessionId === right.sessionId) return 0;
+        return left.sessionId < right.sessionId ? -1 : 1;
       })[0];
     if (candidate === undefined) throw new AciSessionVerificationError('no_eligible_session');
     return {
       role,
       model: candidate.model,
       modelRevision: candidate.modelRevision,
-      sessionId: candidate.session.session_id,
+      sessionId: candidate.sessionId,
       establishedAt: candidate.session.established_at,
       expiresAt: candidate.session.expires_at,
-      workloadKeysetDigest,
+      workloadKeysetDigest: candidate.workloadKeysetDigest,
       channelKeyDigest: candidate.channelKeyDigest,
       channelPins: this.sessionChannelPins(candidate.session),
       upstreamIdentityDigest: this.upstreamIdentityDigest(candidate.session),
+      upstreamIdentity: {
+        upstreamName: candidate.session.upstream_name,
+        urlOrigin: candidate.session.endpoint ?? null,
+        verifierId: candidate.session.verifier_id,
+        claims: candidate.session.claims,
+      },
     };
   }
 
   private parseInput(input: AciSessionVerificationInput): AciSessionVerificationInput {
-    const parsed = verificationInputSchema.safeParse(input);
-    if (!parsed.success) throw new AciSessionVerificationError('input_invalid');
-    const candidates: AciSessionCandidate[] = parsed.data.candidates.map((candidate) => ({
-      role: candidate.role,
-      model: candidate.model,
-      modelRevision: candidate.modelRevision,
-      workloadKeysetDigest: candidate.workloadKeysetDigest,
-      channelKeyDigest: candidate.channelKeyDigest,
-      policyGeneration: candidate.policyGeneration,
-      activationGeneration: candidate.activationGeneration,
-      session: this.parseSession(candidate.session, candidate.sessionBytes),
-      sessionBytes: Uint8Array.from(candidate.sessionBytes),
-    }));
-    this.assertAggregateCandidateBudget(candidates);
-    return { keyset: parsed.data.keyset, candidates, highWater: parsed.data.highWater };
+    try {
+      const parsed = verificationInputSchema.safeParse(input);
+      if (!parsed.success) throw new AciSessionVerificationError('input_invalid');
+      const candidates: AciSessionCandidate[] = parsed.data.candidates.map((candidate) => ({
+        role: candidate.role,
+        model: candidate.model,
+        modelRevision: candidate.modelRevision,
+        sessionId: candidate.sessionId,
+        workloadKeysetDigest: candidate.workloadKeysetDigest,
+        channelKeyDigest: candidate.channelKeyDigest,
+        policyGeneration: candidate.policyGeneration,
+        activationGeneration: candidate.activationGeneration,
+        session: this.parseSession(candidate.session, candidate.sessionBytes),
+        sessionBytes: Uint8Array.from(candidate.sessionBytes),
+      }));
+      this.assertAggregateCandidateBudget(candidates);
+      return { keyset: parsed.data.keyset, candidates, highWater: parsed.data.highWater };
+    } catch (error) {
+      if (error instanceof AciSessionVerificationError) throw error;
+      throw new AciSessionVerificationError('input_invalid');
+    }
   }
 
   private assertAggregateCandidateBudget(
@@ -367,7 +414,7 @@ export class AciSessionVerifier {
       nodes += 1;
       if (nodes > MAX_AGGREGATE_SESSION_NODES) return nodes;
       if (item === null || typeof item !== 'object') continue;
-      if (seen.has(item)) return nodes;
+      if (seen.has(item)) throw new AciSessionVerificationError('session_malformed');
       seen.add(item);
       if (Array.isArray(item)) stack.push(...item);
       else stack.push(...Object.values(item));
@@ -381,7 +428,7 @@ export class AciSessionVerifier {
     if (!supplied.success) throw new AciSessionVerificationError('session_malformed');
     let decoded: unknown;
     try {
-      decoded = parseStrictJsonBytes(sessionBytes, MAX_SESSION_BYTES);
+      decoded = parseStrictJsonBytes(sessionBytes, MAX_SESSION_BYTES, { asciiMemberNames: true });
     } catch {
       throw new AciSessionVerificationError('session_malformed');
     }
@@ -471,21 +518,22 @@ export class AciSessionVerifier {
   }
 
   private sessionContentId(session: AciSession): string {
-    const material = {
-      upstream_name: session.upstream_name,
-      endpoint: session.endpoint ?? null,
-      verifier_id: session.verifier_id,
-      identity: session.identity ?? null,
-      channel_binding: session.channel_binding,
-      claims: session.claims,
-      evidence_digest: session.evidence.digest ?? null,
-    };
-    return `as_${createHash('sha256').update(this.canonicalJson(material)).digest('hex')}`;
+    return createHash('sha256').update(this.canonicalJson(session)).digest('hex');
+  }
+
+  private matchesBoundedValue(left: unknown, right: unknown): boolean {
+    try {
+      this.assertBoundedStructure(left);
+      this.assertBoundedStructure(right);
+      return isDeepStrictEqual(left, right);
+    } catch {
+      return false;
+    }
   }
 
   private evidenceDigestMatches(session: AciSession): boolean {
     const data = session.evidence.data;
-    if (data === undefined) return true;
+    if (data === undefined) return false;
     const digest = session.evidence.digest;
     const bytes = this.sessionEvidenceBytes(session);
     if (digest === undefined || bytes === undefined) return false;
@@ -513,8 +561,15 @@ export class AciSessionVerifier {
   private claimsAccepted(session: AciSession): boolean {
     return this.policy.requiredSessionClaims.every((claimName) => {
       const claim = session.claims[claimName];
+      if (claim === null || typeof claim !== 'object' || Array.isArray(claim)) return false;
+      const status = (claim as Record<string, unknown>).status;
+      const source = (claim as Record<string, unknown>).source;
       return (
-        claim.status === 'asserted' && this.policy.permittedClaimSources.includes(claim.source)
+        status === 'asserted' &&
+        typeof source === 'string' &&
+        this.policy.permittedClaimSources.includes(
+          source as (typeof this.policy.permittedClaimSources)[number],
+        )
       );
     });
   }
@@ -530,28 +585,32 @@ export class AciSessionVerifier {
   }
 
   private channelBindingsAccepted(session: AciSession): boolean {
-    return session.channel_binding.every((binding) => {
+    let acceptedKnownBindings = 0;
+    for (const binding of session.channel_binding) {
       if (binding.type === 'e2ee_public_key_sha256') {
-        return this.e2eeBindingAccepted(session, binding);
+        if (!this.e2eeBindingAccepted(session, binding as AciE2eeBinding)) return false;
+        acceptedKnownBindings += 1;
+        continue;
       }
+      if (binding.type !== 'tls_spki_sha256') continue;
+      const tlsBinding = binding as AciTlsSpkiBinding;
       let hostname: string;
       try {
-        hostname = new URL(binding.origin).hostname;
+        hostname = new URL(tlsBinding.origin).hostname;
       } catch {
         return false;
       }
-      if (session.endpoint != null && binding.origin !== session.endpoint) return false;
+      if (session.endpoint != null && tlsBinding.origin !== session.endpoint) return false;
       const policyAccepts = this.policy.channelPolicy.acceptedBindings.some(
-        (accepted) => accepted.type === binding.type && accepted.domains.includes(hostname),
+        (accepted) => accepted.type === tlsBinding.type && accepted.domains.includes(hostname),
       );
-      return policyAccepts;
-    });
+      if (!policyAccepts) return false;
+      acceptedKnownBindings += 1;
+    }
+    return acceptedKnownBindings > 0;
   }
 
-  private e2eeBindingAccepted(
-    session: AciSession,
-    binding: Extract<AciSession['channel_binding'][number], { type: 'e2ee_public_key_sha256' }>,
-  ): boolean {
+  private e2eeBindingAccepted(session: AciSession, binding: AciE2eeBinding): boolean {
     const endpoint = session.endpoint;
     if (endpoint === undefined) return false;
     const policyAccepts = this.policy.channelPolicy.acceptedBindings.some(
@@ -569,23 +628,29 @@ export class AciSessionVerifier {
   }
 
   private sessionChannelPins(session: AciSession): readonly VerifiedAciChannelPin[] {
-    return session.channel_binding.map((binding) => {
+    const pins: VerifiedAciChannelPin[] = [];
+    for (const binding of session.channel_binding) {
       if (binding.type === 'e2ee_public_key_sha256') {
-        return {
+        const e2eeBinding = binding as AciE2eeBinding;
+        pins.push({
           type: binding.type,
-          value: binding.public_key_sha256,
-          algorithm: binding.algorithm,
-          ...(binding.key_id === undefined ? {} : { keyId: binding.key_id }),
-          provider: binding.provider,
-        };
+          value: e2eeBinding.public_key_sha256,
+          algorithm: e2eeBinding.algorithm,
+          ...(e2eeBinding.key_id === undefined ? {} : { keyId: e2eeBinding.key_id }),
+          provider: e2eeBinding.provider,
+        });
+        continue;
       }
-      return {
+      if (binding.type !== 'tls_spki_sha256') continue;
+      const tlsBinding = binding as AciTlsSpkiBinding;
+      pins.push({
         type: binding.type,
-        value:
-          binding.type === 'tls_spki_sha256' ? binding.spki_sha256 : binding.certificate_sha256,
-        domain: new URL(binding.origin).hostname,
-      };
-    });
+        value: tlsBinding.spki_sha256,
+        domain: new URL(tlsBinding.origin).hostname,
+      });
+    }
+    if (pins.length === 0) throw new AciSessionVerificationError('channel_binding_mismatch');
+    return pins;
   }
 
   private canonicalJson(value: unknown): string {

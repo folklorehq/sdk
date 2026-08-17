@@ -35,6 +35,16 @@ export type {
   VerifiedAciReceipt,
   AciReceiptVerifierConfig,
   AciReceiptVerifierPort,
+  AciReceiptReplayClaim,
+  AciReceiptReplayStorePort,
+  AciReceiptReplayPort,
+  AciTrustHighWater,
+  AciTrustHighWaterStorePort,
+  AciKeysetHighWater,
+  AciKeysetHighWaterPort,
+  AciKeysetHighWaterAuthorityPort,
+  ForwardAdmissionCapability,
+  ForwardBodyOpenCapability,
   AciTrustStatePort,
   AciV2TrustStatePort,
   OfficialAciRequest,
@@ -49,6 +59,7 @@ export type {
   NsmAttestationDocumentV1,
   NsmTrustedTimeSourcePort,
   MonotonicRawClockPort,
+  TrustedWriteBoundaryPort,
   TrustedTimeDecisionReason,
   PreForwardRouteProofVerificationInput,
   PreForwardRouteProofVerifierPort,
@@ -57,11 +68,29 @@ export type {
   MutuallyAttestedChannelPort,
   ControlProofExchangePort,
   OfficialAciRequestWireSerializerPort,
+  AciChannelTransportResponse,
+  AciChannelTransport,
+  AciChannelTransportPort,
+  OfficialAciTransportPort,
   ForwardProofReservation,
+  ForwardAdmissionReservation,
   ForwardLease,
   ForwardLeaseStorePort,
-  PreForwardAdmissionPort,
+  VerifiedPreForwardRouteProof,
+  ObservedAciChannelBinding,
+  ForwardCommitment,
+  VerifiedCommitmentConfirmation,
+  ForwardWritePermit,
+  AciChannelWriteOperation,
+  ForwardReplayScope,
+  ForwardReplayAuthorityPort,
+  ForwardJournalState,
+  ForwardReplayJournalEntry,
+  ForwardReplayJournalSnapshot,
+  ForwardReplayJournalPort,
+  ForwardCommitmentAuthenticatorPort,
 } from './ports.js';
+export { FORWARD_COMMITMENT_PROTOCOL } from './ports.js';
 export { TeeEndpointBackend, type TeeEndpointConfig } from './TeeEndpointBackend.js';
 export {
   OpenAICompatBackend,
@@ -117,3 +146,20 @@ export {
   preForwardRouteProofPayload,
   type PreForwardRouteProofVerifierConfig,
 } from './aci/PreForwardRouteProofVerifier.js';
+export { NativeAciTransport } from './aci/NativeAciTransport.js';
+export {
+  DurableForwardReplayAuthority,
+  type DurableForwardReplayAuthorityConfig,
+} from './aci/DurableForwardReplayAuthority.js';
+export { ForwardCommitmentAuthenticator } from './aci/ForwardCommitmentAuthenticator.js';
+export {
+  createForwardAdmissionRuntime,
+  type ForwardAdmissionRuntime,
+  type ForwardAdmissionRuntimeConfig,
+} from './aci/ForwardAdmissionRuntime.js';
+export {
+  PreForwardAdmissionService,
+  PreForwardAdmissionError,
+  type PreForwardAdmissionInput,
+  type PreForwardAdmissionServiceConfig,
+} from './aci/PreForwardAdmissionService.js';

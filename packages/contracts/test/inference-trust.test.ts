@@ -496,6 +496,29 @@ describe('inferenceReceiptV1Schema', () => {
 });
 
 describe('inferenceTrustPolicyV2Schema', () => {
+  it('keeps TLS certificate bindings bounded but excludes them from enforceable policy', () => {
+    expect(
+      aciSessionSchema.safeParse({
+        ...ACI_SESSION_FIXTURE,
+        channel_binding: [
+          {
+            type: 'tls_certificate_sha256',
+            origin: 'https://upstream.example.com',
+            certificate_sha256: 'a'.repeat(64),
+          },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(
+      inferenceTrustPolicyV2Schema.safeParse({
+        ...ACI_POLICY_FIXTURE,
+        channelPolicy: {
+          acceptedBindings: [{ type: 'tls_certificate_sha256', domains: ['upstream.example.com'] }],
+        },
+      }).success,
+    ).toBe(false);
+  });
+
   it('accepts reviewed evidence, provenance, channel, model, and role bindings', () => {
     const policy = inferenceTrustPolicyV2Schema.parse(ACI_POLICY_FIXTURE);
 
@@ -840,7 +863,7 @@ describe('activeInferenceTrustPolicyV2Schema', () => {
 });
 
 describe('aciWorkloadReportSchema', () => {
-  it('accepts the official ACI/1 report shape and only designated extensions', () => {
+  it('accepts the pinned official ACI/1 report shape and policy-defined extensions', () => {
     const report = aciWorkloadReportSchema.parse({
       ...ACI_REPORT_FIXTURE,
       attestation: {
@@ -854,12 +877,12 @@ describe('aciWorkloadReportSchema', () => {
     });
 
     expect(report.api_version).toBe('aci/1');
-    expect(report.attestation.workload_keyset.keyset_epoch.not_after).toBe(1_800_000_000);
+    expect(report.attestation.workload_keyset.not_after).toBe(1_800_000_000);
     expect(report.attestation.evidence.provider_extension).toEqual({ status: 'redacted' });
     expect(report.service_capabilities.provider_extension).toBe('ignored-by-generic-verifiers');
   });
 
-  it('accepts official optional workload identity subject and TLS public keys', () => {
+  it('accepts the optional subject and TLS public-key list without a legacy identity block', () => {
     const keyset = ACI_REPORT_FIXTURE.attestation.workload_keyset;
 
     expect(
@@ -869,25 +892,37 @@ describe('aciWorkloadReportSchema', () => {
           ...ACI_REPORT_FIXTURE.attestation,
           workload_keyset: {
             ...keyset,
-            workload_identity: {
-              public_key: keyset.workload_identity.public_key,
-            },
             tls_public_keys: undefined,
           },
         },
-      }).attestation.workload_keyset.workload_identity.subject,
-    ).toBeUndefined();
+      }).attestation.workload_keyset.subject,
+    ).toBe('dstack-app://example-app');
   });
 
-  it('rejects unknown fields in every fixed nested report shape', () => {
+  it('rejects removed report, attestation, and keyset fields', () => {
     const keyset = ACI_REPORT_FIXTURE.attestation.workload_keyset;
     const attestation = ACI_REPORT_FIXTURE.attestation;
-    const nestedUnknownCases: unknown[] = [
+    const legacyCases: unknown[] = [
+      { ...ACI_REPORT_FIXTURE, workload_id: 'sha256:' + 'a'.repeat(64) },
       {
         ...ACI_REPORT_FIXTURE,
         attestation: {
           ...attestation,
-          workload_keyset: { ...keyset, unexpected: true },
+          vendor: 'legacy-provider',
+        },
+      },
+      {
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...attestation,
+          freshness: { fetched_at: 1, stale_after: 2 },
+        },
+      },
+      {
+        ...ACI_REPORT_FIXTURE,
+        attestation: {
+          ...attestation,
+          keyset_endorsement: { algo: 'ed25519', value: 'a'.repeat(128) },
         },
       },
       {
@@ -896,96 +931,19 @@ describe('aciWorkloadReportSchema', () => {
           ...attestation,
           workload_keyset: {
             ...keyset,
-            workload_identity: { ...keyset.workload_identity, unexpected: true },
+            workload_identity: { public_key: { algo: 'ed25519', public_key: 'a'.repeat(64) } },
           },
-        },
-      },
-      {
-        ...ACI_REPORT_FIXTURE,
-        attestation: {
-          ...attestation,
-          workload_keyset: {
-            ...keyset,
-            workload_identity: {
-              ...keyset.workload_identity,
-              public_key: { ...keyset.workload_identity.public_key, unexpected: true },
-            },
-          },
-        },
-      },
-      {
-        ...ACI_REPORT_FIXTURE,
-        attestation: {
-          ...attestation,
-          workload_keyset: {
-            ...keyset,
-            keyset_epoch: { ...keyset.keyset_epoch, unexpected: true },
-          },
-        },
-      },
-      {
-        ...ACI_REPORT_FIXTURE,
-        attestation: {
-          ...attestation,
-          workload_keyset: {
-            ...keyset,
-            receipt_signing_keys: [{ ...keyset.receipt_signing_keys[0], unexpected: true }],
-          },
-        },
-      },
-      {
-        ...ACI_REPORT_FIXTURE,
-        attestation: {
-          ...attestation,
-          workload_keyset: {
-            ...keyset,
-            e2ee_public_keys: [{ ...keyset.e2ee_public_keys[0], unexpected: true }],
-          },
-        },
-      },
-      {
-        ...ACI_REPORT_FIXTURE,
-        attestation: {
-          ...attestation,
-          workload_keyset: {
-            ...keyset,
-            tls_public_keys: [{ ...keyset.tls_public_keys[0], unexpected: true }],
-          },
-        },
-      },
-      {
-        ...ACI_REPORT_FIXTURE,
-        attestation: {
-          ...attestation,
-          keyset_endorsement: { ...attestation.keyset_endorsement, unexpected: true },
-        },
-      },
-      {
-        ...ACI_REPORT_FIXTURE,
-        attestation: {
-          ...attestation,
-          source_provenance: { ...attestation.source_provenance, unexpected: true },
-        },
-      },
-      {
-        ...ACI_REPORT_FIXTURE,
-        attestation: {
-          ...attestation,
-          freshness: { ...attestation.freshness, unexpected: true },
         },
       },
     ];
 
-    for (const nestedUnknown of nestedUnknownCases) {
-      expect(aciWorkloadReportSchema.safeParse(nestedUnknown).success).toBe(false);
+    for (const legacy of legacyCases) {
+      expect(aciWorkloadReportSchema.safeParse(legacy).success).toBe(false);
     }
   });
 
-  it('rejects V1 fields, malformed nonce-bound report data, invalid expiry, and fixed-shape extras', () => {
+  it('rejects malformed report data, invalid expiry, and unknown top-level fields', () => {
     expect(() => aciWorkloadReportSchema.parse({ ...ACI_REPORT_FIXTURE, version: 1 })).toThrow();
-    expect(() =>
-      aciWorkloadReportSchema.parse({ ...ACI_REPORT_FIXTURE, nonce: 'test-nonce' }),
-    ).toThrow();
     expect(() =>
       aciWorkloadReportSchema.parse({
         ...ACI_REPORT_FIXTURE,
@@ -995,92 +953,18 @@ describe('aciWorkloadReportSchema', () => {
     expect(() =>
       aciWorkloadReportSchema.parse({
         ...ACI_REPORT_FIXTURE,
-        attestation: {
-          ...ACI_REPORT_FIXTURE.attestation,
-          freshness: { fetched_at: 1_750_003_600, stale_after: 1_750_000_000 },
-        },
-      }),
-    ).toThrow();
-    expect(() =>
-      aciWorkloadReportSchema.parse({
-        ...ACI_REPORT_FIXTURE,
         unexpected: true,
       }),
     ).toThrow();
-    expect(() =>
-      aciWorkloadReportSchema.parse({
-        ...ACI_REPORT_FIXTURE,
-        attestation: { ...ACI_REPORT_FIXTURE.attestation, unexpected: true },
-      }),
-    ).toThrow();
   });
 
-  it('requires repository provenance or an independently verified image digest', () => {
-    expect(() =>
-      aciWorkloadReportSchema.parse({
-        ...ACI_REPORT_FIXTURE,
-        attestation: {
-          ...ACI_REPORT_FIXTURE.attestation,
-          source_provenance: {
-            repo_url: null,
-            repo_commit: null,
-            image_digest: null,
-            image_provenance: null,
-          },
-        },
-      }),
-    ).toThrow();
+  it('allows absent source provenance because it is policy-checked separately', () => {
     expect(
       aciWorkloadReportSchema.parse({
         ...ACI_REPORT_FIXTURE,
-        attestation: {
-          ...ACI_REPORT_FIXTURE.attestation,
-          source_provenance: {
-            repo_url: null,
-            repo_commit: null,
-            image_digest: 'sha256:' + 'e'.repeat(64),
-            image_provenance: null,
-          },
-        },
-      }).attestation.source_provenance.image_digest,
-    ).toBe('sha256:' + 'e'.repeat(64));
-  });
-
-  it('accepts the exact 64-byte ECDSA r||s keyset endorsement and rejects a 65-byte value', () => {
-    const ecdsaReport = {
-      ...ACI_REPORT_FIXTURE,
-      attestation: {
-        ...ACI_REPORT_FIXTURE.attestation,
-        workload_keyset: {
-          ...ACI_REPORT_FIXTURE.attestation.workload_keyset,
-          workload_identity: {
-            ...ACI_REPORT_FIXTURE.attestation.workload_keyset.workload_identity,
-            public_key: {
-              algo: 'ecdsa-secp256k1',
-              public_key: '02' + 'a'.repeat(64),
-            },
-          },
-        },
-        keyset_endorsement: {
-          algo: 'ecdsa-secp256k1',
-          value: 'a'.repeat(128),
-        },
-      },
-    };
-
-    expect(() => aciWorkloadReportSchema.parse(ecdsaReport)).not.toThrow();
-    expect(() =>
-      aciWorkloadReportSchema.parse({
-        ...ecdsaReport,
-        attestation: {
-          ...ecdsaReport.attestation,
-          keyset_endorsement: {
-            ...ecdsaReport.attestation.keyset_endorsement,
-            value: 'a'.repeat(130),
-          },
-        },
-      }),
-    ).toThrow();
+        attestation: { ...ACI_REPORT_FIXTURE.attestation, source_provenance: null },
+      }).attestation.source_provenance,
+    ).toBeNull();
   });
 
   it('enforces algorithm-specific E2EE public-key lengths', () => {
@@ -1136,6 +1020,7 @@ describe('aciSessionSchema', () => {
     expect(session.api_version).toBe('aci/1');
     expect(session.claims.tee_attested.status).toBe('asserted');
     expect(session.claims.extra?.tcb_status).toBe('redacted');
+    expect('session_id' in session).toBe(false);
   });
 
   it('accepts bounded verifier-specific session identity fields', () => {
@@ -1181,15 +1066,14 @@ describe('aciSessionSchema', () => {
         },
       }),
     ).toThrow();
-    expect(() =>
-      aciSessionSchema.parse({
-        ...ACI_SESSION_FIXTURE,
-        claims: { ...ACI_SESSION_FIXTURE.claims, unknown_claim: { status: 'unknown' } },
-      }),
-    ).toThrow();
+    const parsed = aciSessionSchema.parse({
+      ...ACI_SESSION_FIXTURE,
+      claims: { ...ACI_SESSION_FIXTURE.claims, unknown_claim: { status: 'unknown' } },
+    });
+    expect(parsed.claims.unknown_claim).toEqual({ status: 'unknown' });
   });
 
-  it('rejects stale session expiry, malformed channel bindings, evidence data, and fixed extras', () => {
+  it('requires valid expiry and channel bindings while accepting bounded evidence extensions', () => {
     expect(() =>
       aciSessionSchema.parse({
         ...ACI_SESSION_FIXTURE,
@@ -1208,24 +1092,30 @@ describe('aciSessionSchema', () => {
         ],
       }),
     ).toThrow();
-    expect(() =>
+    expect(
+      aciSessionSchema.parse({
+        ...ACI_SESSION_FIXTURE,
+        evidence: { digest: ACI_SESSION_FIXTURE.evidence.digest },
+      }).evidence,
+    ).toEqual({ digest: ACI_SESSION_FIXTURE.evidence.digest });
+    expect(
       aciSessionSchema.parse({
         ...ACI_SESSION_FIXTURE,
         evidence: { ...ACI_SESSION_FIXTURE.evidence, unexpected: true },
-      }),
-    ).toThrow();
+      }).evidence.unexpected,
+    ).toBe(true);
     expect(() => aciSessionSchema.parse({ ...ACI_SESSION_FIXTURE, unexpected: true })).toThrow();
   });
 });
 
 describe('aciReceiptSchema', () => {
-  it('accepts official receipt events and preserves explicitly allowed event extensions', () => {
+  it('accepts official receipt events and unknown extension events', () => {
     const receipt = aciReceiptSchema.parse({
       ...ACI_RECEIPT_FIXTURE,
       event_log: [
         { ...ACI_RECEIPT_FIXTURE.event_log[0], verifier_extension: 'preserved' },
         ...ACI_RECEIPT_FIXTURE.event_log.slice(1),
-        { seq: 4, type: 'router.decision', decision: 'redacted' },
+        { type: 'router.decision', decision: 'redacted' },
       ],
     });
 
@@ -1234,31 +1124,36 @@ describe('aciReceiptSchema', () => {
     expect(receipt.event_log[4]?.decision).toBe('redacted');
   });
 
-  it('requires response transparency before response.returned', () => {
-    const responseModifiedAfterReturn = [
+  it('accepts a required verification refusal without request.forwarded', () => {
+    const receipt = aciReceiptSchema.parse({
+      ...ACI_RECEIPT_FIXTURE,
+      event_log: [
+        ACI_RECEIPT_FIXTURE.event_log[0],
+        {
+          type: 'upstream.verified',
+          model_id: 'demo-model',
+          result: 'failed',
+          required: true,
+          reason: 'upstream_verification_failed',
+        },
+        ACI_RECEIPT_FIXTURE.event_log[3],
+      ],
+    });
+
+    expect(receipt.event_log).toHaveLength(3);
+  });
+
+  it('rejects response reordering, sequence fields, legacy session IDs, and nested signatures', () => {
+    const responseBeforeUpstream = [
       ACI_RECEIPT_FIXTURE.event_log[0],
-      ACI_RECEIPT_FIXTURE.event_log[1],
-      ACI_RECEIPT_FIXTURE.event_log[2],
       ACI_RECEIPT_FIXTURE.event_log[3],
-      { seq: 4, type: 'transparency.response_modified' },
+      ACI_RECEIPT_FIXTURE.event_log[2],
     ];
 
     expect(() =>
       aciReceiptSchema.parse({
         ...ACI_RECEIPT_FIXTURE,
-        event_log: responseModifiedAfterReturn,
-      }),
-    ).toThrow();
-  });
-
-  it('enforces event order, required hashes, session/model identity, and signature shape', () => {
-    expect(() =>
-      aciReceiptSchema.parse({
-        ...ACI_RECEIPT_FIXTURE,
-        event_log: [
-          { ...ACI_RECEIPT_FIXTURE.event_log[0], seq: 1 },
-          ...ACI_RECEIPT_FIXTURE.event_log.slice(1),
-        ],
+        event_log: responseBeforeUpstream,
       }),
     ).toThrow();
     expect(() =>
@@ -1266,12 +1161,45 @@ describe('aciReceiptSchema', () => {
         ...ACI_RECEIPT_FIXTURE,
         event_log: [
           { ...ACI_RECEIPT_FIXTURE.event_log[0], seq: 0 },
-          { ...ACI_RECEIPT_FIXTURE.event_log[3], seq: 1 },
-          { ...ACI_RECEIPT_FIXTURE.event_log[1], seq: 2 },
-          { ...ACI_RECEIPT_FIXTURE.event_log[2], seq: 3 },
+          ...ACI_RECEIPT_FIXTURE.event_log.slice(1),
         ],
       }),
     ).toThrow();
+    expect(() =>
+      aciReceiptSchema.parse({
+        ...ACI_RECEIPT_FIXTURE,
+        event_log: ACI_RECEIPT_FIXTURE.event_log.map((event) =>
+          event.type === 'upstream.verified'
+            ? { ...event, session_id: `as_${'a'.repeat(64)}` }
+            : event,
+        ),
+      }),
+    ).toThrow();
+    expect(() =>
+      aciReceiptSchema.parse({
+        ...ACI_RECEIPT_FIXTURE,
+        signature: { value: ACI_RECEIPT_FIXTURE.signature },
+      }),
+    ).toThrow();
+    expect(() =>
+      aciReceiptSchema.parse({
+        ...ACI_RECEIPT_FIXTURE,
+        event_log: ACI_RECEIPT_FIXTURE.event_log.map((event) =>
+          event.type === 'response.returned'
+            ? { ...event, cleartext_hash: event.body_hash }
+            : event,
+        ),
+      }),
+    ).toThrow();
+    expect(() =>
+      aciReceiptSchema.parse({
+        ...ACI_RECEIPT_FIXTURE,
+        workload_id: 'sha256:' + 'a'.repeat(64),
+      }),
+    ).toThrow();
+  });
+
+  it('requires forwarding for a successful upstream verification', () => {
     expect(() =>
       aciReceiptSchema.parse({
         ...ACI_RECEIPT_FIXTURE,
@@ -1280,68 +1208,6 @@ describe('aciReceiptSchema', () => {
         ),
       }),
     ).toThrow();
-    const multipleAttempts = aciReceiptSchema.parse({
-      ...ACI_RECEIPT_FIXTURE,
-      event_log: [
-        ...ACI_RECEIPT_FIXTURE.event_log.slice(0, 2),
-        { ...ACI_RECEIPT_FIXTURE.event_log[2], seq: 2, upstream_name: 'other-upstream' },
-        { ...ACI_RECEIPT_FIXTURE.event_log[2], seq: 3 },
-        { ...ACI_RECEIPT_FIXTURE.event_log[3], seq: 4 },
-      ],
-    });
-    expect(
-      multipleAttempts.event_log.filter((event) => event.type === 'upstream.verified'),
-    ).toHaveLength(2);
-    expect(() =>
-      aciReceiptSchema.parse({
-        ...ACI_RECEIPT_FIXTURE,
-        event_log: ACI_RECEIPT_FIXTURE.event_log.map((event) =>
-          event.type === 'upstream.verified' ? { ...event, model_id: '' } : event,
-        ),
-      }),
-    ).toThrow();
-    expect(() =>
-      aciReceiptSchema.parse({
-        ...ACI_RECEIPT_FIXTURE,
-        event_log: ACI_RECEIPT_FIXTURE.event_log.map((event) =>
-          event.type === 'upstream.verified'
-            ? { ...event, result: 'failed', reason: 'redacted' }
-            : event,
-        ),
-      }),
-    ).toThrow();
-    expect(() =>
-      aciReceiptSchema.parse({
-        ...ACI_RECEIPT_FIXTURE,
-        signature: { ...ACI_RECEIPT_FIXTURE.signature, value: 'A'.repeat(128) },
-      }),
-    ).toThrow();
-    expect(() =>
-      aciReceiptSchema.parse({
-        ...ACI_RECEIPT_FIXTURE,
-        signature: { algo: 'ecdsa-secp256k1', key_id: 'receipt-1', value: 'a'.repeat(128) },
-      }),
-    ).toThrow();
-  });
-
-  it('accepts ordered sparse event sequences and verified events without a sealed session', () => {
-    const sequenceNumbers = [0, 2, 5, 9] as const;
-    const receipt = aciReceiptSchema.parse({
-      ...ACI_RECEIPT_FIXTURE,
-      event_log: ACI_RECEIPT_FIXTURE.event_log.map((event, index) => {
-        const sparseEvent: Record<string, unknown> = {
-          ...event,
-          seq: sequenceNumbers[index],
-        };
-        if (event.type === 'upstream.verified') {
-          delete sparseEvent.session_id;
-          delete sparseEvent.claims;
-        }
-        return sparseEvent;
-      }),
-    });
-
-    expect(receipt.event_log.map((event) => event.seq)).toEqual([0, 2, 5, 9]);
   });
 
   it('rejects top-level V1 fields while allowing explicitly permitted event extensions', () => {

@@ -13,6 +13,8 @@ import type {
   TrustedTimeSample,
 } from '../ports.js';
 
+const MILLISECONDS_PER_SECOND = 1_000;
+
 export function isTrustedTimeContext(value: unknown): value is AciTrustContext {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
   const context = value as Record<string, unknown>;
@@ -49,8 +51,12 @@ function isV1Authority(
 
 function toLegacyTrustedTimeSample(sample: TrustedTimeSampleV1): TrustedTimeSample {
   if (!isTrustedTimeSampleV1(sample)) throw new Error('trusted_time_sample_invalid');
+  const trustedNow = Math.floor(sample.trustedNowMs / MILLISECONDS_PER_SECOND);
+  if (!Number.isSafeInteger(trustedNow) || trustedNow <= 0) {
+    throw new Error('trusted_time_sample_invalid');
+  }
   return {
-    trustedNow: sample.trustedNowMs,
+    trustedNow,
     checkpointDigest: sample.checkpointDigest,
     bootEpoch: sample.bootEpoch,
     orgId: sample.orgId,

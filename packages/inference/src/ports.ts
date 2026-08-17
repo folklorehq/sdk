@@ -170,12 +170,19 @@ export interface AciSessionEvidenceVerifierPort {
 }
 
 export interface VerifiedAciChannelPin {
-  readonly type: 'tls_spki_sha256' | 'tls_certificate_sha256' | 'e2ee_public_key_sha256';
+  readonly type: 'tls_spki_sha256' | 'e2ee_public_key_sha256';
   readonly value: string;
   readonly domain?: string;
   readonly algorithm?: string;
   readonly keyId?: string;
   readonly provider?: string;
+}
+
+export interface VerifiedAciUpstreamIdentity {
+  readonly upstreamName: string;
+  readonly urlOrigin: string | null;
+  readonly verifierId: string;
+  readonly claims: AciSession['claims'];
 }
 
 export interface VerifiedAciKeyset {
@@ -205,6 +212,7 @@ export interface AciSessionCandidate {
   readonly role: InferenceModelRole;
   readonly model: string;
   readonly modelRevision: string;
+  readonly sessionId: string;
   readonly workloadKeysetDigest: string;
   readonly channelKeyDigest: string;
   readonly policyGeneration: number;
@@ -237,6 +245,7 @@ export interface VerifiedAciSession {
   readonly channelKeyDigest: string;
   readonly channelPins: readonly VerifiedAciChannelPin[];
   readonly upstreamIdentityDigest: string;
+  readonly upstreamIdentity: VerifiedAciUpstreamIdentity;
 }
 
 export type VerifiedAciSessionSet = Readonly<Record<InferenceModelRole, VerifiedAciSession>>;
@@ -271,10 +280,91 @@ export interface AciReceiptVerificationInput {
   readonly trustedTimeContext: AciTrustContext;
 }
 
+export interface AciReceiptReplayClaim {
+  readonly orgId: string;
+  readonly deploymentId: string;
+  readonly receiptId: string;
+  readonly workloadKeysetDigest: string;
+  readonly sessionId: string;
+}
+
+export interface AciReceiptReplayPort {
+  claim(input: {
+    readonly orgId: string;
+    readonly deploymentId: string;
+    readonly receiptId: string;
+    readonly workloadKeysetDigest: string;
+    readonly sessionId: string;
+  }): Promise<AciReceiptReplayClaim>;
+  markVerified(claim: AciReceiptReplayClaim): Promise<void>;
+  releasePending(claim: AciReceiptReplayClaim): Promise<void>;
+}
+
+export type AciReceiptReplayStorePort = AciReceiptReplayPort;
+
+export interface AciTrustHighWater {
+  readonly generation: number;
+  readonly policyGeneration: number;
+  readonly activationGeneration: number;
+  readonly keysetVersion: number;
+  readonly currentKeysetDigest: string;
+  readonly supersededKeysetDigests: readonly string[];
+  readonly trustContext: AciTrustContext;
+}
+
+export interface AciTrustHighWaterStorePort extends AciKeysetHighWaterPort {
+  load(context: AciTrustContext): Promise<AciTrustHighWater | undefined>;
+  isKeysetSuperseded(input: {
+    readonly context: AciTrustContext;
+    readonly keysetDigest: string;
+  }): Promise<boolean>;
+  compareAndSet(
+    context: AciTrustContext,
+    expectedGeneration: number,
+    next: AciTrustHighWater,
+  ): Promise<boolean>;
+}
+
+export interface AciKeysetHighWater {
+  readonly epoch: number;
+  readonly digest: string;
+  readonly checkpointDigest: string;
+  readonly orgId: string;
+  readonly deploymentId: string;
+}
+
+export interface AciKeysetHighWaterPort {
+  read(context: AciTrustContext): Promise<AciKeysetHighWater>;
+  advance(input: {
+    readonly context: AciTrustContext;
+    readonly epoch: number;
+    readonly digest: string;
+  }): Promise<AciKeysetHighWater>;
+}
+
+export interface AciKeysetHighWaterAuthorityPort {
+  read(context: AciTrustContext): Promise<AciTrustHighWater | undefined>;
+  admitKeyset(input: {
+    readonly context: AciTrustContext;
+    readonly keysetDigest: string;
+    readonly policyGeneration: number;
+    readonly activationGeneration: number;
+  }): Promise<number>;
+}
+
+export interface ForwardAdmissionCapability {
+  readonly __aciForwardAdmissionCapability: unique symbol;
+}
+
+export interface ForwardBodyOpenCapability {
+  readonly __aciForwardBodyOpenCapability: unique symbol;
+}
+
 export interface VerifiedAciReceipt {
   readonly receiptId: string;
   readonly servedAt: number;
-  readonly sessionId: string;
+  readonly outcome?: 'served' | 'refused';
+  readonly sessionId?: string;
 }
 
 export interface AciReceiptVerifierConfig {
@@ -286,6 +376,7 @@ export interface AciReceiptVerifierConfig {
   readonly maxReceiptBytes?: number;
   readonly replayCapacity?: number;
   readonly trustedTimeAuthority: TrustedTimeAuthorityPort;
+  readonly replayStore: AciReceiptReplayStorePort;
 }
 
 export interface AciReceiptVerifierPort {
@@ -317,7 +408,10 @@ export interface OfficialAciExchangeConfig {
   readonly policy: InferenceTrustPolicyV2;
   readonly trustState: AciV2TrustStatePort;
   readonly receiptVerifier: AciReceiptVerifierPort;
-  readonly fetchImpl: typeof fetch;
+  readonly transport?: OfficialAciTransportPort;
+  readonly fetchImpl?: typeof fetch;
+  readonly channelTransport?: AciChannelTransportPort;
+  readonly testOnlyAllowUnleasedPaths?: boolean;
   readonly apiKey?: string;
   readonly timeoutMs?: number;
   readonly maxRequestBytes?: number;
@@ -330,6 +424,7 @@ export interface OfficialAciExchangeConfig {
 export interface AciReportVerifierConfig {
   baseUrl: string;
   policy: InferenceTrustPolicyV2;
+  activationGeneration: number;
   evidenceVerifier: AciEvidenceVerifierPort;
   fetchImpl: typeof fetch;
   nonceSource?: () => Uint8Array | Promise<Uint8Array>;
@@ -339,6 +434,7 @@ export interface AciReportVerifierConfig {
   apiKey?: string;
   trustedTimeAuthority: TrustedTimeAuthorityPort;
   trustedTimeContext: AciTrustContext;
+  keysetHighWaterAuthority?: AciKeysetHighWaterAuthorityPort;
 }
 
 export interface AciSessionVerifierConfig {
@@ -347,6 +443,7 @@ export interface AciSessionVerifierConfig {
   readonly evidenceVerifierTimeoutMs?: number;
   readonly trustedTimeAuthority: TrustedTimeAuthorityPort;
   readonly trustedTimeContext: AciTrustContext;
+  readonly keysetHighWaterAuthority?: AciKeysetHighWaterAuthorityPort;
 }
 
 export interface PreForwardRouteBinding {
@@ -384,6 +481,8 @@ export interface PreForwardRouteBinding {
   bootEpoch: string;
   trustedTimeCheckpointDigest: string;
 }
+
+export type VerifiedPreForwardRouteProof = Readonly<PreForwardRouteProofV1>;
 
 export interface TrustedTimeReadContext {
   readonly orgId?: string;
@@ -429,6 +528,15 @@ export interface MonotonicRawClockPort {
   readNanoseconds(): bigint;
 }
 
+export interface TrustedWriteBoundaryPort {
+  readonly isTrustedTimeBound: true;
+  assertValid(input: {
+    readonly context: AciTrustContext;
+    readonly validUntil: number;
+    readonly trustedNow: number;
+  }): void;
+}
+
 export interface TrustedTimeAuthorityPort {
   read(context?: TrustedTimeReadContext): Promise<TrustedTimeSample>;
 }
@@ -445,7 +553,9 @@ export interface PreForwardRouteProofVerificationInput {
 }
 
 export interface PreForwardRouteProofVerifierPort {
-  verify(input: PreForwardRouteProofVerificationInput): Promise<PreForwardRouteProofV1>;
+  verify(input: PreForwardRouteProofVerificationInput): Promise<VerifiedPreForwardRouteProof>;
+  release(proof: VerifiedPreForwardRouteProof): Promise<void>;
+  cleanup(input: { readonly context: AciTrustContext; readonly trustedNow: number }): Promise<void>;
 }
 
 export interface PrivateOfficialAciRequestWire {
@@ -454,14 +564,64 @@ export interface PrivateOfficialAciRequestWire {
   readonly byteLength: number;
 }
 
+export interface ObservedAciChannelBinding {
+  readonly observedChannelPin: VerifiedAciChannelPin;
+  readonly channelKeyDigest: string;
+  readonly exporterLabel: string;
+  readonly exporterDigest: string;
+  readonly transcriptDigest: string;
+}
+
+export const FORWARD_COMMITMENT_PROTOCOL = 'folklore.aci.forward-commitment.v1' as const;
+
+export interface ForwardCommitment {
+  readonly protocol: typeof FORWARD_COMMITMENT_PROTOCOL;
+  readonly reservationId: string;
+  readonly proofId: string;
+  readonly requestId: string;
+  readonly commitmentNonce: string;
+  readonly commitmentTag: string;
+  readonly channelKeyDigest: string;
+  readonly exporterLabel: string;
+  readonly exporterDigest: string;
+  readonly transcriptDigest: string;
+  readonly observedChannelPin: VerifiedAciChannelPin;
+}
+
+export interface VerifiedCommitmentConfirmation extends ForwardCommitment {
+  readonly confirmationSequence: number;
+}
+
+export interface ForwardWritePermit {
+  readonly __aciForwardWritePermit: unique symbol;
+  readonly leaseId: string;
+  readonly validUntil: number;
+  readonly channelKeyDigest: string;
+  readonly exporterLabel: string;
+  readonly exporterDigest: string;
+  readonly transcriptDigest: string;
+  readonly observedChannelPin: VerifiedAciChannelPin;
+  assertWriteStart(): void;
+}
+
+export interface AciChannelWriteOperation {
+  readonly response: Promise<AciChannelTransportResponse>;
+}
+
 export interface MutuallyAttestedChannel {
   readonly channelKeyDigest: string;
   readonly exporterLabel: string;
   readonly exporterDigest: string;
   readonly transcriptDigest: string;
+  readonly observedChannelPin: VerifiedAciChannelPin;
   sendControl(message: Uint8Array): Promise<void>;
   receiveControlProof(): Promise<Uint8Array>;
-  writeBody(requestWireBytes: Uint8Array): Promise<void>;
+  /** Enqueue the first body byte synchronously after asserting the permit at the socket boundary. */
+  writeBodyOnce(input: {
+    readonly bytes: Uint8Array;
+    readonly permit: ForwardWritePermit;
+    readonly signal?: AbortSignal;
+  }): AciChannelWriteOperation;
   close(): Promise<void>;
 }
 
@@ -473,7 +633,41 @@ export interface MutuallyAttestedChannelPort {
     routeIdentityDigest: string;
     pinnedTrustRootDigest: string;
     channelKeyDigest: string;
+    sessionId: string;
+    channelPins: readonly VerifiedAciChannelPin[];
+    exporterLabel: string;
+    exporterDigest: string;
+    transcriptDigest: string;
   }): Promise<MutuallyAttestedChannel>;
+}
+
+export interface AciChannelTransportResponse {
+  readonly receiptId: string;
+  readonly responseBytes: Uint8Array;
+  readonly responseOk: boolean;
+}
+
+export interface AciChannelTransport {
+  readonly channelKeyDigest: string;
+  readonly observedChannelPin: VerifiedAciChannelPin;
+  send(requestWireBytes: Uint8Array): Promise<AciChannelTransportResponse>;
+  close(): Promise<void>;
+}
+
+export interface AciChannelTransportPort {
+  open(input: {
+    readonly endpoint: string;
+    readonly context: AciTrustContext;
+    readonly session: VerifiedAciSession;
+    readonly keyset: VerifiedAciKeyset;
+  }): Promise<AciChannelTransport>;
+}
+
+export interface OfficialAciTransportPort {
+  send(input: {
+    readonly capability: ForwardAdmissionCapability;
+    readonly signal?: AbortSignal;
+  }): Promise<AciChannelTransportResponse>;
 }
 
 export interface ControlProofExchangePort {
@@ -488,7 +682,6 @@ export interface ControlProofExchangePort {
       assignmentDigest: string;
       tenantAadDigest: string;
       capabilityDigest: string;
-      contentLength: number;
       sessionId: string;
       model: string;
       modelRevision: string;
@@ -497,10 +690,23 @@ export interface ControlProofExchangePort {
       activationGeneration: number;
     };
   }): Promise<Uint8Array>;
+  confirmCommitment(input: {
+    readonly channel: MutuallyAttestedChannel;
+    readonly commitment: ForwardCommitment;
+  }): Promise<VerifiedCommitmentConfirmation>;
 }
 
 export interface OfficialAciRequestWireSerializerPort {
   serialize(request: OfficialAciRequest): Promise<PrivateOfficialAciRequestWire>;
+}
+
+export interface ForwardCommitmentAuthenticatorPort {
+  create(input: {
+    readonly reservation: ForwardAdmissionReservation;
+    readonly wireSha256: string;
+    readonly byteLength: number;
+  }): string;
+  journalTag(entry: Omit<ForwardReplayJournalEntry, 'entryTag'>): string;
 }
 
 export interface ForwardProofReservation {
@@ -537,38 +743,146 @@ export interface ForwardProofReservation {
   transcriptDigest: string;
   policyGeneration: number;
   activationGeneration: number;
-  requestWireSha256: string;
-  requestWireByteLength: number;
-  privateRequestWire: PrivateOfficialAciRequestWire;
   proofIssuedAt: number;
   proofExpiresAt: number;
   snapshotExpiresAt: number;
   admissionExpiresAt: number;
   boundedWriteValidUntil: number;
+  commitmentNonce: string;
+  observedChannelPin: VerifiedAciChannelPin;
+}
+
+export interface ForwardAdmissionReservation extends ForwardProofReservation {
+  readonly reservationId: string;
 }
 
 export interface ForwardLease extends ForwardProofReservation {
+  reservationId: string;
   leaseId: string;
+  requestWireSha256: string;
+  requestWireByteLength: number;
+  privateRequestWire: PrivateOfficialAciRequestWire;
 }
 
 export interface ForwardLeaseStorePort {
-  reserve(input: ForwardProofReservation): Promise<ForwardLease>;
-  consume(input: {
-    lease: ForwardLease;
-    candidateRequestWire: PrivateOfficialAciRequestWire;
+  reserveFromVerifiedProof(input: {
+    readonly context: AciTrustContext;
+    readonly snapshot: VerifiedAciTrustSnapshot;
+    readonly session: VerifiedAciSession;
+    readonly observedChannel: ObservedAciChannelBinding;
+    readonly proof: VerifiedPreForwardRouteProof;
+    readonly trustedNow: number;
+  }): Promise<ForwardAdmissionReservation>;
+  prepareCommitment(input: {
+    readonly reservation: ForwardAdmissionReservation;
+    readonly requestWire: PrivateOfficialAciRequestWire;
+  }): Promise<ForwardCommitment>;
+  finalize(input: {
+    reservation: ForwardAdmissionReservation;
+    requestWire: PrivateOfficialAciRequestWire;
+    confirmation: VerifiedCommitmentConfirmation;
+  }): Promise<ForwardLease>;
+  writeOnce(input: {
+    readonly lease: ForwardLease;
+    readonly confirmation: VerifiedCommitmentConfirmation;
+    readonly trustedTime: TrustedTimeAuthorityPort;
+    readonly channel: MutuallyAttestedChannel;
+    readonly requestWire: PrivateOfficialAciRequestWire;
+    readonly signal?: AbortSignal;
+  }): Promise<AciChannelTransportResponse>;
+  abort(input: {
+    readonly context: AciTrustContext;
+    readonly reservationId: string;
+    readonly leaseId?: string;
+    readonly reason: string;
   }): Promise<void>;
+  recoverAfterRestart(input: { readonly context: AciTrustContext }): Promise<void>;
+  cleanup(input: { readonly context: AciTrustContext; readonly trustedNow: number }): Promise<void>;
 }
 
-export interface PreForwardAdmissionPort {
-  authorize(input: {
-    orgId: string;
-    deploymentId: string;
-    tenantId: string;
-    assignmentDigest: string;
-    tenantAadDigest: string;
-    operation: InferenceModelRole;
-    contentLength: number;
+export type ForwardJournalState =
+  | 'reserved'
+  | 'commitment_pending'
+  | 'commitment_confirmed'
+  | 'lease_ready'
+  | 'write_armed'
+  | 'write_started'
+  | 'response_pending'
+  | 'consumed'
+  | 'aborted'
+  | 'quarantined';
+
+export interface ForwardReplayScope {
+  readonly orgId: string;
+  readonly deploymentId: string;
+  readonly bootEpoch: string;
+  readonly proofId: string;
+  readonly requestId: string;
+}
+
+export interface ForwardReplayJournalEntry {
+  readonly scope: ForwardReplayScope;
+  readonly state: ForwardJournalState;
+  readonly reservation?: ForwardAdmissionReservation;
+  readonly leaseId?: string;
+  readonly commitmentTag?: string;
+  readonly expiresAt?: number;
+  readonly sequence: number;
+  readonly previousTag: string;
+  readonly entryTag: string;
+}
+
+export interface ForwardReplayJournalSnapshot {
+  readonly sequence: number;
+  readonly tailTag: string;
+  readonly entries: readonly ForwardReplayJournalEntry[];
+}
+
+export interface ForwardReplayJournalPort {
+  load(input: {
+    readonly orgId: string;
+    readonly deploymentId: string;
+  }): Promise<ForwardReplayJournalSnapshot>;
+  append(input: {
+    readonly orgId: string;
+    readonly deploymentId: string;
+    readonly expectedSequence: number;
+    readonly expectedTailTag: string;
+    readonly entry: ForwardReplayJournalEntry;
+  }): Promise<ForwardReplayJournalSnapshot>;
+}
+
+export interface ForwardReplayAuthorityPort {
+  claimProof(input: ForwardReplayScope & { readonly expiresAt: number }): Promise<void>;
+  releaseProof(input: ForwardReplayScope & { readonly expiresAt: number }): Promise<void>;
+  reserve(input: ForwardProofReservation): Promise<ForwardAdmissionReservation>;
+  prepareCommitment(input: {
+    readonly reservation: ForwardAdmissionReservation;
+    readonly requestWire: PrivateOfficialAciRequestWire;
+  }): Promise<ForwardCommitment>;
+  finalize(input: {
+    readonly reservation: ForwardAdmissionReservation;
+    readonly requestWire: PrivateOfficialAciRequestWire;
+    readonly confirmation: VerifiedCommitmentConfirmation;
   }): Promise<ForwardLease>;
+  consumeForWrite(input: {
+    readonly lease: ForwardLease;
+    readonly confirmation: VerifiedCommitmentConfirmation;
+    readonly trustedTime: TrustedTimeAuthorityPort;
+    readonly writeAtBoundary: (
+      permit: ForwardWritePermit,
+      signal?: AbortSignal,
+    ) => AciChannelWriteOperation;
+    readonly signal?: AbortSignal;
+  }): Promise<AciChannelTransportResponse>;
+  abort(input: {
+    readonly context: AciTrustContext;
+    readonly reservationId: string;
+    readonly leaseId?: string;
+    readonly reason: string;
+  }): Promise<void>;
+  recoverAfterRestart(input: { readonly context: AciTrustContext }): Promise<void>;
+  cleanup(input: { readonly context: AciTrustContext; readonly trustedNow: number }): Promise<void>;
 }
 
 export interface InferenceBackend {

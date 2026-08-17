@@ -36,6 +36,10 @@ export class AciReportVerifier {
   private readonly nonceSource: () => Uint8Array | Promise<Uint8Array>;
   private readonly trustedTimeAuthority: AciReportVerifierConfig['trustedTimeAuthority'];
   private readonly trustedTimeContext: AciTrustContext;
+  private readonly keysetHighWaterAuthority: NonNullable<
+    AciReportVerifierConfig['keysetHighWaterAuthority']
+  >;
+  private readonly activationGeneration: number;
   private readonly fetchTimeoutMs: number;
   private readonly maxReportBytes: number;
   private readonly apiKey: string | undefined;
@@ -53,6 +57,17 @@ export class AciReportVerifier {
     this.nonceSource = config.nonceSource ?? (() => randomBytes(NONCE_BYTES));
     this.trustedTimeAuthority = config.trustedTimeAuthority;
     this.trustedTimeContext = config.trustedTimeContext;
+    if (
+      typeof config.keysetHighWaterAuthority?.read !== 'function' ||
+      typeof config.keysetHighWaterAuthority?.admitKeyset !== 'function'
+    ) {
+      throw new AciVerificationError('high_water_unavailable');
+    }
+    this.keysetHighWaterAuthority = config.keysetHighWaterAuthority;
+    this.activationGeneration = this.positiveSafeInteger(
+      config.activationGeneration,
+      'activation_generation_invalid',
+    );
     this.fetchTimeoutMs = this.boundedInteger(
       config.fetchTimeoutMs,
       DEFAULT_FETCH_TIMEOUT_MS,
@@ -98,7 +113,18 @@ export class AciReportVerifier {
       expected,
     );
     await this.verifyFreshness(report, this.trustedTimeContext);
-    return this.publishKeyset(report, channelPins, expected.channelKeyDigest);
+    let version: number;
+    try {
+      version = await this.keysetHighWaterAuthority.admitKeyset({
+        context: this.trustedTimeContext,
+        keysetDigest: report.workload_keyset_digest,
+        policyGeneration: this.policy.generation,
+        activationGeneration: this.activationGeneration,
+      });
+    } catch {
+      throw new AciVerificationError('high_water_unavailable');
+    }
+    return this.publishKeyset(report, channelPins, expected.channelKeyDigest, version);
   }
 
   private parsePolicy(policy: AciReportVerifierConfig['policy']): InferenceTrustPolicyV2 {
@@ -139,6 +165,16 @@ export class AciReportVerifier {
       throw new AciVerificationError(errorCode);
     }
     return selected;
+  }
+
+  private positiveSafeInteger(
+    value: number | undefined,
+    errorCode: 'activation_generation_invalid',
+  ): number {
+    if (!Number.isSafeInteger(value) || value === undefined || value <= 0) {
+      throw new AciVerificationError(errorCode);
+    }
+    return value;
   }
 
   private async createNonce(): Promise<Uint8Array> {
@@ -241,7 +277,9 @@ export class AciReportVerifier {
 
   private parseReport(reportBytes: Uint8Array): AciWorkloadReport {
     try {
-      const decoded = parseStrictJsonBytes(reportBytes, this.maxReportBytes);
+      const decoded = parseStrictJsonBytes(reportBytes, this.maxReportBytes, {
+        asciiMemberNames: true,
+      });
       return aciWorkloadReportSchema.parse(decoded);
     } catch {
       throw new AciVerificationError('report_malformed');
@@ -251,38 +289,34 @@ export class AciReportVerifier {
   private async verifyFreshness(
     report: AciWorkloadReport,
     context: AciTrustContext,
-  ): Promise<void> {
+  ): Promise<number> {
     const now = await this.readTrustedTime(context);
     if (!Number.isFinite(now) || now < 0) throw new AciVerificationError('clock_invalid');
-    const freshness = report.attestation.freshness;
-    const notAfter = report.attestation.workload_keyset.keyset_epoch.not_after;
-    if (freshness.fetched_at > now + this.policy.clockSkewSeconds) {
-      throw new AciVerificationError('report_from_future');
-    }
-    if (now >= freshness.stale_after) throw new AciVerificationError('report_expired');
+    const notAfter = report.attestation.workload_keyset.not_after;
     if (now >= notAfter) throw new AciVerificationError('keyset_expired');
-    if (notAfter <= freshness.fetched_at) {
-      throw new AciVerificationError('keyset_lifetime_invalid');
-    }
-    if (notAfter - freshness.fetched_at > this.policy.maxKeysetLifetimeSeconds) {
-      throw new AciVerificationError('keyset_lifetime_exceeded');
-    }
-    if (freshness.stale_after > notAfter) {
-      throw new AciVerificationError('freshness_exceeds_keyset');
-    }
+    return now;
   }
 
   private verifySourceProvenance(report: AciWorkloadReport, sourceRevision: string): void {
     const provenance = report.attestation.source_provenance;
-    if (provenance.repo_url !== null && provenance.repo_commit !== null) {
+    if (provenance === undefined || provenance === null) {
+      throw new AciVerificationError('source_provenance_mismatch');
+    }
+    const repoUrl = provenance.repo_url ?? null;
+    const repoCommit = provenance.repo_commit ?? null;
+    if ((repoUrl === null) !== (repoCommit === null)) {
+      throw new AciVerificationError('source_provenance_mismatch');
+    }
+    if (repoUrl !== null && repoCommit !== null) {
       const repository = this.policy.sourceProvenance.repositories.find(
-        (candidate) => candidate.repoUrl === provenance.repo_url,
+        (candidate) => candidate.repoUrl === repoUrl,
       );
-      if (repository === undefined || !repository.commits.includes(provenance.repo_commit)) {
+      if (repository === undefined || !repository.commits.includes(repoCommit)) {
         throw new AciVerificationError('source_provenance_mismatch');
       }
     }
     if (
+      provenance.image_digest !== undefined &&
       provenance.image_digest !== null &&
       !this.policy.sourceProvenance.imageDigests.includes(provenance.image_digest)
     ) {
@@ -330,13 +364,14 @@ export class AciReportVerifier {
     report: AciWorkloadReport,
     channelPins: readonly VerifiedAciChannelPin[],
     channelKeyDigest: string,
+    version: number,
   ): VerifiedAciKeyset {
     const keyset = report.attestation.workload_keyset;
     return this.deepFreeze({
-      workloadId: report.workload_id,
+      workloadId: report.workload_keyset_digest,
       workloadKeysetDigest: report.workload_keyset_digest,
-      version: keyset.keyset_epoch.version,
-      notAfter: keyset.keyset_epoch.not_after,
+      version,
+      notAfter: keyset.not_after,
       receiptSigningKeys: keyset.receipt_signing_keys.map((key) => ({
         keyId: key.key_id,
         algorithm: key.algo,

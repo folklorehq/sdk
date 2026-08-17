@@ -1,11 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import {
-  createHash,
-  createPrivateKey,
-  generateKeyPairSync,
-  sign,
-  type KeyObject,
-} from 'node:crypto';
+import { createHash } from 'node:crypto';
 import type { InferenceTrustPolicyV2 } from '@folklore/contracts';
 import { canonicalJson as jcsCanonicalJson } from '@folklore/utils';
 import { describe, expect, it, vi } from 'vitest';
@@ -20,6 +14,7 @@ import type {
   TrustedTimeReadContext,
   VerifiedAciEvidenceBindings,
 } from '../src/ports.js';
+import { InMemoryAciKeysetHighWaterAuthority } from './doubles/aci/InMemoryAciStores.js';
 
 const NOW = 1_750_000_000;
 const TRUST_CONTEXT: AciTrustContext = {
@@ -30,6 +25,7 @@ const TRUST_CONTEXT: AciTrustContext = {
 };
 const NONCE = Uint8Array.from(Array.from({ length: 32 }, (_, index) => index + 1));
 const SECOND_NONCE = Uint8Array.from(Array.from({ length: 32 }, (_, index) => 255 - index));
+const REPORT_URL = 'https://inference.phala.com/v1/aci/attestation';
 const SOURCE_REVISION = ACI_REPORT_FIXTURE.attestation.source_provenance.repo_commit;
 const COMPOSE_DIGEST = `sha256:${'c'.repeat(64)}`;
 const QUOTE_ROOT_DIGEST = 'a'.repeat(64);
@@ -37,63 +33,26 @@ const KMS_ROOT_DIGEST = 'd'.repeat(64);
 const MEASUREMENT = 'b'.repeat(96);
 const APP_IDENTITY = 'app:inference';
 const RUNTIME_IDENTITY = 'runtime:inference';
-const PINNED_VECTOR_NOW = 1_799_999_000;
-const PINNED_WORKLOAD_ID =
-  'sha256:57c2c8fa98bcf11441f1eff9ef087db67a5560a026082e96903e15365677b8c0';
 const PINNED_KEYSET_DIGEST =
-  'sha256:f2fba7e1b1451e0c0231df624f293407692ef939d3e0e55bca723131bea3f1ff';
-const PINNED_REPORT_DATA = '0b8cc28d7e989a88b1e969af20aa2b224afdc2c99f24c97c31a4af330c964ecf';
-const PINNED_ED25519_ENDORSEMENT =
-  '64e0a4f5d7af28dfdacc102d14c13470b4ddbd90708e190fc0e787f07b36f20eda0ef1f42ea96b8a7f290eb64a918574dc914ce06b6ea023d2153275f06fd201';
-const IDENTITY_PRIVATE_KEY = createPrivateKey({
-  key: Buffer.concat([
-    Buffer.from('302e020100300506032b657004220420', 'hex'),
-    Buffer.from('01'.repeat(32), 'hex'),
-  ]),
-  format: 'der',
-  type: 'pkcs8',
-});
-const SECP256K1_KEY_PAIR = generateKeyPairSync('ec', { namedCurve: 'secp256k1' });
+  'sha256:53a5cd44b30dcc51999754c719f2628a041f174ecbf9662a6f8e898a10cd9371';
+const PINNED_REPORT_DATA = 'df2174d28130852b413646a3786927b93e94c11d770268b65def8bdba45cb49e';
+const ACTIVATION_GENERATION = 17;
 
-function secp256k1PublicKey(publicKey: KeyObject, compressed: boolean): string {
-  const jwk = publicKey.export({ format: 'jwk' });
-  if (typeof jwk.x !== 'string' || typeof jwk.y !== 'string') {
-    throw new Error('secp256k1_public_key_missing_coordinates');
-  }
-  const x = Buffer.from(jwk.x, 'base64url');
-  const y = Buffer.from(jwk.y, 'base64url');
-  const lastYByte = y.at(-1);
-  if (x.length !== 32 || y.length !== 32 || lastYByte === undefined) {
-    throw new Error('secp256k1_public_key_invalid_coordinates');
-  }
-  if (!compressed) return Buffer.concat([Buffer.from([0x04]), x, y]).toString('hex');
-  return Buffer.concat([Buffer.from([lastYByte % 2 === 0 ? 0x02 : 0x03]), x]).toString('hex');
-}
+type JsonObject = Record<string, unknown>;
 
 interface ReportOptions {
   nonce?: Uint8Array;
-  fetchedAt?: number;
-  staleAfter?: number;
   notAfter?: number;
-  evidence?: Record<string, unknown>;
-  identity?: {
-    algorithm: 'ed25519' | 'ecdsa-secp256k1';
-    privateKey: KeyObject;
-    publicKey: string;
-  };
+  evidence?: JsonObject;
+  sourceProvenance?: JsonObject | null;
+  keyset?: JsonObject;
 }
 
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (value !== null && typeof value === 'object') {
-    return `{${Object.keys(value as Record<string, unknown>)
-      .sort()
-      .map(
-        (key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`,
-      )
-      .join(',')}}`;
+function jsonObject(value: unknown): JsonObject {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('test_value_is_not_an_object');
   }
-  return JSON.stringify(value);
+  return value as JsonObject;
 }
 
 function sha256Hex(value: string | Uint8Array): string {
@@ -104,36 +63,21 @@ function prefixedDigest(value: string | Uint8Array): string {
   return `sha256:${sha256Hex(value)}`;
 }
 
-function keysetDigest(keyset: Record<string, unknown>): string {
-  return prefixedDigest(canonicalJson(keyset));
+function keysetDigest(keyset: JsonObject): string {
+  return prefixedDigest(jcsCanonicalJson(keyset));
 }
 
-function workloadId(keyset: Record<string, unknown>): string {
-  const identity = keyset.workload_identity as Record<string, unknown>;
-  return prefixedDigest(canonicalJson(identity.public_key));
-}
-
-function channelKeyDigest(keyset: Record<string, unknown>): string {
-  return prefixedDigest(
-    canonicalJson({
-      e2ee_public_keys: keyset.e2ee_public_keys,
-      tls_public_keys: keyset.tls_public_keys,
-    }),
-  );
-}
-
-function reportData(nonce: Uint8Array, id: string, digest: string): string {
+function reportData(nonce: Uint8Array, digest: string): string {
   return sha256Hex(
-    canonicalJson({
-      purpose: 'aci.report_data.v1',
-      workload_id: id,
-      workload_keyset_digest: digest,
+    jcsCanonicalJson({
+      keyset_digest: digest,
       nonce: Buffer.from(nonce).toString('hex'),
+      purpose: 'aci.report_data.v1',
     }),
   );
 }
 
-function publicEvidence(channelDigest: string): Record<string, unknown> {
+function publicEvidence(channelDigest: string): JsonObject {
   return {
     app_identity: APP_IDENTITY,
     channel_key_digest: channelDigest,
@@ -149,120 +93,86 @@ function publicEvidence(channelDigest: string): Record<string, unknown> {
   };
 }
 
-function reportFor(options: ReportOptions = {}): Record<string, unknown> {
+function channelKeyDigest(keyset: JsonObject): string {
+  return prefixedDigest(
+    jcsCanonicalJson({
+      e2ee_public_keys: keyset.e2ee_public_keys,
+      tls_public_keys: keyset.tls_public_keys,
+    }),
+  );
+}
+
+function reportFor(options: ReportOptions = {}): JsonObject {
   const nonce = options.nonce ?? NONCE;
-  const fetchedAt = options.fetchedAt ?? NOW - 30;
-  const identity =
-    options.identity ??
-    ({
-      algorithm: 'ed25519',
-      privateKey: IDENTITY_PRIVATE_KEY,
-      publicKey:
-        ACI_REPORT_FIXTURE.attestation.workload_keyset.workload_identity.public_key.public_key,
-    } satisfies ReportOptions['identity']);
   const keyset = {
-    ...ACI_REPORT_FIXTURE.attestation.workload_keyset,
-    keyset_epoch: {
-      ...ACI_REPORT_FIXTURE.attestation.workload_keyset.keyset_epoch,
-      not_after: options.notAfter ?? NOW + 3_600,
-    },
-    workload_identity: {
-      ...ACI_REPORT_FIXTURE.attestation.workload_keyset.workload_identity,
-      public_key: {
-        algo: identity.algorithm,
-        public_key: identity.publicKey,
-      },
-    },
-  };
+    ...structuredClone(ACI_REPORT_FIXTURE.attestation.workload_keyset),
+    ...(options.keyset ?? {}),
+    not_after: options.notAfter ?? NOW + 3_600,
+  } as JsonObject;
   const digest = keysetDigest(keyset);
-  const id = workloadId(keyset);
-  const endorsementPayload = canonicalJson({
-    purpose: 'aci.keyset.endorsement.v1',
-    workload_keyset_digest: digest,
-  });
+  const attestation = {
+    ...ACI_REPORT_FIXTURE.attestation,
+    workload_keyset: keyset,
+    report_data: reportData(nonce, digest),
+    evidence: options.evidence ?? publicEvidence(channelKeyDigest(keyset)),
+    ...(options.sourceProvenance === undefined
+      ? {}
+      : { source_provenance: options.sourceProvenance }),
+  };
   return {
     ...ACI_REPORT_FIXTURE,
-    workload_id: id,
     workload_keyset_digest: digest,
-    attestation: {
-      ...ACI_REPORT_FIXTURE.attestation,
-      workload_keyset: keyset,
-      report_data: reportData(nonce, id, digest),
-      keyset_endorsement: {
-        algo: identity.algorithm,
-        value: sign(
-          identity.algorithm === 'ed25519' ? null : 'sha256',
-          Buffer.from(endorsementPayload),
-          identity.algorithm === 'ed25519'
-            ? identity.privateKey
-            : { dsaEncoding: 'ieee-p1363', key: identity.privateKey },
-        ).toString('hex'),
-      },
-      freshness: {
-        fetched_at: fetchedAt,
-        stale_after: options.staleAfter ?? NOW + 600,
-      },
-      evidence: options.evidence ?? publicEvidence(channelKeyDigest(keyset)),
-    },
+    attestation,
   };
 }
 
-function nativeBindings(
-  report: Record<string, unknown>,
-  nonce: Uint8Array,
-): VerifiedAciEvidenceBindings {
-  const attestation = report.attestation as Record<string, unknown>;
-  const evidence = attestation.evidence as Record<string, unknown>;
-  const evidenceBytes = new TextEncoder().encode(canonicalJson(evidence));
+function nativeBindings(report: JsonObject, nonce: Uint8Array): VerifiedAciEvidenceBindings {
+  const attestation = jsonObject(report.attestation);
+  const evidence = jsonObject(attestation.evidence);
+  const workloadKeysetDigest = String(report.workload_keyset_digest);
+  const imageDigest = evidence.image_digest;
   return {
-    workloadId: String(report.workload_id),
+    workloadId: workloadKeysetDigest,
     nonce: Buffer.from(nonce).toString('hex'),
     reportDataStatementDigest: String(attestation.report_data),
-    workloadKeysetDigest: String(report.workload_keyset_digest),
+    workloadKeysetDigest,
     channelKeyDigest: String(evidence.channel_key_digest),
     teeType: String(attestation.tee_type) as 'tdx' | 'sev_snp',
     runtimeIdentity: String(evidence.runtime_identity),
     appIdentity: String(evidence.app_identity),
     composeDigest: evidence.compose_digest === null ? null : String(evidence.compose_digest),
-    imageDigest: evidence.image_digest === null ? null : String(evidence.image_digest),
+    imageDigest: imageDigest === null ? null : String(imageDigest),
     kmsRootDigest: String(evidence.kms_root_digest),
     quoteRootDigest: String(evidence.quote_root_digest),
     measurements: [...(evidence.measurements as string[])],
     rtmrs: [...(evidence.rtmrs as string[])],
     tcbStatus: String(evidence.tcb_status),
-    sourceRevision: String(evidence.source_revision),
-    evidenceTranscriptDigest: prefixedDigest(evidenceBytes),
+    sourceRevision: SOURCE_REVISION,
+    evidenceTranscriptDigest: prefixedDigest(new TextEncoder().encode(jcsCanonicalJson(evidence))),
   };
 }
 
-function fetchReport(report: Record<string, unknown>): typeof fetch {
-  return vi.fn(async () => {
-    const response = new Response(JSON.stringify(report), {
-      headers: { 'Content-Type': 'application/json' },
-      status: 200,
-    });
-    Object.defineProperty(response, 'url', {
-      value: 'https://inference.phala.com/v1/aci/attestation',
-    });
-    return response;
-  }) as unknown as typeof fetch;
+function responseForBytes(bytes: Uint8Array): Response {
+  const response = new Response(bytes, {
+    headers: { 'Content-Type': 'application/json' },
+    status: 200,
+  });
+  Object.defineProperty(response, 'url', { value: REPORT_URL });
+  return response;
+}
+
+function fetchReport(report: JsonObject): typeof fetch {
+  return vi.fn(async () =>
+    responseForBytes(new TextEncoder().encode(JSON.stringify(report))),
+  ) as unknown as typeof fetch;
 }
 
 function fetchReportBytes(bytes: Uint8Array): typeof fetch {
-  return vi.fn(async () => {
-    const response = new Response(bytes, {
-      headers: { 'Content-Type': 'application/json' },
-      status: 200,
-    });
-    Object.defineProperty(response, 'url', {
-      value: 'https://inference.phala.com/v1/aci/attestation',
-    });
-    return response;
-  }) as unknown as typeof fetch;
+  return vi.fn(async () => responseForBytes(bytes)) as unknown as typeof fetch;
 }
 
 function verifierFor(
-  report: Record<string, unknown> = reportFor(),
+  report: JsonObject = reportFor(),
   bindings: VerifiedAciEvidenceBindings = nativeBindings(report, NONCE),
   overrides: Partial<AciReportVerifierConfig> = {},
 ): AciReportVerifier {
@@ -278,7 +188,9 @@ function verifierFor(
       }),
     },
     trustedTimeContext: TRUST_CONTEXT,
+    activationGeneration: ACTIVATION_GENERATION,
     evidenceVerifier: { verify: vi.fn(async () => bindings) },
+    keysetHighWaterAuthority: new InMemoryAciKeysetHighWaterAuthority(),
     ...overrides,
   });
 }
@@ -313,95 +225,57 @@ describe('AciReportVerifier', () => {
     expect(verified.workloadId).toBeDefined();
     expect(contexts).toEqual([TRUST_CONTEXT, TRUST_CONTEXT]);
   });
-  // Source: spec/test-vectors.md at ed312b94c97d1efd1d4db6a8a166196dbd46c861, sha256 deab05b8f256ed259c2c5388cb730862b580f0c357d08d23174625f201134755.
-  it('matches the pinned upstream workload, keyset, report-data, and Ed25519 vectors', async () => {
-    const keyset = structuredClone(ACI_REPORT_FIXTURE.attestation.workload_keyset);
-    expect(prefixedDigest(jcsCanonicalJson(keyset.workload_identity.public_key))).toBe(
-      PINNED_WORKLOAD_ID,
-    );
-    expect(prefixedDigest(jcsCanonicalJson(keyset))).toBe(PINNED_KEYSET_DIGEST);
-    expect(
-      sha256Hex(
-        jcsCanonicalJson({
-          nonce: 'test-nonce',
-          purpose: 'aci.report_data.v1',
-          workload_id: PINNED_WORKLOAD_ID,
-          workload_keyset_digest: PINNED_KEYSET_DIGEST,
-        }),
-      ),
-    ).toBe(PINNED_REPORT_DATA);
 
-    const report = structuredClone(ACI_REPORT_FIXTURE) as unknown as Record<string, unknown>;
-    const attestation = report.attestation as Record<string, unknown>;
-    attestation.keyset_endorsement = {
-      algo: 'ed25519',
-      value: PINNED_ED25519_ENDORSEMENT,
-    };
-    attestation.report_data = reportData(NONCE, PINNED_WORKLOAD_ID, PINNED_KEYSET_DIGEST);
-    attestation.freshness = {
-      fetched_at: PINNED_VECTOR_NOW - 30,
-      stale_after: PINNED_VECTOR_NOW + 600,
-    };
-    attestation.evidence = publicEvidence(channelKeyDigest(keyset));
+  it('matches the pinned official keyset digest and report-data construction', async () => {
+    const officialKeyset = structuredClone(
+      ACI_REPORT_FIXTURE.attestation.workload_keyset,
+    ) as JsonObject;
+    const officialReport = ACI_REPORT_FIXTURE as unknown as JsonObject;
+    const officialAttestation = jsonObject(officialReport.attestation);
+    expect(keysetDigest(officialKeyset)).toBe(PINNED_KEYSET_DIGEST);
+    expect(officialReport.workload_keyset_digest).toBe(PINNED_KEYSET_DIGEST);
+    expect(officialAttestation.report_data).toBe(PINNED_REPORT_DATA);
+    expect('workload_id' in officialReport).toBe(false);
+    expect('vendor' in officialAttestation).toBe(false);
+    expect('freshness' in officialAttestation).toBe(false);
+    expect('keyset_endorsement' in officialAttestation).toBe(false);
+    expect('workload_identity' in officialKeyset).toBe(false);
+    expect('keyset_epoch' in officialKeyset).toBe(false);
 
-    const verified = await verifierFor(report, nativeBindings(report, NONCE), {
-      trustedTimeAuthority: {
-        read: async () => ({
-          trustedNow: PINNED_VECTOR_NOW,
-          checkpointDigest: 'a'.repeat(64),
-          bootEpoch: 'boot-1',
-          orgId: 'org-1',
-          deploymentId: 'deployment-1',
-        }),
-      },
-    }).verify();
-
-    expect(verified.workloadId).toBe(PINNED_WORKLOAD_ID);
-    expect(verified.workloadKeysetDigest).toBe(PINNED_KEYSET_DIGEST);
+    const report = reportFor({ notAfter: 1_800_000_000 });
+    const expectedReportData = reportData(NONCE, PINNED_KEYSET_DIGEST);
+    expect(jsonObject(report.attestation).report_data).toBe(expectedReportData);
+    await expect(verifierFor(report).verify()).resolves.toMatchObject({
+      workloadId: PINNED_KEYSET_DIGEST,
+      workloadKeysetDigest: PINNED_KEYSET_DIGEST,
+    });
   });
 
-  it.each([
-    { compressed: true, label: 'compressed' },
-    { compressed: false, label: 'uncompressed' },
-  ])(
-    'verifies a secp256k1 workload endorsement with a $label public point',
-    async ({ compressed }) => {
-      const report = reportFor({
-        identity: {
-          algorithm: 'ecdsa-secp256k1',
-          privateKey: SECP256K1_KEY_PAIR.privateKey,
-          publicKey: secp256k1PublicKey(SECP256K1_KEY_PAIR.publicKey, compressed),
-        },
-      });
-
-      await expect(verifierFor(report).verify()).resolves.toMatchObject({
-        workloadId: report.workload_id,
-        workloadKeysetDigest: report.workload_keyset_digest,
-      });
-    },
-  );
-
-  it('rejects a secp256k1 endorsement whose compressed public point is invalid', async () => {
+  it('rejects non-ASCII member names in the official report artifact', async () => {
+    const base = reportFor();
     const report = reportFor({
-      identity: {
-        algorithm: 'ecdsa-secp256k1',
-        privateKey: SECP256K1_KEY_PAIR.privateKey,
-        publicKey: `02${'00'.repeat(32)}`,
+      evidence: {
+        ...publicEvidence(
+          channelKeyDigest(jsonObject(jsonObject(base.attestation).workload_keyset)),
+        ),
+        ['é']: 'not-an-official-member',
       },
     });
-
-    await expectCode(verifierFor(report).verify(), 'endorsement_invalid');
+    const reportBytes = new TextEncoder().encode(JSON.stringify(report));
+    const bindings = nativeBindings(report, NONCE);
+    await expectCode(
+      verifierFor(report, bindings, { fetchImpl: fetchReportBytes(reportBytes) }).verify(),
+      'report_malformed',
+    );
   });
 
-  it('publishes a deeply immutable verified keyset', async () => {
+  it('publishes a deeply immutable verified keyset with a durable authority version', async () => {
     const report = reportFor();
     const keyset = await verifierFor(report).verify();
 
-    expect(keyset.workloadId).toBe(report.workload_id);
+    expect(keyset.workloadId).toBe(report.workload_keyset_digest);
     expect(keyset.workloadKeysetDigest).toBe(report.workload_keyset_digest);
-    expect(keyset.version).toBe(
-      ACI_REPORT_FIXTURE.attestation.workload_keyset.keyset_epoch.version,
-    );
+    expect(keyset.version).toBe(1);
     expect(keyset.notAfter).toBe(NOW + 3_600);
     expect(keyset.receiptSigningKeys[0]).toMatchObject({ keyId: 'receipt-1' });
     expect(keyset.e2eePublicKeys[0]).toMatchObject({ keyId: 'e2ee-1' });
@@ -414,12 +288,12 @@ describe('AciReportVerifier', () => {
       domain: 'inference.phala.com',
       keyId: 'e2ee-1',
       type: 'e2ee_public_key_sha256',
-      value: sha256Hex(Buffer.from('ab'.repeat(32), 'hex')),
+      value: sha256Hex(
+        Buffer.from('5dfedd3b6bd47f6fa28ee15d969d5bb0ea53774d488bdaf9df1c6e0124b3ef22', 'hex'),
+      ),
     });
     expect(keyset.channelKeyDigest).toBe(
-      channelKeyDigest(
-        (report.attestation as Record<string, unknown>).workload_keyset as Record<string, unknown>,
-      ),
+      channelKeyDigest(jsonObject(jsonObject(report.attestation).workload_keyset)),
     );
     expect(Object.isFrozen(keyset)).toBe(true);
     expect(Object.isFrozen(keyset.receiptSigningKeys)).toBe(true);
@@ -430,37 +304,52 @@ describe('AciReportVerifier', () => {
     expect(JSON.stringify(keyset)).not.toContain(MEASUREMENT);
   });
 
+  it('admits keysets with the deployment activation generation instead of zero', async () => {
+    const report = reportFor();
+    const admitKeyset = vi.fn(async () => 9);
+    const authority = {
+      read: vi.fn(async () => undefined),
+      admitKeyset,
+    };
+
+    await verifierFor(report, nativeBindings(report, NONCE), {
+      keysetHighWaterAuthority: authority,
+      activationGeneration: ACTIVATION_GENERATION,
+    }).verify();
+
+    expect(admitKeyset).toHaveBeenCalledWith({
+      context: TRUST_CONTEXT,
+      keysetDigest: String(report.workload_keyset_digest),
+      policyGeneration: ACI_POLICY_FIXTURE.generation,
+      activationGeneration: ACTIVATION_GENERATION,
+    });
+  });
+
   it('uses a fresh 32-byte nonce, a pinned redirect-free fetch, and public-only native input', async () => {
     const suppliedNonces = [NONCE, SECOND_NONCE];
     const requestedNonces: string[] = [];
     const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = new URL(String(input));
       const nonceHex = url.searchParams.get('nonce');
-      if (nonceHex === null) throw new Error('missing nonce');
+      if (nonceHex === null) throw new Error('missing_nonce');
       requestedNonces.push(nonceHex);
-      expect(`${url.origin}${url.pathname}`).toBe('https://inference.phala.com/v1/aci/attestation');
+      expect(`${url.origin}${url.pathname}`).toBe(REPORT_URL);
       expect(init?.method).toBe('GET');
       expect(init?.redirect).toBe('error');
       expect((init?.headers as Record<string, string>).Authorization).toBe(
         'Bearer fetch-only-secret',
       );
-      const response = Response.json(reportFor({ nonce: Buffer.from(nonceHex, 'hex') }));
-      Object.defineProperty(response, 'url', {
-        value: 'https://inference.phala.com/v1/aci/attestation',
-      });
-      return response;
+      const report = reportFor({ nonce: Uint8Array.from(Buffer.from(nonceHex, 'hex')) });
+      return responseForBytes(new TextEncoder().encode(JSON.stringify(report)));
     }) as unknown as typeof fetch;
     const nativeInputs: AciEvidenceVerificationInput[] = [];
     const evidenceVerifier: AciEvidenceVerifierPort = {
       verify: vi.fn(async (input) => {
         nativeInputs.push(input);
-        const report = JSON.parse(new TextDecoder().decode(input.reportBytes)) as Record<
-          string,
-          unknown
-        >;
-        const attestation = report.attestation as Record<string, unknown>;
+        const report = JSON.parse(new TextDecoder().decode(input.reportBytes)) as JsonObject;
+        const attestation = jsonObject(report.attestation);
         expect(new TextDecoder().decode(input.evidenceBytes)).toBe(
-          canonicalJson(attestation.evidence),
+          jcsCanonicalJson(attestation.evidence),
         );
         expect(Object.keys(input).sort()).toEqual([
           'deadline',
@@ -493,11 +382,13 @@ describe('AciReportVerifier', () => {
         }),
       },
       trustedTimeContext: TRUST_CONTEXT,
+      activationGeneration: ACTIVATION_GENERATION,
       evidenceVerifier,
+      keysetHighWaterAuthority: new InMemoryAciKeysetHighWaterAuthority(),
       fetchImpl,
       nonceSource: () => {
         const nonce = suppliedNonces.shift();
-        if (nonce === undefined) throw new Error('nonce source exhausted');
+        if (nonce === undefined) throw new Error('nonce_source_exhausted');
         return nonce;
       },
       policy: ACI_POLICY_FIXTURE,
@@ -515,10 +406,7 @@ describe('AciReportVerifier', () => {
 
   it('rejects a report response whose final origin differs from the pinned origin', async () => {
     const fetchImpl = vi.fn(async () => {
-      const response = new Response(JSON.stringify(reportFor()), {
-        headers: { 'Content-Type': 'application/json' },
-        status: 200,
-      });
+      const response = responseForBytes(new TextEncoder().encode(JSON.stringify(reportFor())));
       Object.defineProperty(response, 'url', { value: 'https://evil.example/v1/aci/attestation' });
       return response;
     }) as unknown as typeof fetch;
@@ -530,7 +418,9 @@ describe('AciReportVerifier', () => {
   });
 
   it('rejects a report response with no final URL', async () => {
-    const fetchImpl = vi.fn(async () => Response.json(reportFor())) as unknown as typeof fetch;
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify(reportFor()), { status: 200 }),
+    ) as unknown as typeof fetch;
 
     await expectCode(
       verifierFor(reportFor(), nativeBindings(reportFor(), NONCE), { fetchImpl }).verify(),
@@ -539,6 +429,7 @@ describe('AciReportVerifier', () => {
   });
 
   it('accepts official profile-defined evidence without flattened profile claims', async () => {
+    const base = reportFor();
     const report = reportFor({
       evidence: {
         app_compose: {},
@@ -550,40 +441,32 @@ describe('AciReportVerifier', () => {
         vm_config: {},
       },
     });
-    const bindings: VerifiedAciEvidenceBindings = {
-      ...nativeBindings(reportFor(), NONCE),
-      workloadId: report.workload_id as string,
-      workloadKeysetDigest: report.workload_keyset_digest as string,
-      reportDataStatementDigest: (report.attestation as Record<string, unknown>)
-        .report_data as string,
-      sourceRevision: (
-        (report.attestation as Record<string, unknown>).source_provenance as Record<string, unknown>
-      ).repo_commit as string,
-      imageDigest: (
-        (report.attestation as Record<string, unknown>).source_provenance as Record<string, unknown>
-      ).image_digest as string | null,
+    const evidence = jsonObject(jsonObject(report.attestation).evidence);
+    const bindings = {
+      ...nativeBindings(base, NONCE),
+      workloadId: String(report.workload_keyset_digest),
+      workloadKeysetDigest: String(report.workload_keyset_digest),
+      reportDataStatementDigest: String(jsonObject(report.attestation).report_data),
       channelKeyDigest: channelKeyDigest(
-        report.attestation.workload_keyset as Record<string, unknown>,
+        jsonObject(jsonObject(report.attestation).workload_keyset),
       ),
       evidenceTranscriptDigest: prefixedDigest(
-        new TextEncoder().encode(
-          canonicalJson((report.attestation as Record<string, unknown>).evidence),
-        ),
+        new TextEncoder().encode(jcsCanonicalJson(evidence)),
       ),
     };
 
     await expect(verifierFor(report, bindings).verify()).resolves.toMatchObject({
-      workloadId: report.workload_id,
+      workloadId: report.workload_keyset_digest,
       workloadKeysetDigest: report.workload_keyset_digest,
     });
   });
 
   it('rejects non-integer nested evidence before native verification', async () => {
     const base = reportFor();
-    const baseAttestation = base.attestation as Record<string, unknown>;
+    const baseEvidence = jsonObject(jsonObject(base.attestation).evidence);
     const report = reportFor({
       evidence: {
-        ...(baseAttestation.evidence as Record<string, unknown>),
+        ...baseEvidence,
         nested: { value: 1.5, detail: 'SENSITIVE_EVIDENCE_DETAIL' },
       },
     });
@@ -599,10 +482,10 @@ describe('AciReportVerifier', () => {
 
   it('rejects oversized evidence node count before native verification', async () => {
     const base = reportFor();
-    const baseAttestation = base.attestation as Record<string, unknown>;
+    const baseEvidence = jsonObject(jsonObject(base.attestation).evidence);
     const report = reportFor({
       evidence: {
-        ...(baseAttestation.evidence as Record<string, unknown>),
+        ...baseEvidence,
         oversized: Array.from({ length: 4_097 }, () => null),
       },
     });
@@ -618,9 +501,9 @@ describe('AciReportVerifier', () => {
   it('rejects malformed UTF-8 before recomputation or native verification', async () => {
     const report = reportFor();
     const bytes = Buffer.from(JSON.stringify(report));
-    const vendorOffset = bytes.indexOf(Buffer.from('example-provider'));
-    if (vendorOffset < 0) throw new Error('test report vendor missing');
-    bytes[vendorOffset] = 0xff;
+    const sourceOffset = bytes.indexOf(Buffer.from('private-ai-gateway'));
+    if (sourceOffset < 0) throw new Error('test_source_missing');
+    bytes[sourceOffset] = 0xff;
     const evidenceVerifier = { verify: vi.fn(async () => nativeBindings(report, NONCE)) };
 
     await expectCode(
@@ -671,7 +554,7 @@ describe('AciReportVerifier', () => {
 
   it('rejects an escaped unpaired Unicode surrogate before native verification', async () => {
     const report = reportFor();
-    const text = JSON.stringify(report).replace('example-provider', 'example-\\ud800-provider');
+    const text = JSON.stringify(report).replace('private-ai-gateway', 'private-\\ud800-gateway');
     const evidenceVerifier = { verify: vi.fn(async () => nativeBindings(report, NONCE)) };
 
     await expectCode(
@@ -701,8 +584,13 @@ describe('AciReportVerifier', () => {
         new AciReportVerifier({
           baseUrl: 'https://redirect.example.com/v1',
           policy: ACI_POLICY_FIXTURE,
+          activationGeneration: ACTIVATION_GENERATION,
           fetchImpl: fetchReport(reportFor()),
           evidenceVerifier: { verify: vi.fn(async () => nativeBindings(reportFor(), NONCE)) },
+          trustedTimeAuthority: {
+            read: async () => ({ trustedNow: NOW, ...TRUST_CONTEXT }),
+          },
+          trustedTimeContext: TRUST_CONTEXT,
         }),
     ).toThrowError(
       expect.objectContaining({
@@ -726,20 +614,9 @@ describe('AciReportVerifier', () => {
     expect(evidenceVerifier.verify).not.toHaveBeenCalled();
   });
 
-  it('rejects a recomputed workload identity mismatch before native verification', async () => {
-    const report = { ...reportFor(), workload_id: `sha256:${'0'.repeat(64)}` };
-    const evidenceVerifier = { verify: vi.fn(async () => nativeBindings(report, NONCE)) };
-
-    await expectCode(
-      verifierFor(report, nativeBindings(report, NONCE), { evidenceVerifier }).verify(),
-      'workload_id_mismatch',
-    );
-    expect(evidenceVerifier.verify).not.toHaveBeenCalled();
-  });
-
-  it('rejects a recomputed report-data statement mismatch before native verification', async () => {
+  it('rejects a recomputed official report-data statement mismatch before native verification', async () => {
     const report = reportFor();
-    const attestation = report.attestation as Record<string, unknown>;
+    const attestation = jsonObject(report.attestation);
     const changed = {
       ...report,
       attestation: { ...attestation, report_data: '0'.repeat(64) },
@@ -753,42 +630,95 @@ describe('AciReportVerifier', () => {
     expect(evidenceVerifier.verify).not.toHaveBeenCalled();
   });
 
-  it('rejects a keyset whose identity endorsement is invalid', async () => {
+  it('rejects removed official workload, vendor, freshness, endorsement, epoch, and identity fields', async () => {
     const report = reportFor();
-    const attestation = report.attestation as Record<string, unknown>;
-    const endorsement = attestation.keyset_endorsement as Record<string, unknown>;
-    const changed = {
-      ...report,
-      attestation: {
-        ...attestation,
-        keyset_endorsement: { ...endorsement, value: '0'.repeat(128) },
+    const attestation = jsonObject(report.attestation);
+    const keyset = jsonObject(attestation.workload_keyset);
+    const variants: JsonObject[] = [
+      { ...report, workload_id: `sha256:${'0'.repeat(64)}` },
+      { ...report, attestation: { ...attestation, vendor: 'provider' } },
+      { ...report, attestation: { ...attestation, freshness: {} } },
+      { ...report, attestation: { ...attestation, keyset_endorsement: {} } },
+      {
+        ...report,
+        attestation: {
+          ...attestation,
+          workload_keyset: { ...keyset, workload_id: `sha256:${'0'.repeat(64)}` },
+        },
       },
-    };
+      {
+        ...report,
+        attestation: {
+          ...attestation,
+          workload_keyset: { ...keyset, keyset_epoch: {} },
+        },
+      },
+      {
+        ...report,
+        attestation: {
+          ...attestation,
+          workload_keyset: { ...keyset, workload_identity: {} },
+        },
+      },
+    ];
 
-    await expectCode(
-      verifierFor(changed, nativeBindings(changed, NONCE)).verify(),
-      'endorsement_invalid',
-    );
+    for (const changed of variants) {
+      const evidenceVerifier = { verify: vi.fn(async () => nativeBindings(report, NONCE)) };
+      await expectCode(
+        verifierFor(changed, nativeBindings(report, NONCE), { evidenceVerifier }).verify(),
+        'report_malformed',
+      );
+      expect(evidenceVerifier.verify).not.toHaveBeenCalled();
+    }
   });
 
-  it.each([
-    ['report_expired', { staleAfter: NOW }],
-    ['report_from_future', { fetchedAt: NOW + 61, staleAfter: NOW + 120 }],
-    ['keyset_expired', { notAfter: NOW }],
-    [
-      'keyset_lifetime_exceeded',
-      { fetchedAt: NOW - 30, notAfter: NOW - 30 + ACI_POLICY_FIXTURE.maxKeysetLifetimeSeconds + 1 },
-    ],
-    ['freshness_exceeds_keyset', { notAfter: NOW + 300, staleAfter: NOW + 301 }],
-  ])('rejects invalid freshness or lifetime with %s', async (code, options) => {
-    const report = reportFor(options);
+  it('rejects a keyset that is expired at trusted time', async () => {
+    const report = reportFor({ notAfter: NOW });
     const evidenceVerifier = { verify: vi.fn(async () => nativeBindings(report, NONCE)) };
 
     await expectCode(
       verifierFor(report, nativeBindings(report, NONCE), { evidenceVerifier }).verify(),
-      code,
+      'keyset_expired',
     );
     expect(evidenceVerifier.verify).not.toHaveBeenCalled();
+  });
+
+  it('uses durable authority version instead of provider not_after for the local high-water', async () => {
+    const report = reportFor({ notAfter: NOW + 100 });
+    const verified = await verifierFor(report, nativeBindings(report, NONCE), {
+      trustedTimeAuthority: { read: async () => ({ trustedNow: NOW + 17, ...TRUST_CONTEXT }) },
+    }).verify();
+
+    expect(verified.notAfter).toBe(NOW + 100);
+    expect(verified.version).toBe(1);
+    expect(verified.version).not.toBe(verified.notAfter);
+  });
+
+  it('re-verifies the same digest deterministically at one trusted checkpoint', async () => {
+    const report = reportFor();
+
+    const first = await verifierFor(report).verify();
+    const afterRestart = await verifierFor(report).verify();
+
+    expect(afterRestart.workloadKeysetDigest).toBe(first.workloadKeysetDigest);
+    expect(afterRestart.version).toBe(first.version);
+  });
+
+  it('publishes a rotated official digest at the same trusted observation', async () => {
+    const rotatedKeyset = {
+      ...structuredClone(ACI_REPORT_FIXTURE.attestation.workload_keyset),
+      receipt_signing_keys: [
+        {
+          ...ACI_REPORT_FIXTURE.attestation.workload_keyset.receipt_signing_keys[0],
+          public_key: '6'.repeat(64),
+        },
+      ],
+    } as JsonObject;
+    const first = await verifierFor(reportFor()).verify();
+    const rotated = await verifierFor(reportFor({ keyset: rotatedKeyset })).verify();
+
+    expect(rotated.workloadKeysetDigest).not.toBe(first.workloadKeysetDigest);
+    expect(rotated.version).toBe(first.version);
   });
 
   it('maps native rejection to a content-free error', async () => {
@@ -821,20 +751,17 @@ describe('AciReportVerifier', () => {
   it('aborts native verification at its deadline', async () => {
     const report = reportFor();
     let signal: AbortSignal | undefined;
-    let deadline: number | undefined;
+    let deadline = 0;
     const evidenceVerifier: AciEvidenceVerifierPort = {
       verify: vi.fn(
-        (input) =>
+        async (input) =>
           new Promise<VerifiedAciEvidenceBindings>((_resolve, reject) => {
             signal = input.signal;
             deadline = input.deadline;
-            input.signal.addEventListener('abort', () => reject(input.signal.reason), {
-              once: true,
-            });
+            input.signal.addEventListener('abort', () => reject(input.signal.reason));
           }),
       ),
     };
-
     const startedAt = performance.now();
 
     await expectCode(
@@ -908,10 +835,7 @@ describe('AciReportVerifier', () => {
   });
 
   const nativeBindingMismatches: ReadonlyArray<
-    readonly [
-      keyof VerifiedAciEvidenceBindings,
-      VerifiedAciEvidenceBindings[keyof VerifiedAciEvidenceBindings],
-    ]
+    readonly [keyof VerifiedAciEvidenceBindings, unknown]
   > = [
     ['workloadId', `sha256:${'1'.repeat(64)}`],
     ['nonce', 'ff'.repeat(32)],
@@ -938,7 +862,6 @@ describe('AciReportVerifier', () => {
       ...nativeBindings(report, NONCE),
       [field]: value,
     } as VerifiedAciEvidenceBindings;
-
     const independentlyBoundFields: ReadonlySet<keyof VerifiedAciEvidenceBindings> = new Set([
       'workloadId',
       'nonce',
@@ -950,6 +873,7 @@ describe('AciReportVerifier', () => {
       'sourceRevision',
       'evidenceTranscriptDigest',
     ]);
+
     await expectCode(
       verifierFor(report, bindings).verify(),
       independentlyBoundFields.has(field) ? 'native_binding_mismatch' : 'native_policy_mismatch',
@@ -958,12 +882,13 @@ describe('AciReportVerifier', () => {
 
   it('rejects native evidence that matches the report but is outside signed policy', async () => {
     const base = reportFor();
-    const attestation = base.attestation as Record<string, unknown>;
-    const evidence = {
-      ...(attestation.evidence as Record<string, unknown>),
-      app_identity: 'app:untrusted',
-    };
-    const report = reportFor({ evidence });
+    const attestation = jsonObject(base.attestation);
+    const report = reportFor({
+      evidence: {
+        ...jsonObject(attestation.evidence),
+        app_identity: 'app:untrusted',
+      },
+    });
 
     await expectCode(
       verifierFor(report, nativeBindings(report, NONCE)).verify(),
@@ -1012,9 +937,7 @@ describe('AciReportVerifier', () => {
       const response = new Response('x'.repeat(257), {
         headers: { 'Content-Type': 'application/json', 'Content-Length': '257' },
       });
-      Object.defineProperty(response, 'url', {
-        value: 'https://inference.phala.com/v1/aci/attestation',
-      });
+      Object.defineProperty(response, 'url', { value: REPORT_URL });
       return response;
     }) as unknown as typeof fetch;
 
@@ -1045,9 +968,7 @@ describe('AciReportVerifier', () => {
     const sentinel = 'SENSITIVE_REPORT_DETAIL';
     const fetchImpl = vi.fn(async () => {
       const response = Response.json({ sentinel });
-      Object.defineProperty(response, 'url', {
-        value: 'https://inference.phala.com/v1/aci/attestation',
-      });
+      Object.defineProperty(response, 'url', { value: REPORT_URL });
       return response;
     }) as unknown as typeof fetch;
     const promise = verifierFor(reportFor(), nativeBindings(reportFor(), NONCE), {

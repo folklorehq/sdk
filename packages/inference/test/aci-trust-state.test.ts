@@ -10,7 +10,9 @@ import type {
   VerifiedAciKeyset,
   VerifiedAciSession,
   VerifiedAciTrustSnapshot,
+  TrustedTimeAuthorityPort,
 } from '../src/ports.js';
+import { InMemoryAciTrustHighWaterStore } from './doubles/aci/InMemoryAciStores.js';
 
 const NOW = 1_750_000_100;
 const ROLES: readonly InferenceModelRole[] = ['embed', 'generate', 'critique', 'judge'];
@@ -74,6 +76,20 @@ const KEYSET: VerifiedAciKeyset = {
   channelKeyDigest: CHANNEL_KEY_DIGEST,
 };
 
+function testState(
+  policy: InferenceTrustPolicyV2,
+  clock: (() => number) | TrustedTimeAuthorityPort,
+  trustedTimeAuthority?: TrustedTimeAuthorityPort,
+): AciTrustState {
+  return new AciTrustState(
+    policy,
+    clock,
+    new InMemoryAciTrustHighWaterStore(),
+    trustedTimeAuthority,
+    true,
+  );
+}
+
 function sessionFor(
   role: InferenceModelRole,
   workloadKeysetDigest = KEYSET_DIGEST,
@@ -87,13 +103,19 @@ function sessionFor(
     role,
     model: model.model,
     modelRevision: model.revision,
-    sessionId: `as_${role === 'embed' ? 'a' : role === 'generate' ? 'b' : role === 'critique' ? 'c' : 'd'}${'0'.repeat(63)}`,
+    sessionId: `${role === 'embed' ? 'a' : role === 'generate' ? 'b' : role === 'critique' ? 'c' : 'd'}${'0'.repeat(63)}`,
     establishedAt,
     expiresAt,
     workloadKeysetDigest,
     channelKeyDigest,
     channelPins,
     upstreamIdentityDigest: UPSTREAM_IDENTITY_DIGEST,
+    upstreamIdentity: {
+      upstreamName: 'upstream.example',
+      urlOrigin: 'https://upstream.example.com',
+      verifierId: 'verifier-1',
+      claims: { tee_attested: { status: 'asserted' } },
+    },
   };
 }
 
@@ -129,7 +151,7 @@ function candidate(overrides: Record<string, unknown> = {}): VerifiedAciTrustSna
 
 describe('AciTrustState', () => {
   it('keeps V2 snapshots separate for each trust context namespace', async () => {
-    const state = new AciTrustState(POLICY, {
+    const state = testState(POLICY, {
       read: async (context) => ({
         trustedNow: NOW,
         ...TRUST_CONTEXT,
@@ -161,7 +183,7 @@ describe('AciTrustState', () => {
   });
 
   it('rejects a V2 snapshot lookup across org, deployment, boot, or checkpoint namespaces', async () => {
-    const state = new AciTrustState(POLICY, {
+    const state = testState(POLICY, {
       read: async (context) => ({
         trustedNow: NOW,
         ...TRUST_CONTEXT,
@@ -187,7 +209,7 @@ describe('AciTrustState', () => {
   });
 
   it('fails closed on the V2 host-clock-only path', async () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
 
     await expect(state.acquireWithTrustedTime(TRUST_CONTEXT)).rejects.toMatchObject({
       code: 'clock_invalid',
@@ -198,7 +220,7 @@ describe('AciTrustState', () => {
   });
   it('publishes one immutable snapshot without aliasing candidate input', () => {
     const input = candidate();
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
 
     expect(state.acquire()).toBeUndefined();
     expect(state.refresh(0, input)).toBe(true);
@@ -229,7 +251,7 @@ describe('AciTrustState', () => {
   });
 
   it('rejects incomplete role sets and policy model or revision mismatches', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     const incomplete = { ...completeSessions() } as Partial<
       Record<InferenceModelRole, VerifiedAciSession>
     >;
@@ -268,7 +290,7 @@ describe('AciTrustState', () => {
   });
 
   it('accepts one official session id shared across roles with role-specific envelopes', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     const sessions = completeSessions();
     const sharedSessionId = sessions.embed.sessionId;
     sessions.generate = { ...sessions.generate, sessionId: sharedSessionId };
@@ -280,7 +302,7 @@ describe('AciTrustState', () => {
   });
 
   it('rejects reused session ids whose trust identity differs', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     const sessions = completeSessions();
     sessions.generate = {
       ...sessions.generate,
@@ -292,7 +314,7 @@ describe('AciTrustState', () => {
   });
 
   it('rejects rotation that keeps a session id but changes verified fields', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     expect(state.refresh(0, candidate())).toBe(true);
     const currentGenerate = state.acquire()?.sessions.generate;
     if (currentGenerate === undefined) throw new Error('missing current session');
@@ -309,24 +331,23 @@ describe('AciTrustState', () => {
     );
   });
 
-  it('requires session keyset digests and snapshot channel pins to match the keyset', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+  it('keeps upstream session identity independent from the aggregator keyset', () => {
+    const state = testState(POLICY, () => NOW);
+    expect(
+      state.refresh(
+        0,
+        candidate({
+          sessions: {
+            ...completeSessions(),
+            embed: { ...sessionFor('embed'), workloadKeysetDigest: `sha256:${'6'.repeat(64)}` },
+          },
+        }),
+      ),
+    ).toBe(true);
+    const pinState = testState(POLICY, () => NOW);
     expectTrustError(
       () =>
-        state.refresh(
-          0,
-          candidate({
-            sessions: {
-              ...completeSessions(),
-              embed: { ...sessionFor('embed'), workloadKeysetDigest: `sha256:${'6'.repeat(64)}` },
-            },
-          }),
-        ),
-      'session_keyset_mismatch',
-    );
-    expectTrustError(
-      () =>
-        state.refresh(
+        pinState.refresh(
           0,
           candidate({ channelPins: [{ ...CHANNEL_PINS[0], value: 'e'.repeat(64) }] }),
         ),
@@ -334,8 +355,28 @@ describe('AciTrustState', () => {
     );
   });
 
+  it('rejects a changed keyset digest at the same trusted observation version', () => {
+    const state = testState(POLICY, () => NOW);
+    expect(state.refresh(0, candidate())).toBe(true);
+    const changedDigest = `sha256:${'8'.repeat(64)}`;
+    const changedKeyset = { ...KEYSET, workloadKeysetDigest: changedDigest };
+
+    expectTrustError(
+      () =>
+        state.refresh(
+          1,
+          candidate({
+            generation: 2,
+            keyset: changedKeyset,
+            sessions: completeSessions(changedDigest),
+          }),
+        ),
+      'keyset_version_decreased',
+    );
+  });
+
   it('requires the candidate generation to be exactly the next generation', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
 
     expectTrustError(
       () => state.refresh(0, candidate({ generation: 2 })),
@@ -344,7 +385,7 @@ describe('AciTrustState', () => {
   });
 
   it('accepts upstream session pins that are independent from aggregator keyset pins', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     const sessions = Object.fromEntries(
       ROLES.map((role) => [
         role,
@@ -363,7 +404,7 @@ describe('AciTrustState', () => {
   });
 
   it('enforces expiry, maximum lifetimes, and the earliest snapshot expiry', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     expectTrustError(
       () =>
         state.refresh(
@@ -423,7 +464,7 @@ describe('AciTrustState', () => {
   });
 
   it('applies policy clock skew consistently to session establishment', () => {
-    const withinSkew = new AciTrustState(POLICY, () => NOW);
+    const withinSkew = testState(POLICY, () => NOW);
     expect(
       withinSkew.refresh(
         0,
@@ -433,7 +474,7 @@ describe('AciTrustState', () => {
       ),
     ).toBe(true);
 
-    const beyondSkew = new AciTrustState(POLICY, () => NOW);
+    const beyondSkew = testState(POLICY, () => NOW);
     expectTrustError(
       () =>
         beyondSkew.refresh(
@@ -462,7 +503,13 @@ describe('AciTrustState', () => {
         ...KEYSET,
         receiptSigningKeys: [KEYSET.receiptSigningKeys[0], { ...KEYSET.receiptSigningKeys[0] }],
       },
-      { ...KEYSET, e2eePublicKeys: [] },
+      {
+        ...KEYSET,
+        e2eePublicKeys: KEYSET.e2eePublicKeys.map((key) => ({
+          ...key,
+          publicKey: '0'.repeat(62),
+        })),
+      },
       {
         ...KEYSET,
         e2eePublicKeys: [
@@ -480,7 +527,7 @@ describe('AciTrustState', () => {
     ];
 
     for (const keyset of malformed) {
-      const state = new AciTrustState(POLICY, () => NOW);
+      const state = testState(POLICY, () => NOW);
       expectTrustError(
         () =>
           state.refresh(
@@ -494,7 +541,7 @@ describe('AciTrustState', () => {
       );
     }
 
-    const invalidSessionState = new AciTrustState(POLICY, () => NOW);
+    const invalidSessionState = testState(POLICY, () => NOW);
     expectTrustError(
       () =>
         invalidSessionState.refresh(
@@ -509,36 +556,57 @@ describe('AciTrustState', () => {
       'candidate_invalid',
     );
 
-    const invalidPinState = new AciTrustState(POLICY, () => NOW);
+    const invalidPinState = testState(POLICY, () => NOW);
     expectTrustError(
       () =>
         invalidPinState.refresh(0, candidate({ channelPins: [{ ...CHANNEL_PINS[0], domain: 7 }] })),
       'candidate_invalid',
     );
-    const nullPinState = new AciTrustState(POLICY, () => NOW);
+    const nullPinState = testState(POLICY, () => NOW);
     expectTrustError(
       () => nullPinState.refresh(0, candidate({ channelPins: [null] })),
       'candidate_invalid',
     );
 
-    const state = new AciTrustState(POLICY, () => NOW);
+    const invalidHistoryState = testState(POLICY, () => NOW);
     expectTrustError(
       () =>
-        state.refresh(
+        invalidHistoryState.refresh(
           0,
           candidate({
-            supersededKeysetDigests: Array.from(
-              { length: 257 },
-              (_value, index) => `sha256:${index.toString(16).padStart(64, '0')}`,
-            ),
+            supersededKeysetDigests: ['not-a-digest'],
           }),
         ),
       'candidate_invalid',
     );
   });
 
+  it('requires bare lowercase session ids in snapshots', () => {
+    for (const sessionId of [
+      `as_${'a'.repeat(64)}`,
+      'A'.repeat(64),
+      'a'.repeat(63),
+      'a'.repeat(65),
+    ]) {
+      const state = testState(POLICY, () => NOW);
+      expectTrustError(
+        () =>
+          state.refresh(
+            0,
+            candidate({
+              sessions: {
+                ...completeSessions(),
+                embed: { ...sessionFor('embed'), sessionId },
+              },
+            }),
+          ),
+        'candidate_invalid',
+      );
+    }
+  });
+
   it('rejects decreasing policy, activation, and keyset generations', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     expectTrustError(
       () => state.refresh(0, candidate({ policyGeneration: POLICY.generation - 1 })),
       'policy_generation_mismatch',
@@ -570,7 +638,7 @@ describe('AciTrustState', () => {
   });
 
   it('rejects current and superseded keysets and accumulates prior digests deterministically', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     expect(state.refresh(0, candidate())).toBe(true);
     expectTrustError(() => state.refresh(1, candidate({ generation: 2 })), 'keyset_current');
 
@@ -634,8 +702,227 @@ describe('AciTrustState', () => {
     ]);
   });
 
+  it('accepts a verified digest rotation observed in the same trusted second', async () => {
+    const authority = {
+      read: async (context: TrustedTimeReadContext) => ({
+        trustedNow: NOW,
+        ...TRUST_CONTEXT,
+        ...context,
+      }),
+    };
+    const state = testState(POLICY, authority);
+    const observedKeyset = { ...KEYSET, version: NOW };
+    expect(
+      await state.refreshWithTrustedTime(
+        0,
+        candidate({ keyset: observedKeyset, trustContext: TRUST_CONTEXT }),
+        TRUST_CONTEXT,
+      ),
+    ).toBe(true);
+
+    const rotatedKeyset: VerifiedAciKeyset = {
+      ...observedKeyset,
+      workloadKeysetDigest: `sha256:${'8'.repeat(64)}`,
+      version: NOW + 1,
+    };
+    expect(
+      await state.refreshWithTrustedTime(
+        1,
+        candidate({
+          generation: 2,
+          keyset: rotatedKeyset,
+          sessions: completeSessions(rotatedKeyset.workloadKeysetDigest),
+          trustContext: TRUST_CONTEXT,
+        }),
+        TRUST_CONTEXT,
+      ),
+    ).toBe(true);
+    await expect(state.acquireWithTrustedTime(TRUST_CONTEXT)).resolves.toMatchObject({
+      keyset: { workloadKeysetDigest: rotatedKeyset.workloadKeysetDigest },
+    });
+  });
+
+  it('rejects a lower trusted observation for an unseen digest', () => {
+    const state = testState(POLICY, () => NOW);
+    const observedKeyset = { ...KEYSET, version: NOW };
+    expect(state.refresh(0, candidate({ keyset: observedKeyset }))).toBe(true);
+
+    const rollbackKeyset: VerifiedAciKeyset = {
+      ...observedKeyset,
+      workloadKeysetDigest: `sha256:${'9'.repeat(64)}`,
+      version: NOW - 1,
+    };
+    expectTrustError(
+      () =>
+        state.refresh(
+          1,
+          candidate({
+            generation: 2,
+            keyset: rollbackKeyset,
+            sessions: completeSessions(rollbackKeyset.workloadKeysetDigest),
+          }),
+        ),
+      'keyset_version_decreased',
+    );
+  });
+
+  it('rejects a stale observed keyset after rotation even when its digest was not re-fetched', () => {
+    const state = testState(POLICY, () => NOW);
+    const observedKeyset = { ...KEYSET, version: NOW };
+    expect(state.refresh(0, candidate({ keyset: observedKeyset }))).toBe(true);
+
+    const rotatedKeyset: VerifiedAciKeyset = {
+      ...observedKeyset,
+      workloadKeysetDigest: `sha256:${'8'.repeat(64)}`,
+      version: NOW + 1,
+    };
+    expect(
+      state.refresh(
+        1,
+        candidate({
+          generation: 2,
+          keyset: rotatedKeyset,
+          sessions: completeSessions(rotatedKeyset.workloadKeysetDigest),
+        }),
+      ),
+    ).toBe(true);
+
+    expectTrustError(
+      () =>
+        state.refresh(
+          2,
+          candidate({
+            generation: 3,
+            keyset: observedKeyset,
+            sessions: completeSessions(observedKeyset.workloadKeysetDigest),
+          }),
+        ),
+      'keyset_superseded',
+    );
+  });
+
+  it('keeps durable keyset high-water stable across restart and rejects equivocation', async () => {
+    const authority = {
+      read: async (context: TrustedTimeReadContext) => ({
+        trustedNow: NOW,
+        ...TRUST_CONTEXT,
+        ...context,
+      }),
+    };
+    const store = new InMemoryAciTrustHighWaterStore();
+    const state = new AciTrustState(POLICY, authority, store, undefined);
+    const observedKeyset = { ...KEYSET, version: 1 };
+    expect(
+      await state.refreshWithTrustedTime(
+        0,
+        candidate({ keyset: observedKeyset, trustContext: TRUST_CONTEXT }),
+        TRUST_CONTEXT,
+      ),
+    ).toBe(true);
+
+    const restartedContext: AciTrustContext = {
+      ...TRUST_CONTEXT,
+      bootEpoch: 'boot-2',
+      checkpointDigest: 'b'.repeat(64),
+    };
+    const rotatedKeyset: VerifiedAciKeyset = {
+      ...observedKeyset,
+      workloadKeysetDigest: `sha256:${'8'.repeat(64)}`,
+    };
+    const restarted = new AciTrustState(POLICY, authority, store);
+    await expect(restarted.acquireWithTrustedTime(restartedContext)).resolves.toBeUndefined();
+    await expect(
+      restarted.refreshWithTrustedTime(
+        1,
+        candidate({
+          generation: 2,
+          keyset: { ...rotatedKeyset, version: observedKeyset.version },
+          sessions: completeSessions(rotatedKeyset.workloadKeysetDigest),
+          trustContext: restartedContext,
+        }),
+        restartedContext,
+      ),
+    ).rejects.toMatchObject({ code: 'keyset_equivocation' });
+    expect(
+      await restarted.refreshWithTrustedTime(
+        1,
+        candidate({
+          generation: 2,
+          keyset: { ...rotatedKeyset, version: observedKeyset.version + 1 },
+          sessions: completeSessions(rotatedKeyset.workloadKeysetDigest),
+          trustContext: restartedContext,
+        }),
+        restartedContext,
+      ),
+    ).toBe(true);
+    await expect(state.acquireWithTrustedTime(TRUST_CONTEXT)).resolves.toMatchObject({
+      keyset: { workloadKeysetDigest: observedKeyset.workloadKeysetDigest },
+    });
+    await expect(restarted.acquireWithTrustedTime(restartedContext)).resolves.toMatchObject({
+      keyset: { workloadKeysetDigest: rotatedKeyset.workloadKeysetDigest },
+    });
+    const stale = new AciTrustState(POLICY, authority, store);
+    await expect(
+      stale.refreshWithTrustedTime(
+        2,
+        candidate({
+          generation: 3,
+          keyset: observedKeyset,
+          sessions: completeSessions(observedKeyset.workloadKeysetDigest),
+          trustContext: restartedContext,
+        }),
+        restartedContext,
+      ),
+    ).rejects.toMatchObject({ code: 'keyset_superseded' });
+  });
+
+  it('rejects a superseded digest after more than the local cache bound and restart', async () => {
+    const authority = {
+      read: async (context: TrustedTimeReadContext) => ({
+        trustedNow: NOW,
+        ...TRUST_CONTEXT,
+        ...context,
+      }),
+    };
+    const store = new InMemoryAciTrustHighWaterStore();
+    const state = new AciTrustState(POLICY, authority, store);
+
+    for (let rotation = 0; rotation <= 256; rotation += 1) {
+      const digest = `sha256:${rotation.toString(16).padStart(64, '0')}`;
+      const keyset = { ...KEYSET, workloadKeysetDigest: digest, version: rotation + 1 };
+      expect(
+        await state.refreshWithTrustedTime(
+          rotation,
+          candidate({
+            generation: rotation + 1,
+            keyset,
+            sessions: completeSessions(digest),
+            trustContext: TRUST_CONTEXT,
+          }),
+          TRUST_CONTEXT,
+        ),
+      ).toBe(true);
+    }
+
+    const restarted = new AciTrustState(POLICY, authority, store);
+    const firstRotatedDigest = `sha256:${'0'.repeat(64)}`;
+    const firstRotatedKeyset = { ...KEYSET, workloadKeysetDigest: firstRotatedDigest, version: 1 };
+    await expect(
+      restarted.refreshWithTrustedTime(
+        257,
+        candidate({
+          generation: 258,
+          keyset: firstRotatedKeyset,
+          sessions: completeSessions(firstRotatedDigest),
+          trustContext: TRUST_CONTEXT,
+        }),
+        TRUST_CONTEXT,
+      ),
+    ).rejects.toMatchObject({ code: 'keyset_superseded' });
+  });
+
   it('allows a session-only refresh while retaining the current keyset', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     expect(state.refresh(0, candidate())).toBe(true);
 
     const refreshedSessions = Object.fromEntries(
@@ -643,7 +930,7 @@ describe('AciTrustState', () => {
         role,
         {
           ...sessionFor(role, KEYSET_DIGEST, NOW - 50, NOW + 700),
-          sessionId: `as_${['e', 'f', '8', '9'][index]}${'0'.repeat(63)}`,
+          sessionId: `${['e', 'f', '8', '9'][index]}${'0'.repeat(63)}`,
         },
       ]),
     ) as VerifiedAciSessionSet;
@@ -658,7 +945,7 @@ describe('AciTrustState', () => {
   });
 
   it('rejects an older session refresh under the same keyset', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     expect(state.refresh(0, candidate())).toBe(true);
 
     expectTrustError(
@@ -675,7 +962,7 @@ describe('AciTrustState', () => {
   });
 
   it('rejects expiry-only session renewal without a verified rotation boundary', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     expect(state.refresh(0, candidate())).toBe(true);
     const current = state.acquire();
     if (current === undefined) throw new Error('missing_current_snapshot');
@@ -701,7 +988,7 @@ describe('AciTrustState', () => {
   });
 
   it('maps a null E2EE public key to candidate_invalid', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     const invalid = structuredClone(candidate());
     invalid.keyset.e2eePublicKeys[0] = {
       ...invalid.keyset.e2eePublicKeys[0],
@@ -711,8 +998,33 @@ describe('AciTrustState', () => {
     expectTrustError(() => state.refresh(0, invalid), 'candidate_invalid');
   });
 
+  it('rejects unknown fields on fixed normalized keysets and key entries', () => {
+    const state = testState(POLICY, () => NOW);
+    const extended = structuredClone(candidate()) as unknown as {
+      keyset: VerifiedAciKeyset & Record<string, unknown>;
+    };
+    extended.keyset.provider_extension = { version: 1 };
+    extended.keyset.receiptSigningKeys[0] = {
+      ...extended.keyset.receiptSigningKeys[0],
+      provider_extension: 'receipt',
+    } as VerifiedAciKeyset['receiptSigningKeys'][number];
+    extended.keyset.e2eePublicKeys[0] = {
+      ...extended.keyset.e2eePublicKeys[0],
+      provider_extension: 'e2ee',
+    } as VerifiedAciKeyset['e2eePublicKeys'][number];
+    extended.keyset.tlsPublicKeys[0] = {
+      ...extended.keyset.tlsPublicKeys[0],
+      provider_extension: 'tls',
+    } as VerifiedAciKeyset['tlsPublicKeys'][number];
+
+    expectTrustError(
+      () => state.refresh(0, extended as unknown as VerifiedAciTrustSnapshot),
+      'candidate_invalid',
+    );
+  });
+
   it('uses compare-and-swap refreshes and preserves an acquired old snapshot', () => {
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     expect(state.refresh(0, candidate())).toBe(true);
     const oldSnapshot = state.acquire();
     const nextKeyset: VerifiedAciKeyset = {
@@ -734,19 +1046,16 @@ describe('AciTrustState', () => {
   });
 
   it('fails closed on invalid runtime shapes, clock values, and content-free errors', () => {
-    expectTrustError(
-      () => new AciTrustState(POLICY, null as unknown as () => number),
-      'clock_invalid',
-    );
+    expectTrustError(() => testState(POLICY, null as unknown as () => number), 'clock_invalid');
     expectTrustError(
       () =>
-        new AciTrustState(
+        testState(
           { ...POLICY, generation: 'secret-content-marker' } as unknown as InferenceTrustPolicyV2,
           () => NOW,
         ),
       'policy_invalid',
     );
-    const state = new AciTrustState(POLICY, () => NOW);
+    const state = testState(POLICY, () => NOW);
     expectTrustError(
       () => state.refresh(0, null as unknown as VerifiedAciTrustSnapshot),
       'candidate_invalid',
@@ -757,10 +1066,10 @@ describe('AciTrustState', () => {
     );
     expectTrustError(() => state.refresh(-1, candidate()), 'expected_generation_invalid');
 
-    const invalidClockState = new AciTrustState(POLICY, () => Number.NaN);
+    const invalidClockState = testState(POLICY, () => Number.NaN);
     expectTrustError(() => invalidClockState.refresh(0, candidate()), 'clock_invalid');
     expectTrustError(() => invalidClockState.acquire(), 'clock_invalid');
-    const throwingClockState = new AciTrustState(POLICY, () => {
+    const throwingClockState = testState(POLICY, () => {
       throw new Error('secret-content-marker');
     });
     expectTrustError(() => throwingClockState.acquire(), 'clock_invalid');
@@ -769,7 +1078,7 @@ describe('AciTrustState', () => {
   it('uses the injected trusted-time seam without mapping legacy generation to V2 fields', async () => {
     let reads = 0;
     const contexts: TrustedTimeReadContext[] = [];
-    const state = new AciTrustState(POLICY, {
+    const state = testState(POLICY, {
       read: async (context) => {
         reads += 1;
         contexts.push(context ?? {});

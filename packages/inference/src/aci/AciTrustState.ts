@@ -15,19 +15,21 @@ import type {
   VerifiedAciTrustSnapshot,
   AciTrustContext,
   AciV2TrustStatePort,
+  AciTrustHighWater,
+  AciTrustHighWaterStorePort,
   TrustedTimeAuthorityPort,
 } from '../ports.js';
 import { isTrustedTimeContext, readTrustedTimeSample } from './trusted-time.js';
 
 const ROLES: readonly InferenceModelRole[] = ['embed', 'generate', 'critique', 'judge'];
 const PREFIXED_DIGEST = /^sha256:[0-9a-f]{64}$/;
-const SESSION_ID = /^as_[0-9a-f]{64}$/;
+const SESSION_ID = /^[0-9a-f]{64}$/;
 const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const E2EE_ALGORITHM = /^[A-Za-z0-9][A-Za-z0-9._:+-]{0,127}$/;
 const MAX_ITEMS = 32;
-const MAX_SUPERSEDED_DIGESTS = 256;
 const MAX_CLONE_DEPTH = 64;
 const MAX_CLONE_NODES = 4_096;
+const MAX_CLONE_BYTES = 1_048_576;
 
 export type AciTrustStateErrorCode =
   | 'activation_generation_decreased'
@@ -36,8 +38,10 @@ export type AciTrustStateErrorCode =
   | 'channel_pins_mismatch'
   | 'clock_invalid'
   | 'context_mismatch'
+  | 'durable_state_required'
   | 'expected_generation_invalid'
   | 'keyset_current'
+  | 'keyset_equivocation'
   | 'keyset_expired'
   | 'keyset_lifetime_exceeded'
   | 'keyset_superseded'
@@ -65,6 +69,7 @@ export class AciTrustStateError extends Error {
 interface CloneBudget {
   depth: number;
   nodes: number;
+  bytes: number;
   readonly seen: WeakSet<object>;
 }
 
@@ -72,17 +77,28 @@ export class AciTrustState implements AciV2TrustStatePort {
   private readonly policy: InferenceTrustPolicyV2;
   private readonly clock: () => number;
   private readonly trustedTimeAuthority: TrustedTimeAuthorityPort | undefined;
+  private readonly durableState: AciTrustHighWaterStorePort;
+  private readonly testOnlyAllowLegacyPaths: boolean;
   private legacySnapshot: VerifiedAciTrustSnapshot | undefined;
   private readonly snapshots = new Map<string, VerifiedAciTrustSnapshot>();
   constructor(
     policy: InferenceTrustPolicyV2,
     clock: (() => number) | TrustedTimeAuthorityPort,
+    durableState: AciTrustHighWaterStorePort | undefined,
     trustedTimeAuthority?: TrustedTimeAuthorityPort,
+    testOnlyAllowLegacyPaths = false,
   ) {
     const parsed = inferenceTrustPolicyV2Schema.safeParse(policy);
     if (!parsed.success) throw new AciTrustStateError('policy_invalid');
     if (typeof clock !== 'function' && typeof clock?.read !== 'function') {
       throw new AciTrustStateError('clock_invalid');
+    }
+    if (
+      typeof durableState?.load !== 'function' ||
+      typeof durableState?.isKeysetSuperseded !== 'function' ||
+      typeof durableState?.compareAndSet !== 'function'
+    ) {
+      throw new AciTrustStateError('durable_state_required');
     }
     this.policy = this.freeze(this.clone(parsed.data));
     this.clock =
@@ -92,8 +108,14 @@ export class AciTrustState implements AciV2TrustStatePort {
             throw new Error('trusted_time_required');
           };
     this.trustedTimeAuthority = typeof clock === 'function' ? trustedTimeAuthority : clock;
+    this.durableState = durableState;
+    this.testOnlyAllowLegacyPaths = testOnlyAllowLegacyPaths;
+    if (testOnlyAllowLegacyPaths && process.env['NODE_ENV'] !== 'test') {
+      throw new AciTrustStateError('durable_state_required');
+    }
   }
   acquire(): VerifiedAciTrustSnapshot | undefined {
+    this.assertTestOnlyLegacyPath();
     return this.acquireAt(this.legacySnapshot, this.now());
   }
 
@@ -122,7 +144,14 @@ export class AciTrustState implements AciV2TrustStatePort {
     return snapshot;
   }
   refresh(expectedGeneration: number, candidate: VerifiedAciTrustSnapshot): boolean {
+    this.assertTestOnlyLegacyPath();
     return this.refreshAt(expectedGeneration, candidate, this.now());
+  }
+
+  private assertTestOnlyLegacyPath(): void {
+    if (!this.testOnlyAllowLegacyPaths) {
+      throw new AciTrustStateError('durable_state_required');
+    }
   }
 
   async refreshWithTrustedTime(
@@ -130,12 +159,29 @@ export class AciTrustState implements AciV2TrustStatePort {
     candidate: VerifiedAciTrustSnapshot,
     context: AciTrustContext,
   ): Promise<boolean> {
-    return this.refreshAt(
-      expectedGeneration,
-      candidate,
-      await this.readTrustedTime(context),
-      context,
-    );
+    const durable = await this.durableState.load(context);
+    const now = await this.readTrustedTime(context);
+    if (!this.isNonNegativeInteger(expectedGeneration)) {
+      throw new AciTrustStateError('expected_generation_invalid');
+    }
+    if ((durable?.generation ?? 0) !== expectedGeneration) return false;
+    await this.validateDurableHistory(candidate, context);
+    const namespace = this.namespaceKey(context);
+    const current = this.snapshots.get(namespace);
+    const prepared = this.prepare(candidate, expectedGeneration, current, now, context, durable);
+    const active = this.snapshots.get(namespace);
+    if (active !== undefined && active.generation !== expectedGeneration) return false;
+    if (
+      !(await this.durableState.compareAndSet(
+        context,
+        expectedGeneration,
+        this.highWater(prepared, context),
+      ))
+    ) {
+      return false;
+    }
+    this.snapshots.set(namespace, prepared);
+    return true;
   }
 
   private refreshAt(
@@ -143,14 +189,16 @@ export class AciTrustState implements AciV2TrustStatePort {
     candidate: VerifiedAciTrustSnapshot,
     now: number,
     context?: AciTrustContext,
+    durable?: AciTrustHighWater,
   ): boolean {
     if (!this.isNonNegativeInteger(expectedGeneration)) {
       throw new AciTrustStateError('expected_generation_invalid');
     }
     const namespace = context === undefined ? undefined : this.namespaceKey(context);
     const current = namespace === undefined ? this.legacySnapshot : this.snapshots.get(namespace);
-    if ((current?.generation ?? 0) !== expectedGeneration) return false;
-    const prepared = this.prepare(candidate, expectedGeneration, current, now, context);
+    if (context !== undefined && (durable?.generation ?? 0) !== expectedGeneration) return false;
+    if (context === undefined && (current?.generation ?? 0) !== expectedGeneration) return false;
+    const prepared = this.prepare(candidate, expectedGeneration, current, now, context, durable);
     const active = namespace === undefined ? this.legacySnapshot : this.snapshots.get(namespace);
     if ((active?.generation ?? 0) !== expectedGeneration) return false;
     if (namespace === undefined) {
@@ -167,6 +215,7 @@ export class AciTrustState implements AciV2TrustStatePort {
     current: VerifiedAciTrustSnapshot | undefined,
     now: number,
     context?: AciTrustContext,
+    durable?: AciTrustHighWater,
   ): VerifiedAciTrustSnapshot {
     let copy: VerifiedAciTrustSnapshot;
     try {
@@ -185,8 +234,62 @@ export class AciTrustState implements AciV2TrustStatePort {
     this.validateBindings(copy);
     this.validateLifetimes(copy, now);
     this.validateRotation(copy, current);
-    const superseded = this.nextSuperseded(current, copy.keyset.workloadKeysetDigest);
+    this.validateDurableHighWater(copy, durable, context);
+    const superseded = this.nextSuperseded(
+      current,
+      copy.keyset.workloadKeysetDigest,
+      durable?.supersededKeysetDigests,
+    );
     return this.freeze({ ...copy, supersededKeysetDigests: superseded });
+  }
+
+  private validateDurableHighWater(
+    candidate: VerifiedAciTrustSnapshot,
+    durable: AciTrustHighWater | undefined,
+    context: AciTrustContext | undefined,
+  ): void {
+    if (durable === undefined) return;
+    if (context !== undefined && !this.sameDurableScope(durable.trustContext, context)) {
+      throw new AciTrustStateError('context_mismatch');
+    }
+    const candidateDigest = candidate.keyset.workloadKeysetDigest;
+    if (
+      candidate.keyset.version === durable.keysetVersion &&
+      candidateDigest !== durable.currentKeysetDigest
+    ) {
+      throw new AciTrustStateError('keyset_equivocation');
+    }
+    if (
+      candidate.policyGeneration < durable.policyGeneration ||
+      candidate.activationGeneration < durable.activationGeneration ||
+      candidate.keyset.version < durable.keysetVersion ||
+      durable.supersededKeysetDigests.includes(candidateDigest)
+    ) {
+      throw new AciTrustStateError(
+        durable.supersededKeysetDigests.includes(candidateDigest)
+          ? 'keyset_superseded'
+          : candidate.keyset.version < durable.keysetVersion
+            ? 'keyset_version_decreased'
+            : candidate.activationGeneration < durable.activationGeneration
+              ? 'activation_generation_decreased'
+              : 'policy_generation_mismatch',
+      );
+    }
+  }
+
+  private highWater(
+    snapshot: VerifiedAciTrustSnapshot,
+    context: AciTrustContext,
+  ): AciTrustHighWater {
+    return {
+      generation: snapshot.generation,
+      policyGeneration: snapshot.policyGeneration,
+      activationGeneration: snapshot.activationGeneration,
+      keysetVersion: snapshot.keyset.version,
+      currentKeysetDigest: snapshot.keyset.workloadKeysetDigest,
+      supersededKeysetDigests: snapshot.supersededKeysetDigests,
+      trustContext: context,
+    };
   }
 
   private validateSnapshot(snapshot: VerifiedAciTrustSnapshot): void {
@@ -221,7 +324,6 @@ export class AciTrustState implements AciV2TrustStatePort {
       throw new AciTrustStateError('candidate_invalid');
     }
     if (
-      snapshot.supersededKeysetDigests.length > MAX_SUPERSEDED_DIGESTS ||
       snapshot.supersededKeysetDigests.some(
         (digest) => typeof digest !== 'string' || !PREFIXED_DIGEST.test(digest),
       )
@@ -259,7 +361,6 @@ export class AciTrustState implements AciV2TrustStatePort {
       keyset.receiptSigningKeys.length === 0 ||
       keyset.receiptSigningKeys.length > MAX_ITEMS ||
       !Array.isArray(keyset.e2eePublicKeys) ||
-      keyset.e2eePublicKeys.length === 0 ||
       keyset.e2eePublicKeys.length > MAX_ITEMS ||
       !Array.isArray(keyset.tlsPublicKeys) ||
       keyset.tlsPublicKeys.length > MAX_ITEMS ||
@@ -278,21 +379,13 @@ export class AciTrustState implements AciV2TrustStatePort {
   private validateReceiptKeys(keys: VerifiedAciKeyset['receiptSigningKeys']): void {
     for (const key of keys) {
       if (!this.isRecord(key)) throw new AciTrustStateError('candidate_invalid');
-      const isEd25519 =
-        key.algorithm === 'ed25519' &&
-        typeof key.publicKey === 'string' &&
-        key.publicKey.length === 64;
-      const isSecp256k1 =
-        key.algorithm === 'ecdsa-secp256k1' &&
-        typeof key.publicKey === 'string' &&
-        [66, 130].includes(key.publicKey.length);
       if (
         !this.hasExactKeys(key, ['keyId', 'algorithm', 'publicKey']) ||
         typeof key.keyId !== 'string' ||
         !IDENTIFIER.test(key.keyId) ||
+        key.algorithm !== 'ed25519' ||
         typeof key.publicKey !== 'string' ||
-        !/^[0-9a-f]+$/.test(key.publicKey) ||
-        (!isEd25519 && !isSecp256k1)
+        !/^[0-9a-f]{64}$/.test(key.publicKey)
       ) {
         throw new AciTrustStateError('candidate_invalid');
       }
@@ -326,23 +419,16 @@ export class AciTrustState implements AciV2TrustStatePort {
         throw new AciTrustStateError('candidate_invalid');
       }
     }
-    if (
-      !keys.some((key) =>
-        ['x25519-aes-256-gcm-hkdf-sha256', 'secp256k1-aes-256-gcm-hkdf-sha256'].includes(
-          key.algorithm,
-        ),
-      )
-    ) {
-      throw new AciTrustStateError('candidate_invalid');
-    }
   }
 
   private validateTlsKeys(keys: VerifiedAciKeyset['tlsPublicKeys']): void {
     for (const key of keys) {
       if (!this.isRecord(key)) throw new AciTrustStateError('candidate_invalid');
-      const allowedKeys = key.domain === undefined ? ['spkiSha256'] : ['spkiSha256', 'domain'];
       if (
-        !this.hasExactKeys(key, allowedKeys) ||
+        !this.hasExactKeys(
+          key,
+          key.domain === undefined ? ['spkiSha256'] : ['spkiSha256', 'domain'],
+        ) ||
         typeof key.spkiSha256 !== 'string' ||
         !/^[0-9a-f]{64}$/.test(key.spkiSha256) ||
         (key.domain !== undefined &&
@@ -393,6 +479,7 @@ export class AciTrustState implements AciV2TrustStatePort {
       left.workloadKeysetDigest === right.workloadKeysetDigest &&
       left.channelKeyDigest === right.channelKeyDigest &&
       left.upstreamIdentityDigest === right.upstreamIdentityDigest &&
+      isDeepStrictEqual(left.upstreamIdentity, right.upstreamIdentity) &&
       isDeepStrictEqual(left.channelPins, right.channelPins)
     );
   }
@@ -411,6 +498,7 @@ export class AciTrustState implements AciV2TrustStatePort {
         'channelKeyDigest',
         'channelPins',
         'upstreamIdentityDigest',
+        'upstreamIdentity',
       ]) ||
       session.role !== role ||
       typeof session.model !== 'string' ||
@@ -426,7 +514,18 @@ export class AciTrustState implements AciV2TrustStatePort {
       !PREFIXED_DIGEST.test(session.channelKeyDigest) ||
       !Array.isArray(session.channelPins) ||
       typeof session.upstreamIdentityDigest !== 'string' ||
-      !PREFIXED_DIGEST.test(session.upstreamIdentityDigest)
+      !PREFIXED_DIGEST.test(session.upstreamIdentityDigest) ||
+      !this.isRecord(session.upstreamIdentity) ||
+      !this.hasExactKeys(session.upstreamIdentity, [
+        'upstreamName',
+        'urlOrigin',
+        'verifierId',
+        'claims',
+      ]) ||
+      typeof session.upstreamIdentity.upstreamName !== 'string' ||
+      (session.upstreamIdentity.urlOrigin !== null &&
+        typeof session.upstreamIdentity.urlOrigin !== 'string') ||
+      typeof session.upstreamIdentity.verifierId !== 'string'
     ) {
       throw new AciTrustStateError('candidate_invalid');
     }
@@ -446,9 +545,7 @@ export class AciTrustState implements AciV2TrustStatePort {
       if (pin.provider !== undefined) allowedKeys.push('provider');
       if (
         !this.hasExactKeys(pin, allowedKeys) ||
-        !['tls_spki_sha256', 'tls_certificate_sha256', 'e2ee_public_key_sha256'].includes(
-          pin.type,
-        ) ||
+        !['tls_spki_sha256', 'e2ee_public_key_sha256'].includes(pin.type) ||
         typeof pin.value !== 'string' ||
         !/^[0-9a-f]{64}$/.test(pin.value) ||
         (pin.domain !== undefined &&
@@ -486,8 +583,8 @@ export class AciTrustState implements AciV2TrustStatePort {
     }
     for (const role of ROLES) {
       const session = snapshot.sessions[role];
-      if (session.workloadKeysetDigest !== snapshot.keyset.workloadKeysetDigest) {
-        throw new AciTrustStateError('session_keyset_mismatch');
+      if (!PREFIXED_DIGEST.test(session.workloadKeysetDigest)) {
+        throw new AciTrustStateError('candidate_invalid');
       }
     }
   }
@@ -556,14 +653,31 @@ export class AciTrustState implements AciV2TrustStatePort {
   private nextSuperseded(
     current: VerifiedAciTrustSnapshot | undefined,
     nextDigest: string,
+    durableSuperseded: readonly string[] = [],
   ): readonly string[] {
-    if (current === undefined) return [];
+    const previous = current?.supersededKeysetDigests ?? durableSuperseded;
+    if (current === undefined) return previous;
     if (current.keyset.workloadKeysetDigest === nextDigest) {
-      return current.supersededKeysetDigests;
+      return previous;
     }
-    return [...current.supersededKeysetDigests, current.keyset.workloadKeysetDigest].slice(
-      -MAX_SUPERSEDED_DIGESTS,
-    );
+    const next = [...previous, current.keyset.workloadKeysetDigest];
+    return [...new Set(next)];
+  }
+
+  private async validateDurableHistory(
+    candidate: VerifiedAciTrustSnapshot,
+    context: AciTrustContext,
+  ): Promise<void> {
+    let superseded: boolean;
+    try {
+      superseded = await this.durableState.isKeysetSuperseded({
+        context,
+        keysetDigest: candidate.keyset.workloadKeysetDigest,
+      });
+    } catch {
+      throw new AciTrustStateError('durable_state_required');
+    }
+    if (superseded) throw new AciTrustStateError('keyset_superseded');
   }
 
   private assertCandidateContext(
@@ -591,6 +705,10 @@ export class AciTrustState implements AciV2TrustStatePort {
       left.bootEpoch === right.bootEpoch &&
       left.checkpointDigest === right.checkpointDigest
     );
+  }
+
+  private sameDurableScope(left: AciTrustContext, right: AciTrustContext): boolean {
+    return left.orgId === right.orgId && left.deploymentId === right.deploymentId;
   }
 
   private namespaceKey(context: AciTrustContext): string {
@@ -623,12 +741,18 @@ export class AciTrustState implements AciV2TrustStatePort {
     return this.cloneValue(value, {
       depth: 0,
       nodes: 0,
+      bytes: 0,
       seen: new WeakSet<object>(),
     }) as T;
   }
 
   private cloneValue(value: unknown, budget: CloneBudget): unknown {
-    if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+    if (value === null || typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+      budget.bytes += Buffer.byteLength(value, 'utf8');
+      if (budget.bytes > MAX_CLONE_BYTES) throw new TypeError('value too large');
+      return value;
+    }
     if (typeof value === 'number') {
       if (!Number.isSafeInteger(value)) throw new TypeError('invalid number');
       return value;
@@ -644,7 +768,11 @@ export class AciTrustState implements AciV2TrustStatePort {
     const copy: unknown = Array.isArray(value)
       ? value.map((item) => this.cloneValue(item, budget))
       : Object.fromEntries(
-          Object.entries(value).map(([key, item]) => [key, this.cloneValue(item, budget)]),
+          Object.entries(value).map(([key, item]) => {
+            budget.bytes += Buffer.byteLength(key, 'utf8');
+            if (budget.bytes > MAX_CLONE_BYTES) throw new TypeError('value too large');
+            return [key, this.cloneValue(item, budget)];
+          }),
         );
     budget.depth -= 1;
     budget.seen.delete(value);
