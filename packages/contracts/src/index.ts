@@ -6,6 +6,7 @@ export * from './auth.js';
 export * from './canary-authorization.js';
 export * from './codebase-settings.js';
 export * from './collab.js';
+export * from './commissioning-acceptance.js';
 export * from './control-plane-environment.js';
 export * from './enclave.js';
 export * from './enclave-output.js';
