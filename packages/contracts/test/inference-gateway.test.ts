@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import {
-  durableGenerationHighWaterCheckpointSchema,
   gatewayEvidenceEnvelopeSchema,
   preForwardRouteProofSchema,
   v2CutoverRecordSchema,
 } from '../src/inference-gateway.js';
+import { durableGenerationHighWaterCheckpointSchema } from '../src/generation-high-water.js';
 import * as rootContracts from '../src/index.js';
 
 const DIGEST_A = 'a'.repeat(64);
@@ -67,17 +67,25 @@ const validCheckpoint = {
   checkpointVersion: 1,
   orgId: 'org-1',
   deploymentId: 'deployment-1',
+  policyDigest: DIGEST_B,
   policyGeneration: 7,
   activationGeneration: 3,
-  keysetHighWater: { epoch: 4, digest: DIGEST_A },
-  policyDigest: DIGEST_B,
+  configurationGeneration: 11,
+  keysetEpoch: 4,
+  keysetDigest: DIGEST_A,
   releaseId: 'release-1',
   protectedSourceCommit: SOURCE_COMMIT,
   eifDigest: DIGEST_C,
-  signerKeyId: 'checkpoint-signer-1',
+  pcr0: PCR0,
+  bootRootDigest: DIGEST_D,
+  schema: 'folklore.durable-generation-high-water-checkpoint.v1',
+  keysetHighWater: { epoch: 4, digest: DIGEST_A },
+  predecessorDigest: DIGEST_A,
   previousCheckpointDigest: null,
-  issuedAt: 1_700_000_000_000,
   checkpointDigest: DIGEST_D,
+  signerKeyId: 'checkpoint-signer-1',
+  signerPurpose: 'generation-high-water',
+  issuedAt: 1_700_000_000_000,
   signature: SIGNATURE,
 };
 

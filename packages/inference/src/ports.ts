@@ -1,14 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0
 import type {
   AciSession,
+  Digest64,
+  DurableGenerationHighWaterCheckpointV1,
+  GenerationContextV1,
   InferenceModelRole,
   InferenceTrustPolicyV2,
+  ModelExecutionModeV1,
+  ModelProvenanceSourceV1,
+  PolicySignedModelProvenanceTupleV1,
   PreForwardRouteProofV1,
+  ProductionVerifiedModelProvenanceV1,
+  ProviderNativeModelArtifactBindingV1,
+  SyntheticVerifiedModelProvenanceV1,
   TrustedTimeBindingV1,
   TrustedTimeSampleV1,
+  UnknownModelProvenanceV1,
+  VerifiedModelProvenanceV1,
 } from '@folklore/contracts';
 
 export type { TrustedTimeBindingV1, TrustedTimeSampleV1 } from '@folklore/contracts';
+
+export interface DurableGenerationHighWaterClientPort {
+  read(context: GenerationContextV1): Promise<DurableGenerationHighWaterCheckpointV1>;
+}
 
 /** InferenceBackend port — all inference MUST happen inside the customer's box; sending fact content to an external API is structurally prohibited. */
 
@@ -446,40 +461,50 @@ export interface AciSessionVerifierConfig {
   readonly keysetHighWaterAuthority?: AciKeysetHighWaterAuthorityPort;
 }
 
-export interface PreForwardRouteBinding {
-  orgId: string;
-  deploymentId: string;
-  tenantId: string;
-  assignmentDigest: string;
-  proofId: string;
-  workloadId: string;
-  runtimeIdentityDigest: string;
-  workloadArtifactDigest: string;
-  pinnedTrustRootDigest: string;
-  channelKeyDigest: string;
-  exporterLabel: string;
-  exporterDigest: string;
-  transcriptDigest: string;
-  snapshotDigest: string;
-  policyDigest: string;
-  tenantAadDigest: string;
-  origin: string;
-  route: string;
-  method: 'POST';
-  routeIdentityDigest: string;
-  role: InferenceModelRole;
-  sessionId: string;
-  model: string;
-  modelRevision: string;
-  modelArtifactDigest: string;
-  workloadKeysetDigest: string;
-  capabilityDigest: string;
-  policyGeneration: number;
-  activationGeneration: number;
-  gatewayNonce: string;
-  requestId: string;
-  bootEpoch: string;
-  trustedTimeCheckpointDigest: string;
+export interface PreForwardRouteExpectation {
+  readonly orgId: string;
+  readonly deploymentId: string;
+  readonly tenantId: string;
+  readonly assignmentDigest: string;
+  readonly proofId: string;
+  readonly workloadId: string;
+  readonly runtimeIdentityDigest: string;
+  readonly workloadArtifactDigest: string;
+  readonly pinnedTrustRootDigest: string;
+  readonly channelKeyDigest: string;
+  readonly exporterLabel: string;
+  readonly exporterDigest: string;
+  readonly transcriptDigest: string;
+  readonly snapshotDigest: string;
+  readonly policyDigest: string;
+  readonly tenantAadDigest: string;
+  readonly origin: string;
+  readonly route: string;
+  readonly method: 'POST';
+  readonly routeIdentityDigest: string;
+  readonly role: InferenceModelRole;
+  readonly sessionId: string;
+  readonly model: string;
+  readonly modelRevision: string;
+  readonly modelArtifactDigest: string;
+  readonly workloadKeysetDigest: string;
+  readonly capabilityDigest: string;
+  readonly policyGeneration: number;
+  readonly activationGeneration: number;
+  readonly gatewayNonce: string;
+  readonly requestId: string;
+  readonly bootEpoch: string;
+  readonly trustedTimeCheckpointDigest: string;
+}
+
+// The post-proof result (plan Task 3): every pre-forward expectation field plus the opaque
+// proof identity, the full controlled binding digest, and the controlled-gateway source tag.
+// The runtime brand lives in ControlledGatewayModelArtifactBindingVerifier; only that module
+// mints it, and ModelProvenanceGate accepts controlled bindings only through its guard.
+export interface PreForwardRouteBinding extends PreForwardRouteExpectation {
+  readonly proofDigest: Digest64;
+  readonly bindingDigest: Digest64;
+  readonly source: 'controlled-gateway';
 }
 
 export type VerifiedPreForwardRouteProof = Readonly<PreForwardRouteProofV1>;
@@ -549,13 +574,43 @@ export interface TrustedTimeAuthorityV1Port extends TrustedTimeAuthorityPort {
 
 export interface PreForwardRouteProofVerificationInput {
   encodedProof: Uint8Array;
-  expected: PreForwardRouteBinding;
+  expected: PreForwardRouteExpectation;
 }
 
 export interface PreForwardRouteProofVerifierPort {
   verify(input: PreForwardRouteProofVerificationInput): Promise<VerifiedPreForwardRouteProof>;
   release(proof: VerifiedPreForwardRouteProof): Promise<void>;
   cleanup(input: { readonly context: AciTrustContext; readonly trustedNow: number }): Promise<void>;
+}
+
+// The native evidence verifier receives the expected session and keyset identity and returns
+// all of it in its result (plan Task 3). The provider-native binding verifier derives the
+// expected route identity only from the branded role binding and consumes the returned digest
+// byte-for-byte; it never hashes raw evidence or reconstructs an aggregate digest.
+export interface ProviderNativeModelArtifactEvidenceV1 {
+  readonly orgId: string;
+  readonly deploymentId: string;
+  readonly role: InferenceModelRole;
+  readonly sessionId: string;
+  readonly workloadKeysetDigest: Digest64;
+  readonly routeIdentityDigest: Digest64;
+  readonly issuerWorkloadId: string;
+  readonly workloadArtifactDigest: Digest64;
+  readonly nativeEvidenceDigest: Digest64;
+}
+
+export interface ProviderNativeArtifactEvidenceVerifierPort {
+  verify(input: {
+    encodedEvidence: Uint8Array;
+    expected: {
+      orgId: string;
+      deploymentId: string;
+      role: InferenceModelRole;
+      sessionId: string;
+      workloadKeysetDigest: Digest64;
+      routeIdentityDigest: Digest64;
+    };
+  }): Promise<ProviderNativeModelArtifactEvidenceV1>;
 }
 
 export interface PrivateOfficialAciRequestWire {
@@ -709,6 +764,14 @@ export interface ForwardCommitmentAuthenticatorPort {
   journalTag(entry: Omit<ForwardReplayJournalEntry, 'entryTag'>): string;
 }
 
+// The four provenance identity fields committed to a forward reservation at admission (plan
+// Task 4). Derived from the verified production decision by the admission caller; the lease
+// store never recomputes them and never derives proofDigest from bindingDigest.
+export type ForwardReservationProvenanceIdentity = Pick<
+  ProductionVerifiedModelProvenanceV1,
+  'tupleDigest' | 'proofDigest' | 'bindingDigest' | 'source'
+>;
+
 export interface ForwardProofReservation {
   orgId: string;
   deploymentId: string;
@@ -750,6 +813,10 @@ export interface ForwardProofReservation {
   boundedWriteValidUntil: number;
   commitmentNonce: string;
   observedChannelPin: VerifiedAciChannelPin;
+  tupleDigest: Digest64;
+  proofDigest: Digest64;
+  bindingDigest: Digest64;
+  source: ModelProvenanceSourceV1;
 }
 
 export interface ForwardAdmissionReservation extends ForwardProofReservation {
@@ -771,6 +838,7 @@ export interface ForwardLeaseStorePort {
     readonly session: VerifiedAciSession;
     readonly observedChannel: ObservedAciChannelBinding;
     readonly proof: VerifiedPreForwardRouteProof;
+    readonly provenance: ForwardReservationProvenanceIdentity;
     readonly trustedNow: number;
   }): Promise<ForwardAdmissionReservation>;
   prepareCommitment(input: {

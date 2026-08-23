@@ -9,6 +9,7 @@ import type {
   ForwardCommitment,
   ForwardLeaseStorePort,
   ForwardProofReservation,
+  ForwardReservationProvenanceIdentity,
   MutuallyAttestedChannel,
   MutuallyAttestedChannelPort,
   OfficialAciRequest,
@@ -42,6 +43,7 @@ export interface PreForwardAdmissionInput {
   readonly challenge: Parameters<ControlProofExchangePort['exchange']>[0]['challenge'];
   readonly descriptor: Parameters<ControlProofExchangePort['exchange']>[0]['descriptor'];
   readonly expectedProof: PreForwardRouteBinding;
+  readonly provenance: ForwardReservationProvenanceIdentity;
 }
 
 export interface PreForwardAdmissionServiceConfig {
@@ -122,6 +124,7 @@ export class PreForwardAdmissionService {
         session,
         observedChannel: this.observedChannel(channel),
         proof,
+        provenance: input.provenance,
         trustedNow,
       });
       return issueForwardBodyOpenCapability({
@@ -279,6 +282,11 @@ export class PreForwardAdmissionService {
       input.expectedProof.deploymentId !== input.context.deploymentId ||
       input.expectedProof.bootEpoch !== input.context.bootEpoch ||
       input.expectedProof.trustedTimeCheckpointDigest !== input.context.checkpointDigest ||
+      // The committed provenance identity must agree with the branded post-proof binding used
+      // for admission; a decision inconsistent with the binding fails closed here.
+      input.provenance.source !== input.expectedProof.source ||
+      input.provenance.proofDigest !== input.expectedProof.proofDigest ||
+      input.provenance.bindingDigest !== input.expectedProof.bindingDigest ||
       input.expectedProof.tenantId !== descriptor.tenantId ||
       input.expectedProof.assignmentDigest !== descriptor.assignmentDigest ||
       input.expectedProof.tenantAadDigest !== descriptor.tenantAadDigest ||

@@ -76,6 +76,10 @@ const RESERVATION_KEYS = [
   'admissionExpiresAt',
   'boundedWriteValidUntil',
   'commitmentNonce',
+  'tupleDigest',
+  'proofDigest',
+  'bindingDigest',
+  'source',
 ] as const;
 
 type ScopeKey = `${string}\u0000${string}`;

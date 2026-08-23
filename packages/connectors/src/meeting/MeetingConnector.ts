@@ -1,22 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 import { BaseConnector } from '../BaseConnector.js';
-import type {
-  ConnectorContext,
-  PullOptions,
-  PullResult,
-  SyncCursor,
-  WebhookEvent,
-} from '../connector.js';
+import type { PullOptions, PullResult, SyncCursor, WebhookEvent } from '../connector.js';
 import type { NormalizedRecords, NormalizedResource } from '../normalized.js';
 import { normalizeDirectUpload, normalizeVttUpload } from './normalize.js';
 import type { DirectUploadPayload, VttUploadPayload } from './types.js';
 
 export class MeetingConnector extends BaseConnector {
   readonly kind = 'meeting';
-
-  constructor(context: ConnectorContext) {
-    super(context);
-  }
 
   async listResources(): Promise<NormalizedResource[]> {
     return [];

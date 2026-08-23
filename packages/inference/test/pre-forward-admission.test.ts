@@ -9,6 +9,7 @@ import { PreForwardAdmissionService } from '../src/aci/PreForwardAdmissionServic
 import type {
   AciTrustContext,
   ForwardLeaseStorePort,
+  ForwardReservationProvenanceIdentity,
   MutuallyAttestedChannel,
   PreForwardRouteBinding,
   PrivateOfficialAciRequestWire,
@@ -37,6 +38,15 @@ const CHANNEL_BINDING = {
   exporterDigest: 'exporter-1',
   transcriptDigest: 'transcript-1',
   observedChannelPin: PIN,
+};
+
+// The committed provenance identity is the controlled-gateway production decision identity;
+// the service cross-checks it against the branded post-proof binding before reservation.
+const PROVENANCE: ForwardReservationProvenanceIdentity = {
+  tupleDigest: 'a'.repeat(64),
+  proofDigest: 'b'.repeat(64),
+  bindingDigest: 'c'.repeat(64),
+  source: 'controlled-gateway',
 };
 
 function session(role: VerifiedAciSession['role']): VerifiedAciSession {
@@ -167,6 +177,9 @@ const EXPECTED_PROOF: PreForwardRouteBinding = {
   requestId: PROOF.requestId,
   bootEpoch: PROOF.challenge.bootEpoch,
   trustedTimeCheckpointDigest: CONTEXT.checkpointDigest,
+  proofDigest: PROVENANCE.proofDigest,
+  bindingDigest: PROVENANCE.bindingDigest,
+  source: 'controlled-gateway',
 };
 
 function wire(bytes = Uint8Array.from([1, 2, 3])): PrivateOfficialAciRequestWire {
@@ -304,6 +317,7 @@ describe('PreForwardAdmissionService', () => {
       challenge: { ...PROOF.challenge, requestId: PROOF.requestId },
       descriptor: descriptor(),
       expectedProof: EXPECTED_PROOF,
+      provenance: PROVENANCE,
     });
 
     expect(events).toEqual(['snapshot', 'open', 'proof-exchange', 'verify']);
@@ -407,6 +421,7 @@ describe('PreForwardAdmissionService', () => {
       challenge: { ...PROOF.challenge, requestId: PROOF.requestId },
       descriptor: descriptor(),
       expectedProof: EXPECTED_PROOF,
+      provenance: PROVENANCE,
     });
 
     await expect(service.finalizeBody(bodyCapability, { messages: ['body'] })).rejects.toThrow(
@@ -417,5 +432,65 @@ describe('PreForwardAdmissionService', () => {
     await expect(service.finalizeBody(bodyCapability, { messages: ['body'] })).rejects.toThrow(
       'admission_required',
     );
+  });
+
+  it('rejects a provenance identity that contradicts the branded post-proof binding', async () => {
+    const events: string[] = [];
+    const authority = new InMemoryForwardReplayAuthority();
+    const leaseStore = new ForwardLeaseStore({ durableState: authority });
+    const proofVerifier = {
+      verify: async () => {
+        events.push('verify');
+        return PROOF;
+      },
+      release: async () => undefined,
+      cleanup: async () => undefined,
+    };
+    const service = new PreForwardAdmissionService({
+      trustState: {
+        acquireWithTrustedTime: async () => SNAPSHOT,
+        refreshWithTrustedTime: async () => false,
+      },
+      channelPort: {
+        open: async () => channel(events),
+      },
+      controlProofExchange: {
+        exchange: async () => Uint8Array.from([1]),
+        confirmCommitment: async () => {
+          throw new Error('unreachable');
+        },
+      },
+      proofVerifier,
+      trustedTime: trustedTime(),
+      leaseStore,
+      requestSerializer: {
+        serialize: async () => wire(),
+      },
+      keysetHighWater: {
+        read: async () => ({
+          generation: SNAPSHOT.generation,
+          policyGeneration: SNAPSHOT.policyGeneration,
+          activationGeneration: SNAPSHOT.activationGeneration,
+          keysetVersion: SNAPSHOT.keyset.version,
+          currentKeysetDigest: SNAPSHOT.keyset.workloadKeysetDigest,
+          supersededKeysetDigests: [],
+          trustContext: CONTEXT,
+        }),
+      },
+    });
+
+    await expect(
+      service.admit({
+        request: { role: 'generate', endpoint: PROOF.route.route, method: 'POST' },
+        context: CONTEXT,
+        challenge: { ...PROOF.challenge, requestId: PROOF.requestId },
+        descriptor: descriptor(),
+        expectedProof: EXPECTED_PROOF,
+        provenance: { ...PROVENANCE, proofDigest: 'd'.repeat(64) },
+      }),
+    ).rejects.toThrow('ACI admission failed');
+    expect(events).toContain('verify');
+    expect(events).toContain('close');
+    expect(events).not.toContain('body-write');
   });
 });

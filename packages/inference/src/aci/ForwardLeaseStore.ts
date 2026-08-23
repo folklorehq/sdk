@@ -2,6 +2,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 
+import type { Digest64, ModelProvenanceSourceV1 } from '@folklore/contracts';
+
 import type {
   AciTrustContext,
   AciChannelTransportResponse,
@@ -11,6 +13,7 @@ import type {
   ForwardLeaseStorePort,
   ForwardProofReservation,
   ForwardReplayAuthorityPort,
+  ForwardReservationProvenanceIdentity,
   ForwardWritePermit,
   MutuallyAttestedChannel,
   ObservedAciChannelBinding,
@@ -27,6 +30,8 @@ import { FORWARD_COMMITMENT_PROTOCOL } from '../ports.js';
 const WRITE_WINDOW_SECONDS = 30;
 const MAX_CONTENT_LENGTH = 67_108_864;
 const COMMITMENT_NONCE_BYTES = 16;
+const DIGEST64_PATTERN = /^[0-9a-f]{64}$/;
+const ZERO_DIGEST = '0'.repeat(64);
 const RESERVATION_KEYS = [
   'orgId',
   'deploymentId',
@@ -67,6 +72,10 @@ const RESERVATION_KEYS = [
   'admissionExpiresAt',
   'boundedWriteValidUntil',
   'commitmentNonce',
+  'tupleDigest',
+  'proofDigest',
+  'bindingDigest',
+  'source',
 ] as const;
 
 export type ForwardLeaseStoreErrorCode =
@@ -123,9 +132,11 @@ export class ForwardLeaseStore implements ForwardLeaseStorePort {
     readonly session: VerifiedAciSession;
     readonly observedChannel: ObservedAciChannelBinding;
     readonly proof: VerifiedPreForwardRouteProof;
+    readonly provenance: ForwardReservationProvenanceIdentity;
     readonly trustedNow: number;
   }): Promise<ForwardAdmissionReservation> {
     this.validateAdmissionInput(input);
+    const provenance = this.requireValidProvenance(input.provenance);
     const admissionExpiresAt = Math.min(
       input.proof.expiresAt,
       input.snapshot.expiresAt,
@@ -172,6 +183,10 @@ export class ForwardLeaseStore implements ForwardLeaseStorePort {
       boundedWriteValidUntil: Math.min(admissionExpiresAt, input.trustedNow + WRITE_WINDOW_SECONDS),
       commitmentNonce: randomBytes(COMMITMENT_NONCE_BYTES).toString('hex'),
       observedChannelPin: this.copyPin(input.observedChannel.observedChannelPin),
+      tupleDigest: provenance.tupleDigest,
+      proofDigest: provenance.proofDigest,
+      bindingDigest: provenance.bindingDigest,
+      source: provenance.source,
     };
     try {
       const persisted = await this.durableState.reserve(reservation);
@@ -384,6 +399,31 @@ export class ForwardLeaseStore implements ForwardLeaseStorePort {
     }
   }
 
+  // The committed provenance identity must be a real production decision identity: every digest
+  // is a non-zero 64-hex digest and the source is one of the two verified source tags. The
+  // proof digest is never recomputed here and never derived from the binding digest.
+  private requireValidProvenance(provenance: ForwardReservationProvenanceIdentity): {
+    readonly tupleDigest: Digest64;
+    readonly proofDigest: Digest64;
+    readonly bindingDigest: Digest64;
+    readonly source: ModelProvenanceSourceV1;
+  } {
+    if (
+      !this.isValidNonZeroDigest(provenance.tupleDigest) ||
+      !this.isValidNonZeroDigest(provenance.proofDigest) ||
+      !this.isValidNonZeroDigest(provenance.bindingDigest) ||
+      !this.isValidSource(provenance.source)
+    ) {
+      throw new ForwardLeaseStoreError('lease_invalid');
+    }
+    return {
+      tupleDigest: provenance.tupleDigest,
+      proofDigest: provenance.proofDigest,
+      bindingDigest: provenance.bindingDigest,
+      source: provenance.source,
+    };
+  }
+
   private normalizeWire(wire: PrivateOfficialAciRequestWire): PrivateOfficialAciRequestWire {
     const actualLength = wire.bytes.byteLength;
     const actualHash = this.digest(wire.bytes);
@@ -560,6 +600,14 @@ export class ForwardLeaseStore implements ForwardLeaseStorePort {
 
   private digest(bytes: Uint8Array): string {
     return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+  }
+
+  private isValidNonZeroDigest(value: unknown): value is Digest64 {
+    return typeof value === 'string' && DIGEST64_PATTERN.test(value) && value !== ZERO_DIGEST;
+  }
+
+  private isValidSource(value: unknown): value is ModelProvenanceSourceV1 {
+    return value === 'provider-native' || value === 'controlled-gateway';
   }
 
   private async abortAfterFailure(

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { ConnectorContext, WebhookEvent } from '../connector.js';
+import type { ConnectorContext } from '../connector.js';
 import type { NormalizedRecords } from '../normalized.js';
 import { registerBuiltinConnectors } from './builtin.js';
 import { ConnectorRegistry, type PullConnectorDeps } from './ConnectorRegistry.js';

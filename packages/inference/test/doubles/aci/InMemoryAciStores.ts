@@ -289,6 +289,10 @@ const FORWARD_RESERVATION_KEYS = [
   'admissionExpiresAt',
   'boundedWriteValidUntil',
   'commitmentNonce',
+  'tupleDigest',
+  'proofDigest',
+  'bindingDigest',
+  'source',
 ] as const;
 
 export class InMemoryForwardReplayAuthority implements ForwardReplayAuthorityPort {

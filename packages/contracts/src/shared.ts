@@ -29,3 +29,22 @@ export type Digest64 = z.infer<typeof digest64Schema>;
 export type GitCommit = z.infer<typeof gitCommitSchema>;
 export type Measurement96 = z.infer<typeof measurement96Schema>;
 export type Base64Ed25519Signature = z.infer<typeof base64Ed25519SignatureSchema>;
+
+export function canonicalJson(value: unknown): string {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') {
+    return JSON.stringify(value);
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new TypeError('canonical JSON requires finite numbers');
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+      .join(',')}}`;
+  }
+  throw new TypeError('canonical JSON requires JSON values');
+}

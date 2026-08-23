@@ -1,0 +1,30 @@
+{
+  "schema": "folklore.official-aci-wire-fixtures.v1",
+  "description": "Deterministic synthetic official ACI/1 wire fixtures frozen before any provenance change. Contains no customer content, provider credential, live quote, or live receipt.",
+  "files": {
+    "request-wire.bin": {
+      "sha256": "8f18e110ef769b81f9b16bca05a2c9e40b847433270375f5793a0f1df6110094",
+      "byteLength": 186
+    },
+    "session.bin": {
+      "sha256": "e3f09d00920a19de419953a77428be397c959f424a8e1baf6e5c5ead9863b829",
+      "byteLength": 729
+    },
+    "report.bin": {
+      "sha256": "78a689c14a3a3dc347429941c135726a596ed0b718695e499fe98c8c27a768c6",
+      "byteLength": 1767
+    },
+    "receipt.bin": {
+      "sha256": "6d1f426dba2ec822d06b7718db5403dac2177af9ac22f9c5b8042b9cd8982ab0",
+      "byteLength": 957
+    },
+    "response.bin": {
+      "sha256": "4a48915e5272a1cc751fe2a6b75e152f41c4e74d0f21865f38c46501a614f24b",
+      "byteLength": 48
+    },
+    "exchange-canonical.bin": {
+      "sha256": "bfe92611af2f2439238c42295e4de5896bba48d89c5c9be59d076d4342441b86",
+      "byteLength": 234
+    }
+  }
+}

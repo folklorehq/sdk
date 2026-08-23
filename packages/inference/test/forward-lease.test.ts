@@ -8,8 +8,10 @@ import { ForwardCommitmentAuthenticator } from '../src/aci/ForwardCommitmentAuth
 import { ForwardLeaseStore, ForwardLeaseStoreError } from '../src/aci/ForwardLeaseStore.js';
 import type {
   AciTrustContext,
+  ForwardProofReservation,
   ForwardReplayJournalEntry,
   ForwardReplayJournalPort,
+  ForwardReservationProvenanceIdentity,
   MutuallyAttestedChannel,
   PrivateOfficialAciRequestWire,
   TrustedTimeAuthorityPort,
@@ -28,6 +30,12 @@ const CONTEXT: AciTrustContext = {
 };
 const NOW = 1_750_000_150;
 const PIN = { type: 'tls_spki_sha256' as const, value: 'pin-1', domain: 'inference.example' };
+const PROVENANCE: ForwardReservationProvenanceIdentity = {
+  tupleDigest: 'a'.repeat(64),
+  proofDigest: 'b'.repeat(64),
+  bindingDigest: 'c'.repeat(64),
+  source: 'controlled-gateway',
+};
 const CHANNEL = {
   channelKeyDigest: 'channel-key-1',
   exporterLabel: 'EXPORTER-ACI-CHANNEL',
@@ -217,6 +225,7 @@ function reservationInput(proof: VerifiedPreForwardRouteProof = PROOF) {
     session: SESSION,
     observedChannel: CHANNEL,
     proof,
+    provenance: PROVENANCE,
     trustedNow: NOW,
   };
 }
@@ -316,7 +325,68 @@ describe('ForwardLeaseStore', () => {
       proofExpiresAt: PROOF.expiresAt,
       snapshotExpiresAt: SNAPSHOT.expiresAt,
       observedChannelPin: PIN,
+      tupleDigest: PROVENANCE.tupleDigest,
+      proofDigest: PROVENANCE.proofDigest,
+      bindingDigest: PROVENANCE.bindingDigest,
+      source: PROVENANCE.source,
     });
+  });
+
+  it('rejects a malformed or zero provenance identity at reservation', async () => {
+    const authority = new InMemoryForwardReplayAuthority();
+    await authority.claimProof({
+      orgId: PROOF.orgId,
+      deploymentId: PROOF.deploymentId,
+      bootEpoch: PROOF.challenge.bootEpoch,
+      proofId: PROOF.proofId,
+      requestId: PROOF.requestId,
+      expiresAt: PROOF.expiresAt,
+    });
+    const store = new ForwardLeaseStore({ durableState: authority });
+    const malformed: Array<Partial<ForwardReservationProvenanceIdentity>> = [
+      { tupleDigest: 'not-a-digest' },
+      { tupleDigest: '0'.repeat(64) },
+      { proofDigest: '1'.repeat(63) },
+      { proofDigest: null as never },
+      { bindingDigest: '0'.repeat(64) },
+      { source: 'other' as never },
+    ];
+    for (const override of malformed) {
+      await expect(
+        store.reserveFromVerifiedProof({
+          ...reservationInput(),
+          provenance: { ...PROVENANCE, ...override },
+        }),
+      ).rejects.toMatchObject({ code: 'lease_invalid' });
+    }
+  });
+
+  it('rejects a mutation of any committed provenance field before finalize and consume', async () => {
+    const mutations: Array<Partial<ForwardProofReservation>> = [
+      { tupleDigest: '1'.repeat(64) },
+      { proofDigest: '1'.repeat(64) },
+      { bindingDigest: '1'.repeat(64) },
+      { source: 'provider-native' },
+    ];
+    for (const mutation of mutations) {
+      const { store, reservation, requestWire, confirmation } = await preparedReservation();
+      await expect(
+        store.finalize({ reservation: { ...reservation, ...mutation }, requestWire, confirmation }),
+      ).rejects.toMatchObject({ code: 'lease_binding_mismatch' });
+
+      const leased = await preparedLease();
+      const writeBodyOnce = vi.fn();
+      await expect(
+        leased.store.writeOnce({
+          lease: { ...leased.lease, ...mutation },
+          confirmation: leased.confirmation,
+          trustedTime: TRUSTED_TIME,
+          channel: { ...channel(), writeBodyOnce },
+          requestWire: wire(),
+        }),
+      ).rejects.toMatchObject({ code: 'lease_binding_mismatch' });
+      expect(writeBodyOnce).not.toHaveBeenCalled();
+    }
   });
 
   it('requires a durable authority and fails closed when it is unavailable', async () => {

@@ -1,21 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { Agent } from 'node:http';
-import type { GitHubClient } from '../github/client.js';
 import { GitHubConnector } from '../github/GitHubConnector.js';
 import { OctokitGitHubClient } from '../github/OctokitGitHubClient.js';
-import type { SlackClient } from '../slack/client.js';
 import { SlackConnector } from '../slack/SlackConnector.js';
 import { HttpSlackClient } from '../slack/HttpSlackClient.js';
-import type { LinearApiClient } from '../linear/client.js';
 import { LinearConnector } from '../linear/LinearConnector.js';
 import { LinearSdkClient } from '../linear/LinearSdkClient.js';
-import type { JiraApiClient } from '../jira/client.js';
 import { JiraConnector } from '../jira/JiraConnector.js';
 import { JiraHttpClient } from '../jira/JiraHttpClient.js';
-import type { NotionApiClient } from '../notion/client.js';
 import { NotionConnector } from '../notion/NotionConnector.js';
 import { NotionClient } from '../notion/NotionClient.js';
-import type { IntercomApiClient } from '../intercom/client.js';
 import { IntercomConnector } from '../intercom/IntercomConnector.js';
 import { IntercomSdkClient } from '../intercom/IntercomSdkClient.js';
 import { MeetingConnector } from '../meeting/MeetingConnector.js';

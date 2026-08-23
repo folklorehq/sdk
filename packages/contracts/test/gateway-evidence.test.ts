@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import {
+  gatewayEvidenceRecordRequestV2Schema,
   releaseProvenanceBindingV1Schema,
-  typedGatewayEvidenceEnvelopeSchema,
-  typedGatewayEvidenceInputV1Schema,
+  verifiedReleaseReceiptV1Schema,
 } from '../src/inference-gateway.js';
 
 const SOURCE_COMMIT = '1'.repeat(40);
@@ -29,92 +29,136 @@ const provenance = {
   finalCommitMarker: DIGESTS[11],
 };
 
-const values = {
-  policyDigest: { kind: 'digest', value: DIGESTS[12] },
-  policyGeneration: { kind: 'boundedCount', value: 7 },
-  activationGeneration: { kind: 'boundedCount', value: 3 },
-  keysetHighWaterEpoch: { kind: 'boundedCount', value: 4 },
-  keysetHighWaterDigest: { kind: 'digest', value: DIGESTS[13] },
-  runtimeIdentityDigest: { kind: 'digest', value: provenance.runtimeIdentityDigest },
-  recipientKmsReceiptDigest: { kind: 'digest', value: provenance.recipientKmsReceiptDigest },
-  assignmentAcknowledgmentDigest: {
-    kind: 'digest',
-    value: provenance.assignmentAcknowledgmentDigest,
-  },
-  routeProofDigest: { kind: 'digest', value: provenance.routeProofDigest },
-  admissionProofDigest: { kind: 'digest', value: provenance.admissionProofDigest },
-  queueChecksDigest: { kind: 'digest', value: provenance.queueChecksDigest },
-  dlqChecksDigest: { kind: 'digest', value: provenance.dlqChecksDigest },
-  aciReportSignatureDigest: { kind: 'digest', value: provenance.aciReportSignatureDigest },
-  releaseProvenanceDigest: { kind: 'digest', value: provenance.releaseProvenanceDigest },
-  finalCommitMarker: { kind: 'digest', value: provenance.finalCommitMarker },
-} as const;
-
-const validInput = {
-  schema: 'GatewayEvidenceEnvelopeV1' as const,
-  canonicalDomain: 'folklore.aci-gateway-evidence.v1' as const,
-  orgId: 'org-1',
-  deploymentId: 'deployment-1',
+const validReceipt = {
+  schema: 'VerifiedReleaseReceiptV1' as const,
   releaseId: 'release-1',
-  protectedSourceCommit: SOURCE_COMMIT,
-  eifArtifactPath: provenance.eifArtifactPath,
-  eifDigest: provenance.eifDigest,
-  pcr0: PCR0,
-  bootRootDigest: provenance.bootRootDigest,
-  values,
+  releaseProvenanceDigest: provenance.releaseProvenanceDigest,
+  finalCommitMarker: provenance.finalCommitMarker,
+};
+
+const validRequest = {
+  runId: 'run-1',
+  nonce: new Uint8Array(32).fill(7),
+  releaseReceipt: validReceipt,
 };
 
 describe('typed gateway evidence contracts', () => {
-  it('accepts the closed content-free evidence envelope', () => {
-    expect(typedGatewayEvidenceInputV1Schema.parse(validInput)).toEqual(validInput);
-    expect(
-      typedGatewayEvidenceEnvelopeSchema.parse({
-        ...validInput,
-        signerPurpose: 'evidence-envelope',
-        signerKeyId: 'evidence-key-1',
-        signature: `${'A'.repeat(86)}==`,
-      }),
-    ).toMatchObject({ schema: 'GatewayEvidenceEnvelopeV1' });
+  it('accepts only the closed content-free evidence request', () => {
+    expect(gatewayEvidenceRecordRequestV2Schema.parse(validRequest)).toEqual(validRequest);
+    expect(verifiedReleaseReceiptV1Schema.parse(validReceipt)).toEqual(validReceipt);
     expect(releaseProvenanceBindingV1Schema.parse(provenance)).toEqual(provenance);
   });
 
-  it('rejects forbidden content, raw provider material, and callbacks', () => {
-    const forbiddenFields = [
-      'prompt',
-      'source',
-      'fact',
-      'wiki',
-      'embedding',
-      'body',
-      'rawAciReport',
-      'quoteBytes',
-      'collateralBytes',
-      'eventLogBytes',
-      'requestWireSha256',
-      'proofId',
-      'receiptId',
-      'exchangeId',
-      'credential',
-      'stackTrace',
-      'bodyCallback',
+  it('rejects caller context, provenance fields, and signer material', () => {
+    const callerFields = [
+      'schema',
+      'canonicalDomain',
+      'orgId',
+      'deploymentId',
+      'releaseId',
+      'protectedSourceCommit',
+      'eifArtifactPath',
+      'eifDigest',
+      'pcr0',
+      'bootRootDigest',
+      'policyDigest',
+      'policyGeneration',
+      'activationGeneration',
+      'configurationGeneration',
+      'keysetEpoch',
+      'keysetDigest',
+      'keysetHighWaterEpoch',
+      'keysetHighWaterDigest',
+      'runtimeIdentityDigest',
+      'recipientKmsReceiptDigest',
+      'assignmentAcknowledgmentDigest',
+      'routeProofDigest',
+      'admissionProofDigest',
+      'queueChecksDigest',
+      'dlqChecksDigest',
+      'aciReportSignatureDigest',
+      'sessionId',
+      'bootEpoch',
+      'contextDigest',
+      'values',
+      'signerPurpose',
+      'signerKeyId',
+      'canonicalBytes',
+      'signature',
     ];
 
-    for (const field of forbiddenFields) {
+    for (const field of callerFields) {
       expect(
-        typedGatewayEvidenceInputV1Schema.safeParse({ ...validInput, [field]: 'sentinel' }).success,
+        gatewayEvidenceRecordRequestV2Schema.safeParse({
+          ...validRequest,
+          [field]: 'sentinel',
+        }).success,
       ).toBe(false);
     }
+  });
 
+  it('rejects malformed run ids, nonces, and release receipts', () => {
     expect(
-      typedGatewayEvidenceInputV1Schema.safeParse({
-        ...validInput,
-        values: { ...validInput.values, prompt: { kind: 'identifier', value: 'sentinel' } },
+      gatewayEvidenceRecordRequestV2Schema.safeParse({
+        ...validRequest,
+        runId: '',
       }).success,
     ).toBe(false);
     expect(
-      typedGatewayEvidenceInputV1Schema.safeParse({
-        ...validInput,
-        values: { ...validInput.values, callback: () => 'sentinel' },
+      gatewayEvidenceRecordRequestV2Schema.safeParse({
+        ...validRequest,
+        runId: 'x'.repeat(129),
+      }).success,
+    ).toBe(false);
+    expect(
+      gatewayEvidenceRecordRequestV2Schema.safeParse({
+        ...validRequest,
+        nonce: new Uint8Array(31),
+      }).success,
+    ).toBe(false);
+    expect(
+      gatewayEvidenceRecordRequestV2Schema.safeParse({
+        ...validRequest,
+        nonce: new Uint8Array(33),
+      }).success,
+    ).toBe(false);
+    expect(
+      gatewayEvidenceRecordRequestV2Schema.safeParse({
+        ...validRequest,
+        nonce: 'not-bytes',
+      }).success,
+    ).toBe(false);
+    expect(
+      gatewayEvidenceRecordRequestV2Schema.safeParse({
+        ...validRequest,
+        releaseReceipt: {
+          ...validReceipt,
+          releaseProvenanceDigest: 'not-a-digest',
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      gatewayEvidenceRecordRequestV2Schema.safeParse({
+        ...validRequest,
+        releaseReceipt: {
+          ...validReceipt,
+          schema: 'VerifiedReleaseReceiptV2',
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      gatewayEvidenceRecordRequestV2Schema.safeParse({
+        ...validRequest,
+        releaseReceipt: {
+          ...validReceipt,
+          deploymentId: 'deployment-1',
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      gatewayEvidenceRecordRequestV2Schema.safeParse({
+        ...validRequest,
+        releaseReceipt: undefined,
       }).success,
     ).toBe(false);
   });

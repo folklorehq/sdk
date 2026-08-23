@@ -6,7 +6,7 @@ import { canonicalJson } from '@folklore/utils';
 
 import { parseStrictJsonBytes } from './strict-json.js';
 import type {
-  PreForwardRouteBinding,
+  PreForwardRouteExpectation,
   PreForwardRouteProofVerificationInput,
   PreForwardRouteProofVerifierPort,
   TrustedTimeAuthorityPort,
@@ -248,7 +248,10 @@ export class PreForwardRouteProofVerifier implements PreForwardRouteProofVerifie
     return decoded;
   }
 
-  private verifyBindings(proof: PreForwardRouteProofV1, expected: PreForwardRouteBinding): void {
+  private verifyBindings(
+    proof: PreForwardRouteProofV1,
+    expected: PreForwardRouteExpectation,
+  ): void {
     if (
       proof.orgId !== expected.orgId ||
       proof.deploymentId !== expected.deploymentId ||
@@ -289,7 +292,7 @@ export class PreForwardRouteProofVerifier implements PreForwardRouteProofVerifie
     }
   }
 
-  private async readTrustedTime(expected: PreForwardRouteBinding): Promise<number> {
+  private async readTrustedTime(expected: PreForwardRouteExpectation): Promise<number> {
     try {
       const sample = await readTrustedTimeSample(this.trustedTimeAuthority, {
         orgId: expected.orgId,

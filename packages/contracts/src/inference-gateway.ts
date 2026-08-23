@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 import {
-  base64Ed25519SignatureSchema,
   digest64Schema,
   gitCommitSchema,
   measurement96Schema,
@@ -10,10 +9,16 @@ import {
   type Measurement96,
 } from './shared.js';
 import { inferenceModelRoleSchema, type InferenceModelRole } from './inference-trust.js';
+import {
+  legacyKeysetHighWaterShape,
+  releaseProvenanceLegacyKeysetHighWaterFields,
+  type LegacyReleaseProvenanceKeysetHighWaterV1,
+} from './generation-high-water.js';
 
 const MAX_GATEWAY_STRING_LENGTH = 512;
 const MAX_ROLE_BINDINGS = 4;
 const MAX_TIMESTAMP = Number.MAX_SAFE_INTEGER;
+const EVIDENCE_REQUEST_NONCE_BYTES = 32;
 
 const identifierSchema = z
   .string()
@@ -234,51 +239,6 @@ export const preForwardRouteProofSchema = z
     }
   });
 
-export interface DurableGenerationHighWaterCheckpointV1 {
-  checkpointVersion: 1;
-  orgId: string;
-  deploymentId: string;
-  policyGeneration: number;
-  activationGeneration: number;
-  keysetHighWater: { epoch: number; digest: string };
-  policyDigest: string;
-  releaseId: string;
-  protectedSourceCommit: string;
-  eifDigest: string;
-  signerKeyId: string;
-  previousCheckpointDigest: string | null;
-  issuedAt: number;
-  checkpointDigest: string;
-  signature: string;
-}
-
-const highWaterSchema = z
-  .object({
-    epoch: timestampSchema,
-    digest: digestSchema,
-  })
-  .strict();
-
-export const durableGenerationHighWaterCheckpointSchema = z
-  .object({
-    checkpointVersion: z.literal(1),
-    orgId: identifierSchema,
-    deploymentId: identifierSchema,
-    policyGeneration: timestampSchema,
-    activationGeneration: timestampSchema,
-    keysetHighWater: highWaterSchema,
-    policyDigest: digestSchema,
-    releaseId: identifierSchema,
-    protectedSourceCommit: sourceCommitSchema,
-    eifDigest: digestSchema,
-    signerKeyId: identifierSchema,
-    previousCheckpointDigest: digestSchema.nullable(),
-    issuedAt: timestampSchema,
-    checkpointDigest: digestSchema,
-    signature: signatureSchema,
-  })
-  .strict();
-
 const evidenceRoleBindingSchema = z
   .object({
     role: roleSchema,
@@ -337,69 +297,10 @@ const commissioningProvenanceSchema = z
   })
   .strict();
 
-export interface GatewayEvidenceEnvelopeV1 {
-  evidenceId: string;
-  orgId: string;
-  deploymentId: string;
-  tenantContextDigest: string;
-  eifDigest: string;
-  pcr0: string;
-  bootRootDigest: string;
-  gatewayBuildDigest: string;
-  verifierSourceCommit: string;
-  verifierArchiveSha256: string;
-  dcapQvlVersion: string;
-  releaseProvenanceDigest: string;
-  policyDigest: string;
-  policyGeneration: number;
-  activationGeneration: number;
-  keysetHighWater: { epoch: number; digest: string };
-  routeIdentity: string;
-  keysetDigest: string;
-  roleBindings: Array<{
-    role: InferenceModelRole;
-    sessionId: string;
-    model: string;
-    modelRevision: string;
-    modelArtifactDigest: string;
-    channelKeyDigest: string;
-    expiresAt: number;
-  }>;
-  admission: {
-    decision: 'admitted' | 'rejected';
-    scope: string;
-    assignmentDigest: string;
-    leaseExpiry: number | null;
-  };
-  trustedTime: { checkpointDigest: string; bootEpoch: string; sampledAt: number };
-  exchange: {
-    role: InferenceModelRole;
-    servedAt: number | null;
-    result: 'success' | 'failure';
-  } | null;
-  commissioningProvenance: {
-    protectedSourceCommit: string;
-    eifArtifactPath: string;
-    eifDigest: string;
-    pcr0: string;
-    bootRootDigest: string;
-    deploymentId: string;
-    runtimeIdentityDigest: string;
-    recipientKmsReceiptDigest: string;
-    assignmentAcknowledgmentDigest: string;
-    routeProofDigest: string;
-    admissionProofDigest: string;
-    queueChecksDigest: string;
-    dlqChecksDigest: string;
-    aciReportSignatureDigest: string;
-    releaseProvenanceDigest: string;
-    finalCommitMarker: string;
-  } | null;
-  failureCode: string | null;
-  createdAt: number;
-  signerKeyId: string;
-  signature: string;
-}
+// The evidence envelope type is derived from its strict schema; the legacy keyset high-water
+// field shape is imported from the canonical generation contract so the schema and bytes stay in
+// one place.
+export type GatewayEvidenceEnvelopeV1 = z.infer<typeof gatewayEvidenceEnvelopeSchema>;
 
 export const gatewayEvidenceEnvelopeSchema = z
   .object({
@@ -418,7 +319,7 @@ export const gatewayEvidenceEnvelopeSchema = z
     policyDigest: digestSchema,
     policyGeneration: timestampSchema,
     activationGeneration: timestampSchema,
-    keysetHighWater: highWaterSchema,
+    ...legacyKeysetHighWaterShape,
     routeIdentity: digestSchema,
     keysetDigest: digestSchema,
     roleBindings: z.array(evidenceRoleBindingSchema).min(1).max(MAX_ROLE_BINDINGS),
@@ -670,8 +571,9 @@ export const TYPED_EVIDENCE_PROVENANCE_VALUE_KEYS = Object.freeze([
   'policyDigest',
   'policyGeneration',
   'activationGeneration',
-  'keysetHighWaterEpoch',
-  'keysetHighWaterDigest',
+  'configurationGeneration',
+  'keysetEpoch',
+  'keysetDigest',
   'runtimeIdentityDigest',
   'recipientKmsReceiptDigest',
   'assignmentAcknowledgmentDigest',
@@ -722,7 +624,7 @@ export const typedGatewayEvidenceValuesSchema = z
 
 export type TypedGatewayEvidenceValuesV1 = Readonly<Record<string, EvidenceValueV1>>;
 
-export interface ReleaseProvenanceContextV1 {
+export interface ReleaseProvenanceContextV1 extends LegacyReleaseProvenanceKeysetHighWaterV1 {
   orgId: string;
   deploymentId: string;
   releaseId: string;
@@ -734,8 +636,6 @@ export interface ReleaseProvenanceContextV1 {
   policyDigest: Digest64;
   policyGeneration: number;
   activationGeneration: number;
-  keysetHighWaterEpoch: number;
-  keysetHighWaterDigest: Digest64;
 }
 
 export interface ReleaseProvenanceBindingV1 {
@@ -800,8 +700,7 @@ export function releaseProvenancePayloadV1(input: {
     input.context.policyDigest,
     input.context.policyGeneration,
     input.context.activationGeneration,
-    input.context.keysetHighWaterEpoch,
-    input.context.keysetHighWaterDigest,
+    ...releaseProvenanceLegacyKeysetHighWaterFields(input.context),
     input.binding.protectedSourceCommit,
     input.binding.eifArtifactPath,
     input.binding.eifDigest,
@@ -831,70 +730,43 @@ export function finalCommitMarkerPayloadV1(input: {
   ];
 }
 
-export interface TypedGatewayEvidenceEnvelopeV1 {
-  schema: 'GatewayEvidenceEnvelopeV1';
-  canonicalDomain: 'folklore.aci-gateway-evidence.v1';
-  orgId: string;
-  deploymentId: string;
+export interface VerifiedReleaseReceiptV1 {
+  schema: 'VerifiedReleaseReceiptV1';
   releaseId: string;
-  protectedSourceCommit: GitCommit;
-  eifArtifactPath: string;
-  eifDigest: Digest64;
-  pcr0: Measurement96;
-  bootRootDigest: Digest64;
-  values: TypedGatewayEvidenceValuesV1;
-  signerPurpose: 'evidence-envelope';
-  signerKeyId: string;
-  signature: string;
+  releaseProvenanceDigest: Digest64;
+  finalCommitMarker: Digest64;
 }
 
-export type TypedGatewayEvidenceInputV1 = Omit<
-  TypedGatewayEvidenceEnvelopeV1,
-  'signerPurpose' | 'signerKeyId' | 'signature'
->;
+export const verifiedReleaseReceiptV1Schema = z
+  .object({
+    schema: z.literal('VerifiedReleaseReceiptV1'),
+    releaseId: identifierSchema,
+    releaseProvenanceDigest: digest64Schema,
+    finalCommitMarker: digest64Schema,
+  })
+  .strict();
+
+export interface GatewayEvidenceRecordRequestV2 {
+  runId: string;
+  nonce: Uint8Array;
+  releaseReceipt: VerifiedReleaseReceiptV1;
+}
+
+export const gatewayEvidenceRecordRequestV2Schema = z
+  .object({
+    runId: identifierSchema,
+    nonce: z
+      .instanceof(Uint8Array)
+      .refine((nonce) => nonce.byteLength === EVIDENCE_REQUEST_NONCE_BYTES, {
+        message: 'evidence nonce must be exactly 32 bytes',
+      }),
+    releaseReceipt: verifiedReleaseReceiptV1Schema,
+  })
+  .strict();
 
 export interface EvidenceRecorderPort {
-  record(input: TypedGatewayEvidenceInputV1): Promise<{
+  record(input: GatewayEvidenceRecordRequestV2): Promise<{
     evidenceDigest: Digest64;
     state: 'recorded';
   }>;
 }
-
-const typedGatewayEvidenceFields = {
-  schema: z.literal('GatewayEvidenceEnvelopeV1'),
-  canonicalDomain: z.literal('folklore.aci-gateway-evidence.v1'),
-  orgId: identifierSchema,
-  deploymentId: identifierSchema,
-  releaseId: identifierSchema,
-  protectedSourceCommit: gitCommitSchema,
-  eifArtifactPath: eifArtifactPathSchema,
-  eifDigest: digest64Schema,
-  pcr0: measurement96Schema,
-  bootRootDigest: digest64Schema,
-  values: typedGatewayEvidenceValuesSchema,
-} as const;
-
-export const typedGatewayEvidenceInputV1Schema = z
-  .object(typedGatewayEvidenceFields)
-  .strict()
-  .superRefine((input, context) => {
-    if (input.orgId === input.deploymentId) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['deploymentId'],
-        message: 'organization and deployment identifiers must be distinct',
-      });
-    }
-  });
-
-export const typedGatewayEvidenceEnvelopeSchema = z
-  .object({
-    ...typedGatewayEvidenceFields,
-    signerPurpose: z.literal('evidence-envelope'),
-    signerKeyId: identifierSchema,
-    signature: base64Ed25519SignatureSchema,
-  })
-  .strict();
-
-export const gatewayEvidenceEnvelopeV1Schema = typedGatewayEvidenceEnvelopeSchema;
-export type GatewayEvidenceEnvelopeContentFreeV1 = TypedGatewayEvidenceEnvelopeV1;

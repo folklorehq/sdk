@@ -7,10 +7,6 @@ import {
   identifierSchema,
   measurement96Schema,
 } from './shared.js';
-import {
-  durableGenerationHighWaterCheckpointSchema,
-  type DurableGenerationHighWaterCheckpointV1,
-} from './inference-gateway.js';
 
 const positiveIntegerSchema = z.number().int().positive().safe();
 const storageStringSchema = z
@@ -29,6 +25,132 @@ export const GENERATION_HIGH_WATER_OBJECT_PREFIX_TEMPLATE =
 export const GENERATION_HIGH_WATER_CONTEXT_KEY_SEPARATOR = ':';
 export const GENERATION_HIGH_WATER_LOG_ENTRY_CONTRACT = 'HighWaterLogEntryV1';
 export const GENERATION_HIGH_WATER_POINTER_CONTRACT = 'HighWaterPointerV1';
+export const DURABLE_GENERATION_HIGH_WATER_CHECKPOINT_V1_SCHEMA =
+  'folklore.durable-generation-high-water-checkpoint.v1' as const;
+
+// The one canonical generation context (plan Task 2). Declared exactly once here; every
+// transport, carrier, boot, and snapshot consumer imports this type and never declares a local
+// seven-field or keyset high-water replacement.
+export interface GenerationContextV1 {
+  readonly orgId: string;
+  readonly deploymentId: string;
+  readonly policyDigest: string;
+  readonly policyGeneration: number;
+  readonly activationGeneration: number;
+  readonly configurationGeneration: number;
+  readonly keysetEpoch: number;
+  readonly keysetDigest: string;
+  readonly releaseId: string;
+  readonly protectedSourceCommit: string;
+  readonly eifDigest: string;
+  readonly pcr0: string;
+  readonly bootRootDigest: string;
+}
+
+const generationContextShape = {
+  orgId: identifierSchema,
+  deploymentId: identifierSchema,
+  policyDigest: digest64Schema,
+  policyGeneration: positiveIntegerSchema,
+  activationGeneration: positiveIntegerSchema,
+  configurationGeneration: positiveIntegerSchema,
+  keysetEpoch: positiveIntegerSchema,
+  keysetDigest: digest64Schema,
+  releaseId: identifierSchema,
+  protectedSourceCommit: gitCommitSchema,
+  eifDigest: digest64Schema,
+  pcr0: measurement96Schema,
+  bootRootDigest: digest64Schema,
+} as const;
+
+export const generationContextV1Schema = z.object(generationContextShape).strict();
+
+// The only transport projection: the seven request-bound measured-boot identity fields. The
+// policy/keyset members are response-bound and travel only inside the signed checkpoint.
+export interface DurableGenerationHighWaterTransportContextV1 {
+  readonly orgId: string;
+  readonly deploymentId: string;
+  readonly releaseId: string;
+  readonly protectedSourceCommit: string;
+  readonly eifDigest: string;
+  readonly pcr0: string;
+  readonly bootRootDigest: string;
+}
+
+export function toDurableGenerationHighWaterTransportContext(
+  context: GenerationContextV1,
+): DurableGenerationHighWaterTransportContextV1 {
+  return {
+    orgId: context.orgId,
+    deploymentId: context.deploymentId,
+    releaseId: context.releaseId,
+    protectedSourceCommit: context.protectedSourceCommit,
+    eifDigest: context.eifDigest,
+    pcr0: context.pcr0,
+    bootRootDigest: context.bootRootDigest,
+  };
+}
+
+// The complete signed checkpoint: the full thirteen-field context plus the chain link, the
+// checkpoint digest, and the signer identity. No seven-field checkpoint may be returned as a
+// complete checkpoint, and no adapter may infer a missing digest from a generation number.
+export interface DurableGenerationHighWaterCheckpointV1 extends GenerationContextV1 {
+  readonly schema: typeof DURABLE_GENERATION_HIGH_WATER_CHECKPOINT_V1_SCHEMA;
+  readonly predecessorDigest: string;
+  readonly checkpointDigest: string;
+  readonly signerKeyId: string;
+  readonly signerPurpose: 'generation-high-water';
+}
+
+// Legacy keyset high-water field kept only for the canonical boot-manifest encoders that still
+// carry the reference/evidence wire shapes. The canonical context above is the only authority;
+// production carriers, snapshots, and transport adapters use keysetEpoch/keysetDigest.
+export const legacyKeysetHighWaterShape = {
+  keysetHighWater: z.object({ epoch: positiveIntegerSchema, digest: digest64Schema }).strict(),
+} as const;
+
+export function legacyKeysetHighWater(
+  epoch: number,
+  digest: string,
+): { keysetHighWater: { epoch: number; digest: string } } {
+  return { keysetHighWater: { epoch, digest } };
+}
+
+// Legacy release-provenance context fields (keysetHighWaterEpoch/keysetHighWaterDigest) kept for
+// the official release-provenance wire payload. The canonical context uses keysetEpoch/keysetDigest.
+export const legacyReleaseProvenanceKeysetHighWaterShape = {
+  keysetHighWaterEpoch: positiveIntegerSchema,
+  keysetHighWaterDigest: digest64Schema,
+} as const;
+export type LegacyReleaseProvenanceKeysetHighWaterV1 = {
+  readonly keysetHighWaterEpoch: number;
+  readonly keysetHighWaterDigest: string;
+};
+
+export function releaseProvenanceLegacyKeysetHighWaterFields(
+  context: LegacyReleaseProvenanceKeysetHighWaterV1,
+): [number, string] {
+  return [context.keysetHighWaterEpoch, context.keysetHighWaterDigest];
+}
+
+// The durable checkpoint wire schema carries the canonical fields plus the legacy fields the
+// existing canonical encoders still serialize. Strict: both the canonical context and the chain
+// link must be present; a reduced checkpoint is rejected.
+export const durableGenerationHighWaterCheckpointSchema = z
+  .object({
+    checkpointVersion: z.literal(1),
+    ...generationContextShape,
+    schema: z.literal(DURABLE_GENERATION_HIGH_WATER_CHECKPOINT_V1_SCHEMA),
+    ...legacyKeysetHighWaterShape,
+    predecessorDigest: digest64Schema,
+    previousCheckpointDigest: digest64Schema.nullable(),
+    checkpointDigest: digest64Schema,
+    signerKeyId: identifierSchema,
+    signerPurpose: z.literal('generation-high-water'),
+    issuedAt: positiveIntegerSchema,
+    signature: base64Ed25519SignatureSchema,
+  })
+  .strict();
 
 export const highWaterLogCheckpointV1Schema = z
   .object({
@@ -44,12 +166,14 @@ export const highWaterLogCheckpointV1Schema = z
     pcr0: measurement96Schema,
     bootRootDigest: digest64Schema,
     signerKeyId: identifierSchema,
-    previousCheckpointDigest: digest64Schema.nullable(),
+    predecessorDigest: digest64Schema.nullable(),
     issuedAtTrustedMs: positiveIntegerSchema,
     checkpointDigest: digest64Schema,
   })
   .omit({ issuedAt: true, signature: true })
   .strict();
+
+export type HighWaterLogCheckpointV1 = z.infer<typeof highWaterLogCheckpointV1Schema>;
 
 export const highWaterLogEntryV1Schema = z
   .object({
@@ -65,17 +189,7 @@ export const highWaterLogEntryV1Schema = z
   })
   .strict();
 
-export type HighWaterLogCheckpointV1 = Omit<
-  DurableGenerationHighWaterCheckpointV1,
-  'issuedAt' | 'signature'
-> & {
-  pcr0: string;
-  bootRootDigest: string;
-  issuedAtTrustedMs: number;
-};
-export type HighWaterLogEntryV1 = Omit<z.infer<typeof highWaterLogEntryV1Schema>, 'checkpoint'> & {
-  checkpoint: HighWaterLogCheckpointV1;
-};
+export type HighWaterLogEntryV1 = z.infer<typeof highWaterLogEntryV1Schema>;
 
 export const highWaterPointerV1Schema = z
   .object({
