@@ -223,12 +223,17 @@ describe('official ACI/1 wire shapes', () => {
         ...OFFICIAL_REPORT,
         attestation: {
           ...OFFICIAL_REPORT.attestation,
-          tee_type: 'future-tee-v1',
           workload_keyset: { ...OFFICIAL_KEYSET, e2ee_public_keys: [] },
         },
         service_capabilities: { supported_e2ee_versions: [] },
       }).success,
     ).toBe(true);
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...OFFICIAL_REPORT,
+        attestation: { ...OFFICIAL_REPORT.attestation, tee_type: 'future-tee-v1' },
+      }).success,
+    ).toBe(false);
     expect(
       aciWorkloadReportSchema.safeParse(
         Object.fromEntries(

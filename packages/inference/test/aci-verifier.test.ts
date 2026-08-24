@@ -6,6 +6,7 @@ import {
   inferenceReceiptKeysetV1Payload,
 } from '@folklore/contracts';
 import { AciReceiptVerifier, InferenceAttestationError } from '../src/aci-verifier.js';
+import { dispatchAciProtocol } from '../src/official-aci-attestation.js';
 const BASE_URL = 'https://inference.example.com';
 const WORKLOAD_ID = 'wl-123';
 const KEYSET_DIGEST = 'd'.repeat(64);
@@ -194,6 +195,20 @@ describe('AciReceiptVerifier', () => {
     const verifier = new AciReceiptVerifier(unsignedConfig(fetchImpl));
 
     await expect(verifier.ensureAttested()).rejects.toThrow(/attestation response/);
+  });
+
+  it('rejects malformed official ACI/1 attestation without invoking the V1 parser', async () => {
+    const legacyParser = vi.fn(() => unsignedAttestation());
+    const malformedOfficial = { api_version: 'aci/1', attestation: {} };
+    expect(dispatchAciProtocol(malformedOfficial, legacyParser)).toEqual({
+      protocol: 'error',
+      code: 'official_aci_1_invalid',
+    });
+    expect(legacyParser).not.toHaveBeenCalled();
+
+    const fetchImpl = mockFetch(malformedOfficial, verifiedReceipt());
+    const verifier = new AciReceiptVerifier(unsignedConfig(fetchImpl));
+    await expect(verifier.ensureAttested()).rejects.toThrow(/official_aci_1_invalid/);
   });
 
   it('rejects an attestation signed by a key absent from the offline policy', async () => {

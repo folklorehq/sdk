@@ -11,6 +11,11 @@ const identifierSchema = z
   .max(MAX_IDENTIFIER_LENGTH)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
 const digestSchema = z.string().regex(/^[0-9a-f]{64}$/);
+const kmsKeyArnSchema = z
+  .string()
+  .regex(
+    /^arn:[a-z0-9-]+:kms:[a-z0-9-]+:\d{12}:key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+  );
 const measurementSchema = z.string().regex(/^[0-9a-f]{96}$/);
 const rawEd25519PublicKeySchema = z
   .string()
@@ -300,7 +305,7 @@ const aciClaimSourceSchema = z.enum([
   'provider_asserted',
   'operator_asserted',
 ]);
-type AciKnownTeeType = 'tdx' | 'sev_snp';
+const aciKnownTeeTypeSchema = z.enum(['tdx', 'sev_snp']);
 
 function isExactHttpsUrl(value: string): boolean {
   try {
@@ -436,7 +441,7 @@ const aciServiceCapabilitiesSchema = z
 
 const aciAttestationSchema = z
   .object({
-    tee_type: aciStringSchema.transform((teeType): AciKnownTeeType => teeType as AciKnownTeeType),
+    tee_type: aciKnownTeeTypeSchema,
     workload_keyset: aciWorkloadKeysetSchema,
     report_data: aciReportDataSchema,
     source_provenance: aciSourceProvenanceSchema.nullable().optional(),
@@ -1428,6 +1433,9 @@ export interface ActivePolicyAuthorizationEnvelopeV1 {
   activationGeneration: number;
   configurationGeneration: number;
   keysetHighWater: { epoch: number; digest: string };
+  authorityKmsKeyArn: string;
+  authorityPublicKeySpkiSha256: string;
+  authorityEpoch: number;
   signerPurpose: 'policy-authority';
   signerKeyId: string;
   signatureAlgorithm: 'Ed25519';
@@ -1435,7 +1443,50 @@ export interface ActivePolicyAuthorizationEnvelopeV1 {
   signature: string;
 }
 
-export const activePolicyAuthorizationEnvelopeV1Schema = z
+export interface ActivePolicyAuthorityIdentityV1 {
+  readonly keyArn: string;
+  readonly keyId: string;
+  readonly publicKeySpkiSha256: string;
+  readonly epoch: number;
+}
+
+export const activePolicyCarrierSignerIdentityV1Schema = z
+  .object({
+    schema: z.literal('folklore.active-policy-carrier-signer-identity.v1'),
+    version: z.literal(1),
+    keyArn: kmsKeyArnSchema,
+    keyId: identifierSchema,
+    publicKeySpkiSha256: digestSchema,
+    epoch: positiveSafeIntegerSchema,
+  })
+  .strict();
+export type ActivePolicyCarrierSignerIdentityV1 = z.infer<
+  typeof activePolicyCarrierSignerIdentityV1Schema
+>;
+
+const activePolicyAuthorizationEnvelopeV1SchemaWithAuthority = z
+  .object({
+    schema: z.literal('active-inference-trust-policy-v2-authorization'),
+    orgId: identifierSchema,
+    deploymentId: identifierSchema,
+    policyDigest: digestSchema,
+    protectedPolicyReference: protectedPolicyReferenceSchema,
+    policyGeneration: positiveSafeIntegerSchema,
+    activationGeneration: positiveSafeIntegerSchema,
+    configurationGeneration: positiveSafeIntegerSchema,
+    keysetHighWater: z.object({ epoch: positiveSafeIntegerSchema, digest: digestSchema }).strict(),
+    authorityKmsKeyArn: kmsKeyArnSchema,
+    authorityPublicKeySpkiSha256: digestSchema,
+    authorityEpoch: positiveSafeIntegerSchema,
+    signerPurpose: z.literal('policy-authority'),
+    signerKeyId: identifierSchema,
+    signatureAlgorithm: z.literal('Ed25519'),
+    policySignature: ed25519SignatureSchema,
+    signature: ed25519SignatureSchema,
+  })
+  .strict();
+
+const legacyActivePolicyAuthorizationEnvelopeV1Schema = z
   .object({
     schema: z.literal('active-inference-trust-policy-v2-authorization'),
     orgId: identifierSchema,
@@ -1453,3 +1504,8 @@ export const activePolicyAuthorizationEnvelopeV1Schema = z
     signature: ed25519SignatureSchema,
   })
   .strict();
+
+export const activePolicyAuthorizationEnvelopeV1Schema = z.union([
+  activePolicyAuthorizationEnvelopeV1SchemaWithAuthority,
+  legacyActivePolicyAuthorizationEnvelopeV1Schema,
+]) as unknown as z.ZodType<ActivePolicyAuthorizationEnvelopeV1>;

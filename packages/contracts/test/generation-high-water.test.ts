@@ -12,6 +12,7 @@ import {
   type GenerationContextV1,
   type HighWaterLogEntryV1,
   type HighWaterPointerV1,
+  type HighWaterObjectReferenceV1,
 } from '../src/generation-high-water.js';
 import * as rootContracts from '../src/index.js';
 
@@ -87,6 +88,23 @@ const validPointer = {
 } satisfies HighWaterPointerV1;
 
 describe('Gate A high-water contracts', () => {
+  it('keeps stored high-water references version-bound and deployment-scoped', () => {
+    const reference = {
+      context: validContext,
+      logSequence: 1,
+      entryDigest: DIGEST_B,
+      objectKey: validPointer.objectKey,
+      objectVersionId: validPointer.objectVersionId,
+    } satisfies HighWaterObjectReferenceV1;
+    expect(reference).toMatchObject({
+      logSequence: 1,
+      entryDigest: DIGEST_B,
+      objectVersionId: 'version-1',
+    });
+    expect(reference.context.orgId).toBe(validPointer.orgId);
+    expect(reference.context.deploymentId).toBe(validPointer.deploymentId);
+  });
+
   it('owns the single canonical GenerationContextV1 with all thirteen members', () => {
     expect(rootContracts.generationContextV1Schema).toBe(generationContextV1Schema);
     const parsed = generationContextV1Schema.parse(validContext);
@@ -290,5 +308,15 @@ describe('Gate A high-water contracts', () => {
         pointerState: 'unknown',
       }),
     ).toThrow();
+  });
+});
+
+describe('high-water finalization guard contract', () => {
+  it('exports an immutable pending and finalized guard schema', async () => {
+    const highWater = (await import('../src/generation-high-water.js')) as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(highWater['generationHighWaterFinalizationGuardV1Schema']).toBeDefined();
   });
 });

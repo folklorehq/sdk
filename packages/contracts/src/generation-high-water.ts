@@ -6,6 +6,7 @@ import {
   gitCommitSchema,
   identifierSchema,
   measurement96Schema,
+  opaqueS3VersionIdSchema,
 } from './shared.js';
 
 const positiveIntegerSchema = z.number().int().positive().safe();
@@ -191,6 +192,74 @@ export const highWaterLogEntryV1Schema = z
 
 export type HighWaterLogEntryV1 = z.infer<typeof highWaterLogEntryV1Schema>;
 
+export interface HighWaterObjectReferenceV1 {
+  readonly context: GenerationContextV1;
+  readonly logSequence: number;
+  readonly entryDigest?: string;
+  readonly objectKey: string;
+  readonly objectVersionId?: string;
+}
+
+export interface StoredHighWaterEntryV1 extends HighWaterObjectReferenceV1 {
+  readonly objectVersionId: string;
+  readonly entry: HighWaterLogEntryV1;
+  readonly bytes: Uint8Array;
+}
+
+export interface HighWaterCandidateV1 {
+  readonly context: GenerationContextV1;
+  readonly entry: HighWaterLogEntryV1;
+  readonly bytes: Uint8Array;
+}
+
+export const generationHighWaterFinalizationGuardV1Schema = z.discriminatedUnion('state', [
+  z
+    .object({
+      schema: z.literal('GenerationHighWaterFinalizationGuardV1'),
+      version: z.literal(1),
+      state: z.literal('pending-finalization'),
+      context: generationContextV1Schema,
+      preparationId: digest64Schema,
+      logSequence: positiveIntegerSchema,
+      entryDigest: digest64Schema,
+      objectKey: storageStringSchema,
+      objectVersionId: opaqueS3VersionIdSchema,
+    })
+    .strict(),
+  z
+    .object({
+      schema: z.literal('GenerationHighWaterFinalizationGuardV1'),
+      version: z.literal(1),
+      state: z.literal('finalized'),
+      context: generationContextV1Schema,
+      preparationId: digest64Schema,
+      logSequence: positiveIntegerSchema,
+      entryDigest: digest64Schema,
+      objectKey: storageStringSchema,
+      objectVersionId: opaqueS3VersionIdSchema,
+      carrierDigest: digest64Schema,
+    })
+    .strict(),
+]);
+
+export type GenerationHighWaterFinalizationGuardV1 = z.infer<
+  typeof generationHighWaterFinalizationGuardV1Schema
+>;
+
+export interface DurableGenerationHighWaterAppendResultV1 {
+  readonly disposition: 'committed' | 'already-committed';
+  readonly checkpoint: DurableGenerationHighWaterCheckpointV1;
+  readonly guard: GenerationHighWaterFinalizationGuardV1 & {
+    readonly state: 'pending-finalization';
+  };
+}
+
+export interface DurableGenerationHighWaterLatestEntryV1 {
+  readonly checkpoint: DurableGenerationHighWaterCheckpointV1;
+  readonly stored: StoredHighWaterEntryV1;
+  readonly guard: GenerationHighWaterFinalizationGuardV1;
+}
+
 export const highWaterPointerV1Schema = z
   .object({
     pointerVersion: z.literal(1),
@@ -201,7 +270,7 @@ export const highWaterPointerV1Schema = z
     entryDigest: digest64Schema,
     checkpointDigest: digest64Schema,
     objectKey: storageStringSchema,
-    objectVersionId: storageStringSchema,
+    objectVersionId: opaqueS3VersionIdSchema,
     pointerState: z.enum(['healthy', 'repairing']),
     updatedAtTrustedMs: positiveIntegerSchema.nullable(),
   })

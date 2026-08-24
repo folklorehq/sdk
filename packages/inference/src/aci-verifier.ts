@@ -8,6 +8,7 @@ import {
 } from '@folklore/contracts';
 import type { TelemetryClient } from '@folklore/telemetry';
 import { z } from 'zod';
+import { dispatchAciProtocol } from './official-aci-attestation.js';
 import type { InferenceExchangeEvidence, InferenceResponseVerifier } from './ports.js';
 
 const ACI_ATTESTATION_PATH = '/v1/aci/attestation';
@@ -222,7 +223,16 @@ export class AciReceiptVerifier implements InferenceResponseVerifier {
 
   private async fetchAttestation(): Promise<PinnedAttestation> {
     const raw = await this.getJson(`${this.baseUrl}${ACI_ATTESTATION_PATH}`, 'attestation');
-    const parsed = this.parse(attestationSchema, raw, 'attestation');
+    const dispatch = dispatchAciProtocol(raw, (legacyRaw) =>
+      this.parse(attestationSchema, legacyRaw, 'attestation'),
+    );
+    if (dispatch.protocol === 'error') {
+      throw this.fail(`attestation protocol rejected: ${dispatch.code}`);
+    }
+    if (dispatch.protocol === 'official-aci/1') {
+      throw this.fail('official ACI/1 attestation requires the official verifier');
+    }
+    const parsed = dispatch.body;
     this.assertAttestationSignature(parsed);
     const expectedReceiptKeysetDigest = this.receiptKeysetDigest();
     if (parsed.workload_id !== this.trustPolicy.workloadId) {

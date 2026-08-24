@@ -1,0 +1,624 @@
+{
+  "manifest": {
+    "schema": "AssignmentManifestV4Payload",
+    "version": 4,
+    "poolId": "pool-1",
+    "assignments": [
+      {
+        "tenantId": "org-a",
+        "deploymentId": "deployment-a",
+        "kmsKeyId": "cmk-a",
+        "storageKeyId": "storage-a",
+        "activeStorageKeyVersion": 1,
+        "storageKeyHistory": [
+          {
+            "version": 1,
+            "storageKeyId": "storage-a"
+          }
+        ],
+        "queueUrl": "https://sqs.us-east-1.amazonaws.com/123456789012/tenant-a",
+        "sealedBlobBucket": "sealed-a",
+        "rawPayloadsBucket": "raw-a",
+        "processedBucket": "processed-a",
+        "recoveryPubkey": "",
+        "activePolicyCarrier": {
+          "schema": "folklore.signed-active-policy-carrier.v1",
+          "payload": {
+            "schema": "folklore.active-policy-carrier-payload.v1",
+            "orgId": "org-a",
+            "deploymentId": "deployment-a",
+            "activePolicy": {
+              "schema": "active-inference-trust-policy-v2",
+              "canonicalDomain": "folklore.inference-trust-policy-v2-active",
+              "version": 2,
+              "orgId": "org-a",
+              "deploymentId": "deployment-a",
+              "policyGeneration": 7,
+              "activationGeneration": 3,
+              "configurationGeneration": 11,
+              "policyAuthorityKeyId": "policy-authority-1",
+              "authorizationEnvelopeDigest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "policyDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "route": {
+                "origin": "https://model.example",
+                "path": "/v1/chat/completions",
+                "method": "POST",
+                "redirectOrigins": []
+              },
+              "channel": {
+                "tlsSpkiSha256": [
+                  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                ],
+                "e2eeKeyId": "e2ee-key-1",
+                "channelKeyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "exporterLabel": "EXPORTER-ACI-CHANNEL"
+              },
+              "verifier": {
+                "dstackSourceCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "dstackArchiveSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "verifierSourceCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "verifierArchiveSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "quoteRootDigests": [
+                  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                ],
+                "acceptedTcbStatuses": ["up_to_date"],
+                "runtimeIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "workloadIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "workloadArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "routeIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              },
+              "permittedModels": [
+                {
+                  "model": "provider/model-critique",
+                  "modelRevision": "revision-critique",
+                  "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                {
+                  "model": "provider/model-embed",
+                  "modelRevision": "revision-embed",
+                  "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                {
+                  "model": "provider/model-generate",
+                  "modelRevision": "revision-generate",
+                  "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                {
+                  "model": "provider/model-judge",
+                  "modelRevision": "revision-judge",
+                  "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                }
+              ],
+              "roles": {
+                "embed": {
+                  "orgId": "org-a",
+                  "deploymentId": "deployment-a",
+                  "tenantContextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "role": "embed",
+                  "sessionId": "session-embed",
+                  "model": "provider/model-embed",
+                  "modelRevision": "revision-embed",
+                  "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "upstreamIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "workloadKeysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "channelKeyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "channelPins": [
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  ],
+                  "routeIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "requiredSessionClaims": ["tcb_up_to_date"],
+                  "permittedClaimSources": ["hardware_proven"],
+                  "capabilities": {
+                    "embeddingDimension": 4096,
+                    "maxOutputTokens": null,
+                    "temperature": 0,
+                    "structuredOutput": false
+                  },
+                  "establishedAt": 1700000000000,
+                  "expiresAt": 1700000060000
+                },
+                "generate": {
+                  "orgId": "org-a",
+                  "deploymentId": "deployment-a",
+                  "tenantContextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "role": "generate",
+                  "sessionId": "session-generate",
+                  "model": "provider/model-generate",
+                  "modelRevision": "revision-generate",
+                  "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "upstreamIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "workloadKeysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "channelKeyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "channelPins": [
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  ],
+                  "routeIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "requiredSessionClaims": ["tcb_up_to_date"],
+                  "permittedClaimSources": ["hardware_proven"],
+                  "capabilities": {
+                    "embeddingDimension": null,
+                    "maxOutputTokens": 8192,
+                    "temperature": 0.2,
+                    "structuredOutput": true
+                  },
+                  "establishedAt": 1700000000000,
+                  "expiresAt": 1700000060000
+                },
+                "judge": {
+                  "orgId": "org-a",
+                  "deploymentId": "deployment-a",
+                  "tenantContextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "role": "judge",
+                  "sessionId": "session-judge",
+                  "model": "provider/model-judge",
+                  "modelRevision": "revision-judge",
+                  "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "upstreamIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "workloadKeysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "channelKeyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "channelPins": [
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  ],
+                  "routeIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "requiredSessionClaims": ["tcb_up_to_date"],
+                  "permittedClaimSources": ["hardware_proven"],
+                  "capabilities": {
+                    "embeddingDimension": null,
+                    "maxOutputTokens": 8192,
+                    "temperature": 0.2,
+                    "structuredOutput": true
+                  },
+                  "establishedAt": 1700000000000,
+                  "expiresAt": 1700000060000
+                },
+                "critique": {
+                  "orgId": "org-a",
+                  "deploymentId": "deployment-a",
+                  "tenantContextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "role": "critique",
+                  "sessionId": "session-critique",
+                  "model": "provider/model-critique",
+                  "modelRevision": "revision-critique",
+                  "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "upstreamIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "workloadKeysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "channelKeyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "channelPins": [
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  ],
+                  "routeIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "requiredSessionClaims": ["tcb_up_to_date"],
+                  "permittedClaimSources": ["hardware_proven"],
+                  "capabilities": {
+                    "embeddingDimension": null,
+                    "maxOutputTokens": 8192,
+                    "temperature": 0.2,
+                    "structuredOutput": true
+                  },
+                  "establishedAt": 1700000000000,
+                  "expiresAt": 1700000060000
+                }
+              },
+              "proof": {
+                "version": "pre-forward-route-proof.v1",
+                "issuerWorkloadId": "workload-1",
+                "pinnedTrustRootDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "proofKeysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "maximumLifetimeMs": 60000
+              },
+              "minimumHighWater": {
+                "policyGeneration": 7,
+                "activationGeneration": 3,
+                "keysetEpoch": 4,
+                "keysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              },
+              "lifetime": {
+                "snapshotExpiresAt": 1700000060000,
+                "maximumSessionLifetimeMs": 3600000,
+                "maximumKeysetLifetimeMs": 86400000,
+                "admissionLeaseLifetimeMs": 60000,
+                "clockSkewMs": 60000
+              },
+              "sourceProvenance": {
+                "protectedSourceCommit": "cccccccccccccccccccccccccccccccccccccccc",
+                "sourceArchiveSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "releaseId": "release-1",
+                "eifDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "pcr0": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "releaseProvenanceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              },
+              "rollbackFloor": {
+                "minimumPolicyGeneration": 7,
+                "minimumActivationGeneration": 3,
+                "priorPolicyDigest": null
+              }
+            },
+            "authorizationEnvelope": {
+              "schema": "active-inference-trust-policy-v2-authorization",
+              "orgId": "org-a",
+              "deploymentId": "deployment-a",
+              "policyDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "protectedPolicyReference": "s3://policy/org-a/deployment-a/policy.cbor",
+              "policyGeneration": 7,
+              "activationGeneration": 3,
+              "configurationGeneration": 11,
+              "keysetHighWater": {
+                "epoch": 4,
+                "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              },
+              "authorityKmsKeyArn": "arn:aws:kms:us-east-1:123456789012:key/01234567-89ab-cdef-0123-456789abcdef",
+              "authorityPublicKeySpkiSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "authorityEpoch": 1,
+              "signerPurpose": "policy-authority",
+              "signerKeyId": "policy-authority-1",
+              "signatureAlgorithm": "Ed25519",
+              "policySignature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+            },
+            "generationContext": {
+              "orgId": "org-a",
+              "deploymentId": "deployment-a",
+              "policyDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "policyGeneration": 7,
+              "activationGeneration": 3,
+              "configurationGeneration": 11,
+              "keysetEpoch": 4,
+              "keysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "releaseId": "release-1",
+              "protectedSourceCommit": "cccccccccccccccccccccccccccccccccccccccc",
+              "eifDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "pcr0": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "bootRootDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "protectedPolicyReference": {
+              "orgId": "org-a",
+              "deploymentId": "deployment-a",
+              "policyDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "policyGeneration": 7,
+              "activationGeneration": 3,
+              "configurationGeneration": 11,
+              "keysetEpoch": 4,
+              "keysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          },
+          "algorithm": "Ed25519",
+          "signerKeyId": "carrier-signer-1",
+          "signerPurpose": "active-policy-carrier",
+          "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+        }
+      }
+    ],
+    "generation": 1,
+    "environment": "test",
+    "awsAccountId": "123456789012",
+    "awsRegion": "us-east-1",
+    "orgId": "org-a",
+    "deploymentId": "deployment-a"
+  },
+  "signed": {
+    "schema": "SignedAssignmentManifestV4",
+    "wireVersion": 4,
+    "manifest": {
+      "schema": "AssignmentManifestV4Payload",
+      "version": 4,
+      "poolId": "pool-1",
+      "assignments": [
+        {
+          "tenantId": "org-a",
+          "deploymentId": "deployment-a",
+          "kmsKeyId": "cmk-a",
+          "storageKeyId": "storage-a",
+          "activeStorageKeyVersion": 1,
+          "storageKeyHistory": [
+            {
+              "version": 1,
+              "storageKeyId": "storage-a"
+            }
+          ],
+          "queueUrl": "https://sqs.us-east-1.amazonaws.com/123456789012/tenant-a",
+          "sealedBlobBucket": "sealed-a",
+          "rawPayloadsBucket": "raw-a",
+          "processedBucket": "processed-a",
+          "recoveryPubkey": "",
+          "activePolicyCarrier": {
+            "schema": "folklore.signed-active-policy-carrier.v1",
+            "payload": {
+              "schema": "folklore.active-policy-carrier-payload.v1",
+              "orgId": "org-a",
+              "deploymentId": "deployment-a",
+              "activePolicy": {
+                "schema": "active-inference-trust-policy-v2",
+                "canonicalDomain": "folklore.inference-trust-policy-v2-active",
+                "version": 2,
+                "orgId": "org-a",
+                "deploymentId": "deployment-a",
+                "policyGeneration": 7,
+                "activationGeneration": 3,
+                "configurationGeneration": 11,
+                "policyAuthorityKeyId": "policy-authority-1",
+                "authorizationEnvelopeDigest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "policyDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "route": {
+                  "origin": "https://model.example",
+                  "path": "/v1/chat/completions",
+                  "method": "POST",
+                  "redirectOrigins": []
+                },
+                "channel": {
+                  "tlsSpkiSha256": [
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  ],
+                  "e2eeKeyId": "e2ee-key-1",
+                  "channelKeyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "exporterLabel": "EXPORTER-ACI-CHANNEL"
+                },
+                "verifier": {
+                  "dstackSourceCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "dstackArchiveSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "verifierSourceCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "verifierArchiveSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "quoteRootDigests": [
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  ],
+                  "acceptedTcbStatuses": ["up_to_date"],
+                  "runtimeIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "workloadIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "workloadArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "routeIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                "permittedModels": [
+                  {
+                    "model": "provider/model-critique",
+                    "modelRevision": "revision-critique",
+                    "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  },
+                  {
+                    "model": "provider/model-embed",
+                    "modelRevision": "revision-embed",
+                    "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  },
+                  {
+                    "model": "provider/model-generate",
+                    "modelRevision": "revision-generate",
+                    "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  },
+                  {
+                    "model": "provider/model-judge",
+                    "modelRevision": "revision-judge",
+                    "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  }
+                ],
+                "roles": {
+                  "embed": {
+                    "orgId": "org-a",
+                    "deploymentId": "deployment-a",
+                    "tenantContextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "role": "embed",
+                    "sessionId": "session-embed",
+                    "model": "provider/model-embed",
+                    "modelRevision": "revision-embed",
+                    "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "upstreamIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "workloadKeysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "channelKeyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "channelPins": [
+                      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    ],
+                    "routeIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "requiredSessionClaims": ["tcb_up_to_date"],
+                    "permittedClaimSources": ["hardware_proven"],
+                    "capabilities": {
+                      "embeddingDimension": 4096,
+                      "maxOutputTokens": null,
+                      "temperature": 0,
+                      "structuredOutput": false
+                    },
+                    "establishedAt": 1700000000000,
+                    "expiresAt": 1700000060000
+                  },
+                  "generate": {
+                    "orgId": "org-a",
+                    "deploymentId": "deployment-a",
+                    "tenantContextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "role": "generate",
+                    "sessionId": "session-generate",
+                    "model": "provider/model-generate",
+                    "modelRevision": "revision-generate",
+                    "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "upstreamIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "workloadKeysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "channelKeyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "channelPins": [
+                      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    ],
+                    "routeIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "requiredSessionClaims": ["tcb_up_to_date"],
+                    "permittedClaimSources": ["hardware_proven"],
+                    "capabilities": {
+                      "embeddingDimension": null,
+                      "maxOutputTokens": 8192,
+                      "temperature": 0.2,
+                      "structuredOutput": true
+                    },
+                    "establishedAt": 1700000000000,
+                    "expiresAt": 1700000060000
+                  },
+                  "judge": {
+                    "orgId": "org-a",
+                    "deploymentId": "deployment-a",
+                    "tenantContextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "role": "judge",
+                    "sessionId": "session-judge",
+                    "model": "provider/model-judge",
+                    "modelRevision": "revision-judge",
+                    "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "upstreamIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "workloadKeysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "channelKeyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "channelPins": [
+                      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    ],
+                    "routeIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "requiredSessionClaims": ["tcb_up_to_date"],
+                    "permittedClaimSources": ["hardware_proven"],
+                    "capabilities": {
+                      "embeddingDimension": null,
+                      "maxOutputTokens": 8192,
+                      "temperature": 0.2,
+                      "structuredOutput": true
+                    },
+                    "establishedAt": 1700000000000,
+                    "expiresAt": 1700000060000
+                  },
+                  "critique": {
+                    "orgId": "org-a",
+                    "deploymentId": "deployment-a",
+                    "tenantContextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "role": "critique",
+                    "sessionId": "session-critique",
+                    "model": "provider/model-critique",
+                    "modelRevision": "revision-critique",
+                    "modelArtifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "upstreamIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "workloadKeysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "channelKeyDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "channelPins": [
+                      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    ],
+                    "routeIdentityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "requiredSessionClaims": ["tcb_up_to_date"],
+                    "permittedClaimSources": ["hardware_proven"],
+                    "capabilities": {
+                      "embeddingDimension": null,
+                      "maxOutputTokens": 8192,
+                      "temperature": 0.2,
+                      "structuredOutput": true
+                    },
+                    "establishedAt": 1700000000000,
+                    "expiresAt": 1700000060000
+                  }
+                },
+                "proof": {
+                  "version": "pre-forward-route-proof.v1",
+                  "issuerWorkloadId": "workload-1",
+                  "pinnedTrustRootDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "proofKeysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "maximumLifetimeMs": 60000
+                },
+                "minimumHighWater": {
+                  "policyGeneration": 7,
+                  "activationGeneration": 3,
+                  "keysetEpoch": 4,
+                  "keysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                "lifetime": {
+                  "snapshotExpiresAt": 1700000060000,
+                  "maximumSessionLifetimeMs": 3600000,
+                  "maximumKeysetLifetimeMs": 86400000,
+                  "admissionLeaseLifetimeMs": 60000,
+                  "clockSkewMs": 60000
+                },
+                "sourceProvenance": {
+                  "protectedSourceCommit": "cccccccccccccccccccccccccccccccccccccccc",
+                  "sourceArchiveSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "releaseId": "release-1",
+                  "eifDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "pcr0": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                  "releaseProvenanceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                "rollbackFloor": {
+                  "minimumPolicyGeneration": 7,
+                  "minimumActivationGeneration": 3,
+                  "priorPolicyDigest": null
+                }
+              },
+              "authorizationEnvelope": {
+                "schema": "active-inference-trust-policy-v2-authorization",
+                "orgId": "org-a",
+                "deploymentId": "deployment-a",
+                "policyDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "protectedPolicyReference": "s3://policy/org-a/deployment-a/policy.cbor",
+                "policyGeneration": 7,
+                "activationGeneration": 3,
+                "configurationGeneration": 11,
+                "keysetHighWater": {
+                  "epoch": 4,
+                  "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                "authorityKmsKeyArn": "arn:aws:kms:us-east-1:123456789012:key/01234567-89ab-cdef-0123-456789abcdef",
+                "authorityPublicKeySpkiSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "authorityEpoch": 1,
+                "signerPurpose": "policy-authority",
+                "signerKeyId": "policy-authority-1",
+                "signatureAlgorithm": "Ed25519",
+                "policySignature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+                "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+              },
+              "generationContext": {
+                "orgId": "org-a",
+                "deploymentId": "deployment-a",
+                "policyDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "policyGeneration": 7,
+                "activationGeneration": 3,
+                "configurationGeneration": 11,
+                "keysetEpoch": 4,
+                "keysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "releaseId": "release-1",
+                "protectedSourceCommit": "cccccccccccccccccccccccccccccccccccccccc",
+                "eifDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "pcr0": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "bootRootDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              },
+              "protectedPolicyReference": {
+                "orgId": "org-a",
+                "deploymentId": "deployment-a",
+                "policyDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "policyGeneration": 7,
+                "activationGeneration": 3,
+                "configurationGeneration": 11,
+                "keysetEpoch": 4,
+                "keysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            },
+            "algorithm": "Ed25519",
+            "signerKeyId": "carrier-signer-1",
+            "signerPurpose": "active-policy-carrier",
+            "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+          }
+        }
+      ],
+      "generation": 1,
+      "environment": "test",
+      "awsAccountId": "123456789012",
+      "awsRegion": "us-east-1",
+      "orgId": "org-a",
+      "deploymentId": "deployment-a"
+    },
+    "purpose": "assignment-manifest",
+    "domain": "folklore.assignment-manifest.v4",
+    "algorithm": "Ed25519",
+    "signingAlgorithm": "ED25519_SHA_512",
+    "messageType": "RAW",
+    "keyArn": "arn:aws:kms:us-east-1:123456789012:key/66666666-6666-4666-8666-666666666666",
+    "keyId": "assignment-v4-key",
+    "publicKeyFingerprint": "324be2dea8bc44461b0233e51fa48902ed6b1cc671e7739af2551e0bfe68f54e",
+    "keysetGeneration": 1,
+    "keysetDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "scope": {
+      "assignmentGeneration": 1,
+      "orgId": "org-a",
+      "deploymentId": "deployment-a",
+      "poolId": "pool-1",
+      "environment": "test",
+      "awsAccountId": "123456789012",
+      "awsRegion": "us-east-1"
+    },
+    "subjectDigest": "34b05ab62fe3c8603ffe57109894bb095a7da46a59dc1fc9265b7907fa686825",
+    "signature": "inNJTJ+iMnPmVl04uIm7yc6omuGvFxZpRCKaNQD2A4ZAlzqF6jxcW+odNxE4vzy6bkIIUX9qRZTFGd5J+sXYDg=="
+  },
+  "subjectHex": "8a781f666f6c6b6c6f72652e61737369676e6d656e742d6d616e69666573742e76340478406361366136626162323832616538326239346461373765303237343062643065336230613664363335363436346466386263626462633062353934353230306501656f72672d616c6465706c6f796d656e742d6166706f6f6c2d3164746573746c3132333435363738393031326975732d656173742d31",
+  "subjectDigest": "34b05ab62fe3c8603ffe57109894bb095a7da46a59dc1fc9265b7907fa686825",
+  "publicKeySpki": "MCowBQYDK2VwAyEA6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
+  "publicKeyFingerprint": "324be2dea8bc44461b0233e51fa48902ed6b1cc671e7739af2551e0bfe68f54e",
+  "signature": "inNJTJ+iMnPmVl04uIm7yc6omuGvFxZpRCKaNQD2A4ZAlzqF6jxcW+odNxE4vzy6bkIIUX9qRZTFGd5J+sXYDg=="
+}

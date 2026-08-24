@@ -23,7 +23,38 @@ export const measurement96Schema = z
   .regex(MEASUREMENT_PATTERN, 'measurement must be 96 lowercase hex characters');
 export const base64Ed25519SignatureSchema = z
   .string()
-  .regex(ED25519_SIGNATURE_PATTERN, 'signature must be canonical base64 Ed25519 bytes');
+  .regex(ED25519_SIGNATURE_PATTERN, 'signature must be canonical base64 Ed25519 bytes')
+  .refine(
+    (value) => Buffer.from(value, 'base64').length === 64,
+    'signature must decode to 64 bytes',
+  )
+  .refine(
+    (value) => Buffer.from(value, 'base64').toString('base64') === value,
+    'signature must be canonical base64 Ed25519 bytes',
+  );
+
+export const opaqueS3VersionIdSchema = z
+  .string()
+  .min(1)
+  .max(1_024)
+  .regex(/^[\x21-\x7e]+$/, 'S3 VersionId must be an opaque visible-ASCII token');
+
+export function canonicalBase64BytesSchema(input: {
+  readonly maxDecodedBytes: number;
+}): z.ZodType<string> {
+  return z
+    .string()
+    .min(1)
+    .regex(
+      /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/,
+      'bytes must be canonical base64',
+    )
+    .refine((value) => Buffer.from(value, 'base64').length <= input.maxDecodedBytes)
+    .refine(
+      (value) => Buffer.from(value, 'base64').toString('base64') === value,
+      'bytes must be canonical base64',
+    );
+}
 
 export type Digest64 = z.infer<typeof digest64Schema>;
 export type GitCommit = z.infer<typeof gitCommitSchema>;

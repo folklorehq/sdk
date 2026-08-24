@@ -183,8 +183,28 @@ export type CommissioningProvisioningPrecondition = z.infer<
   typeof commissioningProvisioningPreconditionSchema
 >;
 
+export const commissioningProvisioningStatusSchema = z
+  .object({
+    tenantDeploymentId: z.string().min(1),
+    assignmentId: z.string().min(1),
+    poolDeploymentId: z.string().min(1),
+    assignmentWire: z.literal('SignedAssignmentManifestV4'),
+    assignmentPayload: z.literal('AssignmentManifestV4Payload'),
+    manifestGeneration: z.number().int().positive(),
+    manifestDigest: z.string().regex(/^[0-9a-f]{64}$/),
+    policyVerificationVersion: z.literal(1),
+    verifiedTenantCount: z.number().int().nonnegative(),
+    policyVerificationDigest: z.string().regex(/^[0-9a-f]{64}$/),
+    routeReady: z.boolean(),
+  })
+  .strict();
+export type CommissioningProvisioningStatus = z.infer<typeof commissioningProvisioningStatusSchema>;
+
 export const provisioningStatusSchema = provisionOperationSchema
-  .extend({ readyAt: z.string().datetime().nullable() })
+  .extend({
+    readyAt: z.string().datetime().nullable(),
+    commissioning: commissioningProvisioningStatusSchema.nullable().default(null),
+  })
   .strict();
 export type ProvisioningStatus = z.infer<typeof provisioningStatusSchema>;
 

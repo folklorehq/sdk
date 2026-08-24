@@ -28,6 +28,7 @@ import { AciReceiptVerifier } from '../src/aci/AciReceiptVerifier.js';
 import { AciReportBindingVerifier } from '../src/aci/AciReportBindingVerifier.js';
 import { AciReportVerifier } from '../src/aci/AciReportVerifier.js';
 import { AciSessionVerifier } from '../src/aci/AciSessionVerifier.js';
+import { summarizeOfficialAciReport } from '../src/official-aci-attestation.js';
 import type {
   AciEvidenceVerifierPort,
   AciReceiptVerificationInput,
@@ -237,6 +238,18 @@ describe('official ACI/1 wire fixtures (P0 freeze)', () => {
       'workload_keyset_digest',
     ]);
     assertNoProvenanceMembers(report, 'report.bin');
+  });
+
+  it('projects report.bin into the bounded official attestation summary', () => {
+    expect(summarizeOfficialAciReport(JSON.parse(fixtureText('report.bin')))).toEqual({
+      apiVersion: 'aci/1',
+      workloadKeysetDigest:
+        'sha256:53a5cd44b30dcc51999754c719f2628a041f174ecbf9662a6f8e898a10cd9371',
+      teeType: 'tdx',
+      keysetExpiresAt: 1_800_000_000,
+      sourceRevision: 'f9706ad89220b5d033e38a6a9f1d94121bf37488',
+      imageDigest: null,
+    });
   });
 
   it('AciSessionVerifier consumes session.bin without adding provenance members', async () => {

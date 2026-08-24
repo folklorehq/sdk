@@ -6,7 +6,9 @@ import {
   aciSessionSchema,
   aciWorkloadReportSchema,
   ACTIVE_INFERENCE_TRUST_POLICY_V2_CANONICAL_DOMAIN,
+  activePolicyCarrierSignerIdentityV1Schema,
   activeInferenceTrustPolicyV2Schema,
+  activePolicyAuthorizationEnvelopeV1Schema,
   inferenceReceiptV1Payload,
   inferenceReceiptV1Schema,
   inferenceTrustPolicyV1Schema,
@@ -261,6 +263,44 @@ function activePolicyFixture(): Record<string, unknown> {
     },
   };
 }
+
+function activePolicyAuthorizationEnvelopeFixture(): Record<string, unknown> {
+  return {
+    schema: 'active-inference-trust-policy-v2-authorization',
+    orgId: 'org-1',
+    deploymentId: 'deployment-1',
+    policyDigest: '6'.repeat(64),
+    protectedPolicyReference: 's3://policy/org-1/deployment-1/policy.cbor',
+    policyGeneration: 7,
+    activationGeneration: 3,
+    configurationGeneration: 11,
+    keysetHighWater: { epoch: 4, digest: '3'.repeat(64) },
+    authorityKmsKeyArn:
+      'arn:aws:kms:us-east-1:123456789012:key/01234567-89ab-cdef-0123-456789abcdef',
+    authorityPublicKeySpkiSha256: 'a'.repeat(64),
+    authorityEpoch: 1,
+    signerPurpose: 'policy-authority',
+    signerKeyId: 'policy-authority-1',
+    signatureAlgorithm: 'Ed25519',
+    policySignature: 'A'.repeat(86) + '==',
+    signature: 'B'.repeat(86) + '==',
+  };
+}
+
+describe('active-policy signer identities', () => {
+  it('accepts a strict carrier signer identity with purpose-bound metadata', () => {
+    expect(
+      activePolicyCarrierSignerIdentityV1Schema.safeParse({
+        schema: 'folklore.active-policy-carrier-signer-identity.v1',
+        version: 1,
+        keyArn: 'arn:aws:kms:us-east-1:123456789012:key/55555555-5555-4555-8555-555555555555',
+        keyId: 'active-policy-carrier-1',
+        publicKeySpkiSha256: 'a'.repeat(64),
+        epoch: 1,
+      }).success,
+    ).toBe(true);
+  });
+});
 
 function policyDigests(count: number): string[] {
   return Array.from({ length: count }, (_, index) => index.toString(16).padStart(64, '0'));
@@ -862,6 +902,31 @@ describe('activeInferenceTrustPolicyV2Schema', () => {
   });
 });
 
+describe('activePolicyAuthorizationEnvelopeV1Schema', () => {
+  it('requires the exact KMS authority identity fields and strict wire shape', () => {
+    const envelope = activePolicyAuthorizationEnvelopeFixture();
+    expect(activePolicyAuthorizationEnvelopeV1Schema.parse(envelope)).toMatchObject({
+      authorityKmsKeyArn: envelope.authorityKmsKeyArn,
+      authorityPublicKeySpkiSha256: envelope.authorityPublicKeySpkiSha256,
+      authorityEpoch: 1,
+    });
+
+    const rejectedCases: unknown[] = [
+      Object.fromEntries(Object.entries(envelope).filter(([key]) => key !== 'authorityKmsKeyArn')),
+      { ...envelope, unexpected: true },
+      { ...envelope, authorityEpoch: '1' },
+      { ...envelope, authorityKmsKeyArn: 'arn:aws:kms:us-east-1:123456789012:alias/wrong' },
+      { ...envelope, authorityPublicKeySpkiSha256: 'A'.repeat(64) },
+      { ...envelope, authorityEpoch: 0 },
+      { ...envelope, authorityEpoch: 1.5 },
+    ];
+
+    for (const rejected of rejectedCases) {
+      expect(activePolicyAuthorizationEnvelopeV1Schema.safeParse(rejected).success).toBe(false);
+    }
+  });
+});
+
 describe('aciWorkloadReportSchema', () => {
   it('accepts the pinned official ACI/1 report shape and policy-defined extensions', () => {
     const report = aciWorkloadReportSchema.parse({
@@ -880,6 +945,15 @@ describe('aciWorkloadReportSchema', () => {
     expect(report.attestation.workload_keyset.not_after).toBe(1_800_000_000);
     expect(report.attestation.evidence.provider_extension).toEqual({ status: 'redacted' });
     expect(report.service_capabilities.provider_extension).toBe('ignored-by-generic-verifiers');
+  });
+
+  it('rejects an unknown ACI tee type', () => {
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...ACI_REPORT_FIXTURE,
+        attestation: { ...ACI_REPORT_FIXTURE.attestation, tee_type: 'fake-tee' },
+      }).success,
+    ).toBe(false);
   });
 
   it('accepts the optional subject and TLS public-key list without a legacy identity block', () => {
