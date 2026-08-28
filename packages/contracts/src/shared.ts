@@ -6,6 +6,51 @@ const HEX_DIGEST_PATTERN = /^[0-9a-f]{64}$/;
 const GIT_COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 const MEASUREMENT_PATTERN = /^[0-9a-f]{96}$/;
 const ED25519_SIGNATURE_PATTERN = /^(?:[A-Za-z0-9+/]{4}){21}[A-Za-z0-9+/]{2}==$/;
+const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+function decodeCanonicalBase64(value: string): Uint8Array {
+  if (!BASE64_PATTERN.test(value)) throw new TypeError('bytes must be canonical base64');
+  const paddingLength = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0;
+  const output = new Uint8Array((value.length / 4) * 3 - paddingLength);
+  let outputIndex = 0;
+  for (let index = 0; index < value.length; index += 4) {
+    const first = BASE64_ALPHABET.indexOf(value[index] ?? '');
+    const second = BASE64_ALPHABET.indexOf(value[index + 1] ?? '');
+    const thirdCharacter = value[index + 2] ?? '=';
+    const fourthCharacter = value[index + 3] ?? '=';
+    const third = thirdCharacter === '=' ? 0 : BASE64_ALPHABET.indexOf(thirdCharacter);
+    const fourth = fourthCharacter === '=' ? 0 : BASE64_ALPHABET.indexOf(fourthCharacter);
+    if (first < 0 || second < 0 || third < 0 || fourth < 0) {
+      throw new TypeError('bytes must be canonical base64');
+    }
+    if (thirdCharacter === '=' && (second & 0x0f) !== 0) {
+      throw new TypeError('bytes must be canonical base64');
+    }
+    if (fourthCharacter === '=' && thirdCharacter !== '=' && (third & 0x03) !== 0) {
+      throw new TypeError('bytes must be canonical base64');
+    }
+    if (outputIndex < output.length) output[outputIndex++] = (first << 2) | (second >> 4);
+    if (outputIndex < output.length) output[outputIndex++] = ((second & 0x0f) << 4) | (third >> 2);
+    if (outputIndex < output.length) output[outputIndex++] = ((third & 0x03) << 6) | fourth;
+  }
+  return output;
+}
+
+function encodeBase64(bytes: Uint8Array): string {
+  let result = '';
+  for (let index = 0; index < bytes.length; index += 3) {
+    const first = bytes[index] ?? 0;
+    const second = bytes[index + 1];
+    const third = bytes[index + 2];
+    result += BASE64_ALPHABET[first >> 2];
+    result += BASE64_ALPHABET[((first & 0x03) << 4) | ((second ?? 0) >> 4)];
+    result +=
+      second === undefined ? '=' : BASE64_ALPHABET[((second & 0x0f) << 2) | ((third ?? 0) >> 6)];
+    result += third === undefined ? '=' : BASE64_ALPHABET[third & 0x3f];
+  }
+  return result;
+}
 
 export const identifierSchema = z
   .string()
@@ -24,14 +69,33 @@ export const measurement96Schema = z
 export const base64Ed25519SignatureSchema = z
   .string()
   .regex(ED25519_SIGNATURE_PATTERN, 'signature must be canonical base64 Ed25519 bytes')
-  .refine(
-    (value) => Buffer.from(value, 'base64').length === 64,
-    'signature must decode to 64 bytes',
-  )
-  .refine(
-    (value) => Buffer.from(value, 'base64').toString('base64') === value,
-    'signature must be canonical base64 Ed25519 bytes',
-  );
+  .refine((value) => {
+    try {
+      return decodeCanonicalBase64(value).length === 64;
+    } catch {
+      return false;
+    }
+  }, 'signature must decode to 64 bytes')
+  .refine((value) => {
+    try {
+      return encodeBase64(decodeCanonicalBase64(value)) === value;
+    } catch {
+      return false;
+    }
+  }, 'signature must be canonical base64 Ed25519 bytes');
+
+// Ed25519 SubjectPublicKeyInfo DER is a fixed 12-byte ASN.1 prefix plus the 32-byte public key.
+export const ed25519SpkiSchema = z
+  .string()
+  .length(60)
+  .regex(/^MCowBQYDK2VwAyEA[A-Za-z0-9+/]{43}=$/)
+  .refine((value) => {
+    try {
+      return encodeBase64(decodeCanonicalBase64(value)) === value;
+    } catch {
+      return false;
+    }
+  }, 'SPKI must be canonical base64');
 
 export const opaqueS3VersionIdSchema = z
   .string()
@@ -45,15 +109,21 @@ export function canonicalBase64BytesSchema(input: {
   return z
     .string()
     .min(1)
-    .regex(
-      /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/,
-      'bytes must be canonical base64',
-    )
-    .refine((value) => Buffer.from(value, 'base64').length <= input.maxDecodedBytes)
-    .refine(
-      (value) => Buffer.from(value, 'base64').toString('base64') === value,
-      'bytes must be canonical base64',
-    );
+    .regex(BASE64_PATTERN, 'bytes must be canonical base64')
+    .refine((value) => {
+      try {
+        return decodeCanonicalBase64(value).length <= input.maxDecodedBytes;
+      } catch {
+        return false;
+      }
+    })
+    .refine((value) => {
+      try {
+        return encodeBase64(decodeCanonicalBase64(value)) === value;
+      } catch {
+        return false;
+      }
+    }, 'bytes must be canonical base64');
 }
 
 export type Digest64 = z.infer<typeof digest64Schema>;

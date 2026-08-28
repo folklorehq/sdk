@@ -30,7 +30,11 @@ export interface RecoverySubmission {
 
 function deriveX25519Seed(mnemonic: string): Uint8Array {
   const entropy = mnemonicToEntropy(mnemonic, wordlist);
-  return sha256(concatBytes(utf8ToBytes(X25519_DERIVATION_DOMAIN), entropy));
+  try {
+    return sha256(concatBytes(utf8ToBytes(X25519_DERIVATION_DOMAIN), entropy));
+  } finally {
+    entropy.fill(0);
+  }
 }
 
 export function recoveryFingerprint(publicKeyHex: string): string {
@@ -45,14 +49,29 @@ export function deriveRecoveryMaterial(mnemonic: string): RecoveryMaterial {
     throw new Error('invalid BIP39 recovery phrase');
   }
   const seed = deriveX25519Seed(phrase);
-  const publicKeyHex = bytesToHex(x25519.getPublicKey(seed));
-  return {
-    mnemonic: phrase,
-    words: phrase.split(' '),
-    publicKeyHex,
-    privateKeyHex: bytesToHex(seed),
-    fingerprint: recoveryFingerprint(publicKeyHex),
-  };
+  try {
+    const publicKeyHex = bytesToHex(x25519.getPublicKey(seed));
+    return {
+      mnemonic: phrase,
+      words: phrase.split(' '),
+      publicKeyHex,
+      privateKeyHex: bytesToHex(seed),
+      fingerprint: recoveryFingerprint(publicKeyHex),
+    };
+  } finally {
+    seed.fill(0);
+  }
+}
+
+export function deriveRecoveryPublicKeyHex(mnemonic: string): string {
+  const phrase = mnemonic.trim().replace(/\s+/g, ' ');
+  if (!validateMnemonic(phrase, wordlist)) throw new Error('invalid BIP39 recovery phrase');
+  const seed = deriveX25519Seed(phrase);
+  try {
+    return bytesToHex(x25519.getPublicKey(seed));
+  } finally {
+    seed.fill(0);
+  }
 }
 
 export function generateRecoveryMaterial(): RecoveryMaterial {
