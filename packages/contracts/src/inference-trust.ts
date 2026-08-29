@@ -269,12 +269,64 @@ const MAX_ACI_STRING_LENGTH = 512;
 const MAX_ACI_EVENTS = 128;
 const MAX_ACI_CHANNEL_BINDINGS = 8;
 const MAX_ACI_EVIDENCE_DATA_LENGTH = 1_048_576;
+const MAX_ACI_V2_EVIDENCE_DATA_LENGTH = 8_000_000;
 const MAX_ACI_DURATION_SECONDS = 31_536_000;
 const MAX_ACI_CLOCK_SKEW_SECONDS = 3_600;
 const MAX_ACI_JSON_DEPTH = 64;
 const MAX_ACI_JSON_NODES = 4_096;
 
 const aciPrefixedDigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
+const MAX_ACI_RAW_EVIDENCE_COMPONENT_BYTES = 1_048_576;
+const MAX_ACI_RAW_EVIDENCE_AGGREGATE_BYTES = 4_194_304;
+const MAX_ACI_RAW_EVIDENCE_COMPONENT_BASE64_LENGTH =
+  Math.ceil(MAX_ACI_RAW_EVIDENCE_COMPONENT_BYTES / 3) * 4;
+const canonicalPaddedBase64Schema = z
+  .string()
+  .min(4)
+  .max(MAX_ACI_RAW_EVIDENCE_COMPONENT_BASE64_LENGTH)
+  .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/)
+  .refine((value) => {
+    const decoded = Buffer.from(value, 'base64');
+    return (
+      decoded.byteLength <= MAX_ACI_RAW_EVIDENCE_COMPONENT_BYTES &&
+      decoded.toString('base64') === value
+    );
+  });
+
+export interface AciDstackRawEvidenceV1 {
+  readonly version: 1;
+  readonly format: 'dstack-native-evidence';
+  readonly quote_base64: string;
+  readonly collateral_base64: string;
+  readonly event_log_base64: string;
+  readonly vm_config_base64: string;
+  readonly session_id: string;
+  readonly workload_keyset_digest: string;
+}
+
+export const aciDstackRawEvidenceV1Schema: z.ZodType<AciDstackRawEvidenceV1> = z
+  .object({
+    version: z.literal(1),
+    format: z.literal('dstack-native-evidence'),
+    quote_base64: canonicalPaddedBase64Schema,
+    collateral_base64: canonicalPaddedBase64Schema,
+    event_log_base64: canonicalPaddedBase64Schema,
+    vm_config_base64: canonicalPaddedBase64Schema,
+    session_id: identifierSchema,
+    workload_keyset_digest: aciPrefixedDigestSchema,
+  })
+  .strict()
+  .superRefine((evidence, context) => {
+    const aggregateBytes = [
+      evidence.quote_base64,
+      evidence.collateral_base64,
+      evidence.event_log_base64,
+      evidence.vm_config_base64,
+    ].reduce((total, value) => total + Buffer.from(value, 'base64').byteLength, 0);
+    if (aggregateBytes > MAX_ACI_RAW_EVIDENCE_AGGREGATE_BYTES) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'raw evidence exceeds size limit' });
+    }
+  });
 const aciReportDataSchema = z.string().regex(/^[0-9a-f]{64}$/);
 
 function hasControlCharacters(value: string): boolean {
@@ -337,9 +389,13 @@ const aciBoundedJsonValueSchema = z.custom<unknown>(
   (value) => validateAciBoundedJson(value, false),
   'expected bounded JSON value',
 );
-const aciEvidenceObjectSchema = z.custom<Record<string, unknown>>(
+const aciLegacyBoundedJsonObjectSchema = z.custom<Record<string, unknown>>(
   (value) => isAciBoundedJsonObject(value),
   'expected bounded JSON object',
+);
+const aciEvidenceObjectSchema = z.custom<Record<string, unknown>>(
+  (value) => aciDstackRawEvidenceV1Schema.safeParse(value).success || isAciBoundedJsonObject(value),
+  'expected evidence object',
 );
 
 const aciPublicKeySchema = z
@@ -477,7 +533,7 @@ const aciClaimSchema = z.union([
     .strict(),
 ]);
 
-const aciSessionClaimsSchema = z
+export const aciSessionClaimsSchema = z
   .object({
     tee_attested: aciClaimSchema.optional(),
     gpu_attested: aciClaimSchema.optional(),
@@ -485,7 +541,7 @@ const aciSessionClaimsSchema = z
     os_known_good: aciClaimSchema.optional(),
     serving_software_known_good: aciClaimSchema.optional(),
     model_weights_provenance: aciClaimSchema.optional(),
-    extra: aciEvidenceObjectSchema.optional(),
+    extra: aciLegacyBoundedJsonObjectSchema.optional(),
   })
   .catchall(aciBoundedJsonValueSchema);
 
@@ -520,7 +576,7 @@ const aciChannelBindingSchema = z.union([
   aciKnownChannelBindingSchema,
   aciUnknownChannelBindingSchema,
 ]);
-const aciSessionChannelBindingsSchema = z
+export const aciSessionChannelBindingsSchema = z
   .array(aciChannelBindingSchema)
   .min(1)
   .max(MAX_ACI_CHANNEL_BINDINGS);
@@ -533,8 +589,19 @@ const aciEvidenceRefSchema = z
     digest: aciPrefixedDigestSchema,
     data: z
       .string()
-      .max(MAX_ACI_EVIDENCE_DATA_LENGTH)
+      .max(MAX_ACI_V2_EVIDENCE_DATA_LENGTH)
       .regex(/^data:[^,]{1,256};base64,[A-Za-z0-9+/=_-]*$/)
+      .refine((value) => {
+        if (value.length <= MAX_ACI_EVIDENCE_DATA_LENGTH) return true;
+        const comma = value.indexOf(',');
+        if (comma < 0) return false;
+        try {
+          const decoded = Buffer.from(value.slice(comma + 1), 'base64').toString('utf8');
+          return aciDstackRawEvidenceV1Schema.safeParse(JSON.parse(decoded) as unknown).success;
+        } catch {
+          return false;
+        }
+      })
       .optional(),
   })
   .catchall(aciBoundedJsonValueSchema);
@@ -546,10 +613,11 @@ type AciBoundedJson =
   | null
   | AciBoundedJson[]
   | { [key: string]: AciBoundedJson };
-const aciBoundedJsonObjectSchema: z.ZodType<{ [key: string]: AciBoundedJson }> = z.custom<{
-  [key: string]: AciBoundedJson;
-}>((value) => isAciBoundedJsonObject(value), 'expected bounded JSON object');
-const aciIdentitySchema = aciBoundedJsonObjectSchema;
+const aciStructuredBoundedJsonObjectSchema: z.ZodType<{ [key: string]: AciBoundedJson }> =
+  z.custom<{
+    [key: string]: AciBoundedJson;
+  }>((value) => isAciBoundedJsonObject(value), 'expected bounded JSON object');
+export const aciSessionIdentitySchema = aciStructuredBoundedJsonObjectSchema;
 
 function isAciBoundedJsonObject(value: unknown): value is { [key: string]: AciBoundedJson } {
   return validateAciBoundedJson(value, true);
@@ -610,7 +678,7 @@ export const aciSessionSchema = z
     verifier_id: aciStringSchema,
     established_at: aciPositiveIntegerSchema,
     expires_at: aciPositiveIntegerSchema,
-    identity: aciIdentitySchema.optional(),
+    identity: aciSessionIdentitySchema.optional(),
     channel_binding: aciSessionChannelBindingsSchema,
     claims: aciSessionClaimsSchema,
     evidence: aciEvidenceRefSchema,
@@ -647,7 +715,7 @@ const aciUpstreamVerifiedEventSchema = z
     required: z.boolean(),
     reason: aciNullableStringSchema.optional(),
     channel_bindings: aciEventChannelBindingsSchema.optional(),
-    provider_claims: aciEvidenceObjectSchema.nullable().optional(),
+    provider_claims: aciLegacyBoundedJsonObjectSchema.nullable().optional(),
     session_id: aciSessionIdSchema.optional(),
     claims: aciSessionClaimsSchema.optional(),
   })

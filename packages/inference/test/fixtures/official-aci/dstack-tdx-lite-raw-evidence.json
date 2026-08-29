@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "format": "dstack-native-evidence",
+  "quote_base64": "cXVvdGU=",
+  "collateral_base64": "Y29sbGF0ZXJhbA==",
+  "event_log_base64": "ZXZlbnQtbG9n",
+  "vm_config_base64": "dm0tY29uZmln",
+  "session_id": "demo-upstream",
+  "workload_keyset_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+}

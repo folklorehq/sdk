@@ -1,18 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from 'node:crypto';
-import type { AciSession, InferenceModelRole, InferenceTrustPolicyV2 } from '@folklore/contracts';
+import { readFileSync } from 'node:fs';
+import {
+  aciSessionSchema,
+  inferenceTrustPolicyV2Schema,
+  type AciDstackRawEvidenceV1,
+  type AciSession,
+  type InferenceModelRole,
+  type InferenceTrustPolicyV2,
+} from '@folklore/contracts';
+import { RawEvidenceDigestAuthority } from './doubles/aci/RawEvidenceDigestAuthority.js';
 import { describe, expect, it, vi } from 'vitest';
 import { ACI_POLICY_FIXTURE, ACI_SESSION_FIXTURE } from '../../contracts/test/fixtures/aci-v1.js';
-import { AciSessionVerifier } from '../src/aci/AciSessionVerifier.js';
+import { AciSessionVerifier, LegacyAciSessionVerifier } from '../src/aci/AciSessionVerifier.js';
+import { AciNativeSessionEvidenceVerifier } from '../src/aci/AciNativeSessionEvidenceVerifier.js';
+import { containsReservedRawEvidenceMarker } from '../src/aci/raw-evidence-classification.js';
 import type {
   AciTrustContext,
   AciSessionCandidate,
   AciSessionEvidenceVerifierPort,
+  LegacyAciSessionEvidenceVerifierPort,
+  AciNativeEvidenceVerificationInputV2,
   AciSessionVerificationInput,
   AciTrustHighWater,
   TrustedTimeReadContext,
   VerifiedAciKeyset,
   VerifiedAciSessionEvidenceBindings,
+  VerifiedAciSessionEvidenceBindingsV2,
 } from '../src/ports.js';
 import { InMemoryAciKeysetHighWaterAuthority } from './doubles/aci/InMemoryAciStores.js';
 
@@ -27,7 +41,7 @@ const ACTIVATION_GENERATION = 11;
 const UPSTREAM_CHANNEL_KEY_DIGEST =
   'sha256:a4bfdc16981feebca6c891c30594fd12093328893084ee4765ffb3b9f166fc3c';
 const ROLES: readonly InferenceModelRole[] = ['embed', 'generate', 'critique', 'judge'];
-const POLICY: InferenceTrustPolicyV2 = {
+const POLICY: InferenceTrustPolicyV2 = inferenceTrustPolicyV2Schema.parse({
   ...ACI_POLICY_FIXTURE,
   channelPolicy: {
     acceptedBindings: [
@@ -38,7 +52,7 @@ const POLICY: InferenceTrustPolicyV2 = {
     ],
   },
   requiredSessionClaims: ['tee_attested'],
-};
+});
 const KEYSET: VerifiedAciKeyset = {
   workloadId: `sha256:${'1'.repeat(64)}`,
   workloadKeysetDigest: `sha256:${'2'.repeat(64)}`,
@@ -62,7 +76,14 @@ const KEYSET: VerifiedAciKeyset = {
   ],
   channelKeyDigest: `sha256:${'5'.repeat(64)}`,
 };
-const SESSION = ACI_SESSION_FIXTURE;
+const SESSION = aciSessionSchema.parse(ACI_SESSION_FIXTURE);
+const RAW_EVIDENCE_FIXTURE = JSON.parse(
+  readFileSync(
+    new URL('./fixtures/official-aci/dstack-tdx-lite-raw-evidence.json', import.meta.url),
+    'utf8',
+  ),
+) as AciDstackRawEvidenceV1;
+const RAW_EVIDENCE_DIGEST_AUTHORITY = new RawEvidenceDigestAuthority();
 
 function keysetAuthority(
   overrides: Partial<AciTrustHighWater> = {},
@@ -81,8 +102,9 @@ function keysetAuthority(
 
 type CandidateOverrides = Partial<AciSessionCandidate> & { readonly session?: AciSession };
 
-class AciSessionEvidenceVerifierDouble implements AciSessionEvidenceVerifierPort {
+class AciSessionEvidenceVerifierDouble implements LegacyAciSessionEvidenceVerifierPort {
   calls = 0;
+  readonly evidenceBytes: Uint8Array[] = [];
 
   constructor(
     private readonly override?: (
@@ -91,8 +113,9 @@ class AciSessionEvidenceVerifierDouble implements AciSessionEvidenceVerifierPort
     ) => VerifiedAciSessionEvidenceBindings | Promise<VerifiedAciSessionEvidenceBindings>,
   ) {}
 
-  async verify(input: Parameters<AciSessionEvidenceVerifierPort['verify']>[0]) {
+  async verify(input: Parameters<LegacyAciSessionEvidenceVerifierPort['verify']>[0]) {
     this.calls += 1;
+    this.evidenceBytes.push(Uint8Array.from(input.evidenceBytes));
     const session = JSON.parse(new TextDecoder().decode(input.sessionBytes)) as AciSession;
     const bindings = {
       sessionId: sessionId(session),
@@ -110,13 +133,38 @@ class AciSessionEvidenceVerifierDouble implements AciSessionEvidenceVerifierPort
   }
 }
 
+function testTranscriptDigest(input: AciNativeEvidenceVerificationInputV2): string {
+  return `sha256:${createHash('sha256')
+    .update('folklore.aci-native-transcript.test.v1\u0000')
+    .update(input.expectation.evidenceDigest)
+    .digest('hex')}`;
+}
+
+const strictEvidenceVerifier: AciSessionEvidenceVerifierPort = {
+  verify: async (input) => {
+    const session = JSON.parse(new TextDecoder().decode(input.subjectBytes)) as AciSession;
+    const bindings = withDerivedBindings(session);
+    return {
+      sessionId: input.expectation.expectedSessionId,
+      claims: session.claims,
+      identity: session.identity ?? null,
+      channelBindings: session.channel_binding,
+      establishedAt: session.established_at,
+      expiresAt: session.expires_at,
+      channelKeyDigest: bindings.channelKeyDigest,
+      upstreamIdentityDigest: bindings.upstreamIdentityDigest,
+      evidenceTranscriptDigest: testTranscriptDigest(input),
+    };
+  },
+};
+
 function createVerifier(
   policy = POLICY,
-  evidenceVerifier = new AciSessionEvidenceVerifierDouble(),
+  evidenceVerifier: LegacyAciSessionEvidenceVerifierPort = new AciSessionEvidenceVerifierDouble(),
   contexts: TrustedTimeReadContext[] = [],
   authority = keysetAuthority(),
 ) {
-  return new AciSessionVerifier({
+  return new LegacyAciSessionVerifier({
     policy,
     trustedTimeAuthority: {
       read: async (context) => {
@@ -133,12 +181,52 @@ function createVerifier(
   });
 }
 
+function createStrictVerifier(
+  evidenceVerifier: AciSessionEvidenceVerifierPort,
+  timeoutMs?: number,
+) {
+  return new AciSessionVerifier({
+    policy: POLICY,
+    trustedTimeAuthority: { read: async () => ({ trustedNow: NOW, ...TRUST_CONTEXT }) },
+    trustedTimeContext: TRUST_CONTEXT,
+    evidenceVerifier,
+    rawEvidenceDigestAuthority: RAW_EVIDENCE_DIGEST_AUTHORITY,
+    nativeVerifierTimeoutMs: timeoutMs,
+    keysetHighWaterAuthority: keysetAuthority(),
+  });
+}
+
 function encodeSession(session: AciSession): Uint8Array {
   try {
     return new TextEncoder().encode(JSON.stringify(session));
   } catch {
     return new TextEncoder().encode(JSON.stringify(SESSION));
   }
+}
+
+function nativeSessionInput(session: AciSession): Omit<
+  AciNativeEvidenceVerificationInputV2,
+  'expectation'
+> & {
+  readonly expectation: Omit<
+    AciNativeEvidenceVerificationInputV2['expectation'],
+    'deadline' | 'signal'
+  >;
+} {
+  return {
+    evidence: RAW_EVIDENCE_FIXTURE,
+    subjectBytes: encodeSession(session),
+    expectation: {
+      purpose: 'session',
+      subjectDigest: sessionSubjectDigest(session),
+      reportNonce: null,
+      expectedSessionId: sessionId(session),
+      expectedWorkloadKeysetDigest: KEYSET.workloadKeysetDigest,
+      evidenceDigest: `sha256:${'7'.repeat(64)}`,
+      evaluationTimeUnixSeconds: NOW,
+      policyAnchors: POLICY,
+    },
+  };
 }
 
 function candidate(
@@ -224,6 +312,43 @@ function withDerivedBindings(session: AciSession): {
   };
 }
 
+function rawSession(
+  sessionId = sessionSubjectDigest(SESSION),
+  workloadKeysetDigest = KEYSET.workloadKeysetDigest,
+  extra: Record<string, unknown> = {},
+): AciSession {
+  const evidence: AciDstackRawEvidenceV1 & Record<string, unknown> = {
+    ...RAW_EVIDENCE_FIXTURE,
+    session_id: sessionId,
+    workload_keyset_digest: workloadKeysetDigest,
+    ...extra,
+  };
+  const bytes = new TextEncoder().encode(JSON.stringify(evidence));
+  return {
+    ...SESSION,
+    evidence: {
+      digest: `sha256:${createHash('sha256').update(bytes).digest('hex')}`,
+      data: `data:application/octet-stream;base64,${Buffer.from(bytes).toString('base64')}`,
+    },
+  };
+}
+
+function defineOwnProto<T extends object>(target: T, value: unknown): T {
+  Object.defineProperty(target, '__proto__', {
+    configurable: true,
+    enumerable: true,
+    value,
+    writable: true,
+  });
+  return target;
+}
+
+function sessionSubjectDigest(session: AciSession): string {
+  return `sha256:${createHash('sha256')
+    .update(canonicalJson({ ...session, evidence: null }))
+    .digest('hex')}`;
+}
+
 function safeChannelKeyDigest(session: AciSession): string {
   try {
     return withDerivedBindings(session).channelKeyDigest;
@@ -253,6 +378,400 @@ async function expectCode(promise: Promise<unknown>, code: string): Promise<void
 }
 
 describe('AciSessionVerifier', () => {
+  it.each([
+    ['BOM', '\uFEFF{"format":"dstack-native-evidence"}'],
+    ['comment', '{/*x*/"format":"dstack-native-evidence"}'],
+    ['trailing comma', '{"format":"dstack-native-evidence",}'],
+    ['extra token', '{"format":"dstack-native-evidence"}true'],
+  ])('fails closed on %s session evidence carrying the reserved marker', (_kind, text) => {
+    expect(containsReservedRawEvidenceMarker(new TextEncoder().encode(text))).toBe(true);
+  });
+
+  it('fails closed when a benign session evidence root precedes a reserved-marker root', () => {
+    const text =
+      '{"format":"provider-json-v7","payload":"opaque"}' + '{"format":"dstack-native-evidence"}';
+
+    expect(containsReservedRawEvidenceMarker(new TextEncoder().encode(text))).toBe(true);
+  });
+
+  it.each(['null', 'true', 'false', '0', '-1'])(
+    'rejects a %s root before reserved-marker evidence before legacy verification',
+    async (primitive) => {
+      const evidenceBytes = new TextEncoder().encode(
+        `${primitive}{"format":"dstack-native-evidence"}`,
+      );
+      const session = withDerivedBindings({
+        ...SESSION,
+        evidence: {
+          digest: `sha256:${createHash('sha256').update(evidenceBytes).digest('hex')}`,
+          data: `data:application/octet-stream;base64,${Buffer.from(evidenceBytes).toString('base64')}`,
+        },
+      }).session;
+      const legacyPort = new AciSessionEvidenceVerifierDouble();
+
+      await expect(
+        createVerifier(POLICY, legacyPort).verifyAndSelect(
+          input(ROLES.map((role) => candidate(role, { session }))),
+        ),
+      ).rejects.toBeDefined();
+      expect(legacyPort.calls).toBe(0);
+    },
+  );
+
+  it('preserves genuinely opaque non-JSON legacy session evidence', () => {
+    expect(
+      containsReservedRawEvidenceMarker(new TextEncoder().encode('opaque-provider-evidence')),
+    ).toBe(false);
+  });
+
+  it('accepts opaque provider evidence but keeps the reserved native marker out of legacy verification', async () => {
+    for (const evidenceBytes of [
+      new TextEncoder().encode('{"format":"provider-json-v7","payload":"opaque"}'),
+      new TextEncoder().encode(
+        '{"format":"provider-json-v7","duplicate":1,"duplicate":2,"é":"opaque"}',
+      ),
+    ]) {
+      const session = withDerivedBindings({
+        ...SESSION,
+        evidence: {
+          digest: `sha256:${createHash('sha256').update(evidenceBytes).digest('hex')}`,
+          data: `data:application/octet-stream;base64,${Buffer.from(evidenceBytes).toString('base64')}`,
+        },
+      }).session;
+      const legacyPort = new AciSessionEvidenceVerifierDouble();
+
+      await expect(
+        createVerifier(POLICY, legacyPort).verifyAndSelect(
+          input(ROLES.map((role) => candidate(role, { session }))),
+        ),
+      ).resolves.toBeDefined();
+      expect(legacyPort.calls).toBe(ROLES.length);
+    }
+
+    for (const evidenceBytes of [
+      new TextEncoder().encode('{"format":"dstack-native-evidence"}'),
+      new TextEncoder().encode('{"format":"dstack-native-evidence","quote_base64":"malformed"}'),
+      new TextEncoder().encode('{"wrapper":{"format":"dstack-native-evidence"}}'),
+      new TextEncoder().encode('{"format":"provider-json-v7","format":"dstack-native-evidence"}'),
+    ]) {
+      const session = withDerivedBindings({
+        ...SESSION,
+        evidence: {
+          digest: `sha256:${createHash('sha256').update(evidenceBytes).digest('hex')}`,
+          data: `data:application/octet-stream;base64,${Buffer.from(evidenceBytes).toString('base64')}`,
+        },
+      }).session;
+      const legacyPort = new AciSessionEvidenceVerifierDouble();
+
+      await expect(
+        createVerifier(POLICY, legacyPort).verifyAndSelect(
+          input(ROLES.map((role) => candidate(role, { session }))),
+        ),
+      ).rejects.toBeDefined();
+      expect(legacyPort.calls).toBe(0);
+    }
+  });
+
+  it.each([
+    [
+      'a marker inside nested JSON string nodes',
+      {
+        payload: JSON.stringify({
+          nested: JSON.stringify({ format: 'dstack-native-evidence' }),
+        }),
+      },
+    ],
+    [
+      'a marker inside a JSON string array element',
+      { payload: [JSON.stringify({ format: 'dstack-native-evidence' })] },
+    ],
+    [
+      'escaped marker property names and values inside a JSON string',
+      { payload: '{"\\u0066ormat":"dstack-native-\\u0065vidence"}' },
+    ],
+    [
+      'root evidence encoded beyond the inspection limit',
+      Array.from({ length: 10 }).reduce<string>(
+        (nested) => JSON.stringify(nested),
+        JSON.stringify({ format: 'provider-json-v7' }),
+      ),
+    ],
+    [
+      'embedded JSON deeper than the inspection limit',
+      {
+        payload: Array.from({ length: 10 }).reduce<string>(
+          (nested) => JSON.stringify(nested),
+          JSON.stringify({ format: 'provider-json-v7' }),
+        ),
+      },
+    ],
+    [
+      'evidence exceeding the inspection node budget',
+      { values: Array.from({ length: 5_000 }, (_, index) => `opaque-${index}`) },
+    ],
+  ])('rejects %s before legacy session verification', async (_name, evidence) => {
+    const evidenceBytes = new TextEncoder().encode(JSON.stringify(evidence));
+    const session = withDerivedBindings({
+      ...SESSION,
+      evidence: {
+        digest: `sha256:${createHash('sha256').update(evidenceBytes).digest('hex')}`,
+        data: `data:application/octet-stream;base64,${Buffer.from(evidenceBytes).toString('base64')}`,
+      },
+    }).session;
+    const legacyPort = new AciSessionEvidenceVerifierDouble();
+
+    await expect(
+      createVerifier(POLICY, legacyPort).verifyAndSelect(
+        input(ROLES.map((role) => candidate(role, { session }))),
+      ),
+    ).rejects.toBeDefined();
+    expect(legacyPort.calls).toBe(0);
+  });
+
+  it('constructs trusted native evidence expectations', async () => {
+    const session = rawSession();
+    const subjectDigest = sessionSubjectDigest(session);
+    const expectedSessionId = sessionId(session);
+    expect(subjectDigest).toBe(
+      'sha256:14d6cacafcd1eb81d7afff83e67c1a3b496aa7d3804a15d402461ffba20fdcbc',
+    );
+    expect(subjectDigest).not.toBe(expectedSessionId);
+    const inputs: AciNativeEvidenceVerificationInputV2[] = [];
+    const bindings = withDerivedBindings(session);
+    const evidenceVerifier: AciSessionEvidenceVerifierPort = {
+      verify: vi.fn(async (nativeInput) => {
+        inputs.push(nativeInput);
+        const parsedSession = JSON.parse(
+          new TextDecoder().decode(nativeInput.subjectBytes),
+        ) as AciSession;
+        const parsedBindings = withDerivedBindings(parsedSession);
+        return {
+          sessionId: nativeInput.expectation.expectedSessionId,
+          claims: parsedSession.claims,
+          identity: parsedSession.identity ?? null,
+          channelBindings: parsedSession.channel_binding,
+          establishedAt: parsedSession.established_at,
+          expiresAt: parsedSession.expires_at,
+          channelKeyDigest: parsedBindings.channelKeyDigest,
+          upstreamIdentityDigest: parsedBindings.upstreamIdentityDigest,
+          evidenceTranscriptDigest: testTranscriptDigest(nativeInput),
+        };
+      }),
+    };
+    const candidates = ROLES.map((role) => candidate(role, { session }));
+
+    await createStrictVerifier(evidenceVerifier).verifyAndSelect(input(candidates));
+
+    expect(inputs).toHaveLength(4);
+    expect(inputs[0]?.expectation).toMatchObject({
+      purpose: 'session',
+      subjectDigest,
+      reportNonce: null,
+      expectedSessionId,
+      expectedWorkloadKeysetDigest: KEYSET.workloadKeysetDigest,
+      evaluationTimeUnixSeconds: NOW,
+    });
+    const subjectBytes = inputs[0]?.subjectBytes;
+    expect(subjectBytes).toEqual(
+      new TextEncoder().encode(canonicalJson({ ...session, evidence: null })),
+    );
+    expect(
+      `sha256:${createHash('sha256')
+        .update(subjectBytes ?? new Uint8Array())
+        .digest('hex')}`,
+    ).toBe(inputs[0]?.expectation.subjectDigest);
+    expect(inputs[0]?.evidence.session_id).toBe(subjectDigest);
+    expect(inputs[0]?.expectation.expectedSessionId).toBe(expectedSessionId);
+    expect(inputs[0]?.expectation.evidenceDigest).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(inputs[0]?.expectation.signal).toBeInstanceOf(AbortSignal);
+    expect(inputs[0]?.expectation.deadline).toBeGreaterThan(0);
+    expect(Object.keys(inputs[0] ?? {}).sort()).toEqual([
+      'evidence',
+      'expectation',
+      'subjectBytes',
+    ]);
+
+    const fullIdSubstitution = rawSession(expectedSessionId);
+    const substitutionPort = { verify: vi.fn(async () => bindings as never) };
+    await expectCode(
+      createStrictVerifier(substitutionPort).verifyAndSelect(
+        input(ROLES.map((role) => candidate(role, { session: fullIdSubstitution }))),
+      ),
+      'session_evidence_binding_mismatch',
+    );
+    expect(substitutionPort.verify).not.toHaveBeenCalled();
+
+    for (const conflict of [
+      rawSession('conflicting-session'),
+      rawSession(sessionSubjectDigest(SESSION), `sha256:${'f'.repeat(64)}`),
+      rawSession(sessionSubjectDigest(SESSION), KEYSET.workloadKeysetDigest, {
+        quoteVerified: true,
+      }),
+    ]) {
+      const rejectingPort = { verify: vi.fn(async () => bindings as never) };
+      await expect(
+        createStrictVerifier(rejectingPort).verifyAndSelect(
+          input(ROLES.map((role) => candidate(role, { session: conflict }))),
+        ),
+      ).rejects.toBeDefined();
+      expect(rejectingPort.verify).not.toHaveBeenCalled();
+    }
+  });
+
+  it('passes exactly the seven frozen cloned policy anchors to strict native verification', async () => {
+    const inputs: AciNativeEvidenceVerificationInputV2[] = [];
+    const evidenceVerifier: AciSessionEvidenceVerifierPort = {
+      verify: vi.fn(async (nativeInput) => {
+        inputs.push(nativeInput);
+        return strictEvidenceVerifier.verify(nativeInput);
+      }),
+    };
+
+    await createStrictVerifier(evidenceVerifier).verifyAndSelect(
+      input(ROLES.map((role) => candidate(role, { session: rawSession() }))),
+    );
+
+    const policyAnchors = inputs[0]?.expectation.policyAnchors;
+    expect(policyAnchors).toBeDefined();
+    expect(Object.keys(policyAnchors ?? {}).sort()).toEqual([
+      'channelPolicy',
+      'evidence',
+      'origin',
+      'permittedClaimSources',
+      'requiredSessionClaims',
+      'route',
+      'sourceProvenance',
+    ]);
+    expect(policyAnchors).toEqual({
+      origin: POLICY.origin,
+      route: POLICY.route,
+      channelPolicy: POLICY.channelPolicy,
+      evidence: POLICY.evidence,
+      sourceProvenance: POLICY.sourceProvenance,
+      requiredSessionClaims: POLICY.requiredSessionClaims,
+      permittedClaimSources: POLICY.permittedClaimSources,
+    });
+    expect(policyAnchors).not.toBe(POLICY);
+    expect(policyAnchors?.evidence).not.toBe(POLICY.evidence);
+    expect(Object.isFrozen(policyAnchors)).toBe(true);
+    expect(Object.isFrozen(policyAnchors?.evidence)).toBe(true);
+  });
+
+  it('enforces the strict native session verifier timeout and abort contract', async () => {
+    let signal: AbortSignal | undefined;
+    let deadline: number | undefined;
+    let invokedAt: number | undefined;
+    const evidenceVerifier: AciSessionEvidenceVerifierPort = {
+      verify: vi.fn((nativeInput) => {
+        invokedAt = performance.now();
+        signal = nativeInput.expectation.signal;
+        deadline = nativeInput.expectation.deadline;
+        return new Promise<never>(() => undefined);
+      }),
+    };
+
+    await expectCode(
+      createStrictVerifier(evidenceVerifier, 1_000).verifyAndSelect(
+        input(ROLES.map((role) => candidate(role, { session: rawSession() }))),
+      ),
+      'session_evidence_verification_failed',
+    );
+    if (deadline === undefined || invokedAt === undefined) throw new Error('verifier not invoked');
+    expect(deadline).toBeGreaterThan(invokedAt);
+    expect(deadline).toBeLessThanOrEqual(invokedAt + 1_000);
+    expect(signal?.aborted).toBe(true);
+  });
+
+  it('transports a schema-valid session raw evidence envelope above one MiB', async () => {
+    const component = Buffer.alloc(300_000, 1).toString('base64');
+    const session = rawSession(undefined, KEYSET.workloadKeysetDigest, {
+      quote_base64: component,
+      collateral_base64: component,
+      event_log_base64: component,
+      vm_config_base64: component,
+    });
+
+    await expect(
+      createStrictVerifier({
+        verify: async (nativeInput) => {
+          const parsedSession = JSON.parse(
+            new TextDecoder().decode(nativeInput.subjectBytes),
+          ) as AciSession;
+          const bindings = withDerivedBindings(parsedSession);
+          return {
+            sessionId: nativeInput.expectation.expectedSessionId,
+            claims: parsedSession.claims,
+            identity: parsedSession.identity ?? null,
+            channelBindings: parsedSession.channel_binding,
+            establishedAt: parsedSession.established_at,
+            expiresAt: parsedSession.expires_at,
+            channelKeyDigest: bindings.channelKeyDigest,
+            upstreamIdentityDigest: bindings.upstreamIdentityDigest,
+            evidenceTranscriptDigest: testTranscriptDigest(nativeInput),
+          };
+        },
+      }).verifyAndSelect(input(ROLES.map((role) => candidate(role, { session })))),
+    ).resolves.toBeDefined();
+  });
+
+  it.each([
+    ['duplicate-key', new TextEncoder().encode('{"opaque":1,"opaque":2}')],
+    ['non-ASCII member name', new TextEncoder().encode('{"é":"opaque"}')],
+    ['non-JSON bytes', Uint8Array.from([0, 255, 1, 254, 2, 253])],
+  ])(
+    'passes %s opaque evidence unchanged only through the explicit legacy verifier',
+    async (_kind, evidenceBytes) => {
+      const session = withDerivedBindings({
+        ...SESSION,
+        evidence: {
+          digest: `sha256:${createHash('sha256').update(evidenceBytes).digest('hex')}`,
+          data: `data:application/octet-stream;base64,${Buffer.from(evidenceBytes).toString('base64')}`,
+        },
+      }).session;
+      const candidates = ROLES.map((role) => candidate(role, { session }));
+      const legacyEvidenceVerifier = new AciSessionEvidenceVerifierDouble();
+
+      await expect(
+        createVerifier(POLICY, legacyEvidenceVerifier).verifyAndSelect(input(candidates)),
+      ).resolves.toBeDefined();
+      expect(legacyEvidenceVerifier.calls).toBe(ROLES.length);
+      expect(legacyEvidenceVerifier.evidenceBytes).toEqual(
+        ROLES.map(() => Uint8Array.from(evidenceBytes)),
+      );
+
+      const strictPort = { verify: vi.fn(strictEvidenceVerifier.verify) };
+      await expectCode(
+        createStrictVerifier(strictPort).verifyAndSelect(input(candidates)),
+        'session_malformed',
+      );
+      expect(strictPort.verify).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects maximum evidence when parsing exhausts the verification deadline', async () => {
+    const component = Buffer.alloc(300_000, 1).toString('base64');
+    const session = rawSession(undefined, KEYSET.workloadKeysetDigest, {
+      quote_base64: component,
+      collateral_base64: component,
+      event_log_base64: component,
+      vm_config_base64: component,
+    });
+    const evidenceVerifier = { verify: vi.fn(strictEvidenceVerifier.verify) };
+    const monotonicNow = vi.spyOn(performance, 'now');
+    monotonicNow.mockReturnValueOnce(10_000).mockReturnValue(10_101);
+
+    try {
+      await expectCode(
+        createStrictVerifier(evidenceVerifier, 100).verifyAndSelect(
+          input(ROLES.map((role) => candidate(role, { session }))),
+        ),
+        'session_evidence_verification_failed',
+      );
+      expect(evidenceVerifier.verify).not.toHaveBeenCalled();
+    } finally {
+      monotonicNow.mockRestore();
+    }
+  });
   it('rejects unknown fields on fixed normalized keysets and key entries', async () => {
     const keyset = {
       ...KEYSET,
@@ -274,6 +793,15 @@ describe('AciSessionVerifier', () => {
     await expectCode(createVerifier().verifyAndSelect(input(undefined, keyset)), 'input_invalid');
   });
 
+  it('normalizes malformed legacy candidate input to a typed content-free error', async () => {
+    const malformed = {
+      ...input(),
+      candidates: undefined,
+    } as unknown as AciSessionVerificationInput;
+
+    await expectCode(createVerifier().verifyAndSelect(malformed), 'session_malformed');
+  });
+
   it('passes the configured context to every security trusted-time read', async () => {
     const contexts: TrustedTimeReadContext[] = [];
     await createVerifier(POLICY, new AciSessionEvidenceVerifierDouble(), contexts).verifyAndSelect(
@@ -292,7 +820,8 @@ describe('AciSessionVerifier', () => {
           },
         },
         trustedTimeContext: TRUST_CONTEXT,
-        evidenceVerifier: new AciSessionEvidenceVerifierDouble(),
+        evidenceVerifier: strictEvidenceVerifier,
+        rawEvidenceDigestAuthority: RAW_EVIDENCE_DIGEST_AUTHORITY,
         keysetHighWaterAuthority: keysetAuthority(),
       }).verifyAndSelect(input()),
       'clock_invalid',
@@ -321,6 +850,19 @@ describe('AciSessionVerifier', () => {
         message: 'ACI session verification failed: policy_invalid',
       }),
     );
+  });
+
+  it.each([60_001, Number.MAX_SAFE_INTEGER])(
+    'rejects an evidence verifier timeout above sixty seconds: %s',
+    (timeoutMs) => {
+      expect(() => createStrictVerifier(strictEvidenceVerifier, timeoutMs)).toThrowError(
+        expect.objectContaining({ code: 'evidence_verifier_unavailable' }),
+      );
+    },
+  );
+
+  it('accepts an evidence verifier timeout at sixty seconds', () => {
+    expect(() => createStrictVerifier(strictEvidenceVerifier, 60_000)).not.toThrow();
   });
 
   it('rejects candidates that do not cover every required role', async () => {
@@ -372,7 +914,11 @@ describe('AciSessionVerifier', () => {
     const monotonicNow = vi.spyOn(performance, 'now');
     let elapsed = 10_000;
     monotonicNow.mockImplementation(() => elapsed);
-    const verifier = new AciSessionVerifier({
+    const evidenceVerifier = new AciSessionEvidenceVerifierDouble((_session, bindings) => {
+      elapsed = 10_101;
+      return bindings;
+    });
+    const verifier = new LegacyAciSessionVerifier({
       policy: POLICY,
       trustedTimeAuthority: {
         read: async () => ({
@@ -381,11 +927,8 @@ describe('AciSessionVerifier', () => {
         }),
       },
       trustedTimeContext: TRUST_CONTEXT,
-      evidenceVerifierTimeoutMs: 100,
-      evidenceVerifier: new AciSessionEvidenceVerifierDouble((_session, bindings) => {
-        elapsed = 10_101;
-        return bindings;
-      }),
+      nativeVerifierTimeoutMs: 100,
+      evidenceVerifier,
       keysetHighWaterAuthority: keysetAuthority(),
     });
 
@@ -404,7 +947,7 @@ describe('AciSessionVerifier', () => {
       elapsed = 20_100;
       return bindings;
     });
-    const verifier = new AciSessionVerifier({
+    const verifier = new LegacyAciSessionVerifier({
       policy: POLICY,
       trustedTimeAuthority: {
         read: async () => ({
@@ -413,7 +956,7 @@ describe('AciSessionVerifier', () => {
         }),
       },
       trustedTimeContext: TRUST_CONTEXT,
-      evidenceVerifierTimeoutMs: 100,
+      nativeVerifierTimeoutMs: 100,
       evidenceVerifier,
       keysetHighWaterAuthority: keysetAuthority(),
     });
@@ -426,6 +969,25 @@ describe('AciSessionVerifier', () => {
     }
   });
 
+  it('times out a legacy evidence adapter that never resolves', async () => {
+    const evidenceVerifier: LegacyAciSessionEvidenceVerifierPort = {
+      verify: vi.fn(() => new Promise<never>(() => undefined)),
+    };
+    const verifier = new LegacyAciSessionVerifier({
+      policy: POLICY,
+      trustedTimeAuthority: {
+        read: async () => ({ trustedNow: NOW, ...TRUST_CONTEXT }),
+      },
+      trustedTimeContext: TRUST_CONTEXT,
+      nativeVerifierTimeoutMs: 10,
+      evidenceVerifier,
+      keysetHighWaterAuthority: keysetAuthority(),
+    });
+
+    await expectCode(verifier.verifyAndSelect(input()), 'session_evidence_verification_failed');
+    expect(evidenceVerifier.verify).toHaveBeenCalledTimes(1);
+  });
+
   it('normalizes injected clock failures to content-free clock_invalid', async () => {
     const verifier = new AciSessionVerifier({
       policy: POLICY,
@@ -435,7 +997,8 @@ describe('AciSessionVerifier', () => {
         },
       },
       trustedTimeContext: TRUST_CONTEXT,
-      evidenceVerifier: new AciSessionEvidenceVerifierDouble(),
+      evidenceVerifier: strictEvidenceVerifier,
+      rawEvidenceDigestAuthority: RAW_EVIDENCE_DIGEST_AUTHORITY,
       keysetHighWaterAuthority: keysetAuthority(),
     });
 
@@ -519,12 +1082,398 @@ describe('AciSessionVerifier', () => {
     );
   });
 
+  it('accepts a distinct well-formed strict V2 evidence transcript digest', async () => {
+    const session = rawSession();
+    const strictPort: AciSessionEvidenceVerifierPort = {
+      verify: vi.fn(async (nativeInput) => ({
+        ...(await strictEvidenceVerifier.verify(nativeInput)),
+        evidenceTranscriptDigest: `sha256:${'6'.repeat(64)}`,
+      })),
+    };
+
+    await expect(
+      createStrictVerifier(strictPort).verifyAndSelect(
+        input(ROLES.map((role) => candidate(role, { session }))),
+      ),
+    ).resolves.toBeDefined();
+  });
+
+  it.each([
+    ['unknown field', { unknown: 'redacted' }],
+    ['malformed session id', { sessionId: 'not-a-session-id' }],
+    ['malformed claims', { claims: [] }],
+    ['malformed channel bindings', { channelBindings: {} }],
+    ['malformed timestamp', { establishedAt: -1 }],
+    ['malformed digest', { channelKeyDigest: 'not-a-digest' }],
+  ])('rejects a strict native session result with %s', async (_kind, override) => {
+    const session = rawSession();
+    const strictPort: AciSessionEvidenceVerifierPort = {
+      verify: vi.fn(async (nativeInput) => ({
+        ...(await strictEvidenceVerifier.verify(nativeInput)),
+        ...override,
+      })) as AciSessionEvidenceVerifierPort['verify'],
+    };
+
+    await expectCode(
+      createStrictVerifier(strictPort).verifyAndSelect(
+        input(ROLES.map((role) => candidate(role, { session }))),
+      ),
+      'native_result_malformed',
+    );
+  });
+
+  it('clones and freezes an accepted strict native session result', async () => {
+    const session = rawSession();
+    const nativeInput: Omit<AciNativeEvidenceVerificationInputV2, 'expectation'> & {
+      readonly expectation: Omit<
+        AciNativeEvidenceVerificationInputV2['expectation'],
+        'deadline' | 'signal'
+      >;
+    } = {
+      evidence: RAW_EVIDENCE_FIXTURE,
+      subjectBytes: encodeSession(session),
+      expectation: {
+        purpose: 'session',
+        subjectDigest: sessionSubjectDigest(session),
+        reportNonce: null,
+        expectedSessionId: sessionId(session),
+        expectedWorkloadKeysetDigest: KEYSET.workloadKeysetDigest,
+        evidenceDigest: `sha256:${'7'.repeat(64)}`,
+        evaluationTimeUnixSeconds: NOW,
+        policyAnchors: POLICY,
+      },
+    };
+    const adapterResult = await strictEvidenceVerifier.verify({
+      ...nativeInput,
+      expectation: {
+        ...nativeInput.expectation,
+        deadline: performance.now() + 1_000,
+        signal: new AbortController().signal,
+      },
+    });
+    const verifier = new AciNativeSessionEvidenceVerifier({ verify: async () => adapterResult });
+
+    const accepted = await verifier.verify(nativeInput, performance.now() + 1_000);
+    const originalClaims = structuredClone(accepted.claims);
+    (adapterResult.claims as Record<string, unknown>).tee_attested = { status: 'unknown' };
+
+    expect(accepted).not.toBe(adapterResult);
+    expect(accepted.claims).toEqual(originalClaims);
+    expect(Object.isFrozen(accepted)).toBe(true);
+    expect(Object.isFrozen(accepted.claims)).toBe(true);
+    expect(Object.isFrozen(accepted.channelBindings)).toBe(true);
+  });
+
+  it('preserves and freezes own __proto__ extension keys without mutating prototypes', async () => {
+    const session = rawSession();
+    const identity = defineOwnProto({ provider_key: 'redacted' }, { tier: 'hardware' });
+    const claims = defineOwnProto({ ...session.claims }, { status: 'bound' });
+    const channelBinding = defineOwnProto({ ...session.channel_binding[0] }, { suite: 'strict' });
+    const extendedSessionWithoutBoundEvidence: AciSession = {
+      ...session,
+      identity,
+      claims,
+      channel_binding: [channelBinding] as AciSession['channel_binding'],
+    };
+    const extendedSession: AciSession = {
+      ...rawSession(sessionSubjectDigest(extendedSessionWithoutBoundEvidence)),
+      identity,
+      claims,
+      channel_binding: [channelBinding] as AciSession['channel_binding'],
+    };
+    const bindings = withDerivedBindings(extendedSession);
+    const adapterResult: VerifiedAciSessionEvidenceBindingsV2 = {
+      sessionId: sessionId(extendedSession),
+      claims,
+      identity,
+      channelBindings: extendedSession.channel_binding,
+      establishedAt: extendedSession.established_at,
+      expiresAt: extendedSession.expires_at,
+      upstreamIdentityDigest: bindings.upstreamIdentityDigest,
+      channelKeyDigest: bindings.channelKeyDigest,
+      evidenceTranscriptDigest: `sha256:${'6'.repeat(64)}`,
+    };
+    const verifier = new AciNativeSessionEvidenceVerifier({ verify: async () => adapterResult });
+
+    const accepted = await verifier.verify(
+      nativeSessionInput(extendedSession),
+      performance.now() + 1_000,
+    );
+
+    expect(Object.getPrototypeOf(accepted.identity)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(accepted.claims)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(accepted.channelBindings[0])).toBe(Object.prototype);
+    expect(Object.hasOwn(accepted.identity ?? {}, '__proto__')).toBe(true);
+    expect(Object.hasOwn(accepted.claims, '__proto__')).toBe(true);
+    expect(Object.hasOwn(accepted.channelBindings[0] ?? {}, '__proto__')).toBe(true);
+    expect(Object.getOwnPropertyDescriptor(accepted.identity, '__proto__')?.value).toEqual({
+      tier: 'hardware',
+    });
+    expect(Object.getOwnPropertyDescriptor(accepted.claims, '__proto__')?.value).toEqual({
+      status: 'bound',
+    });
+    expect(
+      Object.getOwnPropertyDescriptor(accepted.channelBindings[0], '__proto__')?.value,
+    ).toEqual({ suite: 'strict' });
+    expect(Object.isFrozen(accepted.identity)).toBe(true);
+    expect(
+      Object.isFrozen(Object.getOwnPropertyDescriptor(accepted.identity, '__proto__')?.value),
+    ).toBe(true);
+    expect(
+      Object.isFrozen(Object.getOwnPropertyDescriptor(accepted.claims, '__proto__')?.value),
+    ).toBe(true);
+    expect(
+      Object.isFrozen(
+        Object.getOwnPropertyDescriptor(accepted.channelBindings[0], '__proto__')?.value,
+      ),
+    ).toBe(true);
+    expect(Object.prototype).not.toHaveProperty('tier');
+    expect(Object.prototype).not.toHaveProperty('status');
+    expect(Object.prototype).not.toHaveProperty('suite');
+  });
+
+  it('binds own __proto__ extension values after native normalization', async () => {
+    const session = rawSession();
+    const identity = defineOwnProto({ provider_key: 'redacted' }, { tier: 'hardware' });
+    const extendedSessionWithoutBoundEvidence: AciSession = {
+      ...session,
+      identity,
+    };
+    const extendedSession: AciSession = {
+      ...rawSession(sessionSubjectDigest(extendedSessionWithoutBoundEvidence)),
+      identity,
+    };
+    const strictPort: AciSessionEvidenceVerifierPort = {
+      verify: async (nativeInput) => {
+        const parsedSession = JSON.parse(
+          new TextDecoder().decode(nativeInput.subjectBytes),
+        ) as AciSession;
+        const bindings = withDerivedBindings(parsedSession);
+        defineOwnProto(parsedSession.identity ?? {}, { tier: 'software' });
+        return {
+          sessionId: nativeInput.expectation.expectedSessionId,
+          claims: parsedSession.claims,
+          identity: parsedSession.identity ?? null,
+          channelBindings: parsedSession.channel_binding,
+          establishedAt: parsedSession.established_at,
+          expiresAt: parsedSession.expires_at,
+          channelKeyDigest: bindings.channelKeyDigest,
+          upstreamIdentityDigest: bindings.upstreamIdentityDigest,
+          evidenceTranscriptDigest: testTranscriptDigest(nativeInput),
+        };
+      },
+    };
+
+    await expectCode(
+      createStrictVerifier(strictPort).verifyAndSelect(
+        input(ROLES.map((role) => candidate(role, { session: extendedSession }))),
+      ),
+      'session_evidence_binding_mismatch',
+    );
+  });
+
+  it('rejects accessor-backed native results without invoking the accessor', async () => {
+    const session = rawSession();
+    const bindings = withDerivedBindings(session);
+    let reads = 0;
+    const result: VerifiedAciSessionEvidenceBindingsV2 = {
+      sessionId: sessionId(session),
+      claims: session.claims,
+      identity: session.identity ?? null,
+      channelBindings: session.channel_binding,
+      establishedAt: session.established_at,
+      expiresAt: session.expires_at,
+      upstreamIdentityDigest: bindings.upstreamIdentityDigest,
+      channelKeyDigest: bindings.channelKeyDigest,
+      evidenceTranscriptDigest: `sha256:${'6'.repeat(64)}`,
+    };
+    Object.defineProperty(result, 'claims', {
+      enumerable: true,
+      get: () => {
+        reads += 1;
+        if (reads > 1) throw new Error('unstable accessor was read twice');
+        return session.claims;
+      },
+    });
+    const verifier = new AciNativeSessionEvidenceVerifier({
+      verify: async () => result,
+    });
+
+    await expectCode(
+      verifier.verify(nativeSessionInput(session), performance.now() + 1_000),
+      'native_result_malformed',
+    );
+    expect(reads).toBe(0);
+  });
+
+  it('rejects oversized native result graphs without hanging', async () => {
+    const session = rawSession();
+    const adapterResult = await strictEvidenceVerifier.verify({
+      ...nativeSessionInput(session),
+      expectation: {
+        ...nativeSessionInput(session).expectation,
+        deadline: performance.now() + 1_000,
+        signal: new AbortController().signal,
+      },
+    });
+    const oversizedResult = {
+      ...adapterResult,
+      claims: { oversized: Array.from({ length: 5_000 }, () => 'opaque') },
+    };
+    const verifier = new AciNativeSessionEvidenceVerifier({
+      verify: vi.fn(async () => oversizedResult) as AciSessionEvidenceVerifierPort['verify'],
+    });
+
+    await expectCode(
+      verifier.verify(nativeSessionInput(session), performance.now() + 1_000),
+      'native_result_malformed',
+    );
+  });
+
+  it('rechecks the deadline after normalizing and freezing the native result', async () => {
+    const session = rawSession();
+    const nativeInput = nativeSessionInput(session);
+    const adapterResult = await strictEvidenceVerifier.verify({
+      ...nativeInput,
+      expectation: {
+        ...nativeInput.expectation,
+        deadline: performance.now() + 1_000,
+        signal: new AbortController().signal,
+      },
+    });
+    const verifier = new AciNativeSessionEvidenceVerifier({ verify: async () => adapterResult });
+    const now = vi
+      .spyOn(performance, 'now')
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(1_000);
+
+    try {
+      await expectCode(verifier.verify(nativeInput, 1_000), 'session_evidence_verification_failed');
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it.each([
+    ['nested claim', { claims: { tee_attested: { status: 'asserted' } } }],
+    [
+      'nested channel binding',
+      {
+        channelBindings: [
+          { type: 'tls_spki_sha256', origin: 'https://example.com', spki_sha256: 'not-a-digest' },
+        ],
+      },
+    ],
+  ])('rejects malformed canonical %s data', async (_kind, override) => {
+    const session = rawSession();
+    const adapterResult = await strictEvidenceVerifier.verify({
+      ...nativeSessionInput(session),
+      expectation: {
+        ...nativeSessionInput(session).expectation,
+        deadline: performance.now() + 1_000,
+        signal: new AbortController().signal,
+      },
+    });
+    const verifier = new AciNativeSessionEvidenceVerifier({
+      verify: async () =>
+        ({ ...adapterResult, ...override }) as VerifiedAciSessionEvidenceBindingsV2,
+    });
+
+    await expectCode(
+      verifier.verify(nativeSessionInput(session), performance.now() + 1_000),
+      'native_result_malformed',
+    );
+  });
+
+  it('rejects a strict V2 evidence transcript digest that echoes the raw evidence digest', async () => {
+    const session = rawSession();
+    const echoingPort: AciSessionEvidenceVerifierPort = {
+      verify: vi.fn(async (nativeInput) => ({
+        ...(await strictEvidenceVerifier.verify(nativeInput)),
+        evidenceTranscriptDigest: nativeInput.expectation.evidenceDigest,
+      })),
+    };
+
+    await expectCode(
+      createStrictVerifier(echoingPort).verifyAndSelect(
+        input(ROLES.map((role) => candidate(role, { session }))),
+      ),
+      'session_evidence_binding_mismatch',
+    );
+  });
+
+  it.each([
+    ['missing', undefined],
+    ['malformed', 'not-a-prefixed-sha256'],
+  ])('rejects a %s strict V2 evidence transcript digest', async (_kind, transcriptDigest) => {
+    const session = rawSession();
+    const strictPort: AciSessionEvidenceVerifierPort = {
+      verify: vi.fn(async (nativeInput) => {
+        const bindings = await strictEvidenceVerifier.verify(nativeInput);
+        if (transcriptDigest !== undefined) {
+          return { ...bindings, evidenceTranscriptDigest: transcriptDigest };
+        }
+        const { evidenceTranscriptDigest: _evidenceTranscriptDigest, ...missingTranscript } =
+          bindings;
+        return missingTranscript as VerifiedAciSessionEvidenceBindingsV2;
+      }),
+    };
+
+    await expectCode(
+      createStrictVerifier(strictPort).verifyAndSelect(
+        input(ROLES.map((role) => candidate(role, { session }))),
+      ),
+      'native_result_malformed',
+    );
+  });
+
+  it.each<readonly [keyof VerifiedAciSessionEvidenceBindingsV2, unknown]>([
+    ['sessionId', '0'.repeat(64)],
+    ['claims', {}],
+    ['identity', { provider_key: 'other' }],
+    ['establishedAt', SESSION.established_at - 1],
+    ['expiresAt', SESSION.expires_at + 1],
+    ['channelKeyDigest', `sha256:${'0'.repeat(64)}`],
+    ['upstreamIdentityDigest', `sha256:${'0'.repeat(64)}`],
+  ])('rejects a strict V2 session %s binding mismatch', async (field, value) => {
+    const session = rawSession();
+    const strictPort: AciSessionEvidenceVerifierPort = {
+      verify: vi.fn(async (nativeInput) => {
+        const parsedSession = JSON.parse(
+          new TextDecoder().decode(nativeInput.subjectBytes),
+        ) as AciSession;
+        const bindings = withDerivedBindings(parsedSession);
+        return {
+          sessionId: nativeInput.expectation.expectedSessionId,
+          claims: parsedSession.claims,
+          identity: parsedSession.identity ?? null,
+          channelBindings: parsedSession.channel_binding,
+          establishedAt: parsedSession.established_at,
+          expiresAt: parsedSession.expires_at,
+          channelKeyDigest: bindings.channelKeyDigest,
+          upstreamIdentityDigest: bindings.upstreamIdentityDigest,
+          evidenceTranscriptDigest: testTranscriptDigest(nativeInput),
+          [field]: value,
+        } as VerifiedAciSessionEvidenceBindingsV2;
+      }),
+    };
+
+    await expectCode(
+      createStrictVerifier(strictPort).verifyAndSelect(
+        input(ROLES.map((role) => candidate(role, { session }))),
+      ),
+      'session_evidence_binding_mismatch',
+    );
+  });
+
   it('bounds malicious verifier bindings before deep comparison', async () => {
     let identity: Record<string, unknown> = { leaf: 'redacted' };
     for (let index = 0; index < 12_000; index += 1) identity = { nested: identity };
     const evidenceVerifier = new AciSessionEvidenceVerifierDouble((_session, bindings) => ({
       ...bindings,
-      identity,
+      identity: identity as AciSession['identity'],
     }));
 
     await expectCode(
@@ -534,7 +1483,10 @@ describe('AciSessionVerifier', () => {
   });
 
   it('fails closed when session evidence is missing or the injected verifier rejects', async () => {
-    const missingEvidence = withDerivedBindings({ ...SESSION, evidence: {} }).session;
+    const missingEvidence = withDerivedBindings({
+      ...SESSION,
+      evidence: {} as AciSession['evidence'],
+    }).session;
     await expectCode(
       createVerifier().verifyAndSelect(
         input(ROLES.map((role) => candidate(role, { session: missingEvidence }))),
@@ -648,22 +1600,22 @@ describe('AciSessionVerifier', () => {
     }
   });
 
-  it('keeps upstream keyset and channel bindings independent from the aggregator keyset', async () => {
+  it('rejects a candidate workload keyset digest that differs from the admitted keyset', async () => {
     const verifier = createVerifier();
     const upstreamDigest = `sha256:${'6'.repeat(64)}`;
-    const selected = await verifier.verifyAndSelect(
-      input(
-        ROLES.map((role) =>
-          candidate(role, {
-            workloadKeysetDigest: upstreamDigest,
-            channelKeyDigest: UPSTREAM_CHANNEL_KEY_DIGEST,
-          }),
+    await expectCode(
+      verifier.verifyAndSelect(
+        input(
+          ROLES.map((role) =>
+            candidate(role, {
+              workloadKeysetDigest: upstreamDigest,
+              channelKeyDigest: UPSTREAM_CHANNEL_KEY_DIGEST,
+            }),
+          ),
         ),
       ),
+      'workload_keyset_mismatch',
     );
-
-    expect(selected.embed.workloadKeysetDigest).toBe(upstreamDigest);
-    expect(selected.embed.channelKeyDigest).toBe(UPSTREAM_CHANNEL_KEY_DIGEST);
   });
 
   it('rejects a session whose content-addressed identifier does not match its material', async () => {
@@ -879,7 +1831,7 @@ describe('AciSessionVerifier', () => {
           purpose: 'extension compatibility',
         },
       ],
-    });
+    } as AciSession);
     const candidates = ROLES.map((role) => candidate(role, { session: session.session }));
 
     const selected = await createVerifier().verifyAndSelect(input(candidates));
@@ -959,7 +1911,9 @@ describe('AciSessionVerifier', () => {
         ],
       },
     };
-    expect(() => createVerifier(policy)).toThrow('ACI session verification failed: policy_invalid');
+    expect(() => createVerifier(policy as unknown as InferenceTrustPolicyV2)).toThrow(
+      'ACI session verification failed: policy_invalid',
+    );
   });
 
   it('accepts partial upstream identity extensions while binding present fields', async () => {
@@ -1041,15 +1995,16 @@ describe('AciSessionVerifier', () => {
     await expectCode(verifier.verifyAndSelect(input(rejected)), 'channel_binding_mismatch');
   });
 
-  it('accepts a candidate channel digest that is independent from the upstream session material', async () => {
-    const verifier = createVerifier();
+  it('publishes the strict native-verified channel digest instead of candidate metadata', async () => {
     const digest = `sha256:${'7'.repeat(64)}`;
-    const candidates = ROLES.map((role) =>
-      candidate(role, role === 'embed' ? { channelKeyDigest: digest } : {}),
-    );
+    const session = rawSession();
+    const candidates = ROLES.map((role) => candidate(role, { channelKeyDigest: digest, session }));
 
-    const selected = await verifier.verifyAndSelect(input(candidates));
-    expect(selected.embed.channelKeyDigest).toBe(digest);
+    const selected = await createStrictVerifier(strictEvidenceVerifier).verifyAndSelect(
+      input(candidates),
+    );
+    expect(selected.embed.channelKeyDigest).toBe(withDerivedBindings(session).channelKeyDigest);
+    expect(selected.embed.channelKeyDigest).not.toBe(digest);
   });
 
   it('enforces maximum lifetime, current eligibility, and future clock skew', async () => {
@@ -1104,7 +2059,8 @@ describe('AciSessionVerifier', () => {
           read: async () => ({ trustedNow: invalidTime, ...TRUST_CONTEXT }),
         },
         trustedTimeContext: TRUST_CONTEXT,
-        evidenceVerifier: new AciSessionEvidenceVerifierDouble(),
+        evidenceVerifier: strictEvidenceVerifier,
+        rawEvidenceDigestAuthority: RAW_EVIDENCE_DIGEST_AUTHORITY,
         keysetHighWaterAuthority: keysetAuthority(),
       });
       await expectCode(verifier.verifyAndSelect(input()), 'clock_invalid');

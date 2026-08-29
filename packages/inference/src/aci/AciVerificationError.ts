@@ -5,6 +5,7 @@ export type AciVerificationErrorCode =
   | 'channel_key_digest_mismatch'
   | 'clock_invalid'
   | 'evidence_verifier_required'
+  | 'evidence_digest_authority_required'
   | 'fetch_timeout_invalid'
   | 'high_water_unavailable'
   | 'keyset_expired'

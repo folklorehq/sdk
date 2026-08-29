@@ -4,11 +4,13 @@ export type AciSessionVerificationErrorCode =
   | 'channel_binding_mismatch'
   | 'clock_invalid'
   | 'evidence_digest_mismatch'
+  | 'evidence_digest_authority_unavailable'
   | 'input_invalid'
   | 'keyset_expired'
   | 'keyset_superseded'
   | 'keyset_version_decreased'
   | 'mixed_state'
+  | 'native_result_malformed'
   | 'no_eligible_session'
   | 'policy_invalid'
   | 'policy_generation_decreased'
@@ -19,7 +21,8 @@ export type AciSessionVerificationErrorCode =
   | 'evidence_verifier_unavailable'
   | 'high_water_unavailable'
   | 'session_malformed'
-  | 'session_id_mismatch';
+  | 'session_id_mismatch'
+  | 'workload_keyset_mismatch';
 
 export class AciSessionVerificationError extends Error {
   readonly code: AciSessionVerificationErrorCode;

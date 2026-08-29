@@ -1,0 +1,9 @@
+{
+  "extends": "@folklore/tsconfig/node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["src/**/*.ts", "test/inference-trust.test.ts", "test/fixtures/aci-v1.ts"],
+  "exclude": ["dist", "node_modules"]
+}

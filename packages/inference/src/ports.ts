@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type {
   AciSession,
+  AciDstackRawEvidenceV1,
   Digest64,
   DurableGenerationHighWaterCheckpointV1,
   GenerationContextV1,
@@ -126,13 +127,32 @@ export type AciEvidencePolicyAnchors = Pick<
   | 'permittedClaimSources'
 >;
 
-export interface AciEvidenceVerificationInput {
+export interface LegacyAciEvidenceVerificationInput {
   readonly reportBytes: Uint8Array;
   readonly evidenceBytes: Uint8Array;
   readonly nonce: Uint8Array;
   readonly policyAnchors: AciEvidencePolicyAnchors;
   readonly signal: AbortSignal;
   readonly deadline: number;
+}
+
+export interface AciNativeEvidenceExpectationV2 {
+  readonly purpose: 'report' | 'session';
+  readonly subjectDigest: string;
+  readonly reportNonce: Uint8Array | null;
+  readonly expectedSessionId: string;
+  readonly expectedWorkloadKeysetDigest: string;
+  readonly evidenceDigest: string;
+  readonly evaluationTimeUnixSeconds: number;
+  readonly policyAnchors: AciEvidencePolicyAnchors;
+  readonly signal: AbortSignal;
+  readonly deadline: number;
+}
+
+export interface AciNativeEvidenceVerificationInputV2 {
+  readonly evidence: AciDstackRawEvidenceV1;
+  readonly subjectBytes: Uint8Array;
+  readonly expectation: AciNativeEvidenceExpectationV2;
 }
 
 export interface VerifiedAciEvidenceBindings {
@@ -157,10 +177,14 @@ export interface VerifiedAciEvidenceBindings {
 
 export interface AciEvidenceVerifierPort {
   /** The enclave native adapter must isolate synchronous verification in a killable process or worker and terminate it on signal/deadline; TypeScript cannot preempt synchronous native execution. */
-  verify(input: AciEvidenceVerificationInput): Promise<VerifiedAciEvidenceBindings>;
+  verify(input: AciNativeEvidenceVerificationInputV2): Promise<VerifiedAciEvidenceBindings>;
 }
 
-export interface AciSessionEvidenceVerificationInput {
+export interface LegacyAciEvidenceVerifierPort {
+  verify(input: LegacyAciEvidenceVerificationInput): Promise<VerifiedAciEvidenceBindings>;
+}
+
+export interface LegacyAciSessionEvidenceVerificationInput {
   readonly sessionBytes: Uint8Array;
   readonly evidenceBytes: Uint8Array;
   readonly policyAnchors: AciEvidencePolicyAnchors;
@@ -179,9 +203,21 @@ export interface VerifiedAciSessionEvidenceBindings {
   readonly channelKeyDigest: string;
 }
 
+export interface VerifiedAciSessionEvidenceBindingsV2 extends VerifiedAciSessionEvidenceBindings {
+  readonly evidenceTranscriptDigest: string;
+}
+
 export interface AciSessionEvidenceVerifierPort {
-  /** Verifies official session evidence without receiving customer content, credentials, or prompts. */
-  verify(input: AciSessionEvidenceVerificationInput): Promise<VerifiedAciSessionEvidenceBindings>;
+  /** The enclave native adapter must isolate synchronous verification in a killable process or worker and terminate it on signal/deadline; TypeScript cannot preempt synchronous native execution. */
+  verify(
+    input: AciNativeEvidenceVerificationInputV2,
+  ): Promise<VerifiedAciSessionEvidenceBindingsV2>;
+}
+
+export interface LegacyAciSessionEvidenceVerifierPort {
+  verify(
+    input: LegacyAciSessionEvidenceVerificationInput,
+  ): Promise<VerifiedAciSessionEvidenceBindings>;
 }
 
 export interface VerifiedAciChannelPin {
@@ -402,6 +438,10 @@ export interface AciTrustStatePort {
   acquire(): VerifiedAciTrustSnapshot | undefined;
 }
 
+export interface AciRawEvidenceDigestAuthorityPort {
+  digest(evidence: AciDstackRawEvidenceV1): string;
+}
+
 export interface AciV2TrustStatePort {
   acquireWithTrustedTime(context: AciTrustContext): Promise<VerifiedAciTrustSnapshot | undefined>;
   refreshWithTrustedTime(
@@ -441,6 +481,7 @@ export interface AciReportVerifierConfig {
   policy: InferenceTrustPolicyV2;
   activationGeneration: number;
   evidenceVerifier: AciEvidenceVerifierPort;
+  rawEvidenceDigestAuthority: AciRawEvidenceDigestAuthorityPort;
   fetchImpl: typeof fetch;
   nonceSource?: () => Uint8Array | Promise<Uint8Array>;
   fetchTimeoutMs?: number;
@@ -449,16 +490,31 @@ export interface AciReportVerifierConfig {
   apiKey?: string;
   trustedTimeAuthority: TrustedTimeAuthorityPort;
   trustedTimeContext: AciTrustContext;
-  keysetHighWaterAuthority?: AciKeysetHighWaterAuthorityPort;
+  keysetHighWaterAuthority: AciKeysetHighWaterAuthorityPort;
+}
+
+export interface LegacyAciReportVerifierConfig extends Omit<
+  AciReportVerifierConfig,
+  'evidenceVerifier' | 'rawEvidenceDigestAuthority'
+> {
+  evidenceVerifier: LegacyAciEvidenceVerifierPort;
 }
 
 export interface AciSessionVerifierConfig {
   readonly policy: InferenceTrustPolicyV2;
   readonly evidenceVerifier: AciSessionEvidenceVerifierPort;
-  readonly evidenceVerifierTimeoutMs?: number;
+  readonly rawEvidenceDigestAuthority: AciRawEvidenceDigestAuthorityPort;
+  readonly nativeVerifierTimeoutMs?: number;
   readonly trustedTimeAuthority: TrustedTimeAuthorityPort;
   readonly trustedTimeContext: AciTrustContext;
-  readonly keysetHighWaterAuthority?: AciKeysetHighWaterAuthorityPort;
+  readonly keysetHighWaterAuthority: AciKeysetHighWaterAuthorityPort;
+}
+
+export interface LegacyAciSessionVerifierConfig extends Omit<
+  AciSessionVerifierConfig,
+  'evidenceVerifier' | 'rawEvidenceDigestAuthority'
+> {
+  readonly evidenceVerifier: LegacyAciSessionEvidenceVerifierPort;
 }
 
 export interface PreForwardRouteExpectation {

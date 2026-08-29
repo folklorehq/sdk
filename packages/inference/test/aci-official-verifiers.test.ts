@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash, createPrivateKey, createPublicKey, sign } from 'node:crypto';
 
-import type {
-  AciReceipt,
-  AciSession,
-  AciWorkloadReport,
-  InferenceModelRole,
-  InferenceTrustPolicyV2,
+import {
+  inferenceTrustPolicyV2Schema,
+  type AciReceipt,
+  type AciSession,
+  type AciWorkloadReport,
+  type InferenceModelRole,
+  type InferenceTrustPolicyV2,
 } from '@folklore/contracts';
 import { canonicalJson } from '@folklore/utils';
 import { describe, expect, it, vi } from 'vitest';
@@ -18,11 +19,11 @@ import {
   InMemoryAciReceiptReplayStore,
 } from './doubles/aci/InMemoryAciStores.js';
 import { AciReportBindingVerifier } from '../src/aci/AciReportBindingVerifier.js';
-import { AciSessionVerifier } from '../src/aci/AciSessionVerifier.js';
+import { LegacyAciSessionVerifier } from '../src/aci/AciSessionVerifier.js';
 import type {
   AciReceiptVerificationInput,
   AciSessionCandidate,
-  AciSessionEvidenceVerifierPort,
+  LegacyAciSessionEvidenceVerifierPort,
   AciTrustContext,
   VerifiedAciChannelPin,
   VerifiedAciKeyset,
@@ -112,7 +113,7 @@ const UPSTREAM_IDENTITY_DIGEST = prefixedDigest(
     verifier_id: SESSION_DOCUMENT.verifier_id,
   }),
 );
-const POLICY: InferenceTrustPolicyV2 = {
+const POLICY: InferenceTrustPolicyV2 = inferenceTrustPolicyV2Schema.parse({
   ...ACI_POLICY_FIXTURE,
   permittedModels: [{ model: 'demo/demo-model', revision: 'revision-1' }],
   roleModels: {
@@ -121,7 +122,7 @@ const POLICY: InferenceTrustPolicyV2 = {
     critique: { model: 'demo/demo-model', revision: 'revision-1' },
     judge: { model: 'demo/demo-model', revision: 'revision-1' },
   },
-};
+});
 const RAW_SESSION_ID = '8'.repeat(64);
 const SESSION_PINS: readonly VerifiedAciChannelPin[] = [
   { type: 'tls_spki_sha256', value: '6'.repeat(64), domain: 'inference.phala.com' },
@@ -158,14 +159,14 @@ function officialReport(): AciWorkloadReport {
   } as unknown as AciWorkloadReport;
 }
 
-function sessionEvidenceVerifier(): AciSessionEvidenceVerifierPort {
+function sessionEvidenceVerifier(): LegacyAciSessionEvidenceVerifierPort {
   return {
     verify: vi.fn(async ({ sessionBytes }) => {
       const session = JSON.parse(new TextDecoder().decode(sessionBytes)) as typeof SESSION_DOCUMENT;
       return {
         sessionId: sha256Jcs(session),
         claims: session.claims,
-        identity: session.identity ?? null,
+        identity: null,
         channelBindings: session.channel_binding,
         establishedAt: session.established_at,
         expiresAt: session.expires_at,
@@ -187,6 +188,8 @@ function sessionEvidenceVerifier(): AciSessionEvidenceVerifierPort {
 }
 
 function sessionKeyset(): VerifiedAciKeyset {
+  const e2eeKey = KEYSET.e2ee_public_keys[0];
+  if (e2eeKey === undefined) throw new Error('missing fixture E2EE key');
   return {
     workloadId: KEYSET_DIGEST,
     workloadKeysetDigest: KEYSET_DIGEST,
@@ -199,7 +202,7 @@ function sessionKeyset(): VerifiedAciKeyset {
       {
         keyId: 'e2ee-1',
         algorithm: 'x25519-aes-256-gcm-hkdf-sha256',
-        publicKey: KEYSET.e2ee_public_keys[0].public_key,
+        publicKey: e2eeKey.public_key,
       },
     ],
     tlsPublicKeys: [{ spkiSha256: '5'.repeat(64), domain: 'inference.phala.com' }],
@@ -326,11 +329,7 @@ function receiptSnapshot(): VerifiedAciTrustSnapshot {
 
 describe('official ACI V2 verifier bindings', () => {
   it('recomputes the keyset digest and binds report_data to the exact official statement', () => {
-    const result = new AciReportBindingVerifier().verify(
-      officialReport(),
-      new TextEncoder().encode('{}'),
-      NONCE,
-    );
+    const result = new AciReportBindingVerifier().verify(officialReport(), NONCE);
 
     expect(result.workloadKeysetDigest).toBe(KEYSET_DIGEST);
     expect(result.workloadId).toBe(KEYSET_DIGEST);
@@ -338,7 +337,7 @@ describe('official ACI V2 verifier bindings', () => {
   });
 
   it('uses a bare candidate-envelope sessionId for the full JCS session document', async () => {
-    const verifier = new AciSessionVerifier({
+    const verifier = new LegacyAciSessionVerifier({
       policy: POLICY,
       trustedTimeAuthority: { read: async () => ({ trustedNow: NOW, ...TRUST_CONTEXT }) },
       trustedTimeContext: TRUST_CONTEXT,
@@ -353,7 +352,7 @@ describe('official ACI V2 verifier bindings', () => {
   });
 
   it('rejects a candidate whose envelope sessionId does not equal the document hash', async () => {
-    const verifier = new AciSessionVerifier({
+    const verifier = new LegacyAciSessionVerifier({
       policy: POLICY,
       trustedTimeAuthority: { read: async () => ({ trustedNow: NOW, ...TRUST_CONTEXT }) },
       trustedTimeContext: TRUST_CONTEXT,

@@ -18,7 +18,6 @@ export type ExpectedAciEvidenceBindings = Pick<
   | 'teeType'
   | 'imageDigest'
   | 'sourceRevision'
-  | 'evidenceTranscriptDigest'
 >;
 
 interface ParsedPublicEvidence {
@@ -34,11 +33,7 @@ export class AciReportBindingVerifier {
     return { evidenceBytes };
   }
 
-  verify(
-    report: AciWorkloadReport,
-    evidenceBytes: Uint8Array,
-    nonce: Uint8Array,
-  ): ExpectedAciEvidenceBindings {
+  verify(report: AciWorkloadReport, nonce: Uint8Array): ExpectedAciEvidenceBindings {
     const workloadKeysetDigest = this.prefixedDigest(
       canonicalJson(report.attestation.workload_keyset),
     );
@@ -72,7 +67,6 @@ export class AciReportBindingVerifier {
       teeType: report.attestation.tee_type,
       imageDigest: report.attestation.source_provenance?.image_digest ?? null,
       sourceRevision,
-      evidenceTranscriptDigest: this.prefixedDigest(evidenceBytes),
     };
   }
 

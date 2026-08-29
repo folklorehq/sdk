@@ -2,6 +2,7 @@
 import { generateKeyPairSync, sign, verify } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
+  aciDstackRawEvidenceV1Schema,
   aciReceiptSchema,
   aciSessionSchema,
   aciWorkloadReportSchema,
@@ -142,7 +143,7 @@ function activeRoleFixture(
   };
 }
 
-function activePolicyFixture(): Record<string, unknown> {
+function activePolicyFixture() {
   const models = [
     {
       model: 'provider/model-critique',
@@ -164,7 +165,7 @@ function activePolicyFixture(): Record<string, unknown> {
       modelRevision: 'revision-judge',
       modelArtifactDigest: '4'.repeat(64),
     },
-  ];
+  ] as const;
   return {
     schema: 'active-inference-trust-policy-v2',
     canonicalDomain: 'folklore.inference-trust-policy-v2-active',
@@ -536,6 +537,33 @@ describe('inferenceReceiptV1Schema', () => {
 });
 
 describe('inferenceTrustPolicyV2Schema', () => {
+  it('keeps raw evidence carriers out of legacy bounded JSON claims', () => {
+    const rawEvidence = {
+      version: 1,
+      format: 'dstack-native-evidence',
+      quote_base64: Buffer.alloc(513, 1).toString('base64'),
+      collateral_base64: Buffer.from('collateral').toString('base64'),
+      event_log_base64: Buffer.from('event-log').toString('base64'),
+      vm_config_base64: Buffer.from('vm-config').toString('base64'),
+      session_id: 'session-1',
+      workload_keyset_digest: `sha256:${'a'.repeat(64)}`,
+    };
+
+    expect(aciDstackRawEvidenceV1Schema.safeParse(rawEvidence).success).toBe(true);
+    expect(
+      aciSessionSchema.safeParse({
+        ...ACI_SESSION_FIXTURE,
+        claims: { ...ACI_SESSION_FIXTURE.claims, extra: rawEvidence },
+      }).success,
+    ).toBe(false);
+    expect(
+      aciReceiptSchema.safeParse({
+        ...ACI_RECEIPT_FIXTURE,
+        provider_claims: rawEvidence,
+      }).success,
+    ).toBe(false);
+  });
+
   it('keeps TLS certificate bindings bounded but excludes them from enforceable policy', () => {
     expect(
       aciSessionSchema.safeParse({
@@ -943,8 +971,12 @@ describe('aciWorkloadReportSchema', () => {
 
     expect(report.api_version).toBe('aci/1');
     expect(report.attestation.workload_keyset.not_after).toBe(1_800_000_000);
-    expect(report.attestation.evidence.provider_extension).toEqual({ status: 'redacted' });
-    expect(report.service_capabilities.provider_extension).toBe('ignored-by-generic-verifiers');
+    expect(report.attestation.evidence).toMatchObject({
+      provider_extension: { status: 'redacted' },
+    });
+    expect(report.service_capabilities).toMatchObject({
+      provider_extension: 'ignored-by-generic-verifiers',
+    });
   });
 
   it('rejects an unknown ACI tee type', () => {
@@ -1092,7 +1124,7 @@ describe('aciSessionSchema', () => {
     });
 
     expect(session.api_version).toBe('aci/1');
-    expect(session.claims.tee_attested.status).toBe('asserted');
+    expect(session.claims.tee_attested?.status).toBe('asserted');
     expect(session.claims.extra?.tcb_status).toBe('redacted');
     expect('session_id' in session).toBe(false);
   });
@@ -1144,7 +1176,7 @@ describe('aciSessionSchema', () => {
       ...ACI_SESSION_FIXTURE,
       claims: { ...ACI_SESSION_FIXTURE.claims, unknown_claim: { status: 'unknown' } },
     });
-    expect(parsed.claims.unknown_claim).toEqual({ status: 'unknown' });
+    expect(parsed.claims).toMatchObject({ unknown_claim: { status: 'unknown' } });
   });
 
   it('requires valid expiry and channel bindings while accepting bounded evidence extensions', () => {
@@ -1176,8 +1208,8 @@ describe('aciSessionSchema', () => {
       aciSessionSchema.parse({
         ...ACI_SESSION_FIXTURE,
         evidence: { ...ACI_SESSION_FIXTURE.evidence, unexpected: true },
-      }).evidence.unexpected,
-    ).toBe(true);
+      }).evidence,
+    ).toMatchObject({ unexpected: true });
     expect(() => aciSessionSchema.parse({ ...ACI_SESSION_FIXTURE, unexpected: true })).toThrow();
   });
 });
@@ -1193,9 +1225,9 @@ describe('aciReceiptSchema', () => {
       ],
     });
 
-    expect(receipt.event_log[0]?.verifier_extension).toBe('preserved');
+    expect(receipt.event_log[0]).toMatchObject({ verifier_extension: 'preserved' });
     expect(receipt.event_log[2]?.type).toBe('upstream.verified');
-    expect(receipt.event_log[4]?.decision).toBe('redacted');
+    expect(receipt.event_log[4]).toMatchObject({ decision: 'redacted' });
   });
 
   it('accepts a required verification refusal without request.forwarded', () => {
@@ -1295,8 +1327,8 @@ describe('aciReceiptSchema', () => {
         event_log: ACI_RECEIPT_FIXTURE.event_log.map((event) =>
           event.type === 'request.received' ? { ...event, verifier_extension: 'preserved' } : event,
         ),
-      }).event_log[0]?.verifier_extension,
-    ).toBe('preserved');
+      }).event_log[0],
+    ).toMatchObject({ verifier_extension: 'preserved' });
     expect(() =>
       aciReceiptSchema.parse({ ...ACI_RECEIPT_FIXTURE, response: 'customer content' }),
     ).toThrow();
@@ -1310,5 +1342,56 @@ describe('official ACI parsers reject V1 objects', () => {
 
     expect(inferenceTrustPolicyV2Schema.safeParse(legacyPolicy).success).toBe(false);
     expect(aciReceiptSchema.safeParse(legacyReceipt).success).toBe(false);
+  });
+});
+
+describe('official ACI raw evidence', () => {
+  it('accepts only bounded raw native evidence without derived claims', () => {
+    const component = Buffer.from('official-aci-evidence').toString('base64');
+    const canonical = {
+      version: 1,
+      format: 'dstack-native-evidence',
+      quote_base64: component,
+      collateral_base64: component,
+      event_log_base64: component,
+      vm_config_base64: component,
+      session_id: 'session-1',
+      workload_keyset_digest: `sha256:${'a'.repeat(64)}`,
+    } as const;
+
+    expect(aciDstackRawEvidenceV1Schema.parse(canonical)).toEqual(canonical);
+    const exactComponent = Buffer.alloc(1_048_576).toString('base64');
+    expect(
+      aciDstackRawEvidenceV1Schema.safeParse({ ...canonical, quote_base64: exactComponent })
+        .success,
+    ).toBe(true);
+    expect(
+      aciDstackRawEvidenceV1Schema.safeParse({
+        ...canonical,
+        quote_base64: `${exactComponent.slice(0, -2)}AAAAAA`,
+      }).success,
+    ).toBe(false);
+
+    const rejected: readonly unknown[] = [
+      { ...canonical, unknown: true },
+      { ...canonical, quote_base64: 'YQ' },
+      { ...canonical, quote_base64: Buffer.alloc(1_048_577).toString('base64') },
+      {
+        ...canonical,
+        quote_base64: Buffer.alloc(1_048_577).toString('base64'),
+        collateral_base64: Buffer.alloc(1_048_576).toString('base64'),
+        event_log_base64: Buffer.alloc(1_048_576).toString('base64'),
+        vm_config_base64: Buffer.alloc(1_048_576).toString('base64'),
+      },
+      { ...canonical, session_id: 'invalid session' },
+      { ...canonical, workload_keyset_digest: 'a'.repeat(64) },
+      { ...canonical, quoteVerified: true },
+      { ...canonical, tcbStatus: 'up_to_date' },
+      { ...canonical, rtmrs: [] },
+      { ...canonical, runtimeIdentityDigest: 'b'.repeat(64) },
+    ];
+    for (const value of rejected) {
+      expect(aciDstackRawEvidenceV1Schema.safeParse(value).success).toBe(false);
+    }
   });
 });

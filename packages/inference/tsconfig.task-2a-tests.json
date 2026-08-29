@@ -1,0 +1,19 @@
+{
+  "extends": "@folklore/tsconfig/node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".."
+  },
+  "include": [
+    "src/**/*.ts",
+    "test/aci-official-verifiers.test.ts",
+    "test/aci-report-verifier.test.ts",
+    "test/aci-session-verifier.test.ts",
+    "test/raw-evidence-digest-authority.test.ts",
+    "test/official-aci-wire-fixtures.test.ts",
+    "test/public-api.test.ts",
+    "test/doubles/aci/**/*.ts",
+    "../contracts/test/fixtures/aci-v1.ts"
+  ],
+  "exclude": ["dist", "node_modules"]
+}

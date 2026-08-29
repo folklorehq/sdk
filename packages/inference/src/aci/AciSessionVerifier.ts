@@ -4,39 +4,50 @@ import { isDeepStrictEqual } from 'node:util';
 
 import {
   aciSessionSchema,
+  aciDstackRawEvidenceV1Schema,
   inferenceTrustPolicyV2Schema,
   type AciSession,
+  type AciDstackRawEvidenceV1,
   type InferenceModelRole,
 } from '@folklore/contracts';
 import { z } from 'zod';
 
 import { AciSessionVerificationError } from './AciSessionVerificationError.js';
+import { AciNativeSessionEvidenceVerifier } from './AciNativeSessionEvidenceVerifier.js';
 import { parseStrictJsonBytes } from './strict-json.js';
+import { containsReservedRawEvidenceMarker } from './raw-evidence-classification.js';
 import { isTrustedTimeContext, readTrustedTimeSample } from './trusted-time.js';
 import type {
+  AciEvidencePolicyAnchors,
   AciSessionCandidate,
-  AciSessionEvidenceVerifierPort,
+  LegacyAciSessionEvidenceVerifierPort,
   AciSessionVerificationInput,
   AciSessionVerifierConfig,
+  LegacyAciSessionVerifierConfig,
   AciTrustContext,
   VerifiedAciChannelPin,
   VerifiedAciSession,
+  VerifiedAciSessionEvidenceBindings,
+  VerifiedAciSessionEvidenceBindingsV2,
   VerifiedAciSessionSet,
 } from '../ports.js';
 
 const REQUIRED_ROLES: readonly InferenceModelRole[] = ['embed', 'generate', 'critique', 'judge'];
 const MAX_CANONICAL_DEPTH = 32;
 const MAX_CANONICAL_NODES = 4_096;
-const MAX_CANONICAL_BYTES = 1_048_576;
-const MAX_SESSION_BYTES = 1_114_112;
-const MAX_AGGREGATE_SESSION_BYTES = 4_194_304;
+const MAX_CANONICAL_BYTES = 8_000_000;
+const MAX_SESSION_BYTES = 8_000_000;
+const MAX_AGGREGATE_SESSION_BYTES = 32_000_000;
 const MAX_AGGREGATE_SESSION_NODES = 16_384;
 const MAX_SESSION_CANDIDATES = 128;
 const MAX_KEYSET_ITEMS = 32;
 const PREFIXED_DIGEST = /^sha256:[0-9a-f]{64}$/;
 const RAW_DIGEST = /^[0-9a-f]{64}$/;
 const HEX = /^[0-9a-f]+$/;
-const DEFAULT_EVIDENCE_VERIFIER_TIMEOUT_MS = 5_000;
+const DEFAULT_NATIVE_VERIFIER_TIMEOUT_MS = 5_000;
+const MAX_NATIVE_VERIFIER_TIMEOUT_MS = 60_000;
+const LEGACY_MAX_SESSION_BYTES = 1_048_576;
+const LEGACY_MAX_AGGREGATE_SESSION_BYTES = 4_194_304;
 
 type AciTlsSpkiBinding = {
   readonly type: 'tls_spki_sha256';
@@ -137,17 +148,25 @@ interface StructuralNode {
   readonly depth: number;
 }
 
-export class AciSessionVerifier {
+class AciSessionVerifierCore {
   private readonly trustedTimeAuthority: AciSessionVerifierConfig['trustedTimeAuthority'];
   private readonly trustedTimeContext: AciTrustContext;
-  private readonly evidenceVerifier: AciSessionEvidenceVerifierPort;
-  private readonly evidenceVerifierTimeoutMs: number;
+  private readonly evidenceVerifier: AciNativeSessionEvidenceVerifier | null;
+  private readonly legacyEvidenceVerifier: LegacyAciSessionEvidenceVerifierPort | null;
+  private readonly nativeVerifierTimeoutMs: number;
   private readonly policy: AciSessionVerifierConfig['policy'];
   private readonly keysetHighWaterAuthority: NonNullable<
     AciSessionVerifierConfig['keysetHighWaterAuthority']
   >;
+  private readonly rawEvidenceDigestAuthority:
+    | AciSessionVerifierConfig['rawEvidenceDigestAuthority']
+    | undefined;
 
-  constructor(config: AciSessionVerifierConfig) {
+  constructor(
+    config: Omit<AciSessionVerifierConfig, 'rawEvidenceDigestAuthority'> &
+      Partial<Pick<AciSessionVerifierConfig, 'rawEvidenceDigestAuthority'>>,
+    legacyEvidenceVerifier?: LegacyAciSessionEvidenceVerifierPort,
+  ) {
     this.trustedTimeAuthority = config.trustedTimeAuthority;
     this.trustedTimeContext = config.trustedTimeContext;
     if (typeof config.keysetHighWaterAuthority?.read !== 'function') {
@@ -160,34 +179,84 @@ export class AciSessionVerifier {
     if (typeof config.evidenceVerifier?.verify !== 'function') {
       throw new AciSessionVerificationError('evidence_verifier_unavailable');
     }
-    this.evidenceVerifier = config.evidenceVerifier;
-    this.evidenceVerifierTimeoutMs =
-      config.evidenceVerifierTimeoutMs ?? DEFAULT_EVIDENCE_VERIFIER_TIMEOUT_MS;
+    this.legacyEvidenceVerifier = legacyEvidenceVerifier ?? null;
+    this.evidenceVerifier =
+      legacyEvidenceVerifier === undefined
+        ? new AciNativeSessionEvidenceVerifier(config.evidenceVerifier)
+        : null;
     if (
-      !Number.isSafeInteger(this.evidenceVerifierTimeoutMs) ||
-      this.evidenceVerifierTimeoutMs <= 0
+      legacyEvidenceVerifier === undefined &&
+      typeof config.rawEvidenceDigestAuthority?.digest !== 'function'
+    ) {
+      throw new AciSessionVerificationError('evidence_digest_authority_unavailable');
+    }
+    this.rawEvidenceDigestAuthority = config.rawEvidenceDigestAuthority;
+    this.nativeVerifierTimeoutMs =
+      config.nativeVerifierTimeoutMs ?? DEFAULT_NATIVE_VERIFIER_TIMEOUT_MS;
+    if (
+      !Number.isSafeInteger(this.nativeVerifierTimeoutMs) ||
+      this.nativeVerifierTimeoutMs <= 0 ||
+      this.nativeVerifierTimeoutMs > MAX_NATIVE_VERIFIER_TIMEOUT_MS
     ) {
       throw new AciSessionVerificationError('evidence_verifier_unavailable');
     }
   }
 
   async verifyAndSelect(input: AciSessionVerificationInput): Promise<VerifiedAciSessionSet> {
+    this.verifyEncodedSizeBudget(input);
     input = this.parseInput(input);
     const durable = await this.keysetHighWaterAuthority.read(this.trustedTimeContext);
     if (durable === undefined) throw new AciSessionVerificationError('high_water_unavailable');
     if (durable.currentKeysetDigest !== input.keyset.workloadKeysetDigest) {
       throw new AciSessionVerificationError('keyset_superseded');
     }
+    const evaluationTimeUnixSeconds = await this.readTrustedTime(this.trustedTimeContext);
     this.validateState(
       { ...input, highWater: this.highWaterFor(durable) },
-      await this.readTrustedTime(this.trustedTimeContext),
+      evaluationTimeUnixSeconds,
     );
     this.validateCandidateBindings(input);
-    await this.verifyCandidateEvidence(
+    const verifiedChannelDigests = await this.verifyCandidateEvidence(
       input.candidates,
-      performance.now() + this.evidenceVerifierTimeoutMs,
+      performance.now() + this.nativeVerifierTimeoutMs,
+      evaluationTimeUnixSeconds,
     );
-    return this.selectSessions(input, await this.readTrustedTime(this.trustedTimeContext));
+    return this.selectSessions(
+      input,
+      await this.readTrustedTime(this.trustedTimeContext),
+      verifiedChannelDigests,
+    );
+  }
+
+  private verifyEncodedSizeBudget(input: AciSessionVerificationInput): void {
+    const candidateInput = input as unknown;
+    if (candidateInput === null || typeof candidateInput !== 'object') {
+      throw new AciSessionVerificationError('session_malformed');
+    }
+    const candidates = (candidateInput as { readonly candidates?: unknown }).candidates;
+    if (!Array.isArray(candidates) || candidates.length > MAX_SESSION_CANDIDATES) {
+      throw new AciSessionVerificationError('session_malformed');
+    }
+    const perCandidateLimit =
+      this.legacyEvidenceVerifier === null ? MAX_SESSION_BYTES : LEGACY_MAX_SESSION_BYTES;
+    const aggregateLimit =
+      this.legacyEvidenceVerifier === null
+        ? MAX_AGGREGATE_SESSION_BYTES
+        : LEGACY_MAX_AGGREGATE_SESSION_BYTES;
+    let aggregateBytes = 0;
+    for (const candidate of candidates) {
+      if (candidate === null || typeof candidate !== 'object') {
+        throw new AciSessionVerificationError('session_malformed');
+      }
+      const sessionBytes = (candidate as { readonly sessionBytes?: unknown }).sessionBytes;
+      if (!(sessionBytes instanceof Uint8Array) || sessionBytes.byteLength > perCandidateLimit) {
+        throw new AciSessionVerificationError('session_malformed');
+      }
+      aggregateBytes += sessionBytes.byteLength;
+      if (aggregateBytes > aggregateLimit) {
+        throw new AciSessionVerificationError('session_malformed');
+      }
+    }
   }
 
   private highWaterFor(
@@ -245,6 +314,13 @@ export class AciSessionVerifier {
     const { candidates } = input;
     if (
       candidates.some(
+        (candidate) => candidate.workloadKeysetDigest !== input.keyset.workloadKeysetDigest,
+      )
+    ) {
+      throw new AciSessionVerificationError('workload_keyset_mismatch');
+    }
+    if (
+      candidates.some(
         (candidate) => candidate.sessionId !== this.sessionContentId(candidate.session),
       )
     ) {
@@ -261,7 +337,9 @@ export class AciSessionVerifier {
   private async verifyCandidateEvidence(
     candidates: readonly AciSessionCandidate[],
     deadline: number,
-  ): Promise<void> {
+    evaluationTimeUnixSeconds: number,
+  ): Promise<ReadonlyMap<AciSessionCandidate, string>> {
+    const verifiedChannelDigests = new Map<AciSessionCandidate, string>();
     for (const candidate of candidates) {
       const evidenceBytes = this.sessionEvidenceBytes(candidate.session);
       if (evidenceBytes === undefined)
@@ -269,40 +347,81 @@ export class AciSessionVerifier {
       const controller = new AbortController();
       let timeout: ReturnType<typeof setTimeout> | undefined;
       try {
-        const remainingMs = deadline - performance.now();
-        if (remainingMs <= 0) {
+        if (deadline - performance.now() <= 0) {
           throw new AciSessionVerificationError('session_evidence_verification_failed');
         }
-        const verified = await Promise.race([
-          this.evidenceVerifier.verify({
+        if (
+          this.legacyEvidenceVerifier !== null &&
+          containsReservedRawEvidenceMarker(evidenceBytes)
+        ) {
+          throw new AciSessionVerificationError('session_malformed');
+        }
+        if (this.legacyEvidenceVerifier !== null) {
+          const remainingMs = deadline - performance.now();
+          if (remainingMs <= 0) {
+            throw new AciSessionVerificationError('session_evidence_verification_failed');
+          }
+          const verification = this.legacyEvidenceVerifier.verify({
             sessionBytes: Uint8Array.from(candidate.sessionBytes),
             evidenceBytes: Uint8Array.from(evidenceBytes),
             policyAnchors: this.policy,
             signal: controller.signal,
             deadline,
-          }),
-          new Promise<never>((_resolve, reject) => {
-            timeout = setTimeout(() => {
-              controller.abort();
-              reject(new AciSessionVerificationError('session_evidence_verification_failed'));
-            }, remainingMs);
-          }),
-        ]);
-        if (performance.now() >= deadline) {
-          throw new AciSessionVerificationError('session_evidence_verification_failed');
+          });
+          const verified = await Promise.race([
+            verification,
+            new Promise<never>((_resolve, reject) => {
+              timeout = setTimeout(() => {
+                controller.abort();
+                reject(new AciSessionVerificationError('session_evidence_verification_failed'));
+              }, remainingMs);
+            }),
+          ]);
+          if (performance.now() >= deadline) {
+            throw new AciSessionVerificationError('session_evidence_verification_failed');
+          }
+          verifiedChannelDigests.set(candidate, this.verifyReturnedBindings(candidate, verified));
+          continue;
         }
+        const rawEvidence = this.parseRawEvidence(evidenceBytes);
+        if (rawEvidence === null) throw new AciSessionVerificationError('session_malformed');
+        const subjectDigest = this.canonicalSessionSubjectDigest(candidate.session);
+        const subjectBytes = this.canonicalSessionSubjectBytes(candidate.session);
+        const evidenceDigest = this.digestRawEvidence(rawEvidence);
         if (
-          verified.sessionId !== candidate.sessionId ||
-          verified.establishedAt !== candidate.session.established_at ||
-          verified.expiresAt !== candidate.session.expires_at ||
-          verified.channelKeyDigest !== this.sessionChannelKeyDigest(candidate.session) ||
-          verified.upstreamIdentityDigest !== this.upstreamIdentityDigest(candidate.session) ||
-          !this.matchesBoundedValue(verified.claims, candidate.session.claims) ||
-          !this.matchesBoundedValue(verified.identity, candidate.session.identity ?? null) ||
-          !this.matchesBoundedValue(verified.channelBindings, candidate.session.channel_binding)
+          rawEvidence.session_id !== subjectDigest ||
+          rawEvidence.workload_keyset_digest !== candidate.workloadKeysetDigest
         ) {
           throw new AciSessionVerificationError('session_evidence_binding_mismatch');
         }
+        const remainingMs = deadline - performance.now();
+        if (remainingMs <= 0) {
+          throw new AciSessionVerificationError('session_evidence_verification_failed');
+        }
+        if (this.evidenceVerifier === null) {
+          throw new AciSessionVerificationError('session_evidence_verification_failed');
+        }
+        const verified = await this.evidenceVerifier.verify(
+          {
+            evidence: rawEvidence,
+            subjectBytes,
+            expectation: {
+              purpose: 'session',
+              subjectDigest,
+              reportNonce: null,
+              expectedSessionId: candidate.sessionId,
+              expectedWorkloadKeysetDigest: candidate.workloadKeysetDigest,
+              evidenceDigest,
+              evaluationTimeUnixSeconds,
+              policyAnchors: this.policyAnchors(),
+            },
+          },
+          deadline,
+        );
+        verifiedChannelDigests.set(
+          candidate,
+          this.verifyReturnedBindings(candidate, verified, evidenceDigest),
+        );
       } catch (error) {
         if (error instanceof AciSessionVerificationError) throw error;
         throw new AciSessionVerificationError('session_evidence_verification_failed');
@@ -311,21 +430,110 @@ export class AciSessionVerifier {
         controller.abort();
       }
     }
+    return verifiedChannelDigests;
   }
 
-  private selectSessions(input: AciSessionVerificationInput, now: number): VerifiedAciSessionSet {
+  private digestRawEvidence(evidence: AciDstackRawEvidenceV1): string {
+    if (this.rawEvidenceDigestAuthority === undefined) {
+      throw new AciSessionVerificationError('evidence_digest_authority_unavailable');
+    }
+    try {
+      const digest = this.rawEvidenceDigestAuthority.digest(evidence);
+      if (!PREFIXED_DIGEST.test(digest)) {
+        throw new AciSessionVerificationError('session_evidence_verification_failed');
+      }
+      return digest;
+    } catch {
+      throw new AciSessionVerificationError('session_evidence_verification_failed');
+    }
+  }
+
+  private verifyReturnedBindings(
+    candidate: AciSessionCandidate,
+    verified: VerifiedAciSessionEvidenceBindings | VerifiedAciSessionEvidenceBindingsV2,
+    evidenceDigest?: string,
+  ): string {
+    if (
+      verified.sessionId !== candidate.sessionId ||
+      verified.establishedAt !== candidate.session.established_at ||
+      verified.expiresAt !== candidate.session.expires_at ||
+      verified.channelKeyDigest !== this.sessionChannelKeyDigest(candidate.session) ||
+      verified.upstreamIdentityDigest !== this.upstreamIdentityDigest(candidate.session) ||
+      (evidenceDigest !== undefined &&
+        (!('evidenceTranscriptDigest' in verified) ||
+          typeof verified.evidenceTranscriptDigest !== 'string' ||
+          !PREFIXED_DIGEST.test(verified.evidenceTranscriptDigest) ||
+          verified.evidenceTranscriptDigest === evidenceDigest)) ||
+      !this.matchesBoundedValue(verified.claims, candidate.session.claims) ||
+      !this.matchesBoundedValue(verified.identity, candidate.session.identity ?? null) ||
+      !this.matchesBoundedValue(verified.channelBindings, candidate.session.channel_binding)
+    ) {
+      throw new AciSessionVerificationError('session_evidence_binding_mismatch');
+    }
+    return verified.channelKeyDigest;
+  }
+
+  private parseRawEvidence(evidenceBytes: Uint8Array) {
+    let value: unknown;
+    try {
+      value = parseStrictJsonBytes(evidenceBytes, MAX_CANONICAL_BYTES, { asciiMemberNames: true });
+    } catch {
+      return evidenceBytes[0] === 0x7b ? this.rejectMalformedEvidence() : null;
+    }
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
+    const parsed = aciDstackRawEvidenceV1Schema.safeParse(value);
+    if (!parsed.success) throw new AciSessionVerificationError('session_malformed');
+    return parsed.data;
+  }
+
+  private rejectMalformedEvidence(): null {
+    throw new AciSessionVerificationError('session_malformed');
+  }
+
+  private canonicalSessionSubjectDigest(session: AciSession): string {
+    return `sha256:${createHash('sha256')
+      .update(this.canonicalSessionSubjectBytes(session))
+      .digest('hex')}`;
+  }
+
+  private canonicalSessionSubjectBytes(session: AciSession): Uint8Array {
+    return new TextEncoder().encode(this.canonicalJson({ ...session, evidence: null }));
+  }
+
+  private policyAnchors(): AciEvidencePolicyAnchors {
     return this.deepFreeze(
-      Object.fromEntries(
-        REQUIRED_ROLES.map((role) => [role, this.selectSession(role, input.candidates, now)]),
-      ) as VerifiedAciSessionSet,
+      structuredClone({
+        origin: this.policy.origin,
+        route: this.policy.route,
+        channelPolicy: this.policy.channelPolicy,
+        evidence: this.policy.evidence,
+        sourceProvenance: this.policy.sourceProvenance,
+        requiredSessionClaims: this.policy.requiredSessionClaims,
+        permittedClaimSources: this.policy.permittedClaimSources,
+      }),
     );
+  }
+
+  private selectSessions(
+    input: AciSessionVerificationInput,
+    now: number,
+    verifiedChannelDigests: ReadonlyMap<AciSessionCandidate, string>,
+  ): VerifiedAciSessionSet {
+    return this.deepFreeze({
+      embed: this.selectSession('embed', input, now, verifiedChannelDigests),
+      generate: this.selectSession('generate', input, now, verifiedChannelDigests),
+      critique: this.selectSession('critique', input, now, verifiedChannelDigests),
+      judge: this.selectSession('judge', input, now, verifiedChannelDigests),
+    });
   }
 
   private selectSession(
     role: InferenceModelRole,
-    candidates: readonly AciSessionCandidate[],
+    input: AciSessionVerificationInput,
     now: number,
+    verifiedChannelDigests: ReadonlyMap<AciSessionCandidate, string>,
   ): VerifiedAciSession {
+    const { candidates } = input;
     const expected = this.policy.roleModels[role];
     const candidate = candidates
       .filter(
@@ -347,6 +555,10 @@ export class AciSessionVerifier {
         return left.sessionId < right.sessionId ? -1 : 1;
       })[0];
     if (candidate === undefined) throw new AciSessionVerificationError('no_eligible_session');
+    const channelKeyDigest = verifiedChannelDigests.get(candidate);
+    if (channelKeyDigest === undefined) {
+      throw new AciSessionVerificationError('session_evidence_verification_failed');
+    }
     return {
       role,
       model: candidate.model,
@@ -354,8 +566,8 @@ export class AciSessionVerifier {
       sessionId: candidate.sessionId,
       establishedAt: candidate.session.established_at,
       expiresAt: candidate.session.expires_at,
-      workloadKeysetDigest: candidate.workloadKeysetDigest,
-      channelKeyDigest: candidate.channelKeyDigest,
+      workloadKeysetDigest: input.keyset.workloadKeysetDigest,
+      channelKeyDigest,
       channelPins: this.sessionChannelPins(candidate.session),
       upstreamIdentityDigest: this.upstreamIdentityDigest(candidate.session),
       upstreamIdentity: {
@@ -746,5 +958,39 @@ export class AciSessionVerifier {
     if (state.bytes > MAX_CANONICAL_BYTES) {
       throw new AciSessionVerificationError('session_malformed');
     }
+  }
+}
+
+export class AciSessionVerifier {
+  private readonly core: AciSessionVerifierCore;
+
+  constructor(config: AciSessionVerifierConfig) {
+    this.core = new AciSessionVerifierCore(config);
+  }
+
+  async verifyAndSelect(input: AciSessionVerificationInput): Promise<VerifiedAciSessionSet> {
+    return this.core.verifyAndSelect(input);
+  }
+}
+
+export class LegacyAciSessionVerifier {
+  private readonly core: AciSessionVerifierCore;
+
+  constructor(config: LegacyAciSessionVerifierConfig) {
+    this.core = new AciSessionVerifierCore(
+      {
+        ...config,
+        evidenceVerifier: {
+          verify: async () => {
+            throw new AciSessionVerificationError('session_evidence_verification_failed');
+          },
+        },
+      },
+      config.evidenceVerifier,
+    );
+  }
+
+  async verifyAndSelect(input: AciSessionVerificationInput): Promise<VerifiedAciSessionSet> {
+    return this.core.verifyAndSelect(input);
   }
 }

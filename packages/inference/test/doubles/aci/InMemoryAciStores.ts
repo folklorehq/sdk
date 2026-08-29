@@ -11,6 +11,7 @@ import type {
   AciTrustHighWater,
   AciTrustHighWaterStorePort,
   ForwardAdmissionReservation,
+  ForwardCommitment,
   ForwardJournalState,
   ForwardLease,
   ForwardProofReservation,

@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { InferenceTrustPolicyV2 } from '@folklore/contracts';
+import { canonicalJson } from '@folklore/utils';
 import { z } from 'zod';
 import { AciVerificationError } from './AciVerificationError.js';
+import type { ExpectedAciEvidenceBindings } from './AciReportBindingVerifier.js';
 import type {
-  AciEvidenceVerifierPort,
-  AciNativeEvidenceVerificationInputV2,
+  LegacyAciEvidenceVerificationInput,
+  LegacyAciEvidenceVerifierPort,
   VerifiedAciEvidenceBindings,
 } from '../ports.js';
 
@@ -35,33 +37,29 @@ const verifiedBindingsSchema = z
   })
   .strict();
 
-export class AciNativeEvidenceVerifier {
+export class LegacyAciNativeEvidenceVerifier {
   constructor(
-    private readonly evidenceVerifier: AciEvidenceVerifierPort,
+    private readonly evidenceVerifier: LegacyAciEvidenceVerifierPort,
     private readonly policy: InferenceTrustPolicyV2,
     private readonly timeoutMs: number,
   ) {}
 
   async verify(
-    input: Omit<AciNativeEvidenceVerificationInputV2, 'expectation'> & {
-      readonly expectation: Omit<
-        AciNativeEvidenceVerificationInputV2['expectation'],
-        'deadline' | 'signal'
-      >;
-    },
-  ): Promise<VerifiedAciEvidenceBindings> {
+    input: Omit<LegacyAciEvidenceVerificationInput, 'deadline' | 'signal'>,
+    expected: ExpectedAciEvidenceBindings,
+  ): Promise<void> {
     const actual = await this.invoke(input);
+    const independentlyBound = Object.fromEntries(
+      Object.keys(expected).map((key) => [key, actual[key as keyof VerifiedAciEvidenceBindings]]),
+    );
+    if (canonicalJson(independentlyBound) !== canonicalJson(expected)) {
+      throw new AciVerificationError('native_binding_mismatch');
+    }
     this.verifyPolicy(actual);
-    return actual;
   }
 
   private async invoke(
-    input: Omit<AciNativeEvidenceVerificationInputV2, 'expectation'> & {
-      readonly expectation: Omit<
-        AciNativeEvidenceVerificationInputV2['expectation'],
-        'deadline' | 'signal'
-      >;
-    },
+    input: Omit<LegacyAciEvidenceVerificationInput, 'deadline' | 'signal'>,
   ): Promise<VerifiedAciEvidenceBindings> {
     const controller = new AbortController();
     const deadline = performance.now() + this.timeoutMs;
@@ -78,10 +76,7 @@ export class AciNativeEvidenceVerifier {
     let operation: Promise<VerifiedAciEvidenceBindings>;
     try {
       operation = Promise.resolve(
-        this.evidenceVerifier.verify({
-          ...input,
-          expectation: { ...input.expectation, deadline, signal: controller.signal },
-        }),
+        this.evidenceVerifier.verify({ ...input, deadline, signal: controller.signal }),
       );
     } catch {
       if (timer !== undefined) clearTimeout(timer);

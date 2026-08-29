@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  aciDstackRawEvidenceV1Schema,
+  inferenceTrustPolicyV2Schema,
   aciReceiptSchema,
   aciSessionSchema,
   aciWorkloadReportSchema,
@@ -26,14 +28,13 @@ import {
 import { OfficialAciExchange } from '../src/aci/OfficialAciExchange.js';
 import { AciReceiptVerifier } from '../src/aci/AciReceiptVerifier.js';
 import { AciReportBindingVerifier } from '../src/aci/AciReportBindingVerifier.js';
-import { AciReportVerifier } from '../src/aci/AciReportVerifier.js';
-import { AciSessionVerifier } from '../src/aci/AciSessionVerifier.js';
+import { LegacyAciReportVerifier } from '../src/aci/AciReportVerifier.js';
+import { LegacyAciSessionVerifier } from '../src/aci/AciSessionVerifier.js';
 import { summarizeOfficialAciReport } from '../src/official-aci-attestation.js';
 import type {
-  AciEvidenceVerifierPort,
   AciReceiptVerificationInput,
   AciSessionCandidate,
-  AciSessionEvidenceVerifierPort,
+  LegacyAciSessionEvidenceVerifierPort,
   AciTrustContext,
   AciTrustHighWater,
   OfficialAciExchangeConfig,
@@ -92,6 +93,7 @@ const FIXTURE_FILES = Object.freeze([
   'receipt.bin',
   'response.bin',
   'exchange-canonical.bin',
+  'dstack-tdx-lite-raw-evidence.json',
 ]);
 
 // Local provenance members that the provenance layer must never add to an official ACI/1 document.
@@ -147,6 +149,7 @@ const ACTIVATION_GENERATION = 11;
 const ROLES: readonly InferenceModelRole[] = ['embed', 'generate', 'critique', 'judge'];
 const REPORT_NONCE = Uint8Array.from(Array.from({ length: 32 }, (_, index) => index + 1));
 const REPORT_NOW = 1_799_999_000;
+const POLICY_FIXTURE = inferenceTrustPolicyV2Schema.parse(ACI_POLICY_FIXTURE);
 
 function trustedTimeSample(trustedNow: number) {
   return {
@@ -194,6 +197,14 @@ function keysetAuthority(
 }
 
 describe('official ACI/1 wire fixtures (P0 freeze)', () => {
+  it('parses the synthetic raw evidence fixture without provenance claims', () => {
+    const parsed = aciDstackRawEvidenceV1Schema.parse(
+      JSON.parse(fixtureText('dstack-tdx-lite-raw-evidence.json')) as unknown,
+    );
+    expect(parsed.format).toBe('dstack-native-evidence');
+    expect(JSON.stringify(parsed)).not.toContain('quoteVerified');
+    expect(() => aciDstackRawEvidenceV1Schema.parse({ ...parsed, quoteVerified: true })).toThrow();
+  });
   it('aciSessionSchema accepts session.bin with an unchanged exact serialized key set', () => {
     const session = aciSessionSchema.parse(JSON.parse(fixtureText('session.bin')));
     expect(sortedKeys(session as unknown as Record<string, unknown>)).toEqual([
@@ -258,13 +269,13 @@ describe('official ACI/1 wire fixtures (P0 freeze)', () => {
     const channelKeyDigest = prefixedDigest(
       canonicalJson({ channel_binding: session.channel_binding }),
     );
-    const policy: InferenceTrustPolicyV2 = {
-      ...ACI_POLICY_FIXTURE,
+    const policy: InferenceTrustPolicyV2 = inferenceTrustPolicyV2Schema.parse({
+      ...POLICY_FIXTURE,
       channelPolicy: {
         acceptedBindings: [{ type: 'tls_spki_sha256', domains: ['upstream.example.com'] }],
       },
       requiredSessionClaims: ['tee_attested'],
-    };
+    });
     const keyset: VerifiedAciKeyset = {
       workloadId: `sha256:${'1'.repeat(64)}`,
       workloadKeysetDigest: `sha256:${'2'.repeat(64)}`,
@@ -300,7 +311,7 @@ describe('official ACI/1 wire fixtures (P0 freeze)', () => {
       };
     });
     const evidenceVerifier = new SessionEvidenceVerifierDouble();
-    const verifier = new AciSessionVerifier({
+    const verifier = new LegacyAciSessionVerifier({
       policy,
       trustedTimeAuthority: { read: async () => trustedTimeSample(NOW) },
       trustedTimeContext: TRUST_CONTEXT,
@@ -347,11 +358,15 @@ describe('official ACI/1 wire fixtures (P0 freeze)', () => {
     expect(parsedEvidence.evidenceBytes).toEqual(
       new TextEncoder().encode(canonicalJson(report.attestation.evidence)),
     );
-    const bindings = bindingVerifier.verify(report, parsedEvidence.evidenceBytes, REPORT_NONCE);
+    const bindings = bindingVerifier.verify(report, REPORT_NONCE);
     expect(bindings.workloadId).toBe(report.workload_keyset_digest);
     expect(bindings.workloadKeysetDigest).toBe(report.workload_keyset_digest);
     expect(bindings.teeType).toBe(report.attestation.tee_type);
-    expect(bindings.imageDigest).toBe(report.attestation.source_provenance.image_digest);
+    const sourceProvenance = report.attestation.source_provenance;
+    if (sourceProvenance === null || sourceProvenance === undefined) {
+      throw new Error('report fixture must carry source provenance');
+    }
+    expect(bindings.imageDigest).toBe(sourceProvenance.image_digest);
     expect(bindings.reportDataStatementDigest).toBe(report.attestation.report_data);
     expect(bindings.nonce).toBe(Buffer.from(REPORT_NONCE).toString('hex'));
     expect(bindings.channelKeyDigest).toBe(
@@ -362,7 +377,7 @@ describe('official ACI/1 wire fixtures (P0 freeze)', () => {
         }),
       ),
     );
-    const sourceRevision = report.attestation.source_provenance.repo_commit;
+    const sourceRevision = sourceProvenance.repo_commit;
     if (sourceRevision === null) throw new Error('report fixture must carry a repository commit');
     expect(bindings.sourceRevision).toBe(sourceRevision);
 
@@ -376,18 +391,17 @@ describe('official ACI/1 wire fixtures (P0 freeze)', () => {
       });
       return response;
     }) as unknown as typeof fetch;
-    const evidenceVerifier: AciEvidenceVerifierPort = {
-      verify: vi.fn(async (input) => nativeBindings(report, input.nonce)),
-    };
-    const verifier = new AciReportVerifier({
+    const verifier = new LegacyAciReportVerifier({
       baseUrl: 'https://inference.phala.com',
-      policy: ACI_POLICY_FIXTURE,
+      policy: POLICY_FIXTURE,
       fetchImpl,
       nonceSource: () => REPORT_NONCE,
       trustedTimeAuthority: { read: async () => trustedTimeSample(REPORT_NOW) },
       trustedTimeContext: TRUST_CONTEXT,
       activationGeneration: ACTIVATION_GENERATION,
-      evidenceVerifier,
+      evidenceVerifier: {
+        verify: vi.fn(async (input) => nativeBindings(report, input.nonce)),
+      },
       keysetHighWaterAuthority: new InMemoryAciKeysetHighWaterAuthority(),
     });
 
@@ -478,7 +492,7 @@ describe('official ACI/1 wire fixtures (P0 freeze)', () => {
           },
         },
       ]),
-    ) as VerifiedAciSessionSet;
+    ) as unknown as VerifiedAciSessionSet;
     const snapshot: VerifiedAciTrustSnapshot = {
       generation: 1,
       policyGeneration: ACI_POLICY_FIXTURE.generation,
@@ -498,7 +512,7 @@ describe('official ACI/1 wire fixtures (P0 freeze)', () => {
     }) as unknown as typeof fetch;
     const verifier = new AciReceiptVerifier({
       baseUrl: 'https://inference.phala.com',
-      policy: ACI_POLICY_FIXTURE,
+      policy: POLICY_FIXTURE,
       fetchImpl,
       trustedTimeAuthority: { read: async () => trustedTimeSample(NOW) },
       replayStore: new InMemoryAciReceiptReplayStore(),
@@ -586,6 +600,7 @@ describe('official ACI/1 wire fixtures (P0 freeze)', () => {
 
 function nativeBindings(report: AciWorkloadReport, nonce: Uint8Array): VerifiedAciEvidenceBindings {
   const evidence = report.attestation.evidence;
+  if (evidence === undefined) throw new Error('report fixture must carry evidence');
   const evidenceBytes = new TextEncoder().encode(canonicalJson(evidence));
   return {
     workloadId: report.workload_keyset_digest,
@@ -608,10 +623,10 @@ function nativeBindings(report: AciWorkloadReport, nonce: Uint8Array): VerifiedA
   };
 }
 
-class SessionEvidenceVerifierDouble implements AciSessionEvidenceVerifierPort {
+class SessionEvidenceVerifierDouble implements LegacyAciSessionEvidenceVerifierPort {
   calls = 0;
 
-  async verify(input: Parameters<AciSessionEvidenceVerifierPort['verify']>[0]) {
+  async verify(input: Parameters<LegacyAciSessionEvidenceVerifierPort['verify']>[0]) {
     this.calls += 1;
     const session = JSON.parse(new TextDecoder().decode(input.sessionBytes)) as AciSession;
     return {
@@ -634,13 +649,13 @@ const REQUEST: OfficialAciRequest = {
   method: 'POST',
   body: REQUEST_BODY,
 };
-const EXCHANGE_POLICY: InferenceTrustPolicyV2 = {
-  ...ACI_POLICY_FIXTURE,
+const EXCHANGE_POLICY: InferenceTrustPolicyV2 = inferenceTrustPolicyV2Schema.parse({
+  ...POLICY_FIXTURE,
   permittedModels: [{ model: 'demo/model', revision: 'revision-1' }],
   roleModels: Object.fromEntries(
     ROLES.map((role) => [role, { model: 'demo/model', revision: 'revision-1' }]),
   ) as InferenceTrustPolicyV2['roleModels'],
-};
+});
 
 function exchangeSnapshot(): VerifiedAciTrustSnapshot {
   const sessions = Object.fromEntries(
@@ -671,7 +686,7 @@ function exchangeSnapshot(): VerifiedAciTrustSnapshot {
         },
       },
     ]),
-  ) as VerifiedAciSessionSet;
+  ) as unknown as VerifiedAciSessionSet;
   return {
     trustContext: TRUST_CONTEXT,
     generation: 1,
@@ -707,7 +722,7 @@ function setupExchange(overrides: Partial<OfficialAciExchangeConfig> = {}): {
       value: 'https://inference.phala.com/v1/chat/completions',
     });
     return response;
-  }) as unknown as typeof fetch;
+  });
   const configuredFetch = overrides.fetchImpl ?? fetchImpl;
   const channelTransport = {
     open: async (input: { session: VerifiedAciSessionSet['generate'] }) => {

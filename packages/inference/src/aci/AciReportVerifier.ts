@@ -1,37 +1,52 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash, randomBytes } from 'node:crypto';
+import { canonicalJson } from '@folklore/utils';
 import {
   aciWorkloadReportSchema,
+  aciDstackRawEvidenceV1Schema,
   inferenceTrustPolicyV2Schema,
   type AciWorkloadReport,
+  type AciDstackRawEvidenceV1,
   type InferenceTrustPolicyV2,
 } from '@folklore/contracts';
 import { AciNativeEvidenceVerifier } from './AciNativeEvidenceVerifier.js';
+import { LegacyAciNativeEvidenceVerifier } from './LegacyAciNativeEvidenceVerifier.js';
 import { AciReportBindingVerifier } from './AciReportBindingVerifier.js';
 import { AciVerificationError } from './AciVerificationError.js';
 import { parseStrictJsonBytes } from './strict-json.js';
+import {
+  containsReservedRawEvidenceMarker,
+  containsReservedReportEvidenceMarker,
+} from './raw-evidence-classification.js';
 import { isTrustedTimeContext, readTrustedTimeSample } from './trusted-time.js';
 import type {
   AciEvidencePolicyAnchors,
   AciReportVerifierConfig,
+  LegacyAciReportVerifierConfig,
+  LegacyAciEvidenceVerifierPort,
   AciTrustContext,
   VerifiedAciChannelPin,
   VerifiedAciKeyset,
+  VerifiedAciEvidenceBindings,
 } from '../ports.js';
+import type { ExpectedAciEvidenceBindings } from './AciReportBindingVerifier.js';
 
 const ACI_REPORT_PATH = '/v1/aci/attestation';
 const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 const DEFAULT_NATIVE_VERIFIER_TIMEOUT_MS = 15_000;
 const MAX_TIMEOUT_MS = 60_000;
-const DEFAULT_MAX_REPORT_BYTES = 1_048_576;
-const MAX_REPORT_BYTES = 1_048_576;
+const DEFAULT_MAX_REPORT_BYTES = 6_000_000;
+const MAX_REPORT_BYTES = 6_000_000;
+const LEGACY_MAX_REPORT_BYTES = 1_048_576;
 const NONCE_BYTES = 32;
+const PREFIXED_SHA256_DIGEST = /^sha256:[0-9a-f]{64}$/;
 
-export class AciReportVerifier {
+class AciReportVerifierCore {
   private readonly bindingVerifier = new AciReportBindingVerifier();
   private readonly origin: string;
   private readonly policy: InferenceTrustPolicyV2;
   private readonly nativeEvidenceVerifier: AciNativeEvidenceVerifier;
+  private readonly legacyEvidenceVerifier: LegacyAciNativeEvidenceVerifier | null;
   private readonly fetchImpl: typeof fetch;
   private readonly nonceSource: () => Uint8Array | Promise<Uint8Array>;
   private readonly trustedTimeAuthority: AciReportVerifierConfig['trustedTimeAuthority'];
@@ -43,8 +58,15 @@ export class AciReportVerifier {
   private readonly fetchTimeoutMs: number;
   private readonly maxReportBytes: number;
   private readonly apiKey: string | undefined;
+  private readonly rawEvidenceDigestAuthority:
+    | AciReportVerifierConfig['rawEvidenceDigestAuthority']
+    | undefined;
 
-  constructor(config: AciReportVerifierConfig) {
+  constructor(
+    config: Omit<AciReportVerifierConfig, 'rawEvidenceDigestAuthority'> &
+      Partial<Pick<AciReportVerifierConfig, 'rawEvidenceDigestAuthority'>>,
+    legacyEvidenceVerifier?: LegacyAciEvidenceVerifierPort,
+  ) {
     this.policy = this.parsePolicy(config.policy);
     this.origin = this.pinOrigin(config.baseUrl);
     if (typeof config.fetchImpl !== 'function') {
@@ -85,10 +107,25 @@ export class AciReportVerifier {
       this.policy,
       nativeVerifierTimeoutMs,
     );
+    if (
+      legacyEvidenceVerifier === undefined &&
+      typeof config.rawEvidenceDigestAuthority?.digest !== 'function'
+    ) {
+      throw new AciVerificationError('evidence_digest_authority_required');
+    }
+    this.rawEvidenceDigestAuthority = config.rawEvidenceDigestAuthority;
+    this.legacyEvidenceVerifier =
+      legacyEvidenceVerifier === undefined
+        ? null
+        : new LegacyAciNativeEvidenceVerifier(
+            legacyEvidenceVerifier,
+            this.policy,
+            nativeVerifierTimeoutMs,
+          );
     this.maxReportBytes = this.boundedInteger(
       config.maxReportBytes,
-      DEFAULT_MAX_REPORT_BYTES,
-      MAX_REPORT_BYTES,
+      legacyEvidenceVerifier === undefined ? DEFAULT_MAX_REPORT_BYTES : LEGACY_MAX_REPORT_BYTES,
+      legacyEvidenceVerifier === undefined ? MAX_REPORT_BYTES : LEGACY_MAX_REPORT_BYTES,
       'report_size_invalid',
     );
     this.apiKey = config.apiKey;
@@ -97,22 +134,99 @@ export class AciReportVerifier {
   async verify(): Promise<VerifiedAciKeyset> {
     const nonce = await this.createNonce();
     const reportBytes = await this.fetchReport(nonce);
+    if (this.legacyEvidenceVerifier !== null && containsReservedReportEvidenceMarker(reportBytes)) {
+      throw new AciVerificationError('report_malformed');
+    }
     const report = this.parseReport(reportBytes);
     const { evidenceBytes } = this.bindingVerifier.parseEvidence(report.attestation.evidence);
-    const expected = this.bindingVerifier.verify(report, evidenceBytes, nonce);
-    await this.verifyFreshness(report, this.trustedTimeContext);
+    const expected = this.bindingVerifier.verify(report, nonce);
+    const evaluationTimeUnixSeconds = await this.verifyFreshness(report, this.trustedTimeContext);
     this.verifySourceProvenance(report, expected.sourceRevision);
     const channelPins = this.createChannelPins(report);
-    await this.nativeEvidenceVerifier.verify(
-      {
-        reportBytes: Uint8Array.from(reportBytes),
-        evidenceBytes: Uint8Array.from(evidenceBytes),
-        nonce: Uint8Array.from(nonce),
+    const rawEvidence = this.parseRawEvidence(report.attestation.evidence, evidenceBytes);
+    if (this.legacyEvidenceVerifier !== null) {
+      if (rawEvidence !== null) throw new AciVerificationError('native_verification_failed');
+      await this.legacyEvidenceVerifier.verify(
+        {
+          reportBytes: Uint8Array.from(reportBytes),
+          evidenceBytes: Uint8Array.from(evidenceBytes),
+          nonce: Uint8Array.from(nonce),
+          policyAnchors: this.policyAnchors(),
+        },
+        expected,
+      );
+      await this.verifyFreshness(report, this.trustedTimeContext);
+      return this.finishVerification(report, channelPins, expected.channelKeyDigest);
+    }
+    if (rawEvidence === null) throw new AciVerificationError('report_malformed');
+    const subjectDigest = this.canonicalReportSubjectDigest(report);
+    const subjectBytes = this.canonicalReportSubjectBytes(report);
+    const evidenceDigest = this.digestRawEvidence(rawEvidence);
+    if (
+      rawEvidence.session_id !== subjectDigest ||
+      rawEvidence.workload_keyset_digest !== expected.workloadKeysetDigest
+    ) {
+      throw new AciVerificationError('native_binding_mismatch');
+    }
+    const verified = await this.nativeEvidenceVerifier.verify({
+      evidence: rawEvidence,
+      subjectBytes,
+      expectation: {
+        purpose: 'report',
+        subjectDigest,
+        reportNonce: Uint8Array.from(nonce),
+        expectedSessionId: subjectDigest,
+        expectedWorkloadKeysetDigest: expected.workloadKeysetDigest,
+        evidenceDigest,
+        evaluationTimeUnixSeconds,
         policyAnchors: this.policyAnchors(),
       },
-      expected,
-    );
+    });
+    this.verifyNativeBindings(verified, expected, evidenceDigest);
     await this.verifyFreshness(report, this.trustedTimeContext);
+    return this.finishVerification(report, channelPins, expected.channelKeyDigest);
+  }
+
+  private digestRawEvidence(evidence: AciDstackRawEvidenceV1): string {
+    if (this.rawEvidenceDigestAuthority === undefined) {
+      throw new AciVerificationError('evidence_digest_authority_required');
+    }
+    try {
+      const digest = this.rawEvidenceDigestAuthority.digest(evidence);
+      if (!PREFIXED_SHA256_DIGEST.test(digest)) {
+        throw new AciVerificationError('native_verification_failed');
+      }
+      return digest;
+    } catch {
+      throw new AciVerificationError('native_verification_failed');
+    }
+  }
+
+  private verifyNativeBindings(
+    actual: VerifiedAciEvidenceBindings,
+    expected: ExpectedAciEvidenceBindings,
+    evidenceDigest: string,
+  ): void {
+    if (
+      typeof actual.evidenceTranscriptDigest !== 'string' ||
+      !PREFIXED_SHA256_DIGEST.test(actual.evidenceTranscriptDigest) ||
+      actual.evidenceTranscriptDigest === evidenceDigest
+    ) {
+      throw new AciVerificationError('native_binding_mismatch');
+    }
+    const independentlyBound = Object.fromEntries(
+      Object.keys(expected).map((key) => [key, actual[key as keyof typeof actual]]),
+    );
+    if (canonicalJson(independentlyBound) !== canonicalJson(expected)) {
+      throw new AciVerificationError('native_binding_mismatch');
+    }
+  }
+
+  private async finishVerification(
+    report: AciWorkloadReport,
+    channelPins: readonly VerifiedAciChannelPin[],
+    channelKeyDigest: string,
+  ): Promise<VerifiedAciKeyset> {
     let version: number;
     try {
       version = await this.keysetHighWaterAuthority.admitKeyset({
@@ -124,7 +238,7 @@ export class AciReportVerifier {
     } catch {
       throw new AciVerificationError('high_water_unavailable');
     }
-    return this.publishKeyset(report, channelPins, expected.channelKeyDigest, version);
+    return this.publishKeyset(report, channelPins, channelKeyDigest, version);
   }
 
   private parsePolicy(policy: AciReportVerifierConfig['policy']): InferenceTrustPolicyV2 {
@@ -279,11 +393,35 @@ export class AciReportVerifier {
     try {
       const decoded = parseStrictJsonBytes(reportBytes, this.maxReportBytes, {
         asciiMemberNames: true,
+        opaqueObjectPaths:
+          this.legacyEvidenceVerifier === null ? undefined : [['attestation', 'evidence']],
       });
       return aciWorkloadReportSchema.parse(decoded);
     } catch {
       throw new AciVerificationError('report_malformed');
     }
+  }
+
+  private parseRawEvidence(value: unknown, evidenceBytes: Uint8Array) {
+    const parsed = aciDstackRawEvidenceV1Schema.safeParse(value);
+    if (parsed.success) return parsed.data;
+    if (containsReservedRawEvidenceMarker(evidenceBytes)) {
+      throw new AciVerificationError('report_malformed');
+    }
+    return null;
+  }
+
+  private canonicalReportSubjectDigest(report: AciWorkloadReport): string {
+    return `sha256:${this.digest(this.canonicalReportSubjectBytes(report))}`;
+  }
+
+  private canonicalReportSubjectBytes(report: AciWorkloadReport): Uint8Array {
+    return new TextEncoder().encode(
+      canonicalJson({
+        ...report,
+        attestation: { ...report.attestation, evidence: null },
+      }),
+    );
   }
 
   private async verifyFreshness(
@@ -457,5 +595,39 @@ export class AciReportVerifier {
       this.deepFreeze(child);
     }
     return Object.freeze(value);
+  }
+}
+
+export class AciReportVerifier {
+  private readonly core: AciReportVerifierCore;
+
+  constructor(config: AciReportVerifierConfig) {
+    this.core = new AciReportVerifierCore(config);
+  }
+
+  async verify(): Promise<VerifiedAciKeyset> {
+    return this.core.verify();
+  }
+}
+
+export class LegacyAciReportVerifier {
+  private readonly core: AciReportVerifierCore;
+
+  constructor(config: LegacyAciReportVerifierConfig) {
+    this.core = new AciReportVerifierCore(
+      {
+        ...config,
+        evidenceVerifier: {
+          verify: async () => {
+            throw new AciVerificationError('native_verification_failed');
+          },
+        },
+      },
+      config.evidenceVerifier,
+    );
+  }
+
+  async verify(): Promise<VerifiedAciKeyset> {
+    return this.core.verify();
   }
 }

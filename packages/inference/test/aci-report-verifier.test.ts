@@ -1,18 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from 'node:crypto';
-import type { InferenceTrustPolicyV2 } from '@folklore/contracts';
+import { readFileSync } from 'node:fs';
+import {
+  aciDstackRawEvidenceV1Schema,
+  inferenceTrustPolicyV2Schema,
+  type AciDstackRawEvidenceV1,
+  type InferenceTrustPolicyV2,
+} from '@folklore/contracts';
 import { canonicalJson as jcsCanonicalJson } from '@folklore/utils';
+import { RawEvidenceDigestAuthority } from './doubles/aci/RawEvidenceDigestAuthority.js';
 import { describe, expect, it, vi } from 'vitest';
 import { ACI_POLICY_FIXTURE, ACI_REPORT_FIXTURE } from '../../contracts/test/fixtures/aci-v1.js';
-import { AciReportVerifier } from '../src/aci/AciReportVerifier.js';
+import { AciReportVerifier, LegacyAciReportVerifier } from '../src/aci/AciReportVerifier.js';
 import { AciNativeEvidenceVerifier } from '../src/aci/AciNativeEvidenceVerifier.js';
+import { containsReservedReportEvidenceMarker } from '../src/aci/raw-evidence-classification.js';
 import type {
-  AciEvidenceVerificationInput,
   AciEvidenceVerifierPort,
+  LegacyAciEvidenceVerifierPort,
+  AciNativeEvidenceVerificationInputV2,
   AciReportVerifierConfig,
   AciTrustContext,
   TrustedTimeReadContext,
   VerifiedAciEvidenceBindings,
+  VerifiedAciKeyset,
 } from '../src/ports.js';
 import { InMemoryAciKeysetHighWaterAuthority } from './doubles/aci/InMemoryAciStores.js';
 
@@ -37,13 +47,21 @@ const PINNED_KEYSET_DIGEST =
   'sha256:53a5cd44b30dcc51999754c719f2628a041f174ecbf9662a6f8e898a10cd9371';
 const PINNED_REPORT_DATA = 'df2174d28130852b413646a3786927b93e94c11d770268b65def8bdba45cb49e';
 const ACTIVATION_GENERATION = 17;
+const POLICY_FIXTURE = inferenceTrustPolicyV2Schema.parse(ACI_POLICY_FIXTURE);
+const RAW_EVIDENCE_FIXTURE = JSON.parse(
+  readFileSync(
+    new URL('./fixtures/official-aci/dstack-tdx-lite-raw-evidence.json', import.meta.url),
+    'utf8',
+  ),
+) as AciDstackRawEvidenceV1;
+const RAW_EVIDENCE_DIGEST_AUTHORITY = new RawEvidenceDigestAuthority();
 
 type JsonObject = Record<string, unknown>;
 
 interface ReportOptions {
   nonce?: Uint8Array;
   notAfter?: number;
-  evidence?: JsonObject;
+  evidence?: unknown;
   sourceProvenance?: JsonObject | null;
   keyset?: JsonObject;
 }
@@ -91,6 +109,21 @@ function publicEvidence(channelDigest: string): JsonObject {
     source_revision: SOURCE_REVISION,
     tcb_status: 'up_to_date',
   };
+}
+
+function rawEvidence(sessionId: string, workloadKeysetDigest: string): AciDstackRawEvidenceV1 {
+  return {
+    ...RAW_EVIDENCE_FIXTURE,
+    session_id: sessionId,
+    workload_keyset_digest: workloadKeysetDigest,
+  };
+}
+
+function reportSubjectDigest(report: JsonObject): string {
+  const attestation = jsonObject(report.attestation);
+  return prefixedDigest(
+    jcsCanonicalJson({ ...report, attestation: { ...attestation, evidence: null } }),
+  );
 }
 
 function channelKeyDigest(keyset: JsonObject): string {
@@ -152,6 +185,30 @@ function nativeBindings(report: JsonObject, nonce: Uint8Array): VerifiedAciEvide
   };
 }
 
+function testTranscriptDigest(evidenceDigest: string): string {
+  return prefixedDigest(
+    new TextEncoder().encode(`folklore.aci-native-transcript.test.v1\u0000${evidenceDigest}`),
+  );
+}
+
+function rawNativeBindings(report: JsonObject, nonce: Uint8Array): VerifiedAciEvidenceBindings {
+  const bindings = nativeBindings(reportFor(), nonce);
+  const attestation = jsonObject(report.attestation);
+  const evidence = jsonObject(attestation.evidence);
+  const workloadKeysetDigest = String(report.workload_keyset_digest);
+  const evidenceDigest = aciDstackRawEvidenceV1Schema.safeParse(evidence).success
+    ? RAW_EVIDENCE_DIGEST_AUTHORITY.digest(evidence as unknown as AciDstackRawEvidenceV1)
+    : prefixedDigest(new TextEncoder().encode(jcsCanonicalJson(evidence)));
+  return {
+    ...bindings,
+    workloadId: workloadKeysetDigest,
+    workloadKeysetDigest,
+    nonce: Buffer.from(nonce).toString('hex'),
+    reportDataStatementDigest: String(attestation.report_data),
+    evidenceTranscriptDigest: testTranscriptDigest(evidenceDigest),
+  };
+}
+
 function responseForBytes(bytes: Uint8Array): Response {
   const response = new Response(bytes, {
     headers: { 'Content-Type': 'application/json' },
@@ -174,12 +231,16 @@ function fetchReportBytes(bytes: Uint8Array): typeof fetch {
 function verifierFor(
   report: JsonObject = reportFor(),
   bindings: VerifiedAciEvidenceBindings = nativeBindings(report, NONCE),
-  overrides: Partial<AciReportVerifierConfig> = {},
-): AciReportVerifier {
-  return new AciReportVerifier({
+  overrides: Partial<AciReportVerifierConfig> & {
+    readonly legacyEvidenceVerifier?: LegacyAciEvidenceVerifierPort;
+  } = {},
+): { verify(): Promise<VerifiedAciKeyset> } {
+  const evidence = jsonObject(jsonObject(report.attestation).evidence);
+  const common = {
     baseUrl: 'https://inference.phala.com',
-    policy: ACI_POLICY_FIXTURE,
+    policy: POLICY_FIXTURE,
     fetchImpl: fetchReport(report),
+    rawEvidenceDigestAuthority: RAW_EVIDENCE_DIGEST_AUTHORITY,
     nonceSource: () => NONCE,
     trustedTimeAuthority: {
       read: async () => ({
@@ -189,9 +250,41 @@ function verifierFor(
     },
     trustedTimeContext: TRUST_CONTEXT,
     activationGeneration: ACTIVATION_GENERATION,
-    evidenceVerifier: { verify: vi.fn(async () => bindings) },
     keysetHighWaterAuthority: new InMemoryAciKeysetHighWaterAuthority(),
     ...overrides,
+  };
+  if (Object.prototype.hasOwnProperty.call(evidence, 'format')) {
+    return new AciReportVerifier({
+      ...common,
+      evidenceVerifier: overrides.evidenceVerifier ?? { verify: vi.fn(async () => bindings) },
+    });
+  }
+  return new LegacyAciReportVerifier({
+    ...common,
+    evidenceVerifier: overrides.legacyEvidenceVerifier ??
+      (overrides.evidenceVerifier as unknown as LegacyAciEvidenceVerifierPort) ?? {
+        verify: vi.fn(async () => bindings),
+      },
+  });
+}
+
+function legacyVerifierFor(
+  report: JsonObject,
+  evidenceVerifier: LegacyAciEvidenceVerifierPort,
+  fetchImpl: typeof fetch = fetchReport(report),
+): LegacyAciReportVerifier {
+  return new LegacyAciReportVerifier({
+    baseUrl: 'https://inference.phala.com',
+    policy: POLICY_FIXTURE,
+    fetchImpl,
+    nonceSource: () => NONCE,
+    trustedTimeAuthority: {
+      read: async () => ({ trustedNow: NOW, ...TRUST_CONTEXT }),
+    },
+    trustedTimeContext: TRUST_CONTEXT,
+    activationGeneration: ACTIVATION_GENERATION,
+    keysetHighWaterAuthority: new InMemoryAciKeysetHighWaterAuthority(),
+    evidenceVerifier,
   });
 }
 
@@ -204,6 +297,288 @@ async function expectCode(promise: Promise<unknown>, code: string): Promise<void
 }
 
 describe('AciReportVerifier', () => {
+  it.each([
+    ['BOM', '\uFEFF{"attestation":{"evidence":{"format":"dstack-native-evidence"}}}'],
+    ['comment', '{"attestation":{"evidence":{/*x*/"format":"dstack-native-evidence"}}}'],
+    ['trailing comma', '{"attestation":{"evidence":{"format":"dstack-native-evidence",}}}'],
+    ['extra token', '{"attestation":{"evidence":{"format":"dstack-native-evidence"}}}true'],
+  ])('fails closed on %s report JSON carrying the reserved marker', (_kind, text) => {
+    expect(containsReservedReportEvidenceMarker(new TextEncoder().encode(text))).toBe(true);
+  });
+
+  it('fails closed when a benign report root precedes a reserved-marker root', () => {
+    const text =
+      '{"attestation":{"evidence":{"format":"provider-json-v7"}}}' +
+      '{"attestation":{"evidence":{"format":"dstack-native-evidence"}}}';
+
+    expect(containsReservedReportEvidenceMarker(new TextEncoder().encode(text))).toBe(true);
+  });
+
+  it.each(['null', 'true', 'false', '0', '-1'])(
+    'rejects a %s root before a reserved-marker report before legacy verification',
+    async (primitive) => {
+      const report = reportFor({ evidence: { format: 'dstack-native-evidence' } });
+      const reportBytes = new TextEncoder().encode(`${primitive}${JSON.stringify(report)}`);
+      const legacyPort: LegacyAciEvidenceVerifierPort = {
+        verify: vi.fn(async () => rawNativeBindings(report, NONCE)),
+      };
+
+      expect(containsReservedReportEvidenceMarker(reportBytes)).toBe(true);
+      await expect(
+        legacyVerifierFor(report, legacyPort, fetchReportBytes(reportBytes)).verify(),
+      ).rejects.toBeDefined();
+      expect(legacyPort.verify).not.toHaveBeenCalled();
+    },
+  );
+
+  it('accepts opaque provider evidence but keeps the reserved native marker out of legacy verification', async () => {
+    const base = reportFor();
+    const validV2 = reportFor({
+      evidence: rawEvidence(reportSubjectDigest(base), String(base.workload_keyset_digest)),
+    });
+
+    for (const report of [validV2]) {
+      const legacyPort: LegacyAciEvidenceVerifierPort = {
+        verify: vi.fn(async () => rawNativeBindings(report, NONCE)),
+      };
+
+      await expect(legacyVerifierFor(report, legacyPort).verify()).rejects.toBeDefined();
+      expect(legacyPort.verify).not.toHaveBeenCalled();
+    }
+
+    for (const evidence of [
+      { format: 'provider-json-v7', payload: 'opaque' },
+      { format: 'dstack-tdx-lite-v1', quote_base64: 'malformed' },
+      { format: 'provider-json-v7', duplicate: 2, é: 'opaque' },
+    ]) {
+      const report = reportFor({ evidence });
+      const legacyPort: LegacyAciEvidenceVerifierPort = {
+        verify: vi.fn(async () => rawNativeBindings(report, NONCE)),
+      };
+
+      await expect(legacyVerifierFor(report, legacyPort).verify()).resolves.toBeDefined();
+      expect(legacyPort.verify).toHaveBeenCalledOnce();
+    }
+
+    const duplicateEvidenceReport = reportFor({
+      evidence: {
+        format: 'provider-json-v7',
+        nested: { duplicate: 2, é: 'opaque' },
+      },
+    });
+    const duplicateEvidenceBytes = new TextEncoder().encode(
+      JSON.stringify(duplicateEvidenceReport).replace(
+        '"duplicate":2',
+        '"duplicate":1,"duplicate":2',
+      ),
+    );
+    const duplicatePort: LegacyAciEvidenceVerifierPort = {
+      verify: vi.fn(async () => rawNativeBindings(duplicateEvidenceReport, NONCE)),
+    };
+
+    await expect(
+      legacyVerifierFor(
+        duplicateEvidenceReport,
+        duplicatePort,
+        fetchReportBytes(duplicateEvidenceBytes),
+      ).verify(),
+    ).resolves.toBeDefined();
+    expect(duplicatePort.verify).toHaveBeenCalledOnce();
+
+    const outsideMarkerReport = reportFor();
+    outsideMarkerReport.attestation = {
+      ...jsonObject(outsideMarkerReport.attestation),
+      provider_metadata: { format: 'dstack-native-evidence' },
+    };
+    const outsideMarkerPort: LegacyAciEvidenceVerifierPort = {
+      verify: vi.fn(async () => rawNativeBindings(outsideMarkerReport, NONCE)),
+    };
+
+    await expect(
+      legacyVerifierFor(outsideMarkerReport, outsideMarkerPort).verify(),
+    ).resolves.toBeDefined();
+    expect(outsideMarkerPort.verify).toHaveBeenCalledOnce();
+
+    for (const evidence of [
+      { format: 'dstack-native-evidence', payload: 'malformed' },
+      { wrapper: { format: 'dstack-native-evidence' } },
+      '{"format":"provider-json-v7","format":"dstack-native-evidence"}',
+    ]) {
+      const report = reportFor({ evidence });
+      const legacyPort: LegacyAciEvidenceVerifierPort = {
+        verify: vi.fn(async () => rawNativeBindings(report, NONCE)),
+      };
+
+      await expect(legacyVerifierFor(report, legacyPort).verify()).rejects.toBeDefined();
+      expect(legacyPort.verify).not.toHaveBeenCalled();
+    }
+
+    const duplicatedReservedReport = reportFor({
+      evidence: { format: 'provider-json-v7', payload: 'opaque' },
+    });
+    const duplicatedReservedBytes = new TextEncoder().encode(
+      JSON.stringify(duplicatedReservedReport).replace(
+        '"format":"provider-json-v7"',
+        '"format":"dstack-native-evidence","format":"provider-json-v7"',
+      ),
+    );
+    const duplicatedReservedPort: LegacyAciEvidenceVerifierPort = {
+      verify: vi.fn(async () => rawNativeBindings(duplicatedReservedReport, NONCE)),
+    };
+
+    await expect(
+      legacyVerifierFor(
+        duplicatedReservedReport,
+        duplicatedReservedPort,
+        fetchReportBytes(duplicatedReservedBytes),
+      ).verify(),
+    ).rejects.toBeDefined();
+    expect(duplicatedReservedPort.verify).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'a marker inside nested JSON string nodes',
+      {
+        payload: JSON.stringify({
+          nested: JSON.stringify({ format: 'dstack-native-evidence' }),
+        }),
+      },
+    ],
+    [
+      'a marker inside a JSON string array element',
+      { payload: [JSON.stringify({ format: 'dstack-native-evidence' })] },
+    ],
+    [
+      'escaped marker property names and values inside a JSON string',
+      { payload: '{"\\u0066ormat":"dstack-native-\\u0065vidence"}' },
+    ],
+    [
+      'root evidence encoded beyond the inspection limit',
+      Array.from({ length: 6 }).reduce<string>(
+        (nested) => JSON.stringify(nested),
+        JSON.stringify({ format: 'provider-json-v7' }),
+      ),
+    ],
+    [
+      'embedded JSON deeper than the inspection limit',
+      {
+        payload: Array.from({ length: 6 }).reduce<string>(
+          (nested) => JSON.stringify(nested),
+          JSON.stringify({ format: 'provider-json-v7' }),
+        ),
+      },
+    ],
+    [
+      'evidence exceeding the inspection node budget',
+      { values: Array.from({ length: 5_000 }, (_, index) => `opaque-${index}`) },
+    ],
+  ])('rejects %s before legacy report verification', async (_name, evidence) => {
+    const report = reportFor({ evidence });
+    const legacyPort: LegacyAciEvidenceVerifierPort = {
+      verify: vi.fn(async () => rawNativeBindings(report, NONCE)),
+    };
+
+    await expect(legacyVerifierFor(report, legacyPort).verify()).rejects.toBeDefined();
+    expect(legacyPort.verify).not.toHaveBeenCalled();
+  });
+
+  it('constructs trusted native evidence expectations', async () => {
+    const base = reportFor();
+    const expectedKeysetDigest = String(base.workload_keyset_digest);
+    const expectedSubjectDigest = reportSubjectDigest(base);
+    expect(expectedSubjectDigest).toBe(
+      'sha256:b56bbe05492490d527acf50dc9494faf05c31293758d5085fb4c406861a9bc79',
+    );
+    const evidence = rawEvidence(expectedSubjectDigest, expectedKeysetDigest);
+    const report = reportFor({ evidence });
+    const inputs: AciNativeEvidenceVerificationInputV2[] = [];
+    const evidenceVerifier: AciEvidenceVerifierPort = {
+      verify: vi.fn(async (input) => {
+        inputs.push(input);
+        const subject = JSON.parse(new TextDecoder().decode(input.subjectBytes)) as JsonObject;
+        const attestation = jsonObject(subject.attestation);
+        return rawNativeBindings(
+          { ...subject, attestation: { ...attestation, evidence: input.evidence } },
+          input.expectation.reportNonce ?? new Uint8Array(),
+        );
+      }),
+    };
+
+    await verifierFor(report, rawNativeBindings(report, NONCE), { evidenceVerifier }).verify();
+
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0]?.evidence).toEqual(evidence);
+    expect(inputs[0]?.expectation).toMatchObject({
+      purpose: 'report',
+      subjectDigest: expectedSubjectDigest,
+      reportNonce: NONCE,
+      expectedSessionId: expectedSubjectDigest,
+      expectedWorkloadKeysetDigest: expectedKeysetDigest,
+      evaluationTimeUnixSeconds: NOW,
+    });
+    const subjectBytes = inputs[0]?.subjectBytes;
+    expect(subjectBytes).toEqual(
+      new TextEncoder().encode(
+        jcsCanonicalJson({
+          ...report,
+          attestation: { ...jsonObject(report.attestation), evidence: null },
+        }),
+      ),
+    );
+    expect(`sha256:${sha256Hex(subjectBytes ?? new Uint8Array())}`).toBe(
+      inputs[0]?.expectation.subjectDigest,
+    );
+    expect(inputs[0]?.expectation.evidenceDigest).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(Object.keys(inputs[0] ?? {}).sort()).toEqual([
+      'evidence',
+      'expectation',
+      'subjectBytes',
+    ]);
+
+    const conflicting = reportFor({
+      evidence: rawEvidence('conflicting-session', `sha256:${'f'.repeat(64)}`),
+    });
+    const conflictingVerifier = {
+      verify: vi.fn(async () => rawNativeBindings(conflicting, NONCE)),
+    };
+    await expectCode(
+      verifierFor(conflicting, rawNativeBindings(conflicting, NONCE), {
+        evidenceVerifier: conflictingVerifier,
+      }).verify(),
+      'native_binding_mismatch',
+    );
+    expect(conflictingVerifier.verify).not.toHaveBeenCalled();
+
+    const legacy = reportFor({
+      evidence: { ...evidence, quoteVerified: true },
+    });
+    const legacyVerifier = { verify: vi.fn(async () => rawNativeBindings(legacy, NONCE)) };
+    await expectCode(
+      verifierFor(legacy, rawNativeBindings(legacy, NONCE), {
+        evidenceVerifier: legacyVerifier,
+      }).verify(),
+      'report_malformed',
+    );
+    expect(legacyVerifier.verify).not.toHaveBeenCalled();
+  });
+
+  it('transports a schema-valid raw evidence envelope above one MiB', async () => {
+    const base = reportFor();
+    const component = Buffer.alloc(300_000, 1).toString('base64');
+    const evidence = {
+      ...rawEvidence(reportSubjectDigest(base), String(base.workload_keyset_digest)),
+      quote_base64: component,
+      collateral_base64: component,
+      event_log_base64: component,
+      vm_config_base64: component,
+    };
+    const report = reportFor({ evidence });
+
+    await expect(
+      verifierFor(report, rawNativeBindings(report, NONCE)).verify(),
+    ).resolves.toBeDefined();
+  });
   it('fails closed when V2 trusted time is not configured', async () => {
     await expectCode(
       verifierFor(undefined, undefined, { trustedTimeAuthority: undefined }).verify(),
@@ -251,16 +626,15 @@ describe('AciReportVerifier', () => {
     });
   });
 
-  it('rejects non-ASCII member names in the official report artifact', async () => {
+  it('rejects non-ASCII member names outside opaque evidence in the official report artifact', async () => {
     const base = reportFor();
-    const report = reportFor({
-      evidence: {
-        ...publicEvidence(
-          channelKeyDigest(jsonObject(jsonObject(base.attestation).workload_keyset)),
-        ),
+    const report = {
+      ...reportFor(),
+      attestation: {
+        ...jsonObject(base.attestation),
         ['é']: 'not-an-official-member',
       },
-    });
+    };
     const reportBytes = new TextEncoder().encode(JSON.stringify(report));
     const bindings = nativeBindings(report, NONCE);
     await expectCode(
@@ -320,7 +694,7 @@ describe('AciReportVerifier', () => {
     expect(admitKeyset).toHaveBeenCalledWith({
       context: TRUST_CONTEXT,
       keysetDigest: String(report.workload_keyset_digest),
-      policyGeneration: ACI_POLICY_FIXTURE.generation,
+      policyGeneration: POLICY_FIXTURE.generation,
       activationGeneration: ACTIVATION_GENERATION,
     });
   });
@@ -339,27 +713,20 @@ describe('AciReportVerifier', () => {
       expect((init?.headers as Record<string, string>).Authorization).toBe(
         'Bearer fetch-only-secret',
       );
-      const report = reportFor({ nonce: Uint8Array.from(Buffer.from(nonceHex, 'hex')) });
+      const base = reportFor({ nonce: Uint8Array.from(Buffer.from(nonceHex, 'hex')) });
+      const digest = String(base.workload_keyset_digest);
+      const report = reportFor({
+        nonce: Uint8Array.from(Buffer.from(nonceHex, 'hex')),
+        evidence: rawEvidence(reportSubjectDigest(base), digest),
+      });
       return responseForBytes(new TextEncoder().encode(JSON.stringify(report)));
     }) as unknown as typeof fetch;
-    const nativeInputs: AciEvidenceVerificationInput[] = [];
+    const nativeInputs: AciNativeEvidenceVerificationInputV2[] = [];
     const evidenceVerifier: AciEvidenceVerifierPort = {
       verify: vi.fn(async (input) => {
         nativeInputs.push(input);
-        const report = JSON.parse(new TextDecoder().decode(input.reportBytes)) as JsonObject;
-        const attestation = jsonObject(report.attestation);
-        expect(new TextDecoder().decode(input.evidenceBytes)).toBe(
-          jcsCanonicalJson(attestation.evidence),
-        );
-        expect(Object.keys(input).sort()).toEqual([
-          'deadline',
-          'evidenceBytes',
-          'nonce',
-          'policyAnchors',
-          'reportBytes',
-          'signal',
-        ]);
-        expect(Object.keys(input.policyAnchors).sort()).toEqual([
+        expect(Object.keys(input).sort()).toEqual(['evidence', 'expectation', 'subjectBytes']);
+        expect(Object.keys(input.expectation.policyAnchors).sort()).toEqual([
           'channelPolicy',
           'evidence',
           'origin',
@@ -369,7 +736,15 @@ describe('AciReportVerifier', () => {
           'sourceProvenance',
         ]);
         expect(JSON.stringify(input)).not.toContain('fetch-only-secret');
-        return nativeBindings(report, input.nonce);
+        if (input.expectation.reportNonce === null) {
+          throw new Error('missing_report');
+        }
+        const subject = JSON.parse(new TextDecoder().decode(input.subjectBytes)) as JsonObject;
+        const attestation = jsonObject(subject.attestation);
+        return rawNativeBindings(
+          { ...subject, attestation: { ...attestation, evidence: input.evidence } },
+          input.expectation.reportNonce,
+        );
       }),
     };
     const verifier = new AciReportVerifier({
@@ -384,6 +759,7 @@ describe('AciReportVerifier', () => {
       trustedTimeContext: TRUST_CONTEXT,
       activationGeneration: ACTIVATION_GENERATION,
       evidenceVerifier,
+      rawEvidenceDigestAuthority: RAW_EVIDENCE_DIGEST_AUTHORITY,
       keysetHighWaterAuthority: new InMemoryAciKeysetHighWaterAuthority(),
       fetchImpl,
       nonceSource: () => {
@@ -391,7 +767,7 @@ describe('AciReportVerifier', () => {
         if (nonce === undefined) throw new Error('nonce_source_exhausted');
         return nonce;
       },
-      policy: ACI_POLICY_FIXTURE,
+      policy: POLICY_FIXTURE,
     });
 
     await verifier.verify();
@@ -583,14 +959,16 @@ describe('AciReportVerifier', () => {
       () =>
         new AciReportVerifier({
           baseUrl: 'https://redirect.example.com/v1',
-          policy: ACI_POLICY_FIXTURE,
+          policy: POLICY_FIXTURE,
           activationGeneration: ACTIVATION_GENERATION,
           fetchImpl: fetchReport(reportFor()),
           evidenceVerifier: { verify: vi.fn(async () => nativeBindings(reportFor(), NONCE)) },
+          rawEvidenceDigestAuthority: RAW_EVIDENCE_DIGEST_AUTHORITY,
           trustedTimeAuthority: {
             read: async () => ({ trustedNow: NOW, ...TRUST_CONTEXT }),
           },
           trustedTimeContext: TRUST_CONTEXT,
+          keysetHighWaterAuthority: new InMemoryAciKeysetHighWaterAuthority(),
         }),
     ).toThrowError(
       expect.objectContaining({
@@ -749,23 +1127,28 @@ describe('AciReportVerifier', () => {
   });
 
   it('aborts native verification at its deadline', async () => {
-    const report = reportFor();
+    const base = reportFor();
+    const report = reportFor({
+      evidence: rawEvidence(reportSubjectDigest(base), String(base.workload_keyset_digest)),
+    });
     let signal: AbortSignal | undefined;
     let deadline = 0;
     const evidenceVerifier: AciEvidenceVerifierPort = {
       verify: vi.fn(
         async (input) =>
           new Promise<VerifiedAciEvidenceBindings>((_resolve, reject) => {
-            signal = input.signal;
-            deadline = input.deadline;
-            input.signal.addEventListener('abort', () => reject(input.signal.reason));
+            signal = input.expectation.signal;
+            deadline = input.expectation.deadline;
+            input.expectation.signal.addEventListener('abort', () =>
+              reject(input.expectation.signal.reason),
+            );
           }),
       ),
     };
     const startedAt = performance.now();
 
     await expectCode(
-      verifierFor(report, nativeBindings(report, NONCE), {
+      verifierFor(report, rawNativeBindings(report, NONCE), {
         evidenceVerifier,
         nativeVerifierTimeoutMs: 5,
       }).verify(),
@@ -776,19 +1159,22 @@ describe('AciReportVerifier', () => {
   });
 
   it('does not publish a late native result after timeout', async () => {
-    const report = reportFor();
+    const base = reportFor();
+    const report = reportFor({
+      evidence: rawEvidence(reportSubjectDigest(base), String(base.workload_keyset_digest)),
+    });
     let signal: AbortSignal | undefined;
     let resolveNative: ((value: VerifiedAciEvidenceBindings) => void) | undefined;
     const evidenceVerifier: AciEvidenceVerifierPort = {
       verify: vi.fn(
         (input) =>
           new Promise<VerifiedAciEvidenceBindings>((resolve) => {
-            signal = input.signal;
+            signal = input.expectation.signal;
             resolveNative = resolve;
           }),
       ),
     };
-    const verification = verifierFor(report, nativeBindings(report, NONCE), {
+    const verification = verifierFor(report, rawNativeBindings(report, NONCE), {
       evidenceVerifier,
       nativeVerifierTimeoutMs: 5,
     }).verify();
@@ -802,27 +1188,30 @@ describe('AciReportVerifier', () => {
 
     await expectCode(verification, 'native_verifier_timeout');
     expect(signal?.aborted).toBe(true);
-    resolveNative?.(nativeBindings(report, NONCE));
+    resolveNative?.(rawNativeBindings(report, NONCE));
     await new Promise<void>((resolve) => setImmediate(resolve));
 
     expect(didPublish).toBe(false);
   });
 
   it('rejects a native result that completes at the deadline before the timer runs', async () => {
-    const report = reportFor();
+    const base = reportFor();
+    const report = reportFor({
+      evidence: rawEvidence(reportSubjectDigest(base), String(base.workload_keyset_digest)),
+    });
     const now = vi.spyOn(performance, 'now');
     now.mockReturnValueOnce(100).mockReturnValueOnce(100).mockReturnValue(105);
     let signal: AbortSignal | undefined;
     const evidenceVerifier: AciEvidenceVerifierPort = {
       verify: vi.fn((input) => {
-        signal = input.signal;
-        return Promise.resolve(nativeBindings(report, NONCE));
+        signal = input.expectation.signal;
+        return Promise.resolve(rawNativeBindings(report, NONCE));
       }),
     };
 
     try {
       await expectCode(
-        verifierFor(report, nativeBindings(report, NONCE), {
+        verifierFor(report, rawNativeBindings(report, NONCE), {
           evidenceVerifier,
           nativeVerifierTimeoutMs: 5,
         }).verify(),
@@ -853,13 +1242,66 @@ describe('AciReportVerifier', () => {
     ['rtmrs', ['1'.repeat(96)]],
     ['tcbStatus', 'out_of_date'],
     ['sourceRevision', '1'.repeat(40)],
-    ['evidenceTranscriptDigest', `sha256:${'1'.repeat(64)}`],
   ];
 
-  it.each(nativeBindingMismatches)('rejects a native %s binding mismatch', async (field, value) => {
-    const report = reportFor();
+  it('accepts a distinct well-formed native evidence transcript digest', async () => {
+    const base = reportFor();
+    const report = reportFor({
+      evidence: rawEvidence(reportSubjectDigest(base), String(base.workload_keyset_digest)),
+    });
     const bindings = {
-      ...nativeBindings(report, NONCE),
+      ...rawNativeBindings(report, NONCE),
+      evidenceTranscriptDigest: `sha256:${'6'.repeat(64)}`,
+    };
+
+    await expect(verifierFor(report, bindings).verify()).resolves.toBeDefined();
+  });
+
+  it('rejects a native evidence transcript digest that echoes the raw evidence digest', async () => {
+    const base = reportFor();
+    const report = reportFor({
+      evidence: rawEvidence(reportSubjectDigest(base), String(base.workload_keyset_digest)),
+    });
+
+    const evidence = jsonObject(jsonObject(report.attestation).evidence);
+    const rawDigest = RAW_EVIDENCE_DIGEST_AUTHORITY.digest(
+      evidence as unknown as AciDstackRawEvidenceV1,
+    );
+    const echoingBindings = {
+      ...rawNativeBindings(report, NONCE),
+      evidenceTranscriptDigest: rawDigest,
+    };
+
+    await expectCode(verifierFor(report, echoingBindings).verify(), 'native_binding_mismatch');
+  });
+
+  it.each([
+    ['missing', undefined],
+    ['malformed', 'not-a-prefixed-sha256'],
+  ])('rejects a %s native evidence transcript digest', async (_kind, transcriptDigest) => {
+    const base = reportFor();
+    const report = reportFor({
+      evidence: rawEvidence(reportSubjectDigest(base), String(base.workload_keyset_digest)),
+    });
+    const bindings = rawNativeBindings(report, NONCE);
+    const invalid =
+      transcriptDigest === undefined
+        ? (({ evidenceTranscriptDigest: _evidenceTranscriptDigest, ...rest }) => rest)(bindings)
+        : { ...bindings, evidenceTranscriptDigest: transcriptDigest };
+
+    await expectCode(
+      verifierFor(report, invalid as VerifiedAciEvidenceBindings).verify(),
+      'native_result_malformed',
+    );
+  });
+
+  it.each(nativeBindingMismatches)('rejects a native %s binding mismatch', async (field, value) => {
+    const base = reportFor();
+    const report = reportFor({
+      evidence: rawEvidence(reportSubjectDigest(base), String(base.workload_keyset_digest)),
+    });
+    const bindings = {
+      ...rawNativeBindings(report, NONCE),
       [field]: value,
     } as VerifiedAciEvidenceBindings;
     const independentlyBoundFields: ReadonlySet<keyof VerifiedAciEvidenceBindings> = new Set([
@@ -868,10 +1310,7 @@ describe('AciReportVerifier', () => {
       'reportDataStatementDigest',
       'workloadKeysetDigest',
       'channelKeyDigest',
-      'teeType',
-      'imageDigest',
       'sourceRevision',
-      'evidenceTranscriptDigest',
     ]);
 
     await expectCode(
@@ -899,9 +1338,9 @@ describe('AciReportVerifier', () => {
   it('enforces separate runtime identity and RTMR policy anchors', async () => {
     const rtmr = 'e'.repeat(96);
     const policy = {
-      ...ACI_POLICY_FIXTURE,
+      ...POLICY_FIXTURE,
       evidence: {
-        ...ACI_POLICY_FIXTURE.evidence,
+        ...POLICY_FIXTURE.evidence,
         runtimeMeasurements: [MEASUREMENT, rtmr],
         runtimeRtmrs: [MEASUREMENT],
         runtimeIdentities: [RUNTIME_IDENTITY],
@@ -920,15 +1359,20 @@ describe('AciReportVerifier', () => {
     );
 
     await expect(
-      verifier.verify(
-        {
-          reportBytes: new Uint8Array(),
-          evidenceBytes: new Uint8Array(),
-          nonce: NONCE,
-          policyAnchors: ACI_POLICY_FIXTURE,
+      verifier.verify({
+        evidence: rawEvidence(`sha256:${'1'.repeat(64)}`, `sha256:${'2'.repeat(64)}`),
+        subjectBytes: new TextEncoder().encode(jcsCanonicalJson(report)),
+        expectation: {
+          purpose: 'report',
+          subjectDigest: `sha256:${'1'.repeat(64)}`,
+          reportNonce: NONCE,
+          expectedSessionId: `sha256:${'1'.repeat(64)}`,
+          expectedWorkloadKeysetDigest: `sha256:${'2'.repeat(64)}`,
+          evidenceDigest: `sha256:${'3'.repeat(64)}`,
+          evaluationTimeUnixSeconds: NOW,
+          policyAnchors: POLICY_FIXTURE,
         },
-        actual,
-      ),
+      }),
     ).rejects.toMatchObject({ code: 'native_policy_mismatch' });
   });
 

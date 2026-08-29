@@ -6,6 +6,7 @@ const MAX_JSON_NODES = 65_536;
 
 export interface StrictJsonOptions {
   readonly asciiMemberNames?: boolean;
+  readonly opaqueObjectPaths?: readonly (readonly string[])[];
 }
 
 export function parseStrictJsonBytes(
@@ -16,18 +17,26 @@ export function parseStrictJsonBytes(
   if (bytes.byteLength > maximumBytes) throw new Error();
   let text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   try {
-    const objectKeys: Array<Set<string> | undefined> = [];
+    const containers: Array<
+      | { readonly keys: Set<string>; readonly path: readonly string[]; pendingProperty?: string }
+      | { readonly keys: undefined; readonly path: readonly string[] }
+    > = [];
     let nodes = 0;
     const beginContainer = (keys: Set<string> | undefined): void => {
       nodes += 1;
-      objectKeys.push(keys);
-      if (nodes > MAX_JSON_NODES || objectKeys.length > MAX_JSON_DEPTH) throw new Error();
+      const parent = containers.at(-1);
+      const path =
+        parent?.keys !== undefined && parent.pendingProperty !== undefined
+          ? [...parent.path, parent.pendingProperty]
+          : (parent?.path ?? []);
+      containers.push(keys === undefined ? { keys, path } : { keys, path });
+      if (nodes > MAX_JSON_NODES || containers.length > MAX_JSON_DEPTH) throw new Error();
     };
     visit(
       text,
       {
         onArrayBegin: () => beginContainer(undefined),
-        onArrayEnd: () => void objectKeys.pop(),
+        onArrayEnd: () => void containers.pop(),
         onError: () => {
           throw new Error();
         },
@@ -42,20 +51,29 @@ export function parseStrictJsonBytes(
           }
         },
         onObjectBegin: () => beginContainer(new Set()),
-        onObjectEnd: () => void objectKeys.pop(),
+        onObjectEnd: () => void containers.pop(),
         onObjectProperty: (property) => {
           nodes += 1;
-          const keys = objectKeys.at(-1);
+          const container = containers.at(-1);
+          const isOpaque = options.opaqueObjectPaths?.some(
+            (path) =>
+              container !== undefined &&
+              path.length <= container.path.length &&
+              path.every((segment, index) => segment === container.path[index]),
+          );
           if (
-            keys === undefined ||
-            keys.has(property) ||
+            container?.keys === undefined ||
+            (isOpaque !== true && container.keys.has(property)) ||
             nodes > MAX_JSON_NODES ||
             !hasValidUnicode(property) ||
-            (options.asciiMemberNames === true && !hasAsciiMemberName(property))
+            (isOpaque !== true &&
+              options.asciiMemberNames === true &&
+              !hasAsciiMemberName(property))
           ) {
             throw new Error();
           }
-          keys.add(property);
+          container.keys.add(property);
+          container.pendingProperty = property;
         },
       },
       { allowTrailingComma: false, disallowComments: true },
