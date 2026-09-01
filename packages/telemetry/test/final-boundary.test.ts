@@ -84,6 +84,7 @@ const VALID_SERVER_EVENT_FIXTURES = {
   'inference.model_rejected': { model: 'deepseek-v4-pro' },
   'inference.attestation_failed': { reason: 'response carried no receipt id' },
   'inference.error': { model: 'z-ai/glm-5.2', errorType: 'generate_failed' },
+  'inference.receipt_verification_staged_off': { mode: 'commissioning' },
   'wiki.synthesized': { orgId: ORGANIZATION_ID, themeId: ORGANIZATION_ID },
   'wiki.rich_blocks.synthesized': {
     orgId: ORGANIZATION_ID,

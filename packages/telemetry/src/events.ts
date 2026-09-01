@@ -36,6 +36,7 @@ export const TelemetryEvent = {
   InferenceModelRejected: 'inference.model_rejected',
   InferenceAttestationFailed: 'inference.attestation_failed',
   InferenceError: 'inference.error',
+  InferenceReceiptVerificationStagedOff: 'inference.receipt_verification_staged_off',
   WikiSynthesized: 'wiki.synthesized',
   WikiRichBlocksSynthesized: 'wiki.rich_blocks.synthesized',
   WikiCritiqueCompleted: 'wiki.critique.completed',
@@ -174,6 +175,9 @@ type ErrorEvents = {
   'inference.model_rejected': { model: string };
   'inference.attestation_failed': { reason: string };
   'inference.error': { model: string; errorType: string };
+  // Content-free: a boot-time marker that this deployment runs inference with receipt verification
+  // staged off (commissioning). `mode` is a fixed enum, never customer content.
+  'inference.receipt_verification_staged_off': { mode: 'commissioning' | 'non_production' };
   'notification.send_failed': { orgId: string; channel: 'email' | 'slack'; errorType: string };
   // A volunteered marketing opt-in couldn't be recorded after the org committed. Content-free, so the
   // fail-safe swallow (org creation still succeeds) stays observable without an error-kind string.

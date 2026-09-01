@@ -244,6 +244,9 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     model,
     errorType: literal('embed_failed', 'generate_failed', 'structured_failed'),
   }),
+  'inference.receipt_verification_staged_off': propertyContract({
+    mode: literal('commissioning', 'non_production'),
+  }),
   'wiki.synthesized': propertyContract({ ...orgId, themeId: uuid }),
   'wiki.rich_blocks.synthesized': propertyContract({
     ...orgId,
