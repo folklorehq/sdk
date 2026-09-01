@@ -9,6 +9,7 @@ export const themeGraphNodeSchema = z.object({
   isAggregate: z.boolean(),
   importance: z.number(),
   factCount: z.number(),
+  hasWiki: z.boolean(),
   sources: z.array(z.string()),
   updatedAt: z.string(),
   ownerTeamId: z.string().nullable(),
@@ -30,6 +31,7 @@ export const themeGraphResponseSchema = z.object({
   nodes: z.array(themeGraphNodeSchema),
   edges: z.array(themeGraphEdgeSchema),
   truncated: z.boolean(),
+  hasMore: z.boolean().optional(),
 });
 export type ThemeGraphResponse = z.infer<typeof themeGraphResponseSchema>;
 

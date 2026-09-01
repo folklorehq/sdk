@@ -9,6 +9,7 @@ const VALID_NODE = {
   isAggregate: false,
   importance: 0.8,
   factCount: 12,
+  hasWiki: true,
   sources: ['github', 'slack'],
   updatedAt: '2026-06-01T00:00:00.000Z',
   ownerTeamId: null,
