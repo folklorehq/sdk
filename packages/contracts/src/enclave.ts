@@ -331,6 +331,7 @@ export const themeSynthesisResultSchema = z
     inputVersion: z.string(),
     leaseToken: z.string().min(1),
     orgId: z.string(),
+    isAuthoritativeBatch: z.boolean().optional(),
     themes: z.array(synthesizedThemeSchema),
     related: z.array(relatedThemeEdgeSchema),
     mergeCandidates: z.array(themeMergeCandidateSchema).default([]),
@@ -484,6 +485,7 @@ export const themeSynthesisRequestSchema = z.object({
   inputVersion: z.string(),
   leaseToken: z.string().min(1),
   orgId: z.string(),
+  isAuthoritativeBatch: z.boolean().optional(),
   containers: z.array(themeContainerRefSchema),
 });
 export type ThemeSynthesisRequest = z.infer<typeof themeSynthesisRequestSchema>;

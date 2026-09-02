@@ -502,6 +502,7 @@ describe('themeSynthesisResultSchema', () => {
       inputVersion: 'input-v1',
       leaseToken: 'legacy-lease-must-not-cross-the-wire',
       orgId: 'org-1',
+      isAuthoritativeBatch: true,
       themes: [
         {
           themeId: 't1',
@@ -532,6 +533,7 @@ describe('themeSynthesisResultSchema', () => {
     expect(parsed.aggregates[0]?.children[0]?.childThemeId).toBe('t1');
     expect(parsed.inputVersion).toBe('input-v1');
     expect(parsed.leaseToken).toBe('legacy-lease-must-not-cross-the-wire');
+    expect(parsed.isAuthoritativeBatch).toBe(true);
   });
 
   it('defaults aggregates to an empty array when omitted', () => {
@@ -672,6 +674,7 @@ describe('themeSynthesisRequestSchema', () => {
       inputVersion: 'input-v1',
       leaseToken: 'legacy-lease-must-not-cross-the-wire',
       orgId: 'org-1',
+      isAuthoritativeBatch: true,
       containers: [
         {
           containerId: 'c1',
@@ -686,6 +689,7 @@ describe('themeSynthesisRequestSchema', () => {
     expect(parsed.containers[0]?.containerId).toBe('c1');
     expect(parsed.inputVersion).toBe('input-v1');
     expect(parsed.leaseToken).toBe('legacy-lease-must-not-cross-the-wire');
+    expect(parsed.isAuthoritativeBatch).toBe(true);
   });
 });
 
@@ -936,6 +940,7 @@ type EnclaveThemeSynthesisRequest = {
   inputVersion: string;
   leaseToken: string;
   orgId: string;
+  isAuthoritativeBatch?: boolean;
   containers: {
     containerId: string;
     label: string;
