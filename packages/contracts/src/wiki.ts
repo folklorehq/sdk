@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
+import { documentTypeSchema } from './document-types.js';
 
 // Rich wiki content blocks. Shared, frozen shape: synthesis (@folklore/wiki
 // + enclave) emits these and the box renders them from this single definition — never a
@@ -450,6 +451,7 @@ export const wikiPageMetaSchema = z
     owners: z.array(wikiPageOwnerSchema).optional(),
     confidence: z.number(),
     tags: z.array(z.string()),
+    docType: documentTypeSchema,
     sources: z.array(z.string()),
     factCount: z.number(),
     updatedAt: z.string(),

@@ -30,12 +30,15 @@ const SAFE_DISTINCT_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SAFE_LOG_REQUEST_ID_PATTERN =
   /^(?:[a-z][a-z0-9]{0,31}_[a-z0-9]{1,95}|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
+const SAFE_LOG_MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
 const SAFE_LOG_FIELD_SET = new Set<string>(SAFE_LOG_FIELDS);
+const EXPLICIT_CONTENT_FREE_FIELDS = new Set(['messageid', 'prompttokens', 'completiontokens']);
 const CODE_VALUE_FIELDS = new Set([
   'component',
   'errorCode',
   'error_type',
   'outcome',
+  'operation',
   'phase',
   'route',
   'status',
@@ -108,6 +111,7 @@ export function snapshotSafeLogContext(context: unknown): SafeLogContextSnapshot
     const snapshot: Partial<Record<SafeLogField, string | number | boolean | null>> = {};
     for (const key of Reflect.ownKeys(context)) {
       if (typeof key !== 'string') return rejectedContext('invalid_context_key');
+      const normalizedKey = key.toLowerCase();
       const descriptor = Object.getOwnPropertyDescriptor(context, key);
       if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
         return rejectedContext('invalid_context_shape');
@@ -115,8 +119,8 @@ export function snapshotSafeLogContext(context: unknown): SafeLogContextSnapshot
       if (
         key.length > MAX_LOG_FIELD_LENGTH ||
         !SAFE_LOG_FIELD_SET.has(key) ||
-        EXACT_FORBIDDEN_KEYS.has(key.toLowerCase()) ||
-        matchesForbidden(key.toLowerCase())
+        EXACT_FORBIDDEN_KEYS.has(normalizedKey) ||
+        (matchesForbidden(normalizedKey) && !EXPLICIT_CONTENT_FREE_FIELDS.has(normalizedKey))
       ) {
         return rejectedContext('invalid_context_key');
       }
@@ -153,6 +157,8 @@ function isSafeLogValue(key: string, value: unknown): boolean {
   if (typeof value !== 'string' || value.length > MAX_VALUE_LENGTH) return false;
   if (CODE_VALUE_FIELDS.has(key)) return SAFE_LOG_EVENT_PATTERN.test(value);
   if (key === 'requestId') return SAFE_LOG_REQUEST_ID_PATTERN.test(value);
+  if (key === 'orgId' || key === 'messageId') return SAFE_DISTINCT_ID_PATTERN.test(value);
+  if (key === 'model') return SAFE_LOG_MODEL_PATTERN.test(value);
   return false;
 }
 

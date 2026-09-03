@@ -80,6 +80,42 @@ describe('PinoLogger', () => {
     });
   });
 
+  it('accepts bounded content-free inference and SQS correlation fields', () => {
+    const { logger, records } = recordingLogger();
+    logger.info('synthesis_tokens', {
+      orgId: '3e083ed2-433c-4798-ae11-a656c9de08ee',
+      messageId: 'd7a6c468-0ddd-4de2-a29b-12af4f2ba28a',
+      model: 'qwen/qwen3-32b',
+      operation: 'structured',
+      calls: 4,
+      cachedCalls: 1,
+      promptTokens: 160,
+      completionTokens: 16,
+    });
+
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      msg: 'synthesis_tokens',
+      orgId: '3e083ed2-433c-4798-ae11-a656c9de08ee',
+      messageId: 'd7a6c468-0ddd-4de2-a29b-12af4f2ba28a',
+      model: 'qwen/qwen3-32b',
+      operation: 'structured',
+      calls: 4,
+      cachedCalls: 1,
+      promptTokens: 160,
+      completionTokens: 16,
+    });
+  });
+
+  it.each([{ orgId: 'org-1' }, { messageId: SENTINEL }, { model: `qwen/${SENTINEL} words` }])(
+    'rejects malformed operational identifiers %#',
+    (context) => {
+      const { logger, records } = recordingLogger();
+      logger.info('synthesis_tokens', unsafeContext(context));
+      expectOnlyRejection(records, 'invalid_context_value');
+    },
+  );
+
   it.each(['initial', 'child', 'call'] as const)(
     'serializes only descriptor-snapshotted %s context values',
     (surface) => {

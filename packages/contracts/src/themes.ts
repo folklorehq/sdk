@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
+import { documentTypeSchema } from './document-types.js';
 
 /** A theme rendered as a knowledge-map node — content-free metadata only. */
 export const themeGraphNodeSchema = z.object({
   id: z.string(),
   name: z.string(),
   tags: z.array(z.string()),
+  docType: documentTypeSchema,
   isAggregate: z.boolean(),
   importance: z.number(),
   factCount: z.number(),

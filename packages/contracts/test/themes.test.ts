@@ -6,6 +6,7 @@ const VALID_NODE = {
   id: 'theme-1',
   name: 'Billing v2',
   tags: ['initiative'],
+  docType: 'initiative',
   isAggregate: false,
   importance: 0.8,
   factCount: 12,
