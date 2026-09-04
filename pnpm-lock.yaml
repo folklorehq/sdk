@@ -813,8 +813,8 @@ packages:
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
 
-  '@posthog/core@1.50.3':
-    resolution: {integrity: sha512-mSDH1EiFmdYh92ITLzVD5od7L91cH1/rhLm85kyUttV39TxXivT5PRxUIEFDatzlkYbWGtrPEPygzc4N93XvrQ==}
+  '@posthog/core@1.50.4':
+    resolution: {integrity: sha512-4iuCMbPJgy+w8xiFlSM/zapchVSzkba6Nb+iZEo+4DsAplNFj38pXE1htGx2GU8Fac70PPOwvNv4uHsZjYDbzA==}
 
   '@posthog/types@1.408.1':
     resolution: {integrity: sha512-zcQ3rdAbWDWegL/TA3OiC+Wc8qquNtFj2Q2RPc3QuJas3D6FYsNhR9xYmZgLWEm+GDN/zhGlOHijG3nPMEiCbw==}
@@ -2200,7 +2200,7 @@ snapshots:
 
   '@pinojs/redact@0.4.0': {}
 
-  '@posthog/core@1.50.3':
+  '@posthog/core@1.50.4':
     dependencies:
       '@posthog/types': 1.408.1
 
@@ -3033,7 +3033,7 @@ snapshots:
 
   posthog-node@5.51.6:
     dependencies:
-      '@posthog/core': 1.50.3
+      '@posthog/core': 1.50.4
 
   prelude-ls@1.2.1: {}
 
