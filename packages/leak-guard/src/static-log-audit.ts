@@ -10,8 +10,12 @@ const CONSOLE_METHODS = new Set(['trace', 'debug', 'info', 'log', 'warn', 'error
 const SOURCE_FILE_PATTERN = /\.[cm]?[jt]sx?$/;
 const PRODUCTION_ROOTS = ['apps', 'packages'];
 const DYNAMIC_VALUE = Symbol('dynamic_log_value');
+// Process entrypoints whose only output channel is the process's own stdio: there is no logger
+// port to route through before the composition root exists. Each is still expected to stay
+// content-free; the pool runner writes a whitelisted snake_case error code and nothing else.
 const CONSOLE_EXEMPT_FILES = new Set([
   'apps/api/src/main.ts',
+  'apps/pool-provisioning-runner/src/main.ts',
   'apps/control-plane-server/src/ops/cli.ts',
   'apps/control-plane-server/src/ops/setup-stripe-products.ts',
   'apps/worker/src/dev-bridge.ts',

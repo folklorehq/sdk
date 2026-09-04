@@ -813,11 +813,11 @@ packages:
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
 
-  '@posthog/core@1.50.4':
-    resolution: {integrity: sha512-4iuCMbPJgy+w8xiFlSM/zapchVSzkba6Nb+iZEo+4DsAplNFj38pXE1htGx2GU8Fac70PPOwvNv4uHsZjYDbzA==}
+  '@posthog/core@1.50.5':
+    resolution: {integrity: sha512-afEchuShDaVIoxAIj76kDZQ1DhfesDmgfVp+mtTzsA3wlc8DF5uoz8YjuTjnxOicWkpP5HCDqYidK/1kT125Cg==}
 
-  '@posthog/types@1.408.1':
-    resolution: {integrity: sha512-zcQ3rdAbWDWegL/TA3OiC+Wc8qquNtFj2Q2RPc3QuJas3D6FYsNhR9xYmZgLWEm+GDN/zhGlOHijG3nPMEiCbw==}
+  '@posthog/types@1.409.0':
+    resolution: {integrity: sha512-239umoaZVb2GBaXeEyJpwFvjhrrChJH8NHCwiao23EBSu3NA6EN0MTMoaHSmMEf4yjiXEFFoYJA6FjJAXF5HGA==}
 
   '@rollup/rollup-android-arm-eabi@4.63.1':
     resolution: {integrity: sha512-UZ8sUxPTiHWYX9QNdJedb1kDZSpS1t/VPWBWGSgqHNi9w3Cu6IXvu2mzbhiTiPvtrqgTQJ+zqiAq2iPIPilpaQ==}
@@ -2200,11 +2200,11 @@ snapshots:
 
   '@pinojs/redact@0.4.0': {}
 
-  '@posthog/core@1.50.4':
+  '@posthog/core@1.50.5':
     dependencies:
-      '@posthog/types': 1.408.1
+      '@posthog/types': 1.409.0
 
-  '@posthog/types@1.408.1': {}
+  '@posthog/types@1.409.0': {}
 
   '@rollup/rollup-android-arm-eabi@4.63.1':
     optional: true
@@ -3033,7 +3033,7 @@ snapshots:
 
   posthog-node@5.51.6:
     dependencies:
-      '@posthog/core': 1.50.4
+      '@posthog/core': 1.50.5
 
   prelude-ls@1.2.1: {}
 
