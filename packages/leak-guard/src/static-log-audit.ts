@@ -12,7 +12,10 @@ const PRODUCTION_ROOTS = ['apps', 'packages'];
 const DYNAMIC_VALUE = Symbol('dynamic_log_value');
 // Process entrypoints whose only output channel is the process's own stdio: there is no logger
 // port to route through before the composition root exists. Each is still expected to stay
-// content-free; the pool runner writes a whitelisted snake_case error code and nothing else.
+// content-free. The pool runner writes either a bare code from the fixed failure vocabulary or a
+// derived `aws_<sdk-error-name>[_<http-status>]`, lowercased and re-validated by
+// failureCodeSchema, so what reaches the log is `[a-z][a-z0-9_]*` in both cases — never an SDK
+// message, which carries ARNs and principals.
 const CONSOLE_EXEMPT_FILES = new Set([
   'apps/api/src/main.ts',
   'apps/pool-provisioning-runner/src/main.ts',
