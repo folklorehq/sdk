@@ -36,3 +36,4 @@ export * from './themes.js';
 export * from './trusted-time.js';
 export * from './wiki.js';
 export * from './wiki-export.js';
+export * from './worker-database.js';

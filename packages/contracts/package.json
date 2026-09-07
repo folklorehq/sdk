@@ -25,6 +25,11 @@
       "development": "./src/wiki.ts",
       "types": "./dist/wiki.d.ts",
       "default": "./dist/wiki.js"
+    },
+    "./worker-database": {
+      "development": "./src/worker-database.ts",
+      "types": "./dist/worker-database.d.ts",
+      "default": "./dist/worker-database.js"
     }
   },
   "scripts": {
