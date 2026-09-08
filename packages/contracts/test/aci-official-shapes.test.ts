@@ -134,6 +134,213 @@ const OFFICIAL_RECEIPT = {
 };
 
 describe('official ACI/1 wire shapes', () => {
+  it('accepts the bounded public provider evidence shape', () => {
+    const evidence = {
+      app_compose: 'compose',
+      downstream_tls_binding: { domain: 'tee.example.com', spki_sha256: 'a'.repeat(64) },
+      event_log: 'event-log',
+      key_custody: {
+        provider: 'dstack-kms',
+        keys: [
+          {
+            role: 'receipt',
+            path: 'aci/receipt-ed25519/v1',
+            purpose: 'aci.receipt.ed25519.v1',
+            algo: 'ed25519',
+            public_key: 'b'.repeat(64),
+            kms_public_key: 'c'.repeat(66),
+            signature_chain: ['d'.repeat(130)],
+          },
+        ],
+      },
+      quote: 'quote',
+      quote_report_data: 'report-data',
+      vm_config: 'vm-config',
+    };
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...OFFICIAL_REPORT,
+        attestation: { ...OFFICIAL_REPORT.attestation, evidence },
+      }).success,
+    ).toBe(true);
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...OFFICIAL_REPORT,
+        attestation: {
+          ...OFFICIAL_REPORT.attestation,
+          evidence: { ...evidence, app_compose: 'x'.repeat(513), unexpected: 'field' },
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('accepts the existing seven-key object-valued profile evidence shape', () => {
+    const evidence = {
+      app_identity: 'app:inference',
+      channel_key_digest: 'a'.repeat(64),
+      compose_digest: 'sha256:' + 'b'.repeat(64),
+      image_digest: null,
+      kms_root_digest: 'c'.repeat(64),
+      measurements: ['d'.repeat(96)],
+      quote_root_digest: 'e'.repeat(64),
+      rtmrs: ['f'.repeat(96)],
+      runtime_identity: 'runtime:inference',
+      source_revision: '1'.repeat(40),
+      tcb_status: 'up_to_date',
+    };
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...OFFICIAL_REPORT,
+        attestation: { ...OFFICIAL_REPORT.attestation, evidence },
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects oversized or malformed provider evidence without widening generic JSON', () => {
+    const evidence = {
+      app_compose: 'compose',
+      downstream_tls_binding: { domain: 'tee.example.com', spki_sha256: 'a'.repeat(64) },
+      event_log: 'event-log',
+      key_custody: {
+        provider: 'dstack-kms',
+        keys: [
+          {
+            role: 'receipt',
+            path: 'aci/receipt-ed25519/v1',
+            purpose: 'aci.receipt.ed25519.v1',
+            algo: 'ed25519',
+            public_key: 'b'.repeat(64),
+            kms_public_key: 'c'.repeat(66),
+            signature_chain: ['d'.repeat(130)],
+          },
+        ],
+      },
+      quote: 'quote',
+      quote_report_data: 'report-data',
+      vm_config: 'vm-config',
+    };
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...OFFICIAL_REPORT,
+        attestation: { ...OFFICIAL_REPORT.attestation, evidence },
+      }).success,
+    ).toBe(true);
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...OFFICIAL_REPORT,
+        attestation: {
+          ...OFFICIAL_REPORT.attestation,
+          evidence: { ...evidence, app_compose: 'x'.repeat(513), quote: 1 },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...OFFICIAL_REPORT,
+        attestation: {
+          ...OFFICIAL_REPORT.attestation,
+          evidence: { ...evidence, app_compose: '😀'.repeat(262_145) },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...OFFICIAL_REPORT,
+        attestation: {
+          ...OFFICIAL_REPORT.attestation,
+          evidence: {
+            ...evidence,
+            quote: 'x'.repeat(900_000),
+            event_log: 'y'.repeat(900_000),
+            vm_config: 'z'.repeat(900_000),
+            app_compose: 'w'.repeat(900_000),
+            quote_report_data: 'q'.repeat(900_000),
+          },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...OFFICIAL_REPORT,
+        attestation: {
+          ...OFFICIAL_REPORT.attestation,
+          evidence: {
+            ...evidence,
+            key_custody: {
+              ...evidence.key_custody,
+              keys: Array.from({ length: 9 }, (_, index) => ({
+                ...evidence.key_custody.keys[0],
+                role: `key-${index}`,
+              })),
+            },
+            app_compose: 'x'.repeat(513),
+          },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...OFFICIAL_REPORT,
+        attestation: {
+          ...OFFICIAL_REPORT.attestation,
+          evidence: {
+            ...evidence,
+            key_custody: {
+              ...evidence.key_custody,
+              keys: [
+                { ...evidence.key_custody.keys[0], signature_chain: ['a', 'b', 'c', 'd', 'e'] },
+              ],
+            },
+            app_compose: 'x'.repeat(513),
+          },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...OFFICIAL_REPORT,
+        attestation: {
+          ...OFFICIAL_REPORT.attestation,
+          evidence: {
+            ...evidence,
+            key_custody: {
+              ...evidence.key_custody,
+              keys: [{ ...evidence.key_custody.keys[0], nested: true }],
+            },
+            app_compose: 'x'.repeat(513),
+          },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...OFFICIAL_REPORT,
+        attestation: { ...OFFICIAL_REPORT.attestation, evidence: { generic: 'x'.repeat(513) } },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('continues accepting the exact internal raw evidence envelope', () => {
+    expect(
+      aciWorkloadReportSchema.safeParse({
+        ...OFFICIAL_REPORT,
+        attestation: {
+          ...OFFICIAL_REPORT.attestation,
+          evidence: {
+            version: 1,
+            format: 'dstack-native-evidence',
+            quote_base64: 'eA==',
+            collateral_base64: 'eA==',
+            event_log_base64: 'eA==',
+            vm_config_base64: 'eA==',
+            session_id: 'a'.repeat(64),
+            workload_keyset_digest: `sha256:${'b'.repeat(64)}`,
+          },
+        },
+      }).success,
+    ).toBe(true);
+  });
+
   it('accepts opaque future receipt algorithms without relaxing required key fields', () => {
     const result = aciWorkloadReportSchema.safeParse({
       ...OFFICIAL_REPORT,

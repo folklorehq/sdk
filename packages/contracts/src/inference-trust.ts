@@ -393,10 +393,59 @@ const aciLegacyBoundedJsonObjectSchema = z.custom<Record<string, unknown>>(
   (value) => isAciBoundedJsonObject(value),
   'expected bounded JSON object',
 );
-const aciEvidenceObjectSchema = z.custom<Record<string, unknown>>(
-  (value) => aciDstackRawEvidenceV1Schema.safeParse(value).success || isAciBoundedJsonObject(value),
-  'expected evidence object',
-);
+const aciProviderEvidenceStringSchema = z
+  .string()
+  .min(1)
+  .max(MAX_ACI_RAW_EVIDENCE_COMPONENT_BYTES)
+  .refine((value) => Buffer.byteLength(value, 'utf8') <= MAX_ACI_RAW_EVIDENCE_COMPONENT_BYTES)
+  .refine((value) => !hasControlCharacters(value));
+const aciProviderEvidenceKeySchema = z
+  .object({
+    role: identifierSchema,
+    path: aciStringSchema,
+    purpose: aciStringSchema,
+    algo: aciStringSchema,
+    public_key: aciProviderEvidenceStringSchema,
+    kms_public_key: aciProviderEvidenceStringSchema,
+    signature_chain: z.array(aciProviderEvidenceStringSchema).min(1).max(4),
+  })
+  .strict();
+const aciPublicProviderEvidenceSchema = z
+  .object({
+    app_compose: aciProviderEvidenceStringSchema,
+    downstream_tls_binding: z
+      .object({ domain: aciStringSchema, spki_sha256: digestSchema })
+      .strict(),
+    event_log: aciProviderEvidenceStringSchema,
+    key_custody: z
+      .object({
+        provider: identifierSchema,
+        keys: z.array(aciProviderEvidenceKeySchema).min(1).max(8),
+      })
+      .strict(),
+    quote: aciProviderEvidenceStringSchema,
+    quote_report_data: aciProviderEvidenceStringSchema,
+    vm_config: aciProviderEvidenceStringSchema,
+  })
+  .strict()
+  .superRefine((evidence, context) => {
+    const total = [
+      evidence.app_compose,
+      evidence.event_log,
+      evidence.quote,
+      evidence.quote_report_data,
+      evidence.vm_config,
+      JSON.stringify(evidence.key_custody),
+      JSON.stringify(evidence.downstream_tls_binding),
+    ].reduce((size, value) => size + Buffer.byteLength(value, 'utf8'), 0);
+    if (total > MAX_ACI_RAW_EVIDENCE_AGGREGATE_BYTES) {
+      addSortedIssue(context, [], 'provider evidence exceeds aggregate size limit');
+    }
+  });
+const aciEvidenceObjectSchema = z.custom<Record<string, unknown>>((value) => {
+  if (aciDstackRawEvidenceV1Schema.safeParse(value).success) return true;
+  return aciPublicProviderEvidenceSchema.safeParse(value).success || isAciBoundedJsonObject(value);
+}, 'expected evidence object');
 
 const aciPublicKeySchema = z
   .string()
