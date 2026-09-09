@@ -91,3 +91,11 @@ export class InternalError extends AppError {
     });
   }
 }
+
+/** A sign-in address is already bound to a different identity. Linking is a reviewed operator action, never an unattended adoption. */
+export class IdentityLinkRequiredError extends ConflictError {
+  constructor(options: AppErrorOptions = {}) {
+    super('CLI_ACCOUNT_IDENTITY_LINK_REQUIRED', options);
+    this.name = 'IdentityLinkRequiredError';
+  }
+}

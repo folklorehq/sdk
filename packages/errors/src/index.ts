@@ -10,6 +10,7 @@ export {
   NotFoundError,
   ForbiddenError,
   ConflictError,
+  IdentityLinkRequiredError,
   RateLimitError,
   ExternalServiceError,
   ServiceUnavailableError,
