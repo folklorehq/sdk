@@ -100,10 +100,17 @@ export interface AttestationReport {
 /** Proves an inference response came from a TEE-verified (confidential) upstream. */
 export interface InferenceResponseVerifier {
   /** Pin + verify the gateway's ACI attestation once; throws (fail-closed) if unverifiable. */
-  ensureAttested(): Promise<void>;
+  ensureAttested(context?: InferenceAttestationContext): Promise<void>;
   /** Verify the per-response receipt against the exact serialized exchange. */
   verifyReceipt(receiptId: string | null, evidence: InferenceExchangeEvidence): Promise<void>;
 }
+
+export type InferenceAttestationContext = Readonly<{
+  model: string;
+  modelRevision: string;
+  modelRole?: InferenceModelRole;
+  endpoint: string;
+}>;
 
 export interface InferenceExchangeEvidence {
   requestSha256: string;

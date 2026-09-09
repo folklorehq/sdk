@@ -42,6 +42,8 @@ export interface OpenAICompatConfig {
   telemetry?: TelemetryClient;
   /** Fetch bound to the endpoint's verified transport; required for a TEE backend. */
   fetchImpl?: typeof fetch;
+  /** Require attestation before forwarding requests and bind the requirement into each request body. */
+  publicAciRequired?: boolean;
 }
 
 const DEFAULT_EMBED_MODEL = 'nomic-embed-text';
@@ -105,6 +107,7 @@ export class OpenAICompatBackend implements InferenceBackend {
   protected readonly usageSink: InferenceUsageSink | undefined;
   protected readonly telemetry: TelemetryClient | undefined;
   protected readonly fetchImpl: typeof fetch;
+  protected readonly publicAciRequired: boolean;
 
   constructor(config: OpenAICompatConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, '').replace(/\/v1$/, '');
@@ -121,13 +124,19 @@ export class OpenAICompatBackend implements InferenceBackend {
     this.usageSink = config.usageSink;
     this.telemetry = config.telemetry;
     this.fetchImpl = config.fetchImpl ?? fetch;
+    this.publicAciRequired = config.publicAciRequired ?? false;
+    if (this.publicAciRequired && (!config.responseVerifier || !config.fetchImpl)) {
+      throw new Error('public_aci_requires_verifier_and_fetch');
+    }
   }
 
   async embed(text: string, options?: EmbedOptions): Promise<number[]> {
     const selection = this.resolveEmbedSelection(options);
     const { model } = selection;
     this.assertModelAllowed(model);
-    await this.responseVerifier?.ensureAttested();
+    await this.responseVerifier?.ensureAttested(
+      this.attestationContext(selection, '/v1/embeddings'),
+    );
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     const start = Date.now();
@@ -137,6 +146,7 @@ export class OpenAICompatBackend implements InferenceBackend {
         model,
         model_revision: selection.revision,
         input: text,
+        ...(this.publicAciRequired ? { provider: { aci_verified: true } } : {}),
       };
       // Only request matryoshka truncation when a dimension is explicitly configured;
       // providers like RedPill/qwen return their native dimension and reject the param.
@@ -181,7 +191,9 @@ export class OpenAICompatBackend implements InferenceBackend {
     const selection = this.resolveGenerateSelection(options);
     const { model } = selection;
     this.assertModelAllowed(model);
-    await this.responseVerifier?.ensureAttested();
+    await this.responseVerifier?.ensureAttested(
+      this.attestationContext(selection, '/v1/chat/completions'),
+    );
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     const start = Date.now();
@@ -194,6 +206,7 @@ export class OpenAICompatBackend implements InferenceBackend {
         max_tokens: options?.maxTokens,
         temperature: options?.temperature,
         stream: false,
+        ...(this.publicAciRequired ? { provider: { aci_verified: true } } : {}),
       });
       const nonce = this.nonce();
       const res = await this.fetchImpl(`${this.baseUrl}/v1/chat/completions`, {
@@ -231,7 +244,9 @@ export class OpenAICompatBackend implements InferenceBackend {
     const selection = this.resolveStructuredSelection(options);
     const { model } = selection;
     this.assertModelAllowed(model);
-    await this.responseVerifier?.ensureAttested();
+    await this.responseVerifier?.ensureAttested(
+      this.attestationContext(selection, '/v1/chat/completions'),
+    );
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     const start = Date.now();
@@ -273,7 +288,9 @@ export class OpenAICompatBackend implements InferenceBackend {
     const selection = this.resolveGenerateSelection(options);
     const { model } = selection;
     this.assertModelAllowed(model);
-    await this.responseVerifier?.ensureAttested();
+    await this.responseVerifier?.ensureAttested(
+      this.attestationContext(selection, '/v1/chat/completions'),
+    );
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs * STREAM_TIMEOUT_MULTIPLIER);
 
@@ -283,6 +300,7 @@ export class OpenAICompatBackend implements InferenceBackend {
         model_revision: selection.revision,
         messages: this.messages(prompt, options),
         stream: true,
+        ...(this.publicAciRequired ? { provider: { aci_verified: true } } : {}),
       });
       const nonce = this.nonce();
       const res = await this.fetchImpl(`${this.baseUrl}/v1/chat/completions`, {
@@ -362,6 +380,7 @@ export class OpenAICompatBackend implements InferenceBackend {
         },
       ],
       tool_choice: { type: 'function', function: { name: tool.name } },
+      ...(this.publicAciRequired ? { provider: { aci_verified: true } } : {}),
     };
   }
 
@@ -416,6 +435,15 @@ export class OpenAICompatBackend implements InferenceBackend {
       revision: options?.modelRevision ?? this.embedModelRevision,
       role: options?.modelRole,
     };
+  }
+
+  private attestationContext(selection: InferenceModelSelection, endpoint: string) {
+    return {
+      model: selection.model,
+      modelRevision: selection.revision,
+      modelRole: selection.role,
+      endpoint,
+    } as const;
   }
 
   protected resolveGenerateSelection(options?: GenerateOptions): InferenceModelSelection {

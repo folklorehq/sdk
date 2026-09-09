@@ -3,6 +3,12 @@ import { describe, expect, it } from 'vitest';
 import * as inference from '../src/index.js';
 
 describe('@folklore/inference public API', () => {
+  it('exports explicit public report, response and session constructors', () => {
+    expect(inference.PublicAciReportVerifier).toBeTypeOf('function');
+    expect(inference.PublicAciResponseVerifier).toBeTypeOf('function');
+    expect(inference.PublicAciSessionVerifier).toBeTypeOf('function');
+  });
+
   it('does not export legacy ACI verifier construction', () => {
     expect(inference).not.toHaveProperty('LegacyAciReportVerifier');
     expect(inference).not.toHaveProperty('LegacyAciSessionVerifier');

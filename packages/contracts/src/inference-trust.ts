@@ -442,6 +442,8 @@ const aciPublicProviderEvidenceSchema = z
       addSortedIssue(context, [], 'provider evidence exceeds aggregate size limit');
     }
   });
+export const aciPublicProviderEvidenceV1Schema = aciPublicProviderEvidenceSchema;
+export type AciPublicProviderEvidenceV1 = z.infer<typeof aciPublicProviderEvidenceV1Schema>;
 const aciEvidenceObjectSchema = z.custom<Record<string, unknown>>((value) => {
   if (aciDstackRawEvidenceV1Schema.safeParse(value).success) return true;
   return aciPublicProviderEvidenceSchema.safeParse(value).success || isAciBoundedJsonObject(value);
@@ -954,6 +956,8 @@ const aciPolicyChannelBindingSchema = z.discriminatedUnion('type', [
 
 const aciPolicyEvidenceSchema = z
   .object({
+    // Opt-in signed semantics. Omission retains the existing native-envelope profile.
+    profile: z.literal('dstack-tdx-public-v1').optional(),
     teeTypes: z
       .array(z.enum(['tdx', 'sev_snp']))
       .min(1)

@@ -10,6 +10,10 @@ import {
   type InferenceTrustPolicyV2,
 } from '@folklore/contracts';
 import { AciNativeEvidenceVerifier } from './AciNativeEvidenceVerifier.js';
+import {
+  AciPublicQuotePolicyVerifier,
+  type AciPublicQuoteVerifierPort,
+} from './AciPublicQuotePolicyVerifier.js';
 import { LegacyAciNativeEvidenceVerifier } from './LegacyAciNativeEvidenceVerifier.js';
 import { AciReportBindingVerifier } from './AciReportBindingVerifier.js';
 import { AciVerificationError } from './AciVerificationError.js';
@@ -45,7 +49,8 @@ class AciReportVerifierCore {
   private readonly bindingVerifier = new AciReportBindingVerifier();
   private readonly origin: string;
   private readonly policy: InferenceTrustPolicyV2;
-  private readonly nativeEvidenceVerifier: AciNativeEvidenceVerifier;
+  private readonly nativeEvidenceVerifier: AciNativeEvidenceVerifier | null;
+  private readonly publicQuoteVerifier: AciPublicQuotePolicyVerifier | null;
   private readonly legacyEvidenceVerifier: LegacyAciNativeEvidenceVerifier | null;
   private readonly fetchImpl: typeof fetch;
   private readonly nonceSource: () => Uint8Array | Promise<Uint8Array>;
@@ -63,8 +68,10 @@ class AciReportVerifierCore {
     | undefined;
 
   constructor(
-    config: Omit<AciReportVerifierConfig, 'rawEvidenceDigestAuthority'> &
-      Partial<Pick<AciReportVerifierConfig, 'rawEvidenceDigestAuthority'>>,
+    config: Omit<AciReportVerifierConfig, 'rawEvidenceDigestAuthority' | 'evidenceVerifier'> &
+      Partial<Pick<AciReportVerifierConfig, 'rawEvidenceDigestAuthority' | 'evidenceVerifier'>> & {
+        publicQuoteVerifier?: AciPublicQuoteVerifierPort;
+      },
     legacyEvidenceVerifier?: LegacyAciEvidenceVerifierPort,
   ) {
     this.policy = this.parsePolicy(config.policy);
@@ -72,7 +79,14 @@ class AciReportVerifierCore {
     if (typeof config.fetchImpl !== 'function') {
       throw new AciVerificationError('pinned_transport_required');
     }
-    if (typeof config.evidenceVerifier?.verify !== 'function') {
+    const publicProfile = this.policy.evidence.profile === 'dstack-tdx-public-v1';
+    if (
+      publicProfile
+        ? typeof config.publicQuoteVerifier?.verify !== 'function' ||
+          legacyEvidenceVerifier !== undefined
+        : typeof config.evidenceVerifier?.verify !== 'function' ||
+          config.publicQuoteVerifier !== undefined
+    ) {
       throw new AciVerificationError('evidence_verifier_required');
     }
     this.fetchImpl = config.fetchImpl;
@@ -102,12 +116,24 @@ class AciReportVerifierCore {
       MAX_TIMEOUT_MS,
       'native_verifier_timeout_invalid',
     );
-    this.nativeEvidenceVerifier = new AciNativeEvidenceVerifier(
-      config.evidenceVerifier,
-      this.policy,
-      nativeVerifierTimeoutMs,
-    );
+    this.nativeEvidenceVerifier =
+      config.evidenceVerifier === undefined || publicProfile
+        ? null
+        : new AciNativeEvidenceVerifier(
+            config.evidenceVerifier,
+            this.policy,
+            nativeVerifierTimeoutMs,
+          );
+    this.publicQuoteVerifier =
+      publicProfile && config.publicQuoteVerifier !== undefined
+        ? new AciPublicQuotePolicyVerifier(
+            config.publicQuoteVerifier,
+            this.policy,
+            nativeVerifierTimeoutMs,
+          )
+        : null;
     if (
+      !publicProfile &&
       legacyEvidenceVerifier === undefined &&
       typeof config.rawEvidenceDigestAuthority?.digest !== 'function'
     ) {
@@ -143,6 +169,11 @@ class AciReportVerifierCore {
     const evaluationTimeUnixSeconds = await this.verifyFreshness(report, this.trustedTimeContext);
     this.verifySourceProvenance(report, expected.sourceRevision);
     const channelPins = this.createChannelPins(report);
+    if (this.publicQuoteVerifier !== null) {
+      await this.publicQuoteVerifier.verify(report, nonce, evaluationTimeUnixSeconds);
+      await this.verifyFreshness(report, this.trustedTimeContext);
+      return this.finishVerification(report, channelPins, expected.channelKeyDigest);
+    }
     const rawEvidence = this.parseRawEvidence(report.attestation.evidence, evidenceBytes);
     if (this.legacyEvidenceVerifier !== null) {
       if (rawEvidence !== null) throw new AciVerificationError('native_verification_failed');
@@ -159,6 +190,8 @@ class AciReportVerifierCore {
       return this.finishVerification(report, channelPins, expected.channelKeyDigest);
     }
     if (rawEvidence === null) throw new AciVerificationError('report_malformed');
+    if (this.nativeEvidenceVerifier === null)
+      throw new AciVerificationError('evidence_verifier_required');
     const subjectDigest = this.canonicalReportSubjectDigest(report);
     const subjectBytes = this.canonicalReportSubjectBytes(report);
     const evidenceDigest = this.digestRawEvidence(rawEvidence);
@@ -602,6 +635,26 @@ export class AciReportVerifier {
   private readonly core: AciReportVerifierCore;
 
   constructor(config: AciReportVerifierConfig) {
+    this.core = new AciReportVerifierCore(config);
+  }
+
+  async verify(): Promise<VerifiedAciKeyset> {
+    return this.core.verify();
+  }
+}
+
+export interface PublicAciReportVerifierConfig extends Omit<
+  AciReportVerifierConfig,
+  'evidenceVerifier' | 'rawEvidenceDigestAuthority'
+> {
+  publicQuoteVerifier: AciPublicQuoteVerifierPort;
+}
+
+/** Requires the explicit signed public profile. Never selected from provider JSON. */
+export class PublicAciReportVerifier {
+  private readonly core: AciReportVerifierCore;
+
+  constructor(config: PublicAciReportVerifierConfig) {
     this.core = new AciReportVerifierCore(config);
   }
 

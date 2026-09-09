@@ -242,4 +242,93 @@ describe('OpenAICompatBackend', () => {
     ).rejects.toThrow('not in the verified-model allowlist');
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('requires attestation transport and binds the public provider marker on every operation', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as {
+        provider?: unknown;
+        stream?: boolean;
+        tools?: unknown[];
+      };
+      expect(body.provider).toEqual({ aci_verified: true });
+      if (body.stream) return Promise.resolve(new Response('data: [DONE]\n\n', { status: 200 }));
+      if (url.endsWith('/embeddings'))
+        return Promise.resolve(jsonResponse({ data: [{ embedding: [1] }] }));
+      if (body.tools)
+        return Promise.resolve(
+          jsonResponse({
+            choices: [
+              { message: { tool_calls: [{ function: { name: 'judge', arguments: '{}' } }] } },
+            ],
+          }),
+        );
+      return Promise.resolve(jsonResponse({ choices: [{ message: { content: 'ok' } }] }));
+    });
+    const contexts: unknown[] = [];
+    const verifier = {
+      ensureAttested: vi.fn(async (context?: unknown) => {
+        contexts.push(context);
+      }),
+      verifyReceipt: vi.fn(async () => undefined),
+    };
+    const backend = new OpenAICompatBackend({
+      baseUrl: BASE_URL,
+      publicAciRequired: true,
+      responseVerifier: verifier,
+      fetchImpl: fetchMock,
+    });
+    await backend.embed('x');
+    await backend.generate('x');
+    await backend.generateStructured('x', {
+      tool: { name: 'judge', description: 'judge', parameters: {} },
+    });
+    await backend.stream('x').next();
+    expect(contexts).toEqual([
+      {
+        model: 'nomic-embed-text',
+        modelRevision: 'unversioned',
+        modelRole: undefined,
+        endpoint: '/v1/embeddings',
+      },
+      {
+        model: 'qwen2.5:7b',
+        modelRevision: 'unversioned',
+        modelRole: undefined,
+        endpoint: '/v1/chat/completions',
+      },
+      {
+        model: 'qwen2.5:7b',
+        modelRevision: 'unversioned',
+        modelRole: undefined,
+        endpoint: '/v1/chat/completions',
+      },
+      {
+        model: 'qwen2.5:7b',
+        modelRevision: 'unversioned',
+        modelRole: undefined,
+        endpoint: '/v1/chat/completions',
+      },
+    ]);
+  });
+
+  it('fails closed before HTTP when public attestation rejects and rejects incomplete configuration', async () => {
+    const fetchMock = vi.fn();
+    const verifier = {
+      ensureAttested: vi.fn(async () => {
+        throw new Error('attestation_rejected');
+      }),
+      verifyReceipt: vi.fn(async () => undefined),
+    };
+    const backend = new OpenAICompatBackend({
+      baseUrl: BASE_URL,
+      publicAciRequired: true,
+      responseVerifier: verifier,
+      fetchImpl: fetchMock,
+    });
+    await expect(backend.generate('secret')).rejects.toThrow('attestation_rejected');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(() => new OpenAICompatBackend({ baseUrl: BASE_URL, publicAciRequired: true })).toThrow(
+      'public_aci_requires_verifier_and_fetch',
+    );
+  });
 });

@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import {
+  aciPublicProviderEvidenceV1Schema,
   aciReceiptSchema,
   aciSessionSchema,
   aciWorkloadReportSchema,
@@ -50,6 +51,52 @@ const CHANNEL_BINDING = [
     type: 'tls_spki_sha256',
   },
 ];
+
+const PUBLIC_PROVIDER_EVIDENCE = {
+  app_compose: 'compose',
+  downstream_tls_binding: { domain: 'inference.example.com', spki_sha256: 'a'.repeat(64) },
+  event_log: 'event-log',
+  key_custody: {
+    provider: 'phala',
+    keys: [
+      {
+        role: 'receipt',
+        path: '/key/receipt',
+        purpose: 'receipt signing',
+        algo: 'ed25519',
+        public_key: 'b'.repeat(64),
+        kms_public_key: 'c'.repeat(64),
+        signature_chain: ['d'.repeat(64)],
+      },
+    ],
+  },
+  quote: 'quote',
+  quote_report_data: 'report-data',
+  vm_config: 'vm-config',
+};
+
+describe('ACI public provider evidence export', () => {
+  it('accepts the bounded public provider shape', () => {
+    expect(aciPublicProviderEvidenceV1Schema.parse(PUBLIC_PROVIDER_EVIDENCE)).toEqual(
+      PUBLIC_PROVIDER_EVIDENCE,
+    );
+  });
+
+  it('rejects unknown public provider evidence fields', () => {
+    expect(() =>
+      aciPublicProviderEvidenceV1Schema.parse({ ...PUBLIC_PROVIDER_EVIDENCE, unexpected: true }),
+    ).toThrow();
+  });
+
+  it('rejects oversized public provider evidence components', () => {
+    expect(() =>
+      aciPublicProviderEvidenceV1Schema.parse({
+        ...PUBLIC_PROVIDER_EVIDENCE,
+        quote: 'q'.repeat(1_048_577),
+      }),
+    ).toThrow();
+  });
+});
 
 const OFFICIAL_KEYSET = {
   subject: 'dstack-app://example-app',
