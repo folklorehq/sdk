@@ -8,6 +8,7 @@ export * from './codebase-settings.js';
 export * from './collab.js';
 export * from './commissioning-acceptance.js';
 export * from './control-plane-environment.js';
+export * from './current-authority-pointer.js';
 export * from './document-types.js';
 export * from './enclave.js';
 export * from './enclave-output.js';
