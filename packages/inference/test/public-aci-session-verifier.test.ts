@@ -120,6 +120,40 @@ function setup(extraSession: Record<string, unknown> = {}, servedAt = 150) {
 }
 
 describe('PublicAciSessionVerifier', () => {
+  it.each(['/w==', '_w', '_w=='])(
+    'requires canonical padded standard base64: %s',
+    async (payload) => {
+      const bytes = Buffer.from([255]);
+      const { verifier, input } = setup({
+        evidence: {
+          digest: `sha256:${createHash('sha256').update(bytes).digest('hex')}`,
+          data: `data:application/octet-stream;base64,${payload}`,
+        },
+      });
+      if (payload === '/w==') await expect(verifier.verify(input)).resolves.toBeDefined();
+      else await expect(verifier.verify(input)).rejects.toThrow();
+    },
+  );
+
+  it.each([
+    ['no comma', 'data:application/octet-stream;base64'],
+    ['empty payload', 'data:application/octet-stream;base64,'],
+    ['not a data URI', 'https://inference.example.com/evidence'],
+  ])(
+    'rejects evidence whose digest would bind an empty or unstructured body: %s',
+    async (_name, data) => {
+      const empty = Buffer.alloc(0);
+      const { verifier, input } = setup({
+        evidence: { digest: `sha256:${createHash('sha256').update(empty).digest('hex')}`, data },
+      });
+      // The contract schema rejects unstructured URIs before the verifier runs; the verifier
+      // itself rejects the structurally valid but empty payload. Both paths must fail closed.
+      await expect(verifier.verify(input)).rejects.toThrow(
+        data.endsWith(',') ? 'evidence encoding' : /evidence|Invalid/,
+      );
+    },
+  );
+
   it('rejects a signed session whose channels differ from the authorized role digest', async () => {
     const { verifier, input } = setup({
       channel_binding: [{ ...channelBinding, spki_sha256: 'c'.repeat(64) }],

@@ -291,10 +291,11 @@ export class PublicAciSessionVerifier {
     }
     const encoded = session.evidence.data;
     if (encoded === undefined) throw new Error('public ACI session evidence is missing');
-    const comma = encoded.indexOf(',');
-    const payload = comma < 0 ? '' : encoded.slice(comma + 1);
+    const match = /^data:[^,]{1,256};base64,([A-Za-z0-9+/]*={0,2})$/.exec(encoded);
+    const payload = match?.[1];
+    if (!payload) throw new Error('public ACI session evidence encoding failed');
     const evidence = Buffer.from(payload, 'base64');
-    if (evidence.toString('base64') !== payload.replace(/-/g, '+').replace(/_/g, '/')) {
+    if (evidence.length === 0 || evidence.toString('base64') !== payload) {
       throw new Error('public ACI session evidence encoding failed');
     }
     if (
