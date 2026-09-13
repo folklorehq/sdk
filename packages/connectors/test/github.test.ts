@@ -5,7 +5,6 @@ import type { ConnectorContext } from '../src/index.js';
 import { GitHubConnector } from '../src/github/GitHubConnector.js';
 import type { GitHubClient } from '../src/github/client.js';
 import {
-  extractExplicitLinks,
   normalizeCommit,
   normalizeIssueComment,
   normalizePullRequest,
@@ -33,15 +32,6 @@ const pr: GitHubPullRequest = {
   created_at: '2026-06-01T10:00:00Z',
   updated_at: '2026-06-01T10:00:00Z',
 };
-
-describe('extractExplicitLinks', () => {
-  it('captures URLs and #issue references', () => {
-    const links = extractExplicitLinks('fixes #3, see https://example.com/x and #12');
-    expect(links).toContain('#3');
-    expect(links).toContain('#12');
-    expect(links).toContain('https://example.com/x');
-  });
-});
 
 describe('Fact vs. Container classification', () => {
   it('maps a PR to a stateful Container + a seed content Fact', () => {

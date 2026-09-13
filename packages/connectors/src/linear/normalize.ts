@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { extractExplicitLinks } from '../github/normalize.js';
+import { extractExplicitLinks } from '@folklore/utils';
 import type { NormalizedRecords } from '../normalized.js';
 import type {
   LinearComment,

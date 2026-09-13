@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { extractExplicitLinks } from '../github/normalize.js';
+import { extractExplicitLinks } from '@folklore/utils';
 import type { NormalizedActor, NormalizedRecords, NormalizedResource } from '../normalized.js';
 import { adfToText } from './adf-to-text.js';
 import type {

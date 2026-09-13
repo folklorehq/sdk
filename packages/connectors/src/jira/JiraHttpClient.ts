@@ -1,18 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { BaseApiClient } from '../BaseApiClient.js';
+import { resolveAtlassianCloudId } from '../atlassian/resolve-cloud-id.js';
 import type { JiraApiClient } from './client.js';
 import type { JiraComment, JiraIssue, JiraProject } from './types.js';
 
-const ACCESSIBLE_RESOURCES_URL = 'https://api.atlassian.com/oauth/token/accessible-resources';
 const API_BASE = 'https://api.atlassian.com/ex/jira';
 const ISSUE_FIELDS = 'summary,description,created,updated,reporter,assignee,status,project';
 const PAGE_SIZE = 100;
 const PROJECT_PAGE_SIZE = 50;
-
-interface AccessibleResource {
-  id: string;
-  url: string;
-}
 
 interface JqlSearchResponse {
   issues: JiraIssue[];
@@ -125,26 +120,7 @@ export class JiraHttpClient extends BaseApiClient implements JiraApiClient {
   }
 
   private async resolveCloudId(): Promise<string> {
-    if (this.cloudId) return this.cloudId;
-    const res = await fetch(ACCESSIBLE_RESOURCES_URL, {
-      headers: { Authorization: `Bearer ${this.token}`, Accept: 'application/json' },
-    });
-    if (!res.ok) {
-      throw Object.assign(new Error(`jira accessible-resources failed: ${res.status}`), {
-        status: res.status,
-      });
-    }
-    const resources = (await res.json()) as AccessibleResource[];
-    const first = resources[0];
-    if (!first) throw new Error('jira: no accessible Atlassian site for this token');
-    // Never silently pick a site: an ambiguous token must carry an explicit cloudId (threaded
-    // from connect-time) rather than guessing and ingesting the wrong Jira instance.
-    if (resources.length > 1) {
-      throw new Error(
-        `jira: token grants ${resources.length} sites; a cloudId must be configured to disambiguate`,
-      );
-    }
-    this.cloudId = first.id;
+    this.cloudId = await resolveAtlassianCloudId(this.token, this.cloudId, 'jira');
     return this.cloudId;
   }
 }

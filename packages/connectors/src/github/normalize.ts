@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { FACT_METRIC_KEYS, FACT_METRIC_UNITS, type FactMetricKey } from '@folklore/contracts';
+import { extractExplicitLinks } from '@folklore/utils';
 import type {
   NormalizedActor,
   NormalizedFact,
@@ -17,21 +18,6 @@ import type {
   PullRequestEvent,
   PushEvent,
 } from './types.js';
-
-const URL_RE = /https?:\/\/[^\s)]+/g;
-const ISSUE_REF_RE = /(?:^|\s)(#\d+)\b/g;
-
-/** Pull URLs and `#123` issue references out of free text (ADL: explicit_links). */
-export function extractExplicitLinks(body: string): string[] {
-  const links = new Set<string>();
-  for (const match of body.matchAll(URL_RE)) {
-    links.add(match[0]);
-  }
-  for (const match of body.matchAll(ISSUE_REF_RE)) {
-    if (match[1]) links.add(match[1]);
-  }
-  return [...links];
-}
 
 export function pullRequestContainerId(repo: GitHubRepo, pullNumber: number): string {
   return `${repo.full_name}#${pullNumber}`;

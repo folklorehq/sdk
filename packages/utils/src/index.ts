@@ -2,7 +2,14 @@
 export { sha256Hex, deterministicUuid, deriveSourceId } from './hash.js';
 export { canonicalJson, canonicalJsonHash } from './canonical-json.js';
 export { toVectorLiteral } from './vector.js';
-export { collapseWhitespace, truncate, initials, escapeRegExp, extractMentions } from './text.js';
+export {
+  collapseWhitespace,
+  truncate,
+  initials,
+  escapeRegExp,
+  extractExplicitLinks,
+  extractMentions,
+} from './text.js';
 export { groupBy, chunk } from './collection.js';
 export { mapWithConcurrency, timeLimited, sleep } from './async.js';
 export { parseJsonFence, extractJsonObject } from './json.js';

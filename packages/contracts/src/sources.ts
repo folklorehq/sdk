@@ -10,3 +10,11 @@ export const sourceCapabilitiesResponseSchema = z
   .strict();
 
 export type SourceCapabilitiesResponse = z.infer<typeof sourceCapabilitiesResponseSchema>;
+
+export const sourceActivationReadinessResponseSchema = z
+  .object({ orgId: z.string().uuid(), ready: z.boolean() })
+  .strict();
+
+export type SourceActivationReadinessResponse = z.infer<
+  typeof sourceActivationReadinessResponseSchema
+>;

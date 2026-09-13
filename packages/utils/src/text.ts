@@ -24,6 +24,21 @@ export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+const URL_RE = /https?:\/\/[^\s)]+/g;
+const ISSUE_REF_RE = /(?:^|\s)(#\d+)\b/g;
+
+/** Pull URLs and `#123` issue references out of free text (ADL: explicit_links). */
+export function extractExplicitLinks(body: string): string[] {
+  const links = new Set<string>();
+  for (const match of body.matchAll(URL_RE)) {
+    links.add(match[0]);
+  }
+  for (const match of body.matchAll(ISSUE_REF_RE)) {
+    if (match[1]) links.add(match[1]);
+  }
+  return [...links];
+}
+
 const MENTION_TOKEN = '[A-Za-z0-9._-]{1,64}';
 // `fk-person:<slug>` mention pills and `@handle` tokens (the latter only when not preceded by a word
 // char, so `foo@bar.com` in an address is not a mention). Returns lowercased target tokens only —
