@@ -15,11 +15,15 @@ import {
 } from '../../src/placement-identity/bootstrap.js';
 import {
   accountMaterializationEnvelopeV1Schema,
+  canonicalPlacementIdentityReceiptIdentityPreimageV1,
   legacyIdentityBindingEntryV1Schema,
   legacyIdentityBindingManifestV1Schema,
+  placementIdentityReceiptDigestV1,
+  placementIdentityReceiptIdentityPreimageV1Schema,
   placementIdentityReceiptV1Schema,
   type AccountMaterializationEnvelopeV1,
   type LegacyIdentityBindingManifestV1,
+  type PlacementIdentityReceiptIdentityPreimageV1,
   type PlacementIdentityReceiptV1,
 } from '../../src/placement-identity/account-binding.js';
 import {
@@ -126,6 +130,24 @@ function receipt(): PlacementIdentityReceiptV1 {
     maxRenewals: 12,
     signerKeyId: 'placement-authority-v1',
     authoritySignatureBase64: SIGNATURE,
+  };
+}
+
+function receiptIdentityPreimage(): PlacementIdentityReceiptIdentityPreimageV1 {
+  const value = receipt();
+  return {
+    schema: value.schema,
+    version: value.version,
+    transactionId: value.transactionId,
+    delegationId: value.delegationId,
+    method: value.method,
+    accountId: value.accountId,
+    accountBindingDigest: value.accountBindingDigest,
+    bootstrapKeyDigest: value.bootstrapKeyDigest,
+    identityProofDigest: value.identityProofDigest,
+    absoluteExpiresAt: value.absoluteExpiresAt,
+    maxRenewals: value.maxRenewals,
+    signerKeyId: value.signerKeyId,
   };
 }
 
@@ -468,6 +490,40 @@ describe('provider-neutral placement identity contracts', () => {
         consumedProofNonce: NONCE,
       }).proofDigest,
     ).toBe(DIGEST_C);
+  });
+
+  it('parses only the stable receipt identity preimage and rejects fixed or malformed fields', () => {
+    expect(
+      placementIdentityReceiptIdentityPreimageV1Schema.parse(receiptIdentityPreimage()),
+    ).toEqual(receiptIdentityPreimage());
+    expect(
+      placementIdentityReceiptDigestV1({ ...receipt(), identityReceiptDigest: DIGEST_D }),
+    ).toBe(placementIdentityReceiptDigestV1(receipt()));
+    expect(placementIdentityReceiptDigestV1(receiptIdentityPreimage())).toBe(
+      placementIdentityReceiptDigestV1(receipt()),
+    );
+
+    const rejections: ReadonlyArray<Record<string, unknown>> = [
+      { ...receiptIdentityPreimage(), schema: 'PlacementIdentityReceiptV2' },
+      { ...receiptIdentityPreimage(), version: 2 },
+      { ...receiptIdentityPreimage(), maxRenewals: 13 },
+      { ...receiptIdentityPreimage(), maxRenewals: 11 },
+      { ...receiptIdentityPreimage(), transactionId: 'not-a-uuid' },
+      { ...receiptIdentityPreimage(), accountId: 'not-a-uuid' },
+      { ...receiptIdentityPreimage(), delegationId: '' },
+      { ...receiptIdentityPreimage(), signerKeyId: 'not a canonical identifier' },
+      { ...receiptIdentityPreimage(), accountBindingDigest: 'A'.repeat(64) },
+      { ...receiptIdentityPreimage(), bootstrapKeyDigest: DIGEST_A.slice(0, 63) },
+      { ...receiptIdentityPreimage(), identityProofDigest: `${DIGEST_B}0` },
+      { ...receiptIdentityPreimage(), absoluteExpiresAt: '2026-08-25T01:00:00Z' },
+      { ...receiptIdentityPreimage(), issuedAt: ISSUED_AT },
+      { ...receiptIdentityPreimage(), identityReceiptDigest: DIGEST_C },
+      { ...receiptIdentityPreimage(), extra: true },
+    ];
+    for (const value of rejections) {
+      expect(placementIdentityReceiptIdentityPreimageV1Schema.safeParse(value).success).toBe(false);
+      expect(() => canonicalPlacementIdentityReceiptIdentityPreimageV1(value as never)).toThrow();
+    }
   });
 
   it('uses the same strict parse before canonical delegation bytes', () => {

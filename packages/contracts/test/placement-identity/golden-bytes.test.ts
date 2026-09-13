@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { sha256 } from '@noble/hashes/sha2';
 import { bytesToHex } from '@noble/hashes/utils';
 import { describe, expect, it } from 'vitest';
 
@@ -17,11 +18,15 @@ import {
   canonicalAccountMaterializationEnvelopeV1,
   canonicalLegacyIdentityBindingManifestSignaturePreimageV1,
   canonicalLegacyIdentityBindingManifestV1,
+  canonicalPlacementIdentityReceiptIdentityPreimageV1,
   canonicalPlacementIdentityReceiptSignaturePreimageV1,
   canonicalPlacementIdentityReceiptV1,
+  PLACEMENT_IDENTITY_RECEIPT_IDENTITY_DIGEST_DOMAIN_V1,
+  placementIdentityReceiptDigestV1,
   type LegacyIdentityBindingEntryV1,
   type AccountMaterializationEnvelopeV1,
   type LegacyIdentityBindingManifestV1,
+  type PlacementIdentityReceiptIdentityPreimageV1,
   type PlacementIdentityReceiptV1,
 } from '../../src/placement-identity/account-binding.js';
 import {
@@ -156,6 +161,35 @@ function receipt(): PlacementIdentityReceiptV1 {
     maxRenewals: 12,
     signerKeyId: 'placement-authority-v1',
     authoritySignatureBase64: SIGNATURE,
+  };
+}
+
+// Independent literal vectors computed outside the implementation under test.
+const RECEIPT_IDENTITY_PREIMAGE_HEX =
+  '0000000c0000001a506c6163656d656e744964656e746974795265636569707456310000000131' +
+  '0000002430303030303030302d303030302d343030302d383030302d3030303030303030303030' +
+  '310000000f64656c65676174696f6e2d30303031000000096d6963726f736f66740000002430' +
+  '303030303030302d303030302d343030302d383030302d303030303030303030303033000000' +
+  `40${'66'.repeat(64)}00000040${'61'.repeat(64)}00000040${'62'.repeat(64)}` +
+  '00000018323032362d30382d32355430313a30303a30302e3030305a00000002313200000016' +
+  '706c6163656d656e742d617574686f726974792d7631';
+const RECEIPT_IDENTITY_DIGEST = 'c86dc7b642d7d056cd67dfd5a9a73668be30543bd4a0a62b8ca93901d1a3244f';
+
+function receiptIdentityPreimage(): PlacementIdentityReceiptIdentityPreimageV1 {
+  const value = receipt();
+  return {
+    schema: value.schema,
+    version: value.version,
+    transactionId: value.transactionId,
+    delegationId: value.delegationId,
+    method: value.method,
+    accountId: value.accountId,
+    accountBindingDigest: value.accountBindingDigest,
+    bootstrapKeyDigest: value.bootstrapKeyDigest,
+    identityProofDigest: value.identityProofDigest,
+    absoluteExpiresAt: value.absoluteExpiresAt,
+    maxRenewals: value.maxRenewals,
+    signerKeyId: value.signerKeyId,
   };
 }
 
@@ -966,6 +1000,85 @@ describe('provider-neutral placement identity golden bytes', () => {
       expect(bytesToHex(changedPreimage())).toBe(bytesToHex(preimage()));
       expect(bytesToHex(changedArtifact())).not.toBe(bytesToHex(artifact()));
     }
+  });
+
+  it('matches the fixed receipt identity preimage bytes and stable identity digest', () => {
+    expect(
+      bytesToHex(canonicalPlacementIdentityReceiptIdentityPreimageV1(receiptIdentityPreimage())),
+    ).toBe(RECEIPT_IDENTITY_PREIMAGE_HEX);
+    expect(placementIdentityReceiptDigestV1(receipt())).toBe(RECEIPT_IDENTITY_DIGEST);
+    expect(placementIdentityReceiptDigestV1(receiptIdentityPreimage())).toBe(
+      RECEIPT_IDENTITY_DIGEST,
+    );
+    expect(PLACEMENT_IDENTITY_RECEIPT_IDENTITY_DIGEST_DOMAIN_V1).toBe(
+      'folklore.placement-identity-receipt.v1',
+    );
+  });
+
+  it('keeps the receipt signature preimage golden bytes byte-for-byte unchanged', () => {
+    expect(text(canonicalPlacementIdentityReceiptSignaturePreimageV1(receipt()))).toBe(
+      JSON.stringify([
+        'PlacementIdentityReceiptV1',
+        1,
+        TRANSACTION_ID,
+        'delegation-0001',
+        'microsoft',
+        ACCOUNT_ID,
+        DIGEST_F,
+        DIGEST_C,
+        DIGEST_A,
+        DIGEST_B,
+        ISSUED_AT,
+        RECEIPT_EXPIRES_AT,
+        TRANSACTION_EXPIRES_AT,
+        0,
+        12,
+        'placement-authority-v1',
+      ]),
+    );
+  });
+
+  it('changes the stable identity digest for every included identity field', () => {
+    const original = placementIdentityReceiptDigestV1(receipt());
+    const changes: ReadonlyArray<
+      readonly [keyof PlacementIdentityReceiptV1, string, PlacementIdentityReceiptV1]
+    > = [
+      ['transactionId', OTHER_TRANSACTION_ID, receipt()],
+      ['delegationId', 'delegation-0002', receipt()],
+      ['method', 'google', receipt()],
+      ['accountId', OTHER_ACCOUNT_ID, receipt()],
+      ['accountBindingDigest', DIGEST_G, receipt()],
+      ['bootstrapKeyDigest', DIGEST_B, receipt()],
+      ['identityProofDigest', DIGEST_E, receipt()],
+      ['absoluteExpiresAt', '2026-08-25T00:59:59.999Z', receipt()],
+      ['signerKeyId', 'placement-authority-v2', receipt()],
+    ];
+    for (const [field, replacement] of changes) {
+      const changed = { ...receipt(), [field]: replacement } as PlacementIdentityReceiptV1;
+      expect(placementIdentityReceiptDigestV1(changed)).not.toBe(original);
+    }
+  });
+
+  it('excludes the self digest, signature, and volatile issuance fields', () => {
+    const original = placementIdentityReceiptDigestV1(receipt());
+    expect(
+      placementIdentityReceiptDigestV1({ ...receipt(), identityReceiptDigest: DIGEST_D }),
+    ).toBe(original);
+    expect(
+      placementIdentityReceiptDigestV1({ ...receipt(), authoritySignatureBase64: OTHER_SIGNATURE }),
+    ).toBe(original);
+    expect(
+      placementIdentityReceiptDigestV1({ ...receipt(), issuedAt: '2026-08-25T00:00:01.000Z' }),
+    ).toBe(original);
+    expect(
+      placementIdentityReceiptDigestV1({ ...receipt(), expiresAt: '2026-08-25T00:04:00.000Z' }),
+    ).toBe(original);
+    expect(placementIdentityReceiptDigestV1({ ...receipt(), renewalCount: 1 })).toBe(original);
+  });
+
+  it('domain-separates the stable identity digest from raw tuple bytes', () => {
+    const bytes = canonicalPlacementIdentityReceiptIdentityPreimageV1(receiptIdentityPreimage());
+    expect(placementIdentityReceiptDigestV1(receipt())).not.toBe(bytesToHex(sha256(bytes)));
   });
 
   it('keeps the neutral family separate from legacy Google V1/V2 contracts', () => {

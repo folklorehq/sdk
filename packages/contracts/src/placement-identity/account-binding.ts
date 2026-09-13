@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, concatBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { z } from 'zod';
 
 import {
@@ -73,6 +75,32 @@ export const placementIdentityReceiptV1Schema = z
   });
 
 export type PlacementIdentityReceiptV1 = z.infer<typeof placementIdentityReceiptV1Schema>;
+
+export const PLACEMENT_IDENTITY_RECEIPT_IDENTITY_DIGEST_DOMAIN_V1 =
+  'folklore.placement-identity-receipt.v1';
+
+// Stable receipt identity fields; excludes identityReceiptDigest, the signature, and volatile
+// issuance/expiry/renewal fields so the digest survives renewals.
+export const placementIdentityReceiptIdentityPreimageV1Schema = z
+  .object({
+    schema: z.literal('PlacementIdentityReceiptV1'),
+    version: z.literal(1),
+    transactionId: placementIdentityTransactionIdV1Schema,
+    delegationId: identifierSchema,
+    method: placementIdentityMethodV1Schema,
+    accountId: accountIdSchema,
+    accountBindingDigest: digest64Schema,
+    bootstrapKeyDigest: digest64Schema,
+    identityProofDigest: digest64Schema,
+    absoluteExpiresAt: placementIdentityTimestampV1Schema,
+    maxRenewals: z.literal(PLACEMENT_IDENTITY_MAX_RENEWALS),
+    signerKeyId: identifierSchema,
+  })
+  .strict();
+
+export type PlacementIdentityReceiptIdentityPreimageV1 = z.infer<
+  typeof placementIdentityReceiptIdentityPreimageV1Schema
+>;
 
 export const accountMaterializationEnvelopeV1Schema = z
   .object({
@@ -189,6 +217,81 @@ export function canonicalPlacementIdentityReceiptSignaturePreimageV1(
 export function canonicalPlacementIdentityReceiptV1(input: PlacementIdentityReceiptV1): Uint8Array {
   const value = placementIdentityReceiptV1Schema.parse(input);
   return new TextEncoder().encode(canonicalJson(value));
+}
+
+// Length-prefixed tuple framing, byte-identical to the legacy placement-authority receipt preimages.
+function receiptIdentityTuple(fields: readonly (string | number)[]): Uint8Array {
+  const encoded = fields.map((field) => utf8ToBytes(String(field)));
+  const result = new Uint8Array(4 + encoded.reduce((size, value) => size + 4 + value.length, 0));
+  const view = new DataView(result.buffer);
+  view.setUint32(0, fields.length);
+  let offset = 4;
+  for (const value of encoded) {
+    view.setUint32(offset, value.length);
+    offset += 4;
+    result.set(value, offset);
+    offset += value.length;
+  }
+  return result;
+}
+
+function receiptIdentityPreimage(
+  input: PlacementIdentityReceiptV1 | PlacementIdentityReceiptIdentityPreimageV1,
+): PlacementIdentityReceiptIdentityPreimageV1 {
+  const receipt = placementIdentityReceiptV1Schema.safeParse(input);
+  if (!receipt.success) return placementIdentityReceiptIdentityPreimageV1Schema.parse(input);
+  const value = receipt.data;
+  return {
+    schema: value.schema,
+    version: value.version,
+    transactionId: value.transactionId,
+    delegationId: value.delegationId,
+    method: value.method,
+    accountId: value.accountId,
+    accountBindingDigest: value.accountBindingDigest,
+    bootstrapKeyDigest: value.bootstrapKeyDigest,
+    identityProofDigest: value.identityProofDigest,
+    absoluteExpiresAt: value.absoluteExpiresAt,
+    maxRenewals: value.maxRenewals,
+    signerKeyId: value.signerKeyId,
+  };
+}
+
+export function canonicalPlacementIdentityReceiptIdentityPreimageV1(
+  input: PlacementIdentityReceiptIdentityPreimageV1,
+): Uint8Array {
+  const value = placementIdentityReceiptIdentityPreimageV1Schema.parse(input);
+  return receiptIdentityTuple([
+    value.schema,
+    value.version,
+    value.transactionId,
+    value.delegationId,
+    value.method,
+    value.accountId,
+    value.accountBindingDigest,
+    value.bootstrapKeyDigest,
+    value.identityProofDigest,
+    value.absoluteExpiresAt,
+    value.maxRenewals,
+    value.signerKeyId,
+  ]);
+}
+
+export function placementIdentityReceiptDigestV1(
+  input: PlacementIdentityReceiptV1 | PlacementIdentityReceiptIdentityPreimageV1,
+): string {
+  const preimage = canonicalPlacementIdentityReceiptIdentityPreimageV1(
+    receiptIdentityPreimage(input),
+  );
+  return bytesToHex(
+    sha256(
+      concatBytes(
+        utf8ToBytes(PLACEMENT_IDENTITY_RECEIPT_IDENTITY_DIGEST_DOMAIN_V1),
+        Uint8Array.of(0),
+        preimage,
+      ),
+    ),
+  );
 }
 
 export function canonicalAccountMaterializationEnvelopeSignaturePreimageV1(
