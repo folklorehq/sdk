@@ -18,6 +18,12 @@ export const PLACEMENT_IDENTITY_MAX_TRANSACTION_LIFETIME_MS = 60 * 60 * 1000;
 export const PLACEMENT_IDENTITY_MAX_RECEIPT_LIFETIME_MS = 5 * 60 * 1000;
 export const PLACEMENT_IDENTITY_MAX_RENEWALS = 12;
 
+// Upper bound on the provider id token carried as the placement sign-in proof. The placement
+// authority enforces the same ceiling on the opaque token it accepts; the value lives here because
+// `placement-authority.ts` is excluded from the product mirror and any mirrored module that imports
+// it fails to build.
+export const PLACEMENT_IDENTITY_MAX_PROVIDER_PROOF_CHARS = 16 * 1024;
+
 export const placementIdentityTimestampV1Schema = z
   .string()
   .regex(RFC3339_UTC_PATTERN, 'timestamp must be canonical UTC')

@@ -44,6 +44,11 @@ import {
   type PlacementIdentityOperationRecordV1,
   type PlacementIdentityOperationResultV1,
 } from '../../src/placement-identity/operation.js';
+import {
+  placementSignInProviderProofRequestV1Schema,
+  placementSignInProviderProofResponseV1,
+  placementSignInProviderProofResponseV1Schema,
+} from '../../src/placement-identity/sign-in-proof.js';
 
 const SPKI = 'MCowBQYDK2VwAyEAONJrM8mqpI4ZALNnVQHweHj6nRa37GeVBgF7w/L0pWY=';
 const SIGNATURE = `${'A'.repeat(86)}==`;
@@ -535,6 +540,52 @@ describe('provider-neutral placement identity contracts', () => {
     );
     expect(() =>
       canonicalPlacementIdentityAuthDelegationV1({ ...delegation(), unknown: 'field' } as never),
+    ).toThrow();
+  });
+});
+
+describe('placement sign-in provider proof transport contract', () => {
+  const request = {
+    schema: 'PlacementSignInProviderProofRequestV1' as const,
+    version: 1 as const,
+    method: 'google' as const,
+    challengeDigest: DIGEST_A,
+  };
+
+  it('accepts only the contractual method and challenge digest from the caller', () => {
+    expect(placementSignInProviderProofRequestV1Schema.parse(request)).toEqual(request);
+  });
+
+  it.each([
+    ['an identity digest', { tenantOwnerIdentityDigest: DIGEST_B }],
+    ['an account', { accountId: 'account-from-caller' }],
+    ['a caller-supplied proof', { proof: 'attacker-controlled' }],
+    ['a caller-supplied tenant', { tenantId: 'tenant-from-caller' }],
+  ])('rejects %s so a caller cannot select identity', (_name, extra) => {
+    expect(() =>
+      placementSignInProviderProofRequestV1Schema.parse({ ...request, ...extra }),
+    ).toThrow();
+  });
+
+  it('rejects a malformed challenge digest, a non-contractual method, and a wrong version', () => {
+    expect(() =>
+      placementSignInProviderProofRequestV1Schema.parse({ ...request, challengeDigest: 'short' }),
+    ).toThrow();
+    expect(() =>
+      placementSignInProviderProofRequestV1Schema.parse({ ...request, method: 'github' }),
+    ).toThrow();
+    expect(() =>
+      placementSignInProviderProofRequestV1Schema.parse({ ...request, version: 2 }),
+    ).toThrow();
+  });
+
+  it('carries the opaque proof alone and bounds its length', () => {
+    expect(placementSignInProviderProofResponseV1('opaque-proof')).toEqual({
+      proof: 'opaque-proof',
+    });
+    expect(() => placementSignInProviderProofResponseV1('')).toThrow();
+    expect(() =>
+      placementSignInProviderProofResponseV1Schema.parse({ proof: 'p', extra: true }),
     ).toThrow();
   });
 });
