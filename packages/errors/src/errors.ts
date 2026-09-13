@@ -29,6 +29,28 @@ export class ConflictError extends AppError {
   }
 }
 
+/** A staff account cannot change its own role. */
+export class CannotChangeSelfError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('Staff self-change is not permitted', {
+      ...options,
+      code: 'cannot_change_self',
+      category: 'conflict',
+    });
+  }
+}
+
+/** A role change must leave one or more super admins. */
+export class LastSuperAdminError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('The last super admin cannot be removed', {
+      ...options,
+      code: 'last_super_admin',
+      category: 'conflict',
+    });
+  }
+}
+
 /** A rate limit (ours or an upstream source's) was hit. */
 export class RateLimitError extends AppError {
   constructor(message: string, options: AppErrorOptions = {}) {

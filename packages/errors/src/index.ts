@@ -10,6 +10,8 @@ export {
   NotFoundError,
   ForbiddenError,
   ConflictError,
+  CannotChangeSelfError,
+  LastSuperAdminError,
   IdentityLinkRequiredError,
   RateLimitError,
   ExternalServiceError,

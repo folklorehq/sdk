@@ -2,9 +2,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   AppError,
+  CannotChangeSelfError,
   ConflictError,
   ExternalServiceError,
   InternalError,
+  LastSuperAdminError,
   NotFoundError,
   ValidationError,
   isAppError,
@@ -27,6 +29,13 @@ describe('AppError subclasses', () => {
     expect(new NotFoundError('x').httpStatus).toBe(404);
     expect(new ConflictError('x').httpStatus).toBe(409);
     expect(new ExternalServiceError('x').httpStatus).toBe(502);
+  });
+
+  it('uses stable staff-role conflict codes', () => {
+    expect(new CannotChangeSelfError().code).toBe('cannot_change_self');
+    expect(new CannotChangeSelfError().httpStatus).toBe(409);
+    expect(new LastSuperAdminError().code).toBe('last_super_admin');
+    expect(new LastSuperAdminError().httpStatus).toBe(409);
   });
 
   it('treat internal errors as non-operational by default', () => {
