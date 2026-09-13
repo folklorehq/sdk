@@ -9,6 +9,7 @@ export type SafeLogValue = string | number | boolean | null;
 
 /** Operational field names permitted at the structured logging boundary. */
 export const SAFE_LOG_FIELDS = Object.freeze([
+  'accountId',
   'attempt',
   'bytes',
   'cachedCalls',

@@ -45,3 +45,12 @@ describe('checkSafeLogContext', () => {
     expect(checkSafeLogContext({ generation: 3 })).toBeNull();
   });
 });
+
+describe('accountId is a distinct id, not free text', () => {
+  it('accepts a uuid and rejects anything that could carry an identity', () => {
+    expect(checkSafeLogContext({ accountId: '3d8d50c9-9439-402f-b997-ce22ee81b035' })).toBeNull();
+    for (const value of ['nate@folklorehq.com', 'not-a-uuid', '']) {
+      expect(checkSafeLogContext({ accountId: value })).not.toBeNull();
+    }
+  });
+});
