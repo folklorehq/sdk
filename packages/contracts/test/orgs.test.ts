@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   emailDeliverySchema,
   orgInviteContextSchema,
+  phaseForProvisioningStatus,
   provisionOperationSchema,
   provisioningStatusSchema,
   provisioningStateSchema,
@@ -115,5 +116,40 @@ describe('provisioningStatusSchema', () => {
         readyAt: null,
       }),
     ).toMatchObject({ state: 'provisioned', readyAt: null });
+  });
+
+  it('defaults the blocker to null and accepts only the placement-required discriminator', () => {
+    const base = {
+      operationId: '11111111-1111-4111-8111-111111111111',
+      state: 'provisioning' as const,
+      failureCode: null,
+      readyAt: null,
+    };
+
+    expect(provisioningStatusSchema.parse(base)).toMatchObject({ blocker: null });
+    expect(
+      provisioningStatusSchema.parse({ ...base, blocker: 'placement_required' }),
+    ).toMatchObject({ blocker: 'placement_required' });
+    expect(
+      provisioningStatusSchema.safeParse({ ...base, blocker: 'no_placement_binding' }).success,
+    ).toBe(false);
+    expect(
+      provisioningStatusSchema.safeParse({ ...base, blocker: 'provider exception text' }).success,
+    ).toBe(false);
+  });
+});
+
+describe('phaseForProvisioningStatus', () => {
+  it('maps the explicit placement blocker before the persisted lifecycle state', () => {
+    const status = provisioningStatusSchema.parse({
+      operationId: '11111111-1111-4111-8111-111111111111',
+      state: 'provisioning',
+      failureCode: null,
+      readyAt: null,
+      blocker: 'placement_required',
+    });
+
+    expect(phaseForProvisioningStatus(status)).toBe('placementRequired');
+    expect(phaseForProvisioningStatus({ ...status, blocker: null })).toBe('provisioning');
   });
 });

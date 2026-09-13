@@ -90,6 +90,13 @@ export const provisioningFailureCodeSchema = z.enum([
 ]);
 export type ProvisioningFailureCode = z.infer<typeof provisioningFailureCodeSchema>;
 
+export const provisioningBlockerSchema = z.enum(['placement_required']);
+export type ProvisioningBlocker = z.infer<typeof provisioningBlockerSchema>;
+
+export const PROVISIONING_BLOCKER = {
+  placementRequired: 'placement_required',
+} as const satisfies Record<string, ProvisioningBlocker>;
+
 // The response body carries `AppError.code` — the taxonomy bucket (`not_found`, `rate_limit`) — so
 // the specific cause rides a separate `reason` field. Defined once here because the control plane
 // throws these and the console branches on them; two inline copies is how the two sides drift.
@@ -204,6 +211,7 @@ export const provisioningStatusSchema = provisionOperationSchema
   .extend({
     readyAt: z.string().datetime().nullable(),
     commissioning: commissioningProvisioningStatusSchema.nullable().default(null),
+    blocker: provisioningBlockerSchema.nullable().default(null),
   })
   .strict();
 export type ProvisioningStatus = z.infer<typeof provisioningStatusSchema>;
@@ -216,8 +224,10 @@ export const provisioningPhaseSchema = z.enum([
   'failed',
 ]);
 export type ProvisioningPhase = z.infer<typeof provisioningPhaseSchema>;
+export type ProvisioningDisplayPhase = ProvisioningPhase | 'placementRequired';
 
-export function phaseForProvisioningStatus(status: ProvisioningStatus): ProvisioningPhase {
+export function phaseForProvisioningStatus(status: ProvisioningStatus): ProvisioningDisplayPhase {
+  if (status.blocker === PROVISIONING_BLOCKER.placementRequired) return 'placementRequired';
   if (status.state === 'provisioned') return status.readyAt ? 'ready' : 'verifying';
   return status.state;
 }
