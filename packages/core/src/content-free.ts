@@ -157,7 +157,7 @@ function isSafeLogValue(key: string, value: unknown): boolean {
   if (typeof value !== 'string' || value.length > MAX_VALUE_LENGTH) return false;
   if (CODE_VALUE_FIELDS.has(key)) return SAFE_LOG_EVENT_PATTERN.test(value);
   if (key === 'requestId') return SAFE_LOG_REQUEST_ID_PATTERN.test(value);
-  if (key === 'orgId' || key === 'messageId' || key === 'accountId')
+  if (key === 'orgId' || key === 'messageId' || key === 'accountId' || key === 'derivedAccountId')
     return SAFE_DISTINCT_ID_PATTERN.test(value);
   if (key === 'model') return SAFE_LOG_MODEL_PATTERN.test(value);
   return false;

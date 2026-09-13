@@ -17,6 +17,7 @@ export const SAFE_LOG_FIELDS = Object.freeze([
   'component',
   'completionTokens',
   'count',
+  'derivedAccountId',
   'duration',
   'errorCode',
   'error_type',
