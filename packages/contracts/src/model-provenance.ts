@@ -104,7 +104,7 @@ const verifiedModelProvenanceFields = {
 };
 
 // Provider-native decisions carry native evidence identity and no proof; controlled-gateway
-// decisions carry proof identity and no native evidence. Any mix fails closed (plan Task 1).
+// decisions carry proof identity and no native evidence. Any mix fails closed.
 function enforceSourceSpecificIdentity(value: {
   source: ModelProvenanceSourceV1;
   proofDigest: string | null;

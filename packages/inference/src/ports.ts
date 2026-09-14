@@ -560,7 +560,7 @@ export interface PreForwardRouteExpectation {
   readonly trustedTimeCheckpointDigest: string;
 }
 
-// The post-proof result (plan Task 3): every pre-forward expectation field plus the opaque
+// The post-proof result: every pre-forward expectation field plus the opaque
 // proof identity, the full controlled binding digest, and the controlled-gateway source tag.
 // The runtime brand lives in ControlledGatewayModelArtifactBindingVerifier; only that module
 // mints it, and ModelProvenanceGate accepts controlled bindings only through its guard.
@@ -647,7 +647,7 @@ export interface PreForwardRouteProofVerifierPort {
 }
 
 // The native evidence verifier receives the expected session and keyset identity and returns
-// all of it in its result (plan Task 3). The provider-native binding verifier derives the
+// all of it in its result. The provider-native binding verifier derives the
 // expected route identity only from the branded role binding and consumes the returned digest
 // byte-for-byte; it never hashes raw evidence or reconstructs an aggregate digest.
 export interface ProviderNativeModelArtifactEvidenceV1 {

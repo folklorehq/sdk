@@ -29,7 +29,7 @@ export const GENERATION_HIGH_WATER_POINTER_CONTRACT = 'HighWaterPointerV1';
 export const DURABLE_GENERATION_HIGH_WATER_CHECKPOINT_V1_SCHEMA =
   'folklore.durable-generation-high-water-checkpoint.v1' as const;
 
-// The one canonical generation context (plan Task 2). Declared exactly once here; every
+// The one canonical generation context. Declared exactly once here; every
 // transport, carrier, boot, and snapshot consumer imports this type and never declares a local
 // seven-field or keyset high-water replacement.
 export interface GenerationContextV1 {
