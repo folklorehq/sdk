@@ -11,6 +11,7 @@ export {
   type MonotonicCache,
   type Closable,
 } from './ports.js';
+export type { RateLimitDecision, RateLimiter, RateLimitRequest } from './rate-limiter.js';
 export { ShutdownManager, type ShutdownHandler, type ShutdownOptions } from './ShutdownManager.js';
 export {
   checkContentFree,
