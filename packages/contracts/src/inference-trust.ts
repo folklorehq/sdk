@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
+import {
+  base64Ed25519PublicKeySchema,
+  base64Ed25519SignatureSchema,
+  digest64Schema,
+  measurement96Schema,
+} from './shared.js';
+
 const MAX_IDENTIFIER_LENGTH = 128;
 const MAX_MODEL_ID_LENGTH = 256;
 const MAX_ROUTE_LENGTH = 2_048;
@@ -10,21 +17,15 @@ const identifierSchema = z
   .min(1)
   .max(MAX_IDENTIFIER_LENGTH)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
-const digestSchema = z.string().regex(/^[0-9a-f]{64}$/);
+const digestSchema = digest64Schema;
 const kmsKeyArnSchema = z
   .string()
   .regex(
     /^arn:[a-z0-9-]+:kms:[a-z0-9-]+:\d{12}:key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
   );
-const measurementSchema = z.string().regex(/^[0-9a-f]{96}$/);
-const rawEd25519PublicKeySchema = z
-  .string()
-  .length(44)
-  .regex(/^[A-Za-z0-9+/]{43}=$/);
-const ed25519SignatureSchema = z
-  .string()
-  .length(88)
-  .regex(/^[A-Za-z0-9+/]{86}==$/);
+const measurementSchema = measurement96Schema;
+const rawEd25519PublicKeySchema = base64Ed25519PublicKeySchema;
+const ed25519SignatureSchema = base64Ed25519SignatureSchema;
 const nonceSchema = rawEd25519PublicKeySchema;
 const positiveSafeIntegerSchema = z.number().int().safe().positive();
 const providerModelSchema = z

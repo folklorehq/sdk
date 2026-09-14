@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
+import {
+  base64Ed25519PublicKeySchema,
+  base64Ed25519SignatureSchema,
+  digest64Schema,
+} from './shared.js';
+
 const OPAQUE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
-const SHA256_PATTERN = /^[0-9a-f]{64}$/;
-const ED25519_PUBLIC_KEY_PATTERN = /^[A-Za-z0-9+/]{43}=$/;
-const ED25519_SIGNATURE_PATTERN = /^[A-Za-z0-9+/]{86}==$/;
 const CANARY_FACT_COUNT_MAX = 1_000_000;
 
 const authorizationFields = {
@@ -12,10 +15,10 @@ const authorizationFields = {
   deployment_id: z.string().min(1).max(128),
   canary_run_id: z.string().uuid(),
   request_id: z.string().regex(OPAQUE_ID_PATTERN),
-  body_sha256: z.string().regex(SHA256_PATTERN),
+  body_sha256: digest64Schema,
   attestation_challenge_id: z.string().uuid(),
   attestation_generation: z.string().uuid(),
-  attestation_session_key_sha256: z.string().regex(SHA256_PATTERN),
+  attestation_session_key_sha256: digest64Schema,
 };
 
 export const canaryAuthorizationRequestSchema = z
@@ -41,8 +44,8 @@ export const canaryAuthorizationSchema = z
 export const canaryAuthorizationProofSchema = z
   .object({
     ...canaryAuthorizationSchema.shape,
-    public_key: z.string().regex(ED25519_PUBLIC_KEY_PATTERN),
-    signature: z.string().regex(ED25519_SIGNATURE_PATTERN),
+    public_key: base64Ed25519PublicKeySchema,
+    signature: base64Ed25519SignatureSchema,
   })
   .strict();
 
@@ -50,7 +53,7 @@ export const canaryAuthorizationOutcomeProofSchema = canaryAuthorizationProofSch
   .extend({
     status: z.literal('succeeded'),
     fact_count: z.number().int().nonnegative().max(CANARY_FACT_COUNT_MAX),
-    outcome_sha256: z.string().regex(SHA256_PATTERN),
+    outcome_sha256: digest64Schema,
   })
   .strict();
 

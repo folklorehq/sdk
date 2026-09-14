@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
+import { base64Ed25519SignatureSchema, digest64Schema } from './shared.js';
+
 const MAX_IDENTIFIER_LENGTH = 128;
 const MAX_SIGNATURE_LENGTH = 8_192;
 const identifierSchema = z
@@ -8,7 +10,7 @@ const identifierSchema = z
   .min(1)
   .max(MAX_IDENTIFIER_LENGTH)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
-const digestSchema = z.string().regex(/^[0-9a-f]{64}$/);
+const digestSchema = digest64Schema;
 const positiveSafeIntegerSchema = z.number().int().safe().positive();
 const timestampSchema = z
   .string()
@@ -18,10 +20,7 @@ const nonceSchema = z
   .string()
   .length(44)
   .regex(/^[A-Za-z0-9+/]{43}=$/);
-const ed25519SignatureSchema = z
-  .string()
-  .length(88)
-  .regex(/^[A-Za-z0-9+/]{86}==$/);
+const ed25519SignatureSchema = base64Ed25519SignatureSchema;
 const kmsSignatureSchema = z
   .string()
   .min(1)

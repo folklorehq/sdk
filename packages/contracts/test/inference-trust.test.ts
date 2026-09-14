@@ -284,7 +284,7 @@ function activePolicyAuthorizationEnvelopeFixture(): Record<string, unknown> {
     signerKeyId: 'policy-authority-1',
     signatureAlgorithm: 'Ed25519',
     policySignature: 'A'.repeat(86) + '==',
-    signature: 'B'.repeat(86) + '==',
+    signature: 'A'.repeat(85) + 'Q==',
   };
 }
 
@@ -496,7 +496,7 @@ describe('inferenceReceiptV1Schema', () => {
       { ...receipt, responseSha256: 'e'.repeat(64) },
       { ...receipt, model: 'qwen/qwen3-32b' },
       { ...receipt, modelRevision: '2026-08-10' },
-      { ...receipt, nonce: 'B'.repeat(43) + '=' },
+      { ...receipt, nonce: 'A'.repeat(42) + 'Q=' },
       { ...receipt, channelKeyDigest: 'f'.repeat(64) },
       { ...receipt, workloadId: 'workload-2' },
       { ...receipt, route: '/v1/other' },

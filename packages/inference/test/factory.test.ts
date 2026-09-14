@@ -19,7 +19,7 @@ const TEST_POLICY: InferenceTrustPolicyV1 = {
   attestationKeys: [
     { keyId: 'attestation-key-1', algorithm: 'Ed25519', publicKey: `${'A'.repeat(43)}=` },
   ],
-  receiptKeys: [{ keyId: 'receipt-key-1', algorithm: 'Ed25519', publicKey: `${'B'.repeat(43)}=` }],
+  receiptKeys: [{ keyId: 'receipt-key-1', algorithm: 'Ed25519', publicKey: `${'B'.repeat(42)}A=` }],
   permittedModels: [{ model: 'provider/model', revision: 'revision-1' }],
   roleModels: {
     embed: { model: 'provider/model', revision: 'revision-1' },

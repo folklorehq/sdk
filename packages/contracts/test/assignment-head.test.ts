@@ -211,7 +211,7 @@ describe('headAppendAuthorizationSchema', () => {
       { ...parsed, approval: { ...parsed.approval, recordId: 'approval-2' } },
       { ...parsed, approval: { ...parsed.approval, recordDigest: '5'.repeat(64) } },
       { ...parsed, approval: { ...parsed.approval, signerKeyId: 'approval-key-2' } },
-      { ...parsed, approval: { ...parsed.approval, signature: 'B'.repeat(86) + '==' } },
+      { ...parsed, approval: { ...parsed.approval, signature: 'A'.repeat(85) + 'Q==' } },
       { ...parsed, issuer: { ...parsed.issuer, keyId: 'issuer-key-2' } },
     ]) {
       const payload = Buffer.from(

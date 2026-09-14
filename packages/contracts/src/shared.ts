@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
+import { canonicalJson as canonicalJsonFromUtils } from '@folklore/utils/canonical-json-pure';
+
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/;
 const HEX_DIGEST_PATTERN = /^[0-9a-f]{64}$/;
 const GIT_COMMIT_PATTERN = /^[0-9a-f]{40}$/;
@@ -9,7 +11,7 @@ const ED25519_SIGNATURE_PATTERN = /^(?:[A-Za-z0-9+/]{4}){21}[A-Za-z0-9+/]{2}==$/
 const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
-function decodeCanonicalBase64(value: string): Uint8Array {
+export function decodeCanonicalBase64(value: string, expectedLength?: number): Uint8Array {
   if (!BASE64_PATTERN.test(value)) throw new TypeError('bytes must be canonical base64');
   const paddingLength = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0;
   const output = new Uint8Array((value.length / 4) * 3 - paddingLength);
@@ -33,6 +35,9 @@ function decodeCanonicalBase64(value: string): Uint8Array {
     if (outputIndex < output.length) output[outputIndex++] = (first << 2) | (second >> 4);
     if (outputIndex < output.length) output[outputIndex++] = ((second & 0x0f) << 4) | (third >> 2);
     if (outputIndex < output.length) output[outputIndex++] = ((third & 0x03) << 6) | fourth;
+  }
+  if (expectedLength !== undefined && output.length !== expectedLength) {
+    throw new TypeError('bytes must decode to the expected length');
   }
   return output;
 }
@@ -84,6 +89,25 @@ export const base64Ed25519SignatureSchema = z
     }
   }, 'signature must be canonical base64 Ed25519 bytes');
 
+// Ed25519 raw public keys are 32 canonical base64 bytes.
+export const base64Ed25519PublicKeySchema = z
+  .string()
+  .regex(BASE64_PATTERN, 'public key must be canonical base64')
+  .refine((value) => {
+    try {
+      return decodeCanonicalBase64(value).length === 32;
+    } catch {
+      return false;
+    }
+  }, 'public key must decode to 32 bytes')
+  .refine((value) => {
+    try {
+      return encodeBase64(decodeCanonicalBase64(value)) === value;
+    } catch {
+      return false;
+    }
+  }, 'public key must be canonical base64');
+
 // Ed25519 SubjectPublicKeyInfo DER is a fixed 12-byte ASN.1 prefix plus the 32-byte public key.
 export const ed25519SpkiSchema = z
   .string()
@@ -105,10 +129,11 @@ export const opaqueS3VersionIdSchema = z
 
 export function canonicalBase64BytesSchema(input: {
   readonly maxDecodedBytes: number;
+  readonly minEncodedBytes?: number;
 }): z.ZodType<string> {
   return z
     .string()
-    .min(1)
+    .min(input.minEncodedBytes ?? 1)
     .regex(BASE64_PATTERN, 'bytes must be canonical base64')
     .refine((value) => {
       try {
@@ -130,22 +155,6 @@ export type Digest64 = z.infer<typeof digest64Schema>;
 export type GitCommit = z.infer<typeof gitCommitSchema>;
 export type Measurement96 = z.infer<typeof measurement96Schema>;
 export type Base64Ed25519Signature = z.infer<typeof base64Ed25519SignatureSchema>;
+export type Base64Ed25519PublicKey = z.infer<typeof base64Ed25519PublicKeySchema>;
 
-export function canonicalJson(value: unknown): string {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') {
-    return JSON.stringify(value);
-  }
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new TypeError('canonical JSON requires finite numbers');
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (typeof value === 'object') {
-    const record = value as Record<string, unknown>;
-    return `{${Object.keys(record)
-      .sort()
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
-      .join(',')}}`;
-  }
-  throw new TypeError('canonical JSON requires JSON values');
-}
+export { canonicalJsonFromUtils as canonicalJson };

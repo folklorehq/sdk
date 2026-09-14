@@ -609,8 +609,17 @@ describe('wiki publication wire contracts', () => {
     expect(wikiPublishRequestSchema.safeParse({ ...request, yjsState: '****' }).success).toBe(
       false,
     );
+  });
+
+  it('enforces the decoded yjs state size limit at the exact boundary', () => {
+    const atLimit = 'A'.repeat(2_000_000);
+    const oneByteOverLimit = `${atLimit}AA==`;
+
+    expect(wikiPublishRequestSchema.safeParse({ ...request, yjsState: atLimit }).success).toBe(
+      true,
+    );
     expect(
-      wikiPublishRequestSchema.safeParse({ ...request, yjsState: 'A'.repeat(2_000_001) }).success,
+      wikiPublishRequestSchema.safeParse({ ...request, yjsState: oneByteOverLimit }).success,
     ).toBe(false);
   });
 

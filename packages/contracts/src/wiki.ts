@@ -2,6 +2,8 @@
 import { z } from 'zod';
 import { documentTypeSchema } from './document-types.js';
 
+import { canonicalBase64BytesSchema } from './shared.js';
+
 // Rich wiki content blocks. Shared, frozen shape: synthesis (@folklore/wiki
 // + enclave) emits these and the box renders them from this single definition — never a
 // re-declared mirror. A block's outer `type` is `${kind}:${id}` so a page may hold many
@@ -461,19 +463,13 @@ export const wikiPageMetaSchema = z
   .strict();
 export type WikiPageMeta = z.infer<typeof wikiPageMetaSchema>;
 
-const canonicalBase64Schema = z
-  .string()
-  .min(4)
-  .max(2_000_000)
-  .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/);
-
 export const wikiPublishRequestSchema = z
   .object({
     requestId: z.string().uuid(),
     expectedRevisionId: z.string().uuid().nullable(),
     title: z.string().trim().min(1).max(240),
     markdown: z.string().max(500_000),
-    yjsState: canonicalBase64Schema,
+    yjsState: canonicalBase64BytesSchema({ maxDecodedBytes: 1_500_000, minEncodedBytes: 4 }),
   })
   .strict();
 export type WikiPublishRequest = z.infer<typeof wikiPublishRequestSchema>;

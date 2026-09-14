@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 import { deterministicUuid, sha256Hex } from '../src/hash.js';
-import { canonicalJson, canonicalJsonHash } from '../src/canonical-json.js';
+import { canonicalJsonHash } from '../src/canonical-json.js';
+import { canonicalJson } from '../src/canonical-json-pure.js';
 import { collapseWhitespace, escapeRegExp, initials, truncate } from '../src/text.js';
 import { toVectorLiteral } from '../src/vector.js';
 import { mulberry32, seedFromString } from '../src/random.js';
@@ -42,6 +45,11 @@ describe('hash', () => {
 });
 
 describe('canonical JSON', () => {
+  it('keeps the package browser entrypoint free of Node hashing dependencies', () => {
+    const source = readFileSync(new URL('../src/canonical-json-pure.ts', import.meta.url), 'utf8');
+    expect(source).not.toContain("from './hash.js'");
+  });
+
   it('orders object keys recursively before hashing', () => {
     expect(canonicalJson({ b: [2, { z: true, a: null }], a: 'one' })).toBe(
       '{"a":"one","b":[2,{"a":null,"z":true}]}',

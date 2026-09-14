@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
+import { base64Ed25519SignatureSchema, digest64Schema } from './shared.js';
+
 export const ENCLAVE_OUTPUT_VERSION = 1 as const;
 const NONCE_PATTERN = /^[0-9a-f]{64}$/;
-const DIGEST_PATTERN = /^[0-9a-f]{64}$/;
-const SIGNATURE_PATTERN = /^(?:[A-Za-z0-9+/]{4}){21}[A-Za-z0-9+/][AQgw]==$/;
 
 export const enclaveOutputTypeSchema = z.enum([
   'processed_fact',
@@ -57,7 +57,7 @@ const authenticatorSchema = z
   .object({
     keyId: z.string().min(1),
     algorithm: z.literal('Ed25519'),
-    signature: z.string().regex(SIGNATURE_PATTERN),
+    signature: base64Ed25519SignatureSchema,
   })
   .strict();
 
@@ -65,7 +65,7 @@ export const enclaveOutputEnvelopeSchema = z
   .object({
     ...outputBindingFields,
     version: z.literal(ENCLAVE_OUTPUT_VERSION),
-    payloadDigest: z.string().regex(DIGEST_PATTERN),
+    payloadDigest: digest64Schema,
     authenticator: authenticatorSchema,
   })
   .strict()

@@ -18,7 +18,7 @@ const POLICY = {
     { keyId: 'attestation-key-1', algorithm: 'Ed25519' as const, publicKey: 'A'.repeat(43) + '=' },
   ],
   receiptKeys: [
-    { keyId: 'receipt-key-1', algorithm: 'Ed25519' as const, publicKey: 'B'.repeat(43) + '=' },
+    { keyId: 'receipt-key-1', algorithm: 'Ed25519' as const, publicKey: 'B'.repeat(42) + 'A=' },
   ],
   permittedModels: [
     { model: 'provider/critique', revision: 'critique-1' },

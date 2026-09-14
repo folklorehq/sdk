@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 import {
+  base64Ed25519SignatureSchema,
   digest64Schema,
   gitCommitSchema,
   measurement96Schema,
@@ -25,18 +26,15 @@ const identifierSchema = z
   .min(1)
   .max(128)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
-const digestSchema = z.string().regex(/^[0-9a-f]{64}$/);
-const measurementSchema = z.string().regex(/^[0-9a-f]{96}$/);
+const digestSchema = digest64Schema;
+const measurementSchema = measurement96Schema;
 const sourceCommitSchema = z.string().regex(/^[0-9a-f]{40}(?:[0-9a-f]{24})?$/);
 const providerModelSchema = z
   .string()
   .min(3)
   .max(256)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*\/[A-Za-z0-9][A-Za-z0-9._:-]*$/);
-const signatureSchema = z
-  .string()
-  .length(88)
-  .regex(/^[A-Za-z0-9+/]{86}==$/);
+const signatureSchema = base64Ed25519SignatureSchema;
 const nonceSchema = z
   .string()
   .length(44)

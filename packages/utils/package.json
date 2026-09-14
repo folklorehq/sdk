@@ -5,6 +5,13 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "canonical-json-pure": [
+        "dist/canonical-json-pure.d.ts"
+      ]
+    }
+  },
   "exports": {
     ".": {
       "development": "./src/index.ts",
@@ -25,6 +32,11 @@
       "development": "./src/async.ts",
       "types": "./dist/async.d.ts",
       "default": "./dist/async.js"
+    },
+    "./canonical-json-pure": {
+      "development": "./src/canonical-json-pure.ts",
+      "types": "./dist/canonical-json-pure.d.ts",
+      "default": "./dist/canonical-json-pure.js"
     },
     "./tenant": {
       "development": "./src/tenant.ts",
