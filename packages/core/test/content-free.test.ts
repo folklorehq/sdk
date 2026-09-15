@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   checkSafeLogContext,
   contentFreeErrorType,
+  contentFreeLogCode,
   SAFE_LOG_FIELDS,
   type SafeLogContext,
   type SafeLogField,
@@ -100,5 +101,54 @@ describe('contentFreeErrorType', () => {
     const code = contentFreeErrorType(named);
     expect(code).toBeNull();
     expect(checkSafeLogContext({ error_type: code })).toBeNull();
+  });
+});
+
+describe('contentFreeLogCode', () => {
+  // A code field accepts only `[a-z][a-z0-9]*(.[a-z0-9]+)*`, and one refused field costs the whole
+  // record (requestId included). The two identifiers that place a failure are exactly the ones that
+  // did not fit: a request path (slashes) and a schema path whose first segment is a digit.
+  it('is not satisfied by the raw identifiers it exists for', () => {
+    expect(checkSafeLogContext({ route: '/v1/placement/activation' })).toBe(
+      'invalid_context_value',
+    );
+    expect(checkSafeLogContext({ route: '/.well-known/jwks.json' })).toBe('invalid_context_value');
+    expect(checkSafeLogContext({ errorCode: '7z' })).toBe('invalid_context_value');
+  });
+
+  it('turns a request path into a token the boundary accepts', () => {
+    expect(contentFreeLogCode('/v1/placement/activation')).toBe('v1.placement.activation');
+    expect(contentFreeLogCode('/.well-known/jwks.json')).toBe('well.known.jwks.json');
+    expect(contentFreeLogCode('/throw/:kind')).toBe('throw.kind');
+    for (const route of ['/v1/placement/activation', '/.well-known/jwks.json', '/throw/:kind']) {
+      expect(checkSafeLogContext({ route: contentFreeLogCode(route) })).toBeNull();
+    }
+  });
+
+  it('keeps a code that was already representable, spelled as its own enum spells it', () => {
+    // Normalizing `organization_slug_invalid` to `organization.slug.invalid` would invent a code no
+    // operator can grep for next to the enum it came from.
+    expect(contentFreeLogCode('organization_slug_invalid')).toBe('organization_slug_invalid');
+    expect(contentFreeLogCode('unmatched')).toBe('unmatched');
+    expect(contentFreeLogCode('body.name.invalid_type')).toBe('body.name.invalid_type');
+  });
+
+  it('lower-cases, and prefixes a first segment that cannot start a token', () => {
+    expect(contentFreeLogCode('Placement/Enrollment')).toBe('placement.enrollment');
+    expect(contentFreeLogCode('7z')).toBe('p7z');
+    expect(contentFreeLogCode('body.items.0.name')).toBe('body.items.0.name');
+  });
+
+  it('returns null instead of an empty token', () => {
+    expect(contentFreeLogCode('/')).toBeNull();
+    expect(contentFreeLogCode('')).toBeNull();
+    expect(contentFreeLogCode('::')).toBeNull();
+  });
+
+  it('bounds the token it produces', () => {
+    const code = contentFreeLogCode(`/${'long-segment/'.repeat(40)}`);
+    expect(code).not.toBeNull();
+    expect(code!.length).toBeLessThanOrEqual(256);
+    expect(checkSafeLogContext({ route: code })).toBeNull();
   });
 });

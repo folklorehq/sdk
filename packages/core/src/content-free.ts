@@ -159,6 +159,26 @@ export function contentFreeErrorType(error: unknown): string | null {
     : null;
 }
 
+/** Internal text (a request path, a schema path) as a code-field token, or null when none survives. */
+export function contentFreeLogCode(value: string): string | null {
+  // Code fields accept only `/^[a-z][a-z0-9]*(?:[._][a-z0-9]+)*$/`, and one refused field costs the
+  // whole record, so the identifiers that place a failure needed a form that fits: a request path
+  // (`/v1/placement/activation`) and a schema path whose first segment is a digit (`7z`) do not.
+  const lowered = value.toLowerCase();
+  // Already representable text keeps its own spelling: normalizing `organization_slug_invalid` into
+  // `organization.slug.invalid` would invent a code no operator can grep for in the enum it came from.
+  if (lowered.length <= MAX_VALUE_LENGTH && SAFE_LOG_EVENT_PATTERN.test(lowered)) return lowered;
+  const segments = lowered.split(/[^a-z0-9]+/).filter((segment) => segment.length > 0);
+  const first = segments.at(0);
+  if (first === undefined) return null;
+  // Only the first segment must start with a letter, so only it can need the `p` prefix; digits
+  // elsewhere (an array index such as `items.0.name`) already satisfy the pattern.
+  const code = `${/^[a-z]/.test(first) ? first : `p${first}`}.${segments.slice(1).join('.')}`;
+  // Truncation can land mid-separator; a trailing separator is exactly what the pattern refuses.
+  const bounded = code.slice(0, MAX_VALUE_LENGTH).replace(/[._]+$/, '');
+  return bounded.length === 0 ? null : bounded;
+}
+
 function isPlainRecord(value: unknown): value is Record<PropertyKey, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);

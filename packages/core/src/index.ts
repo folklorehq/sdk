@@ -21,6 +21,7 @@ export {
   snapshotSafeLogContext,
   assertContentFree,
   contentFreeErrorType,
+  contentFreeLogCode,
   ContentFreeViolationError,
   type SafeLogRejectionReason,
   type SafeLogContextSnapshot,
