@@ -145,6 +145,20 @@ function rejectedContext(rejection: SafeLogRejectionReason): SafeLogContextSnaps
   return { context: null, rejection };
 }
 
+/** Content-free `error_type` for the logging boundary, or null when it cannot be represented. */
+export function contentFreeErrorType(error: unknown): string | null {
+  // A plain Error's name is capitalized ('Error', 'PostgresError', 'TimeoutError') and the
+  // code-value filter accepts only lower-case tokens, so passing `error.name` through as
+  // `error_type` made PinoLogger replace the entire record with `log_record_rejected` and the
+  // failure logged nothing at all. Lower-casing keeps the class name; null is returned when even
+  // that cannot be represented, because the boundary accepts a null field but rejects a bad one,
+  // and a rejected value costs every other field on the record.
+  const candidate = (error instanceof Error ? error.name : typeof error).toLowerCase();
+  return candidate.length <= MAX_VALUE_LENGTH && SAFE_LOG_EVENT_PATTERN.test(candidate)
+    ? candidate
+    : null;
+}
+
 function isPlainRecord(value: unknown): value is Record<PropertyKey, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);

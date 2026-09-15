@@ -125,12 +125,12 @@ export class PinoLogger implements Logger {
       return;
     }
     if (this.bindingRejection) {
-      this.reject(this.bindingRejection);
+      this.reject(this.bindingRejection, eventCode);
       return;
     }
     const contextSnapshot = snapshotSafeLogContext(context ?? {});
     if (contextSnapshot.rejection) {
-      this.reject(contextSnapshot.rejection);
+      this.reject(contextSnapshot.rejection, eventCode);
       return;
     }
     const mergedSnapshot = snapshotSafeLogContext({
@@ -138,14 +138,25 @@ export class PinoLogger implements Logger {
       ...contextSnapshot.context,
     });
     if (mergedSnapshot.rejection) {
-      this.reject('invalid_merged_bindings');
+      this.reject('invalid_merged_bindings', eventCode);
       return;
     }
     this.pino[level]({ component: this.component, ...mergedSnapshot.context }, eventCode);
   }
 
-  private reject(reasonCode: RejectionReason): void {
-    this.pino.warn({ reasonCode, component: this.component }, 'log_record_rejected');
+  // A rejected record replaces its own event, so without `eventCode` a broken call site is
+  // invisible in production: all you see is a reason code and no hint of which event vanished.
+  // `eventCode` is validated before this point (or omitted when the event itself was invalid),
+  // and the rejection line goes straight to pino, so it cannot recurse.
+  private reject(reasonCode: RejectionReason, eventCode?: string | null): void {
+    this.pino.warn(
+      {
+        reasonCode,
+        component: this.component,
+        ...(eventCode ? { eventCode } : {}),
+      },
+      'log_record_rejected',
+    );
   }
 }
 

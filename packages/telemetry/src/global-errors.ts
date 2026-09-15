@@ -35,7 +35,17 @@ async function reportFatal(
 ): Promise<void> {
   const errorReport = toErrorReport(err, { origin, component: opts.component });
   opts.client.captureError(errorReport);
-  opts.logger?.error('process_error_captured', { ...errorReport });
+  // The full report goes to telemetry; only SAFE_LOG_FIELDS survive the logging boundary. Spreading
+  // the report here logged NOTHING: error_name/category/origin/fingerprint are not permitted keys,
+  // so PinoLogger replaced the record with log_record_rejected (as did an invalid `component`, e.g.
+  // 'control-plane-server'). That killed the one line that explains a fatal crash.
+  opts.logger?.error('process_error_captured', {
+    errorCode: 'process_fatal',
+    error_type: errorReport.error_type,
+    outcome: origin === 'unhandled_rejection' ? 'unhandled_rejection' : 'uncaught_exception',
+    httpStatus: errorReport.http_status,
+    isOperational: errorReport.operational,
+  });
   await flushWithTimeout(opts.client);
   (opts.exit ?? process.exit)(1);
 }

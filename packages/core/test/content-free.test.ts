@@ -2,6 +2,7 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   checkSafeLogContext,
+  contentFreeErrorType,
   SAFE_LOG_FIELDS,
   type SafeLogContext,
   type SafeLogField,
@@ -70,5 +71,34 @@ describe('account id fields are distinct ids, not free text', () => {
 
   it('does not accept a derived v8 id in requestId, which cannot represent one', () => {
     expect(checkSafeLogContext({ requestId: V8 })).not.toBeNull();
+  });
+});
+
+describe('contentFreeErrorType', () => {
+  // An Error's `name` is capitalized, and the boundary's code-value filter only admits lower-case
+  // tokens. Passing `error.name` through as `error_type` made PinoLogger replace the whole record
+  // with log_record_rejected, so the failure logged nothing at all (see SharedPoolReconciler).
+  it('lower-cases error class names into accepted codes', () => {
+    expect(contentFreeErrorType(new Error('boom'))).toBe('error');
+    expect(contentFreeErrorType(new TypeError('boom'))).toBe('typeerror');
+    const named = new Error('boom');
+    named.name = 'PostgresError';
+    expect(contentFreeErrorType(named)).toBe('postgreserror');
+    expect(checkSafeLogContext({ error_type: contentFreeErrorType(named) })).toBeNull();
+  });
+
+  it('describes a non-Error throw by its type', () => {
+    expect(contentFreeErrorType('nope')).toBe('string');
+    expect(contentFreeErrorType(undefined)).toBe('undefined');
+    expect(checkSafeLogContext({ error_type: contentFreeErrorType('nope') })).toBeNull();
+  });
+
+  it('returns null rather than a value the boundary would reject', () => {
+    // null is an accepted field value; an invalid one costs every other field on the record.
+    const named = new Error('boom');
+    named.name = 'Weird Error: class';
+    const code = contentFreeErrorType(named);
+    expect(code).toBeNull();
+    expect(checkSafeLogContext({ error_type: code })).toBeNull();
   });
 });

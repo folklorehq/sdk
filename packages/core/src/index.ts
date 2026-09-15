@@ -20,6 +20,7 @@ export {
   checkSafeLogEvent,
   snapshotSafeLogContext,
   assertContentFree,
+  contentFreeErrorType,
   ContentFreeViolationError,
   type SafeLogRejectionReason,
   type SafeLogContextSnapshot,

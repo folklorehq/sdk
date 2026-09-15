@@ -265,4 +265,43 @@ describe('PinoLogger', () => {
 
     expectOnlyRejection(records, 'invalid_context_value');
   });
+
+  // A rejected record *replaces* its event, so without attribution a broken call site is invisible
+  // in production: an operator sees only a reason code and cannot tell which event vanished. That
+  // is how `process_error_captured` (the one line explaining a fatal crash) went missing unnoticed.
+  it('names the dropped event on the rejection record', () => {
+    const { logger, records } = recordingLogger();
+    logger.error('process_error_captured', unsafeContext({ error_name: 'InternalError' }));
+
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      msg: 'log_record_rejected',
+      component: 'api',
+      reasonCode: 'invalid_context_key',
+      eventCode: 'process_error_captured',
+    });
+  });
+
+  it('attributes binding rejections to the event they dropped', () => {
+    const { logger, records } = recordingLogger({
+      bindings: unsafeContext({ component: 'control-plane-server' }),
+    });
+    logger.info('control_plane_server_listening');
+
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      msg: 'log_record_rejected',
+      reasonCode: 'invalid_child_bindings',
+      eventCode: 'control_plane_server_listening',
+    });
+  });
+
+  it('omits the event code when the event itself failed validation', () => {
+    const { logger, records } = recordingLogger();
+    logger.info(`customer said ${SENTINEL}`);
+
+    expect(records).toHaveLength(1);
+    expect(records[0]?.['eventCode']).toBeUndefined();
+    expect(JSON.stringify(records)).not.toContain(SENTINEL);
+  });
 });
