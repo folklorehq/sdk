@@ -19,6 +19,14 @@ import type {
   UnknownModelProvenanceV1,
   VerifiedModelProvenanceV1,
 } from '@folklore/contracts';
+import { identifierSchema } from '@folklore/contracts';
+import type { OfficialAciRequestDescriptorV1 } from './aci/official-aci-request-descriptor.js';
+import type { OfficialAciRequestDescriptorDigestV1 } from './aci/official-aci-request-descriptor.js';
+import { parseSha256DigestV1 } from './aci/official-aci-digests.js';
+import type { Sha256DigestV1 } from './aci/official-aci-digests.js';
+import type { VersionedForwardState } from './aci/official-aci-forward-records.js';
+
+export type { ProductionVerifiedModelProvenanceV1 } from '@folklore/contracts';
 
 export type { TrustedTimeBindingV1, TrustedTimeSampleV1 } from '@folklore/contracts';
 
@@ -327,6 +335,121 @@ export interface AciTrustContext {
   readonly checkpointDigest: string;
 }
 
+export interface OfficialAciTrustContextV1 {
+  readonly schema: 'OfficialAciTrustContextV1';
+  readonly version: 1;
+  readonly orgId: string;
+  readonly deploymentId: string;
+  readonly bootEpoch: string;
+  readonly checkpointDigest: Digest64;
+}
+
+export interface ProductionVerifiedModelProvenanceDecisionPreimageV1 {
+  readonly schema: 'ProductionVerifiedModelProvenanceDecisionPreimageV1';
+  readonly version: 1;
+  readonly orgId: string;
+  readonly deploymentId: string;
+  readonly role: InferenceModelRole;
+  readonly modelId: string;
+  readonly modelRevision: string;
+  readonly modelArtifactDigest: Digest64;
+  readonly tupleDigest: Digest64;
+  readonly bindingDigest: Digest64;
+  readonly routeBindingDigest: Sha256DigestV1;
+  readonly policyDigest: Digest64;
+  readonly policyGeneration: number;
+  readonly activationGeneration: number;
+  readonly sessionId: string;
+  readonly workloadKeysetDigest: Digest64;
+  readonly proofDigest: Digest64;
+  readonly routeIdentityDigest: Digest64;
+  readonly descriptorDigest: OfficialAciRequestDescriptorDigestV1;
+  readonly channelRootDigest: Sha256DigestV1;
+  readonly verifierKeyId: string;
+}
+
+export interface OfficialAciR2AProvenanceDigestFactoryPort {
+  mintProductionProvenanceDecision(
+    preimage: ProductionVerifiedModelProvenanceDecisionPreimageV1,
+  ): Sha256DigestV1;
+}
+
+export const commissionedControlledRouteIdentityBrand: unique symbol = Symbol(
+  'commissioned-controlled-route-identity-v1',
+);
+
+export interface CommissionedControlledRouteIdentityV1 {
+  readonly [commissionedControlledRouteIdentityBrand]: typeof commissionedControlledRouteIdentityBrand;
+  readonly channelRootDigest: Sha256DigestV1;
+  readonly verifierKeyId: string;
+}
+
+const commissionedRouteIdentities = new WeakSet<object>();
+
+function isCommissionedRouteFields(
+  value: unknown,
+  allowBrand: boolean,
+): value is {
+  readonly channelRootDigest: Sha256DigestV1;
+  readonly verifierKeyId: string;
+} {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const keys = Reflect.ownKeys(value);
+  const stringKeys = keys.filter((key): key is string => typeof key === 'string');
+  if (!stringKeys.includes('channelRootDigest') || !stringKeys.includes('verifierKeyId')) {
+    return false;
+  }
+  const symbols = Object.getOwnPropertySymbols(value);
+  if (
+    symbols.length > (allowBrand ? 1 : 0) ||
+    (!allowBrand && stringKeys.length !== 2) ||
+    (allowBrand &&
+      (stringKeys.length !== 2 ||
+        symbols.length !== 1 ||
+        symbols[0] !== commissionedControlledRouteIdentityBrand))
+  ) {
+    return false;
+  }
+  const candidate = value as {
+    readonly channelRootDigest?: unknown;
+    readonly verifierKeyId?: unknown;
+  };
+  if (typeof candidate.channelRootDigest !== 'string') return false;
+  if (
+    typeof candidate.verifierKeyId !== 'string' ||
+    !identifierSchema.safeParse(candidate.verifierKeyId).success
+  ) {
+    return false;
+  }
+  try {
+    parseSha256DigestV1(candidate.channelRootDigest);
+  } catch {
+    return false;
+  }
+  return true;
+}
+
+export function brandCommissionedControlledRouteIdentityV1(
+  value: Omit<
+    CommissionedControlledRouteIdentityV1,
+    typeof commissionedControlledRouteIdentityBrand
+  >,
+): CommissionedControlledRouteIdentityV1 {
+  if (!isCommissionedRouteFields(value, false)) throw new TypeError('invalid commissioned route');
+  const branded = Object.freeze({
+    ...value,
+    [commissionedControlledRouteIdentityBrand]: commissionedControlledRouteIdentityBrand,
+  }) as CommissionedControlledRouteIdentityV1;
+  commissionedRouteIdentities.add(branded);
+  return branded;
+}
+
+export function isCommissionedControlledRouteIdentityV1(
+  value: unknown,
+): value is CommissionedControlledRouteIdentityV1 {
+  return isCommissionedRouteFields(value, true) && commissionedRouteIdentities.has(value);
+}
+
 export interface AciReceiptVerificationInput {
   readonly snapshot: VerifiedAciTrustSnapshot;
   readonly receiptId: string | null;
@@ -570,6 +693,15 @@ export interface PreForwardRouteBinding extends PreForwardRouteExpectation {
   readonly source: 'controlled-gateway';
 }
 
+export interface AdmittedPreForwardProofDecisionV1 {
+  readonly schema: 'AdmittedPreForwardProofDecisionV1';
+  readonly requestId: string;
+  readonly requestDescriptorDigest: OfficialAciRequestDescriptorDigestV1;
+  readonly binding: PreForwardRouteBinding;
+  readonly proofClaim: VersionedForwardState<'proof_claimed'>;
+  readonly proofDigest: Digest64;
+}
+
 export type VerifiedPreForwardRouteProof = Readonly<PreForwardRouteProofV1>;
 
 export interface TrustedTimeReadContext {
@@ -642,8 +774,20 @@ export interface PreForwardRouteProofVerificationInput {
 
 export interface PreForwardRouteProofVerifierPort {
   verify(input: PreForwardRouteProofVerificationInput): Promise<VerifiedPreForwardRouteProof>;
-  release(proof: VerifiedPreForwardRouteProof): Promise<void>;
-  cleanup(input: { readonly context: AciTrustContext; readonly trustedNow: number }): Promise<void>;
+}
+
+export interface PreForwardAdmissionBindingAuthorityPort {
+  digestProof(proof: VerifiedPreForwardRouteProof): Sha256DigestV1;
+  digest64FromSha256Digest(value: Sha256DigestV1): Digest64;
+  sha256DigestFromDigest64(value: Digest64): Sha256DigestV1;
+  parseDigest64(value: string): Digest64;
+  createBinding(input: {
+    readonly expected: PreForwardRouteExpectation;
+    readonly proof: VerifiedPreForwardRouteProof;
+    readonly proofDigest: Sha256DigestV1;
+  }): PreForwardRouteBinding;
+  isCommissionedRoute(value: unknown): value is CommissionedControlledRouteIdentityV1;
+  isProductionProvenance(value: unknown): value is ProductionVerifiedModelProvenanceV1;
 }
 
 // The native evidence verifier receives the expected session and keyset identity and returns

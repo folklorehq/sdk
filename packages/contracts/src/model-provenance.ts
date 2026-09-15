@@ -19,6 +19,16 @@ const modelProvenanceModelIdSchema = z
   .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*\/[A-Za-z0-9][A-Za-z0-9._:-]*$/);
 const provenanceGenerationSchema = z.number().int().safe().positive();
 const nullableDigest64Schema = z.union([digest64Schema, z.null()]);
+export const sha256DigestV1Schema = z
+  .string()
+  .regex(/^sha256:[0-9a-f]{64}$/)
+  .brand<'Sha256DigestV1'>();
+export type Sha256DigestV1 = z.infer<typeof sha256DigestV1Schema>;
+export const officialAciRequestDescriptorDigestV1Schema =
+  sha256DigestV1Schema.brand<'OfficialAciRequestDescriptorDigestV1'>();
+export type OfficialAciRequestDescriptorDigestV1 = z.infer<
+  typeof officialAciRequestDescriptorDigestV1Schema
+>;
 
 export const policySignedModelProvenanceTupleV1Schema = z
   .object({
@@ -116,15 +126,43 @@ function enforceSourceSpecificIdentity(value: {
   return value.proofDigest !== null && value.nativeEvidenceDigest === null;
 }
 
+// Production provenance is issued only by the controlled gateway: it adds the authoritative
+// request-descriptor and commissioned-route identity and the admission decision digest. Digest
+// fields are unbranded Digest64 here; the branded Sha256DigestV1 view is applied at the
+// @folklore/inference boundary, which owns the branded schema that this dependency-free package
+// cannot import.
 export const productionVerifiedModelProvenanceV1Schema = z
   .object({
     schema: z.literal('folklore.production-verified-model-provenance.v1'),
     executionMode: z.literal('production'),
-    ...verifiedModelProvenanceFields,
+    status: z.literal('verified'),
+    source: z.literal('controlled-gateway'),
+    orgId: identifierSchema,
+    deploymentId: identifierSchema,
+    role: inferenceModelRoleSchema,
+    modelId: modelProvenanceModelIdSchema,
+    modelRevision: identifierSchema,
+    modelArtifactDigest: digest64Schema,
+    tupleDigest: digest64Schema,
+    bindingDigest: digest64Schema,
+    routeBindingDigest: sha256DigestV1Schema,
+    policyDigest: digest64Schema,
+    policyGeneration: provenanceGenerationSchema,
+    activationGeneration: provenanceGenerationSchema,
+    sessionId: identifierSchema,
+    workloadKeysetDigest: digest64Schema,
+    proofDigest: digest64Schema,
+    nativeEvidenceDigest: z.null(),
+    routeIdentityDigest: digest64Schema,
+    descriptorDigest: officialAciRequestDescriptorDigestV1Schema,
+    channelRootDigest: sha256DigestV1Schema,
+    verifierKeyId: identifierSchema,
+    decisionDigest: sha256DigestV1Schema,
+    provenanceDigest: sha256DigestV1Schema,
   })
   .strict()
-  .refine(enforceSourceSpecificIdentity, {
-    message: 'source-specific provenance identity mismatch',
+  .refine((value) => value.decisionDigest === value.provenanceDigest, {
+    message: 'production provenance decision digest must equal provenance digest',
   });
 export type ProductionVerifiedModelProvenanceV1 = z.infer<
   typeof productionVerifiedModelProvenanceV1Schema

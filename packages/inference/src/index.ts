@@ -181,7 +181,8 @@ export {
 export {
   PreForwardAdmissionService,
   PreForwardAdmissionError,
-  type PreForwardAdmissionInput,
+  type PreForwardProofClaimInput,
+  type ClaimedPreForwardAdmissionInput,
   type PreForwardAdmissionServiceConfig,
 } from './aci/PreForwardAdmissionService.js';
 export type { DurableGenerationHighWaterClientPort } from './ports.js';
@@ -189,4 +190,57 @@ export type {
   PreForwardRouteExpectation,
   ProviderNativeModelArtifactEvidenceV1,
   ProviderNativeArtifactEvidenceVerifierPort,
+} from './ports.js';
+export {
+  brandCommissionedControlledRouteIdentityV1,
+  isCommissionedControlledRouteIdentityV1,
+} from './ports.js';
+export type { PreForwardAdmissionBindingAuthorityPort } from './ports.js';
+export {
+  sha256DigestV1Schema,
+  parseSha256DigestV1,
+  mintSha256DigestV1,
+  sha256DigestV1FromDigest64,
+  digest64FromSha256DigestV1,
+  fixedWidthSequenceV1Schema,
+  s3ObjectVersionIdV1Schema,
+  evidenceVersionTokenV1Schema,
+  forwardAuthorityTokenV1Schema,
+  forwardLeaseBindingDigestV1Schema,
+  monotonicRawNanosecondsV1Schema,
+  parseForwardAuthorityTokenV1,
+  parseForwardLeaseBindingDigestV1,
+  monotonicRawNanosecondsV1FromBigInt,
+  bigintFromMonotonicRawNanosecondsV1,
+  type Sha256DigestV1,
+  type FixedWidthSequenceV1,
+  type S3ObjectVersionIdV1,
+  type EvidenceVersionTokenV1,
+  type VersionedContentFreeRecordV1,
+  type ForwardAuthorityTokenV1,
+  type ForwardLeaseBindingDigestV1,
+  type MonotonicRawNanosecondsV1,
+} from './aci/official-aci-digests.js';
+export {
+  officialAciRequestDescriptorDigestV1Schema,
+  createOfficialAciRequestDescriptor,
+  assertOfficialAciRequestDescriptor,
+  type OfficialAciRequestDescriptorDigestV1,
+  type OfficialAciRequestDescriptorFieldsV1,
+  type OfficialAciRequestDescriptorPreimageV1,
+  type OfficialAciRequestDescriptorV1,
+} from './aci/official-aci-request-descriptor.js';
+export type {
+  ProofClaimedForwardReplayRecordV1,
+  ForwardReplayCanonicalStateV1,
+  VersionedForwardState,
+  ForwardAbsentCasV1,
+  ForwardClaimProofInputV1,
+  PreForwardProofClaimJournalPort,
+} from './aci/official-aci-forward-records.js';
+export type {
+  OfficialAciR2AProvenanceDigestFactoryPort,
+  ProductionVerifiedModelProvenanceDecisionPreimageV1,
+  OfficialAciTrustContextV1,
+  CommissionedControlledRouteIdentityV1,
 } from './ports.js';

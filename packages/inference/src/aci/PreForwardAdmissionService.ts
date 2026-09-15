@@ -2,33 +2,79 @@
 import type {
   AciKeysetHighWaterAuthorityPort,
   AciTrustContext,
-  AciV2TrustStatePort,
+  AdmittedPreForwardProofDecisionV1,
+  CommissionedControlledRouteIdentityV1,
   ControlProofExchangePort,
   ForwardAdmissionCapability,
   ForwardBodyOpenCapability,
-  ForwardCommitment,
   ForwardLeaseStorePort,
-  ForwardProofReservation,
   ForwardReservationProvenanceIdentity,
   MutuallyAttestedChannel,
   MutuallyAttestedChannelPort,
   OfficialAciRequest,
   OfficialAciRequestWireSerializerPort,
-  PreForwardRouteBinding,
+  PreForwardAdmissionBindingAuthorityPort,
+  PreForwardRouteExpectation,
   PreForwardRouteProofVerifierPort,
   PrivateOfficialAciRequestWire,
   TrustedTimeAuthorityPort,
   VerifiedAciSession,
-  VerifiedAciTrustSnapshot,
   VerifiedCommitmentConfirmation,
   VerifiedPreForwardRouteProof,
-  ObservedAciChannelBinding,
+  VerifiedAciTrustSnapshot,
+  OfficialAciTrustContextV1,
+  ForwardCommitment,
 } from '../ports.js';
 import {
   consumeForwardBodyOpenCapability,
   issueForwardAdmissionCapability,
   issueForwardBodyOpenCapability,
 } from './forward-admission-capability.js';
+import {
+  assertOfficialAciRequestDescriptor,
+  type OfficialAciRequestDescriptorV1,
+} from './official-aci-request-descriptor.js';
+// The branded active-policy snapshot and its role binding are minted by the policy verifier in a
+// private module that the public product mirror excludes, so this shared file declares the identity
+// fields it reads structurally instead of importing that module.
+type VerifiedActivePolicySnapshotV1 = { readonly configurationGeneration: number };
+type VerifiedActivePolicyRoleBindingV1 = object;
+type ProductionVerifiedModelProvenanceV1 = {
+  readonly proofDigest: string;
+  readonly bindingDigest: string;
+  readonly descriptorDigest: string;
+  readonly routeBindingDigest: string;
+  readonly channelRootDigest: string;
+  readonly orgId: string;
+  readonly deploymentId: string;
+  readonly role: PreForwardRouteExpectation['role'];
+  readonly modelId: string;
+  readonly modelRevision: string;
+  readonly verifierKeyId: string;
+  readonly tupleDigest: string;
+  readonly source: 'controlled-gateway';
+};
+type ForwardClaimProofInputV1 = {
+  readonly expected: {
+    readonly expectedPriorState: 'absent';
+    readonly epochId: string;
+    readonly requestId: string;
+    readonly requestDescriptorDigest: AdmittedPreForwardProofDecisionV1['requestDescriptorDigest'];
+    readonly expectedPriorSequence: null;
+    readonly expectedPriorRecordDigest: null;
+    readonly expectedPriorObjectVersionId: null;
+    readonly expectedPriorVersionToken: null;
+  };
+  readonly context: OfficialAciTrustContextV1;
+  readonly proofDigest: AdmittedPreForwardProofDecisionV1['proofClaim']['record']['proofDigest'];
+  readonly proofExpiresAt: string;
+  readonly recordedAt: string;
+};
+type VersionedForwardState<_S extends 'proof_claimed'> =
+  AdmittedPreForwardProofDecisionV1['proofClaim'];
+type PreForwardProofClaimJournalPort = {
+  claimProof(input: ForwardClaimProofInputV1): Promise<VersionedForwardState<'proof_claimed'>>;
+};
 
 export class PreForwardAdmissionError extends Error {
   constructor() {
@@ -37,108 +83,266 @@ export class PreForwardAdmissionError extends Error {
   }
 }
 
-export interface PreForwardAdmissionInput {
+export interface PreForwardProofClaimInput {
+  readonly descriptor: OfficialAciRequestDescriptorV1;
+  readonly encodedProof: Uint8Array;
+  readonly expected: PreForwardRouteExpectation;
+  readonly snapshot: VerifiedActivePolicySnapshotV1;
+  readonly roleBinding: VerifiedActivePolicyRoleBindingV1;
+  readonly commissionedRoute: CommissionedControlledRouteIdentityV1;
+}
+
+export interface ClaimedPreForwardAdmissionInput {
+  readonly admittedProof: AdmittedPreForwardProofDecisionV1;
+  readonly provenance: ProductionVerifiedModelProvenanceV1;
   readonly request: Omit<OfficialAciRequest, 'body'>;
   readonly context: AciTrustContext;
   readonly challenge: Parameters<ControlProofExchangePort['exchange']>[0]['challenge'];
-  readonly descriptor: Parameters<ControlProofExchangePort['exchange']>[0]['descriptor'];
-  readonly expectedProof: PreForwardRouteBinding;
-  readonly provenance: ForwardReservationProvenanceIdentity;
+  readonly descriptor: OfficialAciRequestDescriptorV1;
 }
 
 export interface PreForwardAdmissionServiceConfig {
-  readonly trustState: AciV2TrustStatePort;
+  readonly trustState: import('../ports.js').AciV2TrustStatePort;
   readonly channelPort: MutuallyAttestedChannelPort;
   readonly controlProofExchange: ControlProofExchangePort;
   readonly proofVerifier: PreForwardRouteProofVerifierPort;
+  readonly proofClaimJournal: PreForwardProofClaimJournalPort;
   readonly trustedTime: TrustedTimeAuthorityPort;
   readonly leaseStore: ForwardLeaseStorePort;
   readonly keysetHighWater: AciKeysetHighWaterAuthorityPort;
   readonly requestSerializer: OfficialAciRequestWireSerializerPort;
+  readonly bindingAuthority: PreForwardAdmissionBindingAuthorityPort;
+}
+
+type ClaimState = {
+  readonly proof: VerifiedPreForwardRouteProof;
+  readonly expected: PreForwardRouteExpectation;
+  readonly snapshot: VerifiedActivePolicySnapshotV1;
+  readonly roleBinding: VerifiedActivePolicyRoleBindingV1;
+  readonly commissionedRoute: CommissionedControlledRouteIdentityV1;
+  readonly claim: VersionedForwardState<'proof_claimed'>;
+};
+
+const claims = new WeakMap<object, ClaimState>();
+const admittedDecisions = new WeakSet<object>();
+
+export function isServiceMintedAdmittedPreForwardProofDecision(
+  value: unknown,
+): value is AdmittedPreForwardProofDecisionV1 {
+  return typeof value === 'object' && value !== null && admittedDecisions.has(value);
 }
 
 export class PreForwardAdmissionService {
-  private readonly config: PreForwardAdmissionServiceConfig;
-
-  constructor(config: PreForwardAdmissionServiceConfig) {
+  constructor(private readonly config: PreForwardAdmissionServiceConfig) {
     if (
-      typeof config.trustState?.acquireWithTrustedTime !== 'function' ||
-      typeof config.channelPort?.open !== 'function' ||
-      typeof config.controlProofExchange?.exchange !== 'function' ||
-      typeof config.controlProofExchange?.confirmCommitment !== 'function' ||
-      typeof config.proofVerifier?.verify !== 'function' ||
-      typeof config.proofVerifier?.release !== 'function' ||
-      typeof config.trustedTime?.read !== 'function' ||
-      typeof config.leaseStore?.reserveFromVerifiedProof !== 'function' ||
-      typeof config.leaseStore?.prepareCommitment !== 'function' ||
-      typeof config.leaseStore?.finalize !== 'function' ||
-      typeof config.leaseStore?.writeOnce !== 'function' ||
-      typeof config.leaseStore?.abort !== 'function' ||
-      typeof config.keysetHighWater?.read !== 'function' ||
-      typeof config.requestSerializer?.serialize !== 'function'
+      typeof config?.trustState?.acquireWithTrustedTime !== 'function' ||
+      typeof config?.channelPort?.open !== 'function' ||
+      typeof config?.controlProofExchange?.exchange !== 'function' ||
+      typeof config?.controlProofExchange?.confirmCommitment !== 'function' ||
+      typeof config?.proofVerifier?.verify !== 'function' ||
+      typeof config?.proofClaimJournal?.claimProof !== 'function' ||
+      typeof config?.trustedTime?.read !== 'function' ||
+      typeof config?.leaseStore?.reserveFromVerifiedProof !== 'function' ||
+      typeof config?.leaseStore?.prepareCommitment !== 'function' ||
+      typeof config?.leaseStore?.finalize !== 'function' ||
+      typeof config?.leaseStore?.writeOnce !== 'function' ||
+      typeof config?.leaseStore?.abort !== 'function' ||
+      typeof config?.keysetHighWater?.read !== 'function' ||
+      typeof config?.requestSerializer?.serialize !== 'function' ||
+      typeof config?.bindingAuthority?.digestProof !== 'function' ||
+      typeof config?.bindingAuthority?.createBinding !== 'function' ||
+      typeof config?.bindingAuthority?.digest64FromSha256Digest !== 'function' ||
+      typeof config?.bindingAuthority?.sha256DigestFromDigest64 !== 'function' ||
+      typeof config?.bindingAuthority?.parseDigest64 !== 'function' ||
+      typeof config?.bindingAuthority?.isCommissionedRoute !== 'function' ||
+      typeof config?.bindingAuthority?.isProductionProvenance !== 'function'
     ) {
       throw new PreForwardAdmissionError();
     }
-    this.config = config;
   }
 
-  async admit(input: PreForwardAdmissionInput): Promise<ForwardBodyOpenCapability> {
+  async claimProof(input: PreForwardProofClaimInput): Promise<AdmittedPreForwardProofDecisionV1> {
+    const descriptor = Object.freeze({ ...input.descriptor });
+    const expected = Object.freeze({ ...input.expected });
+    const encodedProof = Uint8Array.from(input.encodedProof);
+    const snapshot = Object.freeze(input.snapshot);
+    const roleBinding = Object.freeze(input.roleBinding);
+    const commissionedRoute = Object.freeze(input.commissionedRoute);
+    let proof: VerifiedPreForwardRouteProof;
+    try {
+      assertOfficialAciRequestDescriptor(descriptor);
+      proof = await this.config.proofVerifier.verify({
+        encodedProof,
+        expected,
+      });
+      this.assertCommissionedRoute(commissionedRoute);
+      this.assertDescriptorMatchesProof(descriptor, expected, proof, commissionedRoute, snapshot);
+      const proofDigest = this.config.bindingAuthority.digestProof(proof);
+      const binding = this.config.bindingAuthority.createBinding({
+        expected,
+        proof,
+        proofDigest,
+      });
+      const trustContext: AciTrustContext = Object.freeze({
+        orgId: expected.orgId,
+        deploymentId: expected.deploymentId,
+        bootEpoch: expected.bootEpoch,
+        checkpointDigest: this.config.bindingAuthority.parseDigest64(
+          expected.trustedTimeCheckpointDigest,
+        ),
+      });
+      const context: OfficialAciTrustContextV1 = {
+        schema: 'OfficialAciTrustContextV1',
+        version: 1,
+        ...trustContext,
+      };
+      // `keysetVersion` is hashed into `descriptorDigest`, so the claim mints a durable request
+      // identity that names a keyset version. The durable high-water for this trust context must
+      // attest it before the claim is journaled, not only before the body is opened, or the
+      // identity would name a keyset no authority attested. Admission re-reads the high-water and
+      // the verified keyset and re-checks the descriptor against both.
+      const highWater = await this.config.keysetHighWater.read(trustContext);
+      if (highWater === undefined || descriptor.keysetVersion !== highWater.keysetVersion) {
+        throw new PreForwardAdmissionError();
+      }
+      // The durable proof claim is stamped from the injected trusted-time authority for the same
+      // trust context, so claim ordering and later evidence never follow the host clock.
+      const recordedAt = new Date(await this.readAdmissionTime(context)).toISOString();
+      const claimInput: ForwardClaimProofInputV1 = {
+        expected: {
+          expectedPriorState: 'absent',
+          epochId: expected.bootEpoch,
+          requestId: expected.requestId,
+          requestDescriptorDigest: descriptor.descriptorDigest,
+          expectedPriorSequence: null,
+          expectedPriorRecordDigest: null,
+          expectedPriorObjectVersionId: null,
+          expectedPriorVersionToken: null,
+        },
+        context,
+        proofDigest,
+        proofExpiresAt: new Date(proof.expiresAt).toISOString(),
+        recordedAt,
+      };
+      const proofClaim = await this.config.proofClaimJournal.claimProof(claimInput);
+      this.assertProofClaim(proofClaim, claimInput);
+      const frozenProofClaim = Object.freeze({
+        ...proofClaim,
+        record: Object.freeze({
+          ...proofClaim.record,
+          context: Object.freeze({ ...proofClaim.record.context }),
+        }),
+      });
+      const decision = Object.freeze({
+        schema: 'AdmittedPreForwardProofDecisionV1' as const,
+        requestId: expected.requestId,
+        requestDescriptorDigest: descriptor.descriptorDigest,
+        binding: Object.freeze(binding),
+        proofClaim: frozenProofClaim,
+        proofDigest: this.config.bindingAuthority.digest64FromSha256Digest(proofDigest),
+      });
+      claims.set(decision, {
+        proof,
+        expected,
+        snapshot,
+        roleBinding,
+        commissionedRoute,
+        claim: frozenProofClaim,
+      });
+      admittedDecisions.add(decision);
+      return decision;
+    } catch {
+      throw new PreForwardAdmissionError();
+    }
+  }
+
+  async admitClaimed(input: ClaimedPreForwardAdmissionInput): Promise<ForwardBodyOpenCapability> {
+    const admittedProof = Object.freeze(input.admittedProof);
+    const provenanceSource = input.provenance;
+    const request = Object.freeze({ ...input.request });
+    const context = Object.freeze({ ...input.context });
+    const provenance = Object.freeze({ ...provenanceSource });
+    const challenge = Object.freeze({ ...input.challenge });
+    const descriptor = Object.freeze({ ...input.descriptor });
+    const provenanceIsProduction =
+      this.config.bindingAuthority.isProductionProvenance(provenanceSource);
+    const state = this.claimState(admittedProof);
+    if (
+      state.claim !== admittedProof.proofClaim ||
+      !this.config.bindingAuthority.isCommissionedRoute(state.commissionedRoute) ||
+      !provenanceIsProduction ||
+      admittedProof.requestId !== challenge.requestId ||
+      admittedProof.requestDescriptorDigest !== descriptor.descriptorDigest ||
+      request.role !== state.expected.role ||
+      request.endpoint !== state.expected.route ||
+      request.method !== state.expected.method ||
+      state.expected.requestId !== challenge.requestId ||
+      state.expected.orgId !== context.orgId ||
+      state.expected.deploymentId !== context.deploymentId ||
+      state.expected.bootEpoch !== context.bootEpoch ||
+      state.expected.trustedTimeCheckpointDigest !== context.checkpointDigest ||
+      provenance.proofDigest !== admittedProof.proofDigest ||
+      provenance.bindingDigest !== admittedProof.binding.bindingDigest ||
+      provenance.descriptorDigest !== admittedProof.requestDescriptorDigest ||
+      provenance.orgId !== state.expected.orgId ||
+      provenance.deploymentId !== state.expected.deploymentId ||
+      provenance.role !== state.expected.role ||
+      provenance.modelId !== state.expected.model ||
+      provenance.modelRevision !== state.expected.modelRevision ||
+      provenance.verifierKeyId !== state.commissionedRoute.verifierKeyId ||
+      provenance.routeBindingDigest !==
+        this.config.bindingAuthority.sha256DigestFromDigest64(
+          admittedProof.binding.bindingDigest,
+        ) ||
+      provenance.channelRootDigest !== descriptor.channelRootDigest
+    ) {
+      throw new PreForwardAdmissionError();
+    }
+    claims.delete(admittedProof);
     let channel: MutuallyAttestedChannel | undefined;
-    let proof: VerifiedPreForwardRouteProof | undefined;
     let reservation:
       | Awaited<ReturnType<ForwardLeaseStorePort['reserveFromVerifiedProof']>>
       | undefined;
     try {
-      const snapshot = await this.requireSnapshot(input.context);
-      const session = this.requireSession(snapshot, input.request.role);
-      this.validateDescriptor(input, session);
-      const highWater = await this.config.keysetHighWater.read(input.context);
-      this.validateHighWater(highWater, input.context, snapshot);
+      const snapshot = await this.config.trustState.acquireWithTrustedTime(context);
+      if (snapshot === undefined) throw new PreForwardAdmissionError();
+      const highWater = await this.config.keysetHighWater.read(context);
+      this.validateHighWater(highWater, context, snapshot);
+      this.assertDescriptorKeysetVersion(descriptor, snapshot, highWater);
       channel = await this.config.channelPort.open({
-        orgId: input.context.orgId,
-        deploymentId: input.context.deploymentId,
+        orgId: context.orgId,
+        deploymentId: context.deploymentId,
         workloadId: snapshot.keyset.workloadId,
-        routeIdentityDigest: input.expectedProof.routeIdentityDigest,
-        pinnedTrustRootDigest: input.expectedProof.pinnedTrustRootDigest,
+        routeIdentityDigest: state.expected.routeIdentityDigest,
+        pinnedTrustRootDigest: state.expected.pinnedTrustRootDigest,
         channelKeyDigest: snapshot.keyset.channelKeyDigest,
-        sessionId: session.sessionId,
+        sessionId: state.proof.sessionId,
         channelPins: snapshot.channelPins,
-        exporterLabel: input.expectedProof.exporterLabel,
-        exporterDigest: input.expectedProof.exporterDigest,
-        transcriptDigest: input.expectedProof.transcriptDigest,
+        exporterLabel: state.expected.exporterLabel,
+        exporterDigest: state.expected.exporterDigest,
+        transcriptDigest: state.expected.transcriptDigest,
       });
-      const encodedProof = await this.config.controlProofExchange.exchange({
-        channel,
-        challenge: input.challenge,
-        descriptor: input.descriptor,
-      });
-      proof = await this.config.proofVerifier.verify({
-        encodedProof,
-        expected: input.expectedProof,
-      });
-      this.validateVerifiedProof(input, proof, snapshot, session, channel);
-      const trustedNow = await this.readAdmissionTime(input.context);
+      const trustedNow = await this.readAdmissionTime(context);
       reservation = await this.config.leaseStore.reserveFromVerifiedProof({
-        context: input.context,
+        context,
         snapshot,
-        session,
+        session: this.requireSession(snapshot, request.role),
         observedChannel: this.observedChannel(channel),
-        proof,
-        provenance: input.provenance,
+        proof: state.proof,
+        provenance: this.provenanceIdentity(provenance),
         trustedNow,
       });
       return issueForwardBodyOpenCapability({
         channel,
         reservation,
         snapshot,
-        session,
-        request: input.request,
+        session: this.requireSession(snapshot, request.role),
+        request,
       });
     } catch {
       if (reservation !== undefined) {
-        await this.abortReservation(input.context, reservation.reservationId, 'admission_failed');
+        await this.abortReservation(context, reservation.reservationId, 'admission_failed');
       }
-      if (proof !== undefined) await this.releaseProof(proof);
       if (channel !== undefined) await this.closeChannel(channel);
       throw new PreForwardAdmissionError();
     }
@@ -161,7 +365,7 @@ export class PreForwardAdmissionService {
         requestWireSha256: wire.requestWireSha256,
         byteLength: wire.byteLength,
       };
-      const commitment: ForwardCommitment = await this.config.leaseStore.prepareCommitment({
+      const commitment = await this.config.leaseStore.prepareCommitment({
         reservation: data.reservation,
         requestWire: normalized,
       });
@@ -200,30 +404,109 @@ export class PreForwardAdmissionService {
     }
   }
 
-  async finalizeBody(
-    capability: ForwardBodyOpenCapability,
-    body: OfficialAciRequest['body'],
-  ): ReturnType<PreForwardAdmissionService['finalize']> {
-    return this.finalize(capability, body);
+  private assertProofClaim(
+    claim: VersionedForwardState<'proof_claimed'>,
+    input: ForwardClaimProofInputV1,
+  ): void {
+    if (
+      claim.record.state !== 'proof_claimed' ||
+      claim.record.requestId !== input.expected.requestId ||
+      claim.record.requestDescriptorDigest !== input.expected.requestDescriptorDigest ||
+      claim.record.proofDigest !== input.proofDigest ||
+      claim.record.previousRecordDigest !== null ||
+      claim.record.previousObjectVersionId !== null
+    ) {
+      throw new PreForwardAdmissionError();
+    }
   }
 
-  async abortBodyOpen(
-    capability: ForwardBodyOpenCapability,
-    reason = 'body_aborted',
-  ): Promise<void> {
-    const data = consumeForwardBodyOpenCapability(capability);
-    await this.abortReservation(
-      this.reservationContext(data.reservation),
-      data.reservation.reservationId,
-      reason,
-    );
-    await this.closeChannel(data.channel);
+  private assertCommissionedRoute(
+    route: unknown,
+  ): asserts route is CommissionedControlledRouteIdentityV1 {
+    if (!this.config.bindingAuthority.isCommissionedRoute(route)) {
+      throw new PreForwardAdmissionError();
+    }
   }
 
-  private async requireSnapshot(context: AciTrustContext): Promise<VerifiedAciTrustSnapshot> {
-    const snapshot = await this.config.trustState.acquireWithTrustedTime(context);
-    if (snapshot === undefined) throw new PreForwardAdmissionError();
-    return snapshot;
+  private assertDescriptorMatchesProof(
+    descriptor: OfficialAciRequestDescriptorV1,
+    expected: PreForwardRouteExpectation,
+    proof: VerifiedPreForwardRouteProof,
+    commissionedRoute: CommissionedControlledRouteIdentityV1,
+    activePolicySnapshot: VerifiedActivePolicySnapshotV1,
+  ): void {
+    // Every field hashed into `descriptorDigest` must equal the authority that authorizes this
+    // request, never only the caller's own copy of it: the verified proof, the caller's
+    // proof-verified expectation, the branded commissioned route, or the branded verified policy
+    // snapshot. A descriptor that names a different checkpoint, configuration generation, or
+    // verification key than the proof is a different request identity and is rejected here.
+    // The assignment dimension is carried as the digest the control plane signs into the proof's
+    // tenant context; no caller-supplied assignment or route identifier is hashed into the
+    // preimage, because neither has an authority to compare against.
+    if (
+      descriptor.orgId !== expected.orgId ||
+      descriptor.deploymentId !== expected.deploymentId ||
+      descriptor.assignmentDigest !==
+        this.config.bindingAuthority.sha256DigestFromDigest64(
+          proof.tenantContext.assignmentDigest,
+        ) ||
+      descriptor.requestId !== expected.requestId ||
+      descriptor.bootEpoch !== expected.bootEpoch ||
+      descriptor.role !== proof.role ||
+      descriptor.modelId !== proof.model ||
+      descriptor.modelRevision !== proof.modelRevision ||
+      descriptor.routeIdentityDigest !==
+        this.config.bindingAuthority.sha256DigestFromDigest64(proof.route.routeIdentityDigest) ||
+      descriptor.modelArtifactDigest !==
+        this.config.bindingAuthority.sha256DigestFromDigest64(proof.modelArtifactDigest) ||
+      descriptor.activePolicyDigest !==
+        this.config.bindingAuthority.sha256DigestFromDigest64(proof.policyDigest) ||
+      descriptor.policyGeneration !== proof.policyGeneration ||
+      descriptor.activationGeneration !== proof.activationGeneration ||
+      descriptor.sessionId !== proof.sessionId ||
+      descriptor.channelRootDigest !== commissionedRoute.channelRootDigest ||
+      descriptor.trustedTimeCheckpointDigest !==
+        this.config.bindingAuthority.sha256DigestFromDigest64(
+          expected.trustedTimeCheckpointDigest,
+        ) ||
+      descriptor.configurationGeneration !== activePolicySnapshot.configurationGeneration ||
+      commissionedRoute.verifierKeyId !== proof.issuer.keyId ||
+      proof.orgId !== expected.orgId ||
+      proof.deploymentId !== expected.deploymentId ||
+      proof.requestId !== expected.requestId ||
+      proof.role !== expected.role ||
+      proof.route.origin !== expected.origin ||
+      proof.route.route !== expected.route ||
+      proof.route.method !== expected.method ||
+      proof.route.routeIdentityDigest !== expected.routeIdentityDigest ||
+      proof.challenge.gatewayNonce !== expected.gatewayNonce ||
+      proof.challenge.bootEpoch !== expected.bootEpoch
+    ) {
+      throw new PreForwardAdmissionError();
+    }
+  }
+
+  private assertDescriptorKeysetVersion(
+    descriptor: OfficialAciRequestDescriptorV1,
+    snapshot: VerifiedAciTrustSnapshot,
+    highWater: Awaited<ReturnType<AciKeysetHighWaterAuthorityPort['read']>>,
+  ): void {
+    // The request's keyset version must be the version of the verified keyset the channel and
+    // session are bound to and of the durable high-water the same digest is checked against.
+    if (
+      highWater === undefined ||
+      snapshot.keyset.version !== highWater.keysetVersion ||
+      descriptor.keysetVersion !== snapshot.keyset.version
+    ) {
+      throw new PreForwardAdmissionError();
+    }
+  }
+
+  private claimState(decision: AdmittedPreForwardProofDecisionV1): ClaimState {
+    if (typeof decision !== 'object' || decision === null) throw new PreForwardAdmissionError();
+    const state = claims.get(decision);
+    if (state === undefined) throw new PreForwardAdmissionError();
+    return state;
   }
 
   private requireSession(
@@ -233,21 +516,6 @@ export class PreForwardAdmissionService {
     const session = snapshot.sessions[role];
     if (session === undefined) throw new PreForwardAdmissionError();
     return session;
-  }
-
-  private validateDescriptor(input: PreForwardAdmissionInput, session: VerifiedAciSession): void {
-    const descriptor = input.descriptor;
-    if (
-      descriptor.role !== input.request.role ||
-      descriptor.role !== session.role ||
-      descriptor.method !== input.request.method ||
-      descriptor.route !== input.request.endpoint ||
-      descriptor.sessionId !== session.sessionId ||
-      descriptor.model !== session.model ||
-      descriptor.modelRevision !== session.modelRevision
-    ) {
-      throw new PreForwardAdmissionError();
-    }
   }
 
   private validateHighWater(
@@ -262,87 +530,28 @@ export class PreForwardAdmissionService {
       highWater.trustContext.bootEpoch !== context.bootEpoch ||
       highWater.trustContext.checkpointDigest !== context.checkpointDigest ||
       highWater.currentKeysetDigest !== snapshot.keyset.workloadKeysetDigest
-    ) {
+    )
       throw new PreForwardAdmissionError();
-    }
   }
 
-  private validateVerifiedProof(
-    input: PreForwardAdmissionInput,
-    proof: VerifiedPreForwardRouteProof,
-    snapshot: VerifiedAciTrustSnapshot,
-    session: VerifiedAciSession,
-    channel: MutuallyAttestedChannel,
-  ): void {
-    const descriptor = input.descriptor;
-    const observed = this.observedChannel(channel);
+  private async readAdmissionTime(context: AciTrustContext): Promise<number> {
+    const sample = await this.config.trustedTime.read({
+      orgId: context.orgId,
+      deploymentId: context.deploymentId,
+      bootEpoch: context.bootEpoch,
+      checkpointDigest: context.checkpointDigest,
+    });
     if (
-      !this.matchesExpectedProof(proof, input.expectedProof) ||
-      input.expectedProof.orgId !== input.context.orgId ||
-      input.expectedProof.deploymentId !== input.context.deploymentId ||
-      input.expectedProof.bootEpoch !== input.context.bootEpoch ||
-      input.expectedProof.trustedTimeCheckpointDigest !== input.context.checkpointDigest ||
-      // The committed provenance identity must agree with the branded post-proof binding used
-      // for admission; a decision inconsistent with the binding fails closed here.
-      input.provenance.source !== input.expectedProof.source ||
-      input.provenance.proofDigest !== input.expectedProof.proofDigest ||
-      input.provenance.bindingDigest !== input.expectedProof.bindingDigest ||
-      input.expectedProof.tenantId !== descriptor.tenantId ||
-      input.expectedProof.assignmentDigest !== descriptor.assignmentDigest ||
-      input.expectedProof.tenantAadDigest !== descriptor.tenantAadDigest ||
-      input.expectedProof.capabilityDigest !== descriptor.capabilityDigest ||
-      input.expectedProof.role !== descriptor.role ||
-      input.expectedProof.sessionId !== descriptor.sessionId ||
-      input.expectedProof.model !== descriptor.model ||
-      input.expectedProof.modelRevision !== descriptor.modelRevision ||
-      input.expectedProof.modelArtifactDigest !== descriptor.modelArtifactDigest ||
-      input.expectedProof.policyGeneration !== descriptor.policyGeneration ||
-      input.expectedProof.activationGeneration !== descriptor.activationGeneration ||
-      input.expectedProof.workloadId !== snapshot.keyset.workloadId ||
-      input.expectedProof.workloadKeysetDigest !== snapshot.keyset.workloadKeysetDigest ||
-      input.expectedProof.channelKeyDigest !== observed.channelKeyDigest ||
-      input.expectedProof.exporterLabel !== observed.exporterLabel ||
-      input.expectedProof.exporterDigest !== observed.exporterDigest ||
-      input.expectedProof.transcriptDigest !== observed.transcriptDigest ||
-      proof.orgId !== input.context.orgId ||
-      proof.deploymentId !== input.context.deploymentId ||
-      proof.requestId !== input.challenge.requestId ||
-      proof.challenge.gatewayNonce !== input.challenge.gatewayNonce ||
-      proof.challenge.bootEpoch !== input.context.bootEpoch ||
-      proof.tenantContext.tenantId !== descriptor.tenantId ||
-      proof.tenantContext.assignmentDigest !== descriptor.assignmentDigest ||
-      proof.tenantAadDigest !== descriptor.tenantAadDigest ||
-      proof.capabilityDigest !== descriptor.capabilityDigest ||
-      proof.role !== descriptor.role ||
-      proof.sessionId !== descriptor.sessionId ||
-      proof.model !== descriptor.model ||
-      proof.modelRevision !== descriptor.modelRevision ||
-      proof.modelArtifactDigest !== descriptor.modelArtifactDigest ||
-      proof.policyGeneration !== descriptor.policyGeneration ||
-      proof.activationGeneration !== descriptor.activationGeneration ||
-      proof.issuer.workloadId !== snapshot.keyset.workloadId ||
-      proof.issuer.attestedKeysetDigest !== snapshot.keyset.workloadKeysetDigest ||
-      proof.workloadKeysetDigest !== snapshot.keyset.workloadKeysetDigest ||
-      proof.role !== session.role ||
-      proof.sessionId !== session.sessionId ||
-      proof.model !== session.model ||
-      proof.modelRevision !== session.modelRevision ||
-      proof.route.route !== input.request.endpoint ||
-      proof.route.method !== input.request.method ||
-      proof.route.workloadId !== snapshot.keyset.workloadId ||
-      proof.connection.channelKeyDigest !== observed.channelKeyDigest ||
-      proof.connection.exporterLabel !== observed.exporterLabel ||
-      proof.connection.exporterDigest !== observed.exporterDigest ||
-      proof.connection.transcriptDigest !== observed.transcriptDigest ||
-      observed.channelKeyDigest !== snapshot.keyset.channelKeyDigest ||
-      !this.samePin(observed.observedChannelPin, snapshot.keyset.channelPins) ||
-      !this.samePin(observed.observedChannelPin, snapshot.channelPins)
-    ) {
+      sample.orgId !== context.orgId ||
+      sample.deploymentId !== context.deploymentId ||
+      sample.bootEpoch !== context.bootEpoch ||
+      sample.checkpointDigest !== context.checkpointDigest
+    )
       throw new PreForwardAdmissionError();
-    }
+    return sample.trustedNow;
   }
 
-  private observedChannel(channel: MutuallyAttestedChannel): ObservedAciChannelBinding {
+  private observedChannel(channel: MutuallyAttestedChannel) {
     return {
       observedChannelPin: channel.observedChannelPin,
       channelKeyDigest: channel.channelKeyDigest,
@@ -352,93 +561,29 @@ export class PreForwardAdmissionService {
     };
   }
 
-  private validateConfirmation(
-    commitment: ForwardCommitment,
-    confirmation: VerifiedCommitmentConfirmation,
-  ): void {
-    if (
-      confirmation.protocol !== commitment.protocol ||
-      confirmation.reservationId !== commitment.reservationId ||
-      confirmation.proofId !== commitment.proofId ||
-      confirmation.requestId !== commitment.requestId ||
-      confirmation.commitmentNonce !== commitment.commitmentNonce ||
-      confirmation.commitmentTag !== commitment.commitmentTag ||
-      confirmation.channelKeyDigest !== commitment.channelKeyDigest ||
-      confirmation.exporterLabel !== commitment.exporterLabel ||
-      confirmation.exporterDigest !== commitment.exporterDigest ||
-      confirmation.transcriptDigest !== commitment.transcriptDigest ||
-      !this.samePin(confirmation.observedChannelPin, [commitment.observedChannelPin]) ||
-      !Number.isSafeInteger(confirmation.confirmationSequence) ||
-      confirmation.confirmationSequence !== 1
-    ) {
-      throw new PreForwardAdmissionError();
-    }
+  private provenanceIdentity(
+    provenance: ClaimedPreForwardAdmissionInput['provenance'],
+  ): ForwardReservationProvenanceIdentity {
+    return {
+      tupleDigest: provenance.tupleDigest,
+      proofDigest: provenance.proofDigest,
+      bindingDigest: provenance.bindingDigest,
+      source: provenance.source,
+    };
   }
 
-  private reservationContext(reservation: ForwardProofReservation): AciTrustContext {
+  private reservationContext(reservation: {
+    readonly orgId: string;
+    readonly deploymentId: string;
+    readonly bootEpoch: string;
+    readonly trustedTimeCheckpointDigest: string;
+  }): AciTrustContext {
     return {
       orgId: reservation.orgId,
       deploymentId: reservation.deploymentId,
       bootEpoch: reservation.bootEpoch,
       checkpointDigest: reservation.trustedTimeCheckpointDigest,
     };
-  }
-
-  private matchesExpectedProof(
-    proof: VerifiedPreForwardRouteProof,
-    expected: PreForwardRouteBinding,
-  ): boolean {
-    return (
-      proof.orgId === expected.orgId &&
-      proof.deploymentId === expected.deploymentId &&
-      proof.tenantContext.tenantId === expected.tenantId &&
-      proof.tenantContext.assignmentDigest === expected.assignmentDigest &&
-      proof.proofId === expected.proofId &&
-      proof.requestId === expected.requestId &&
-      proof.issuer.workloadId === expected.workloadId &&
-      proof.issuer.runtimeIdentityDigest === expected.runtimeIdentityDigest &&
-      proof.issuer.workloadArtifactDigest === expected.workloadArtifactDigest &&
-      proof.issuer.attestedKeysetDigest === expected.workloadKeysetDigest &&
-      proof.pinnedTrustRootDigest === expected.pinnedTrustRootDigest &&
-      proof.challenge.gatewayNonce === expected.gatewayNonce &&
-      proof.challenge.bootEpoch === expected.bootEpoch &&
-      proof.connection.channelKeyDigest === expected.channelKeyDigest &&
-      proof.connection.exporterLabel === expected.exporterLabel &&
-      proof.connection.exporterDigest === expected.exporterDigest &&
-      proof.connection.transcriptDigest === expected.transcriptDigest &&
-      proof.route.origin === expected.origin &&
-      proof.route.route === expected.route &&
-      proof.route.method === expected.method &&
-      proof.route.routeIdentityDigest === expected.routeIdentityDigest &&
-      proof.route.workloadId === expected.workloadId &&
-      proof.role === expected.role &&
-      proof.sessionId === expected.sessionId &&
-      proof.model === expected.model &&
-      proof.modelRevision === expected.modelRevision &&
-      proof.modelArtifactDigest === expected.modelArtifactDigest &&
-      proof.snapshotDigest === expected.snapshotDigest &&
-      proof.policyDigest === expected.policyDigest &&
-      proof.tenantAadDigest === expected.tenantAadDigest &&
-      proof.capabilityDigest === expected.capabilityDigest &&
-      proof.workloadKeysetDigest === expected.workloadKeysetDigest &&
-      proof.policyGeneration === expected.policyGeneration &&
-      proof.activationGeneration === expected.activationGeneration
-    );
-  }
-
-  private async readAdmissionTime(context: AciTrustContext): Promise<number> {
-    const sample = await this.config.trustedTime.read(context);
-    if (
-      sample.orgId !== context.orgId ||
-      sample.deploymentId !== context.deploymentId ||
-      sample.bootEpoch !== context.bootEpoch ||
-      sample.checkpointDigest !== context.checkpointDigest ||
-      !Number.isSafeInteger(sample.trustedNow) ||
-      sample.trustedNow <= 0
-    ) {
-      throw new PreForwardAdmissionError();
-    }
-    return sample.trustedNow;
   }
 
   private async abortReservation(
@@ -453,14 +598,6 @@ export class PreForwardAdmissionService {
     }
   }
 
-  private async releaseProof(proof: VerifiedPreForwardRouteProof): Promise<void> {
-    try {
-      await this.config.proofVerifier.release(proof);
-    } catch {
-      return;
-    }
-  }
-
   private async closeChannel(channel: MutuallyAttestedChannel): Promise<void> {
     try {
       await channel.close();
@@ -469,18 +606,18 @@ export class PreForwardAdmissionService {
     }
   }
 
-  private samePin(
-    pin: VerifiedAciTrustSnapshot['keyset']['channelPins'][number],
-    pins: readonly VerifiedAciTrustSnapshot['keyset']['channelPins'][number][],
-  ): boolean {
-    return pins.some(
-      (candidate) =>
-        candidate.type === pin.type &&
-        candidate.value === pin.value &&
-        candidate.domain === pin.domain &&
-        candidate.algorithm === pin.algorithm &&
-        candidate.keyId === pin.keyId &&
-        candidate.provider === pin.provider,
-    );
+  private validateConfirmation(
+    commitment: ForwardCommitment,
+    confirmation: VerifiedCommitmentConfirmation,
+  ): void {
+    if (
+      confirmation.protocol !== commitment.protocol ||
+      confirmation.reservationId !== commitment.reservationId ||
+      confirmation.requestId !== commitment.requestId ||
+      confirmation.commitmentNonce !== commitment.commitmentNonce ||
+      confirmation.commitmentTag !== commitment.commitmentTag
+    ) {
+      throw new PreForwardAdmissionError();
+    }
   }
 }

@@ -83,15 +83,43 @@ function controlledBindingFixture(): Record<string, unknown> {
   };
 }
 
-function productionFixture(
-  source: 'provider-native' | 'controlled-gateway' = 'controlled-gateway',
-): Record<string, unknown> {
-  const providerNative = source === 'provider-native';
+function productionFixture(): Record<string, unknown> {
   return {
     schema: 'folklore.production-verified-model-provenance.v1',
     status: 'verified',
     executionMode: 'production',
-    source,
+    source: 'controlled-gateway',
+    orgId: 'org-1',
+    deploymentId: 'deployment-1',
+    role: 'generate',
+    modelId: 'provider/model-v1',
+    modelRevision: 'revision-1',
+    modelArtifactDigest: DIGEST,
+    tupleDigest: '1'.repeat(64),
+    bindingDigest: '2'.repeat(64),
+    routeBindingDigest: `sha256:${'4'.repeat(64)}`,
+    policyDigest: '3'.repeat(64),
+    policyGeneration: 7,
+    activationGeneration: 3,
+    sessionId: 'session-1',
+    workloadKeysetDigest: 'b'.repeat(64),
+    proofDigest: 'f'.repeat(64),
+    nativeEvidenceDigest: null,
+    routeIdentityDigest: 'e'.repeat(64),
+    descriptorDigest: `sha256:${'5'.repeat(64)}`,
+    channelRootDigest: `sha256:${'6'.repeat(64)}`,
+    verifierKeyId: 'verifier-key-1',
+    decisionDigest: `sha256:${'7'.repeat(64)}`,
+    provenanceDigest: `sha256:${'7'.repeat(64)}`,
+  };
+}
+
+function syntheticFixture(): Record<string, unknown> {
+  return {
+    schema: 'folklore.synthetic-verified-model-provenance.v1',
+    status: 'verified',
+    executionMode: 'synthetic',
+    source: 'controlled-gateway',
     orgId: 'org-1',
     deploymentId: 'deployment-1',
     role: 'generate',
@@ -105,17 +133,9 @@ function productionFixture(
     activationGeneration: 3,
     sessionId: 'session-1',
     workloadKeysetDigest: 'b'.repeat(64),
-    proofDigest: providerNative ? null : 'f'.repeat(64),
-    nativeEvidenceDigest: providerNative ? 'd'.repeat(64) : null,
+    proofDigest: 'f'.repeat(64),
+    nativeEvidenceDigest: null,
     routeIdentityDigest: 'e'.repeat(64),
-  };
-}
-
-function syntheticFixture(): Record<string, unknown> {
-  return {
-    ...productionFixture('controlled-gateway'),
-    schema: 'folklore.synthetic-verified-model-provenance.v1',
-    executionMode: 'synthetic',
   };
 }
 
@@ -340,11 +360,8 @@ describe('controlled-gateway model artifact binding schema', () => {
 describe('production verified model provenance schema', () => {
   const schema = productionVerifiedModelProvenanceV1Schema;
 
-  it('accepts valid production decisions for both sources', () => {
-    expectSchemaAccepts(schema, [
-      ['controlled-gateway', productionFixture('controlled-gateway')],
-      ['provider-native', productionFixture('provider-native')],
-    ]);
+  it('requires descriptor commissioned route and equal decision provenance digests', () => {
+    expectSchemaAccepts(schema, [['controlled-gateway', productionFixture()]]);
   });
 
   it('rejects unknown evidence and mode mismatches', () => {
@@ -355,32 +372,17 @@ describe('production verified model provenance schema', () => {
     ]);
   });
 
-  it('enforces the exact source-specific identity rule', () => {
+  it('rejects provider-native production and native evidence (controlled-gateway only)', () => {
     expectSchemaRejects(schema, [
-      [
-        'provider-native-with-proof',
-        {
-          ...productionFixture('provider-native'),
-          proofDigest: 'f'.repeat(64),
-          nativeEvidenceDigest: 'd'.repeat(64),
-        },
-      ],
-      [
-        'provider-native-without-evidence',
-        { ...productionFixture('provider-native'), nativeEvidenceDigest: null },
-      ],
-      [
-        'controlled-with-native-evidence',
-        {
-          ...productionFixture('controlled-gateway'),
-          nativeEvidenceDigest: 'd'.repeat(64),
-          proofDigest: 'f'.repeat(64),
-        },
-      ],
-      [
-        'controlled-without-proof',
-        { ...productionFixture('controlled-gateway'), proofDigest: null },
-      ],
+      ['provider-native-source', { ...productionFixture(), source: 'provider-native' }],
+      ['native-evidence-present', { ...productionFixture(), nativeEvidenceDigest: 'd'.repeat(64) }],
+      ['null-proof', { ...productionFixture(), proofDigest: null }],
+    ]);
+  });
+
+  it('rejects a decision digest that does not equal the provenance digest', () => {
+    expectSchemaRejects(schema, [
+      ['decision-provenance-mismatch', { ...productionFixture(), decisionDigest: '8'.repeat(64) }],
     ]);
   });
 
@@ -461,7 +463,7 @@ describe('verified model provenance union schema', () => {
 
   it('accepts production and synthetic verified projections', () => {
     expectSchemaAccepts(schema, [
-      ['production', productionFixture('controlled-gateway')],
+      ['production', productionFixture()],
       ['synthetic', syntheticFixture()],
     ]);
   });
