@@ -16,11 +16,21 @@ const DYNAMIC_VALUE = Symbol('dynamic_log_value');
 // derived `aws_<sdk-error-name>[_<http-status>]`, lowercased and re-validated by
 // failureCodeSchema, so what reaches the log is `[a-z][a-z0-9_]*` in both cases — never an SDK
 // message, which carries ARNs and principals.
+//
+// The pre-apply composition preflight is the same shape: a deploy-runner entrypoint whose whole
+// contract is the process's exit code and one line per problem on stdio, and it runs before the
+// composition root (and so before any logger) exists. What it prints is the aggregate's own
+// `code severity feature detail`: codes, features and sites come from the frozen check definitions in
+// composition-validation.ts, the detail is that validator's bounded statement about configuration
+// keys (never their values), and the CLI prints nothing else. It is covered by
+// apps/control-plane-server/test/composition-preflight-cli.test.ts, which includes a guard that a
+// configured value can never reach a line.
 const CONSOLE_EXEMPT_FILES = new Set([
   'apps/api/src/main.ts',
   'apps/pool-provisioning-runner/src/main.ts',
   'apps/control-plane-server/src/ops/cli.ts',
   'apps/control-plane-server/src/ops/setup-stripe-products.ts',
+  'apps/control-plane-server/src/composition-root/cli/preflight-composition.ts',
   'apps/worker/src/dev-bridge.ts',
   'apps/worker/src/dev-resolve-themes.ts',
   'packages/cli/src/commands/verify-attestation.ts',

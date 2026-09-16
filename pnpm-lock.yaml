@@ -28,7 +28,7 @@ importers:
         version: link:../tsconfig
       '@types/node':
         specifier: ^22.7.5
-        version: 22.20.2
+        version: 22.20.3
       eslint:
         specifier: ^9.13.0
         version: 9.39.5
@@ -37,7 +37,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^2.1.4
-        version: 2.1.9(@types/node@22.20.2)
+        version: 2.1.9(@types/node@22.20.3)
 
   packages/connectors:
     dependencies:
@@ -98,13 +98,13 @@ importers:
         version: link:../tsconfig
       '@types/node':
         specifier: ^22.7.5
-        version: 22.20.2
+        version: 22.20.3
       eslint:
         specifier: ^9.13.0
         version: 9.39.5
       vitest:
         specifier: ^2.1.4
-        version: 2.1.9(@types/node@22.20.2)
+        version: 2.1.9(@types/node@22.20.3)
 
   packages/contracts:
     dependencies:
@@ -123,7 +123,7 @@ importers:
         version: link:../tsconfig
       '@types/node':
         specifier: ^22.7.5
-        version: 22.20.2
+        version: 22.20.3
       eslint:
         specifier: ^9.13.0
         version: 9.39.5
@@ -132,7 +132,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^2.1.4
-        version: 2.1.9(@types/node@22.20.2)
+        version: 2.1.9(@types/node@22.20.3)
 
   packages/core:
     devDependencies:
@@ -141,7 +141,7 @@ importers:
         version: link:../tsconfig
       '@types/node':
         specifier: ^22.7.5
-        version: 22.20.2
+        version: 22.20.3
       eslint:
         specifier: ^9.13.0
         version: 9.39.5
@@ -150,7 +150,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^2.1.4
-        version: 2.1.9(@types/node@22.20.2)
+        version: 2.1.9(@types/node@22.20.3)
 
   packages/errors:
     devDependencies:
@@ -159,7 +159,7 @@ importers:
         version: link:../tsconfig
       '@types/node':
         specifier: ^22.7.5
-        version: 22.20.2
+        version: 22.20.3
       eslint:
         specifier: ^9.13.0
         version: 9.39.5
@@ -168,7 +168,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^2.1.4
-        version: 2.1.9(@types/node@22.20.2)
+        version: 2.1.9(@types/node@22.20.3)
 
   packages/eslint-plugin:
     dependencies:
@@ -202,7 +202,7 @@ importers:
         version: link:../tsconfig
       '@types/node':
         specifier: ^22.7.5
-        version: 22.20.2
+        version: 22.20.3
       eslint:
         specifier: ^9.13.0
         version: 9.39.5
@@ -214,7 +214,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^2.1.4
-        version: 2.1.9(@types/node@22.20.2)
+        version: 2.1.9(@types/node@22.20.3)
 
   packages/leak-guard:
     dependencies:
@@ -245,7 +245,7 @@ importers:
         version: link:../tsconfig
       '@types/node':
         specifier: ^22.7.5
-        version: 22.20.2
+        version: 22.20.3
       eslint:
         specifier: ^9.13.0
         version: 9.39.5
@@ -254,7 +254,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^2.1.4
-        version: 2.1.9(@types/node@22.20.2)
+        version: 2.1.9(@types/node@22.20.3)
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -276,7 +276,7 @@ importers:
         version: link:../tsconfig
       '@types/node':
         specifier: ^22.7.5
-        version: 22.20.2
+        version: 22.20.3
       eslint:
         specifier: ^9.13.0
         version: 9.39.5
@@ -285,7 +285,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^2.1.4
-        version: 2.1.9(@types/node@22.20.2)
+        version: 2.1.9(@types/node@22.20.3)
 
   packages/recovery:
     dependencies:
@@ -304,7 +304,7 @@ importers:
         version: link:../tsconfig
       '@types/node':
         specifier: ^22.7.5
-        version: 22.20.2
+        version: 22.20.3
       eslint:
         specifier: ^9.13.0
         version: 9.39.5
@@ -313,7 +313,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^2.1.4
-        version: 2.1.9(@types/node@22.20.2)
+        version: 2.1.9(@types/node@22.20.3)
 
   packages/telemetry:
     dependencies:
@@ -332,7 +332,7 @@ importers:
         version: link:../tsconfig
       '@types/node':
         specifier: ^22.7.5
-        version: 22.20.2
+        version: 22.20.3
       eslint:
         specifier: ^9.13.0
         version: 9.39.5
@@ -341,7 +341,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^2.1.4
-        version: 2.1.9(@types/node@22.20.2)
+        version: 2.1.9(@types/node@22.20.3)
 
   packages/tsconfig: {}
 
@@ -352,7 +352,7 @@ importers:
         version: link:../tsconfig
       '@types/node':
         specifier: ^22.7.5
-        version: 22.20.2
+        version: 22.20.3
       eslint:
         specifier: ^9.13.0
         version: 9.39.5
@@ -361,7 +361,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^2.1.4
-        version: 2.1.9(@types/node@22.20.2)
+        version: 2.1.9(@types/node@22.20.3)
 
 packages:
 
@@ -819,8 +819,8 @@ packages:
   '@posthog/core@1.54.2':
     resolution: {integrity: sha512-p0NuMjiZkploKG/aASj4nw4QDuhF87SIFWkelaFRrr3G0Myb7KWWUZot2hm5qXpPx7zKozVZJrJkGzC2kGBqbg==}
 
-  '@posthog/types@1.412.0':
-    resolution: {integrity: sha512-EP+lSTnEmftW/slhGXsuGcYAygO4oho3hjWqObP+GeceZ+6qcwK9qZwVRqJjsiZAl0xLPy5s0U0SZqGKayFyeQ==}
+  '@posthog/types@1.412.1':
+    resolution: {integrity: sha512-FxXsb9YOOME8bJI5K09qKeSvLjnZQ2dPV7wZpI7a8sERQtXkAuhBcPB/balCnVE7TYwhgtHj5NQss9BgQ5bAfQ==}
 
   '@rollup/rollup-android-arm-eabi@4.63.3':
     resolution: {integrity: sha512-w3Jnvi1ocaVm/c7yVPpfB98XeSRBMyzp6njL5MVVbGyXjpmUkN+s6Hp4t0PqhGCCaI1ZHMKXt/w0lA1RCaLVcw==}
@@ -971,8 +971,8 @@ packages:
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
-  '@types/node@22.20.2':
-    resolution: {integrity: sha512-xlvWf4Vs9n1PEVYwP1n4vvG07M6y8WgvJ2t0vbrWTmijsIHp1cS+uJ2kMIRdY3nHZK0nCYKrPeD171+SzF4/zw==}
+  '@types/node@22.20.3':
+    resolution: {integrity: sha512-DZmzkmwHzXrLPAXPyKNDzlIwMMUZCVacoD25ywdy5YTKGbOx/2ld+Q38Im2zJ0vBuZP5Prd3VZutKZyXwkOS8A==}
 
   '@types/retry@0.12.0':
     resolution: {integrity: sha512-wWKOClTTiizcZhXnPY4wikVAwmdYHp8q6DmC+EJUzAMsycb7HB32Kh9RN4+0gExjmPmZSAQjgURXIGATPegAvA==}
@@ -2205,9 +2205,9 @@ snapshots:
 
   '@posthog/core@1.54.2':
     dependencies:
-      '@posthog/types': 1.412.0
+      '@posthog/types': 1.412.1
 
-  '@posthog/types@1.412.0': {}
+  '@posthog/types@1.412.1': {}
 
   '@rollup/rollup-android-arm-eabi@4.63.3':
     optional: true
@@ -2293,7 +2293,7 @@ snapshots:
 
   '@slack/logger@4.0.1':
     dependencies:
-      '@types/node': 22.20.2
+      '@types/node': 22.20.3
 
   '@slack/types@2.22.0': {}
 
@@ -2301,7 +2301,7 @@ snapshots:
     dependencies:
       '@slack/logger': 4.0.1
       '@slack/types': 2.22.0
-      '@types/node': 22.20.2
+      '@types/node': 22.20.3
       '@types/retry': 0.12.0
       axios: 1.20.0
       eventemitter3: 5.0.4
@@ -2319,7 +2319,7 @@ snapshots:
 
   '@types/json-schema@7.0.15': {}
 
-  '@types/node@22.20.2':
+  '@types/node@22.20.3':
     dependencies:
       undici-types: 6.21.0
 
@@ -2332,13 +2332,13 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
-  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@22.20.2))':
+  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@22.20.3))':
     dependencies:
       '@vitest/spy': 2.1.9
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 5.4.21(@types/node@22.20.2)
+      vite: 5.4.21(@types/node@22.20.3)
 
   '@vitest/pretty-format@2.1.9':
     dependencies:
@@ -3212,13 +3212,13 @@ snapshots:
 
   uuid@9.0.1: {}
 
-  vite-node@2.1.9(@types/node@22.20.2):
+  vite-node@2.1.9(@types/node@22.20.3):
     dependencies:
       cac: 6.7.14
       debug: 4.4.3
       es-module-lexer: 1.7.0
       pathe: 1.1.2
-      vite: 5.4.21(@types/node@22.20.2)
+      vite: 5.4.21(@types/node@22.20.3)
     transitivePeerDependencies:
       - '@types/node'
       - less
@@ -3230,19 +3230,19 @@ snapshots:
       - supports-color
       - terser
 
-  vite@5.4.21(@types/node@22.20.2):
+  vite@5.4.21(@types/node@22.20.3):
     dependencies:
       esbuild: 0.21.5
       postcss: 8.5.28
       rollup: 4.63.3
     optionalDependencies:
-      '@types/node': 22.20.2
+      '@types/node': 22.20.3
       fsevents: 2.3.3
 
-  vitest@2.1.9(@types/node@22.20.2):
+  vitest@2.1.9(@types/node@22.20.3):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@22.20.2))
+      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@22.20.3))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
@@ -3258,11 +3258,11 @@ snapshots:
       tinyexec: 0.3.2
       tinypool: 1.1.1
       tinyrainbow: 1.2.0
-      vite: 5.4.21(@types/node@22.20.2)
-      vite-node: 2.1.9(@types/node@22.20.2)
+      vite: 5.4.21(@types/node@22.20.3)
+      vite-node: 2.1.9(@types/node@22.20.3)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 22.20.2
+      '@types/node': 22.20.3
     transitivePeerDependencies:
       - less
       - lightningcss
