@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "../../apps/control-plane-signer/src/SignerBoundaryProtocol.ts",
+        "../../apps/control-plane-server/src/provisioning/SignerBoundaryClient.ts"
+      ]
+    }
+  }
+}
