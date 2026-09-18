@@ -970,9 +970,16 @@ describe('AciSessionVerifier', () => {
   });
 
   it('times out a legacy evidence adapter that never resolves', async () => {
-    const evidenceVerifier: LegacyAciSessionEvidenceVerifierPort = {
-      verify: vi.fn(() => new Promise<never>(() => undefined)),
-    };
+    const verify = vi.fn(() => new Promise<never>(() => undefined));
+    const evidenceVerifier: LegacyAciSessionEvidenceVerifierPort = { verify };
+    // performance.now is the verifier's own budget source, so driving it from observed causality
+    // keeps the 10ms budget from racing the work that precedes the adapter call: the clock reports
+    // the budget unspent until the adapter has been entered and expired after, however long a
+    // loaded runner takes to get there. A frozen wall-clock budget failed the call count below
+    // rather than the behavior it describes.
+    const monotonicNow = vi
+      .spyOn(performance, 'now')
+      .mockImplementation(() => (verify.mock.calls.length === 0 ? 1_000 : 1_010));
     const verifier = new LegacyAciSessionVerifier({
       policy: POLICY,
       trustedTimeAuthority: {
@@ -984,8 +991,12 @@ describe('AciSessionVerifier', () => {
       keysetHighWaterAuthority: keysetAuthority(),
     });
 
-    await expectCode(verifier.verifyAndSelect(input()), 'session_evidence_verification_failed');
-    expect(evidenceVerifier.verify).toHaveBeenCalledTimes(1);
+    try {
+      await expectCode(verifier.verifyAndSelect(input()), 'session_evidence_verification_failed');
+      expect(verify).toHaveBeenCalledTimes(1);
+    } finally {
+      monotonicNow.mockRestore();
+    }
   });
 
   it('normalizes injected clock failures to content-free clock_invalid', async () => {
