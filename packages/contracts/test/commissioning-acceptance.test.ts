@@ -111,6 +111,26 @@ describe('commissioning acceptance contracts', () => {
       { release: { ...payload().release, protectedSourceCommit: 'not-a-commit' } },
     ],
     ['missing EIF digest', { release: { ...payload().release, eifDigest: undefined } }],
+    [
+      'both inference bindings',
+      {
+        runtimeBindings: {
+          ...(payload()['runtimeBindings'] as Record<string, unknown>),
+          inferenceCommissioningMarkerDigest: DIGEST_B,
+        },
+      },
+    ],
+    [
+      'neither inference binding',
+      {
+        runtimeBindings: (() => {
+          const { inferenceTrustPolicyDigest: _policy, ...rest } = payload()[
+            'runtimeBindings'
+          ] as Record<string, unknown>;
+          return rest;
+        })(),
+      },
+    ],
     ['malformed digest', { evidenceSha256: 'not-a-digest' }],
     ['malformed signature', { signature: 'not-a-signature' }],
     [
@@ -142,6 +162,23 @@ describe('commissioning acceptance contracts', () => {
     ['non-UTC timestamp', { validUntil: '2026-08-23T07:00:00.000+00:00' }],
   ])('rejects %s', (_label, overrides) => {
     expect(() => commissioningAcceptancePayloadV1Schema.parse(payload(overrides))).toThrow();
+  });
+
+  it('accepts the staging marker binding in place of a policy digest (#1103)', () => {
+    const { inferenceTrustPolicyDigest: _policy, ...rest } = payload()['runtimeBindings'] as Record<
+      string,
+      unknown
+    >;
+    const parsed = commissioningAcceptancePayloadV1Schema.parse(
+      payload({ runtimeBindings: { ...rest, inferenceCommissioningMarkerDigest: DIGEST_B } }),
+    ) as CommissioningAcceptancePayloadV1;
+    expect(parsed.runtimeBindings.inferenceCommissioningMarkerDigest).toBe(DIGEST_B);
+    expect(parsed.runtimeBindings.inferenceTrustPolicyDigest).toBeUndefined();
+    // Which key is present is part of the signed bytes, so a swap changes the signature input.
+    expect(canonicalJson(parsed)).not.toBe(
+      canonicalJson(commissioningAcceptancePayloadV1Schema.parse(payload())),
+    );
+    expect(commissioningAcceptancePayloadBytes(parsed).length).toBeGreaterThan(0);
   });
 
   it('rejects missing payload and malformed envelope discriminators', () => {

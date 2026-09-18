@@ -42,15 +42,28 @@ const releaseSchema = z
     'EIF artifact path must match protected source commit',
   );
 
+// A deployment's inference binding names the state that was accepted. A receipt-verified
+// deployment binds `inferenceTrustPolicyDigest` (the V1 policy or V2 carrier digest). A deployment
+// whose receipt verification is staged off binds `inferenceCommissioningMarkerDigest` (the signed
+// commissioning marker with its TLS pins). Exactly one of the two is present, so the signed payload
+// says which state was accepted without an out-of-band evidence bundle, and a state swap changes the
+// key set, not just the digest value.
 const runtimeBindingsSchema = z
   .object({
     signerFloorKeysetDigest: digest64Schema,
-    inferenceTrustPolicyDigest: digest64Schema,
+    inferenceTrustPolicyDigest: digest64Schema.optional(),
+    inferenceCommissioningMarkerDigest: digest64Schema.optional(),
     assignmentManifestPublicKeyDigest: digest64Schema,
     enclaveOutputKeyConfigDigest: digest64Schema,
     sharedPoolRuntimeConfigDigest: digest64Schema,
   })
-  .strict();
+  .strict()
+  .refine(
+    (bindings) =>
+      (bindings.inferenceTrustPolicyDigest === undefined) !==
+      (bindings.inferenceCommissioningMarkerDigest === undefined),
+    'exactly one inference binding is required: the trust policy digest or the commissioning marker digest',
+  );
 
 export const commissioningAcceptancePayloadV1Schema = z
   .object({
