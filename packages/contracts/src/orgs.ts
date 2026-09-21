@@ -161,7 +161,9 @@ const commissioningProvisioningDeploymentStateSchema = z
     provisioningFailedAt: z.null(),
     provisioningFailureCode: z.null(),
     readyAt: z.null(),
-    sharedEnclaveId: z.null(),
+    // Normally null. A stale commissioning claim may carry the exact pool pointer written by its
+    // sole terminal failed assignment so the recovery POST can fence and clear that pointer.
+    sharedEnclaveId: z.string().min(1).nullable(),
     instanceId: z.null(),
     enclaveRoleArn: z.null(),
     bootManifestHash: z.null(),
