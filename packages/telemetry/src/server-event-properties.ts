@@ -307,6 +307,13 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     objectsDeleted: count,
     kmsShredScheduled: bool,
   }),
+  'workspace.deleted': propertyContract({ ...orgId, deploymentsDeleted: count }),
+  'account.deleted': propertyContract({
+    accountId: uuid,
+    workspacesDeleted: count,
+    platformTenantsRetained: count,
+    tombstoned: bool,
+  }),
   'error.captured': isErrorReport,
 } satisfies Record<ServerTelemetryEventName, EventPropertiesValidator>;
 

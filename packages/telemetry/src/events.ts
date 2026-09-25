@@ -3,6 +3,8 @@ import type { ErrorReport } from '@folklore/errors';
 
 export const TelemetryEvent = {
   OrgCreated: 'org.created',
+  WorkspaceDeleted: 'workspace.deleted',
+  AccountDeleted: 'account.deleted',
   OrgRecoveryKeySet: 'org.recovery_key_set',
   CoProcessingConsentRecorded: 'co_processing_consent.recorded',
   MarketingOptInRecordFailed: 'marketing_opt_in.record_failed',
@@ -60,6 +62,19 @@ type ProductEvents = {
     processingTier?: string;
   };
   'org.recovery_key_set': { orgId: string; rotated: boolean };
+  // A user withdrew a workspace that held nothing live (self-serve), or the account deletion that
+  // withdrew it. Content-free: an org id and a count.
+  'workspace.deleted': { orgId: string; deploymentsDeleted: number };
+  // A user deleted their own account. `tombstoned` = the row was kept as an FK anchor for an
+  // append-only ledger it appears in (hash-chained admin audit, the legacy identity gate); the
+  // account itself is gone either way. `platformTenantsRetained` counts platform fixtures that were
+  // detached and left running rather than deleted.
+  'account.deleted': {
+    accountId: string;
+    workspacesDeleted: number;
+    platformTenantsRetained: number;
+    tombstoned: boolean;
+  };
   'co_processing_consent.recorded': { orgId: string; tier: string; disclosureVersion: string };
   'source.connected': { orgId: string; sourceKind: string; hasRefreshToken: boolean };
   'member.invited': { orgId: string; role: string; count: number };

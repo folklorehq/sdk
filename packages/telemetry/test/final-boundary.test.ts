@@ -149,6 +149,13 @@ const VALID_SERVER_EVENT_FIXTURES = {
     objectsDeleted: 1,
     kmsShredScheduled: true,
   },
+  'workspace.deleted': { orgId: ORGANIZATION_ID, deploymentsDeleted: 1 },
+  'account.deleted': {
+    accountId: ORGANIZATION_ID,
+    workspacesDeleted: 1,
+    platformTenantsRetained: 1,
+    tombstoned: false,
+  },
   'error.captured': ERROR_REPORT,
 } satisfies { [K in ServerTelemetryEventName]: TelemetryEventMap[K] };
 

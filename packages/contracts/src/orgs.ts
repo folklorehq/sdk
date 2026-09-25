@@ -122,6 +122,68 @@ export const ORG_CREATION_REFUSAL_REASON = {
   quotaExceeded: 'organization_quota_exceeded',
 } as const satisfies Record<string, OrgCreationRefusalReason>;
 
+/*
+  Platform fixtures (migration 0107). Some rows in `organizations` are not a customer's
+  workspace: they are the platform running itself. The commissioning tenant
+  (`3e083ed2-433c-4798-ae11-a656c9de08ee`) was created as an ordinary row owned by the operator's
+  own account, with the dogfood pool's tenant binding and 48 pool-provisioning operations hanging
+  off it, which is why "delete my own workspace" was an operator action against live ledgers and
+  why no user could clear their account (#1945).
+
+  `platform_role` is the mark that separates the two. It is NULL for every customer workspace and
+  set for a platform fixture, so every user-facing list can exclude platform infrastructure with one
+  predicate and every user-initiated flow can refuse by name.
+*/
+export const platformTenantRoleSchema = z.enum(['commissioning']);
+export type PlatformTenantRole = z.infer<typeof platformTenantRoleSchema>;
+
+export const PLATFORM_TENANT_ROLE = {
+  commissioning: 'commissioning',
+} as const satisfies Record<string, PlatformTenantRole>;
+
+/*
+  One code per refusal, because the console renders different copy for each and support triages on
+  them. `confirmation_mismatch` mirrors `delete_tenant_data`'s wrong-tenant guard: a delete request
+  must echo the exact target, so a mis-routed request cannot destroy the wrong workspace.
+*/
+export const workspaceDeletionRefusalReasonSchema = z.enum([
+  'workspace_deletion_not_found',
+  'workspace_deletion_forbidden',
+  'workspace_deletion_confirmation_mismatch',
+  'workspace_deletion_platform_tenant',
+  'workspace_deletion_live_deployment',
+  'workspace_deletion_pool_binding',
+  'workspace_deletion_placement_claim_unreleased',
+  'workspace_deletion_placement_claim_unverified',
+  'workspace_deletion_retained_reference',
+]);
+export type WorkspaceDeletionRefusalReason = z.infer<typeof workspaceDeletionRefusalReasonSchema>;
+
+export const WORKSPACE_DELETION_REFUSAL_REASON = {
+  notFound: 'workspace_deletion_not_found',
+  forbidden: 'workspace_deletion_forbidden',
+  confirmationMismatch: 'workspace_deletion_confirmation_mismatch',
+  platformTenant: 'workspace_deletion_platform_tenant',
+  liveDeployment: 'workspace_deletion_live_deployment',
+  poolBinding: 'workspace_deletion_pool_binding',
+  placementClaimUnreleased: 'workspace_deletion_placement_claim_unreleased',
+  placementClaimUnverified: 'workspace_deletion_placement_claim_unverified',
+  retainedReference: 'workspace_deletion_retained_reference',
+} as const satisfies Record<string, WorkspaceDeletionRefusalReason>;
+
+export const accountDeletionRefusalReasonSchema = z.enum([
+  'account_deletion_not_found',
+  'account_deletion_confirmation_mismatch',
+  'account_deletion_workspace_blocked',
+]);
+export type AccountDeletionRefusalReason = z.infer<typeof accountDeletionRefusalReasonSchema>;
+
+export const ACCOUNT_DELETION_REFUSAL_REASON = {
+  notFound: 'account_deletion_not_found',
+  confirmationMismatch: 'account_deletion_confirmation_mismatch',
+  workspaceBlocked: 'account_deletion_workspace_blocked',
+} as const satisfies Record<string, AccountDeletionRefusalReason>;
+
 export const provisionOperationSchema = z
   .object({
     operationId: z.string().uuid(),
