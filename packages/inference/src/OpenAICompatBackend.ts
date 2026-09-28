@@ -27,6 +27,7 @@ export interface OpenAICompatConfig {
   generateModel?: string;
   /** Default generation model revision for receipt-bound backends. */
   generateModelRevision?: string;
+  structuredOutputMode?: 'tool_call' | 'json_schema';
   /** When set, request this dimensionality via the OpenAI `dimensions` param and reject a response of another length. Unset = the server's native dimension. */
   embedDimensions?: number;
   /** Request timeout in milliseconds. Default: 60000. */
@@ -81,6 +82,8 @@ interface OpenAIToolChatResponse {
   usage?: OpenAIUsage;
 }
 
+type ParsedToolArguments = Record<string, unknown>;
+
 interface OpenAIChatStreamChunk {
   choices: Array<{ delta: { content?: string }; finish_reason: string | null }>;
 }
@@ -108,6 +111,7 @@ export class OpenAICompatBackend implements InferenceBackend {
   protected readonly telemetry: TelemetryClient | undefined;
   protected readonly fetchImpl: typeof fetch;
   protected readonly publicAciRequired: boolean;
+  private readonly structuredOutputMode: 'tool_call' | 'json_schema';
 
   constructor(config: OpenAICompatConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, '').replace(/\/v1$/, '');
@@ -116,6 +120,7 @@ export class OpenAICompatBackend implements InferenceBackend {
     this.embedModelRevision = config.embedModelRevision ?? 'unversioned';
     this.generateModel = config.generateModel ?? DEFAULT_GENERATE_MODEL;
     this.generateModelRevision = config.generateModelRevision ?? 'unversioned';
+    this.structuredOutputMode = config.structuredOutputMode ?? 'tool_call';
     this.embedDimensions = config.embedDimensions;
     this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.label = config.label ?? DEFAULT_LABEL;
@@ -269,7 +274,10 @@ export class OpenAICompatBackend implements InferenceBackend {
       const rawResponse = await this.readResponse(res);
       await this.verifyResponse(res, requestText, rawResponse, selection, nonce);
       const data = this.parseResponse<OpenAIToolChatResponse>(rawResponse);
-      const parsed = this.parseToolArguments(data, options.tool.name);
+      const parsed =
+        this.structuredOutputMode === 'json_schema'
+          ? this.parseJsonSchemaArguments(data)
+          : this.parseToolArguments(data, options.tool.name);
       this.recordUsage(model, 'structured', data.usage);
       this.telemetry?.track('inference.generate', 'system', {
         model,
@@ -366,27 +374,57 @@ export class OpenAICompatBackend implements InferenceBackend {
     options: StructuredOptions,
   ): Record<string, unknown> {
     const { tool } = options;
-    return {
+    const body: Record<string, unknown> = {
       model: selection.model,
       model_revision: selection.revision,
       messages: this.messages(prompt, options),
       max_tokens: options.maxTokens,
       temperature: options.temperature,
       stream: false,
-      tools: [
-        {
-          type: 'function',
-          function: { name: tool.name, description: tool.description, parameters: tool.parameters },
-        },
-      ],
-      tool_choice: { type: 'function', function: { name: tool.name } },
+      // Present in both modes: this is the ACI-verification flag, not part of the response shape.
       ...(this.publicAciRequired ? { provider: { aci_verified: true } } : {}),
     };
+    if (this.structuredOutputMode === 'json_schema') {
+      body['response_format'] = {
+        type: 'json_schema',
+        json_schema: { name: tool.name, strict: true, schema: tool.parameters },
+      };
+      return body;
+    }
+    body['tools'] = [
+      {
+        type: 'function',
+        function: { name: tool.name, description: tool.description, parameters: tool.parameters },
+      },
+    ];
+    body['tool_choice'] = { type: 'function', function: { name: tool.name } };
+    return body;
+  }
+
+  private parseJsonSchemaArguments(data: OpenAIToolChatResponse): Record<string, unknown> {
+    const message = data.choices[0]?.message;
+    const raw = message?.tool_calls?.[0]?.function.arguments ?? message?.content ?? undefined;
+    if (raw === undefined || raw === null) this.throwInvalidStructuredOutput();
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      this.throwInvalidStructuredOutput();
+    }
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      this.throwInvalidStructuredOutput();
+    }
+    return parsed as Record<string, unknown>;
+  }
+
+  private throwInvalidStructuredOutput(): never {
+    throw new Error(`${this.label} returned invalid structured output`);
   }
 
   // A forced tool call returns its JSON in `tool_calls[0].function.arguments`; some models
   // instead inline the object in `content`, so fall back to parsing the first JSON object there.
-  private parseToolArguments(data: OpenAIToolChatResponse, toolName: string): unknown {
+  private parseToolArguments(data: OpenAIToolChatResponse, toolName: string): ParsedToolArguments {
     const message = data.choices[0]?.message;
     const raw = message?.tool_calls?.[0]?.function.arguments ?? message?.content ?? undefined;
     if (raw === undefined || raw === null) {

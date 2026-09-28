@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { TelemetryClient } from '@folklore/telemetry';
 import { OpenAICompatBackend } from '../src/OpenAICompatBackend.js';
 
 const BASE_URL = 'http://vllm:8000';
 
-function makeFetch(response: object, status = 200) {
+function makeFetch(response: Record<string, unknown>, status = 200) {
   const bytes = new TextEncoder().encode(JSON.stringify(response));
   return vi.fn().mockResolvedValue({
     status,
@@ -14,7 +15,7 @@ function makeFetch(response: object, status = 200) {
   });
 }
 
-function jsonResponse(body: object): Response {
+function jsonResponse(body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), { status: 200 });
 }
 
@@ -210,6 +211,171 @@ describe('OpenAICompatBackend', () => {
     const body = JSON.parse(init.body as string);
     expect(body.tools[0].function.name).toBe('report_relevance');
     expect(body.tool_choice).toEqual({ type: 'function', function: { name: 'report_relevance' } });
+  });
+
+  it('keeps omitted and explicit tool_call request bytes identical', async () => {
+    const fetchMock = makeFetch({
+      choices: [
+        {
+          message: {
+            tool_calls: [{ function: { name: RELEVANCE_TOOL.name, arguments: '{}' } }],
+          },
+        },
+      ],
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const implicit = new OpenAICompatBackend({ baseUrl: BASE_URL });
+    const explicit = new OpenAICompatBackend({
+      baseUrl: BASE_URL,
+      structuredOutputMode: 'tool_call',
+    });
+
+    await implicit.generateStructured('judge', { tool: RELEVANCE_TOOL });
+    await explicit.generateStructured('judge', { tool: RELEVANCE_TOOL });
+
+    const firstBody = (fetchMock.mock.calls[0]?.[1] as RequestInit).body;
+    const secondBody = (fetchMock.mock.calls[1]?.[1] as RequestInit).body;
+    expect(secondBody).toBe(firstBody);
+  });
+
+  it('uses the exact json_schema request format and preserves verification, usage, and telemetry', async () => {
+    const tool = {
+      name: 'report_relevance',
+      description: 'Return a relevance score per fact.',
+      parameters: {
+        type: 'object',
+        properties: { results: { type: 'array' } },
+        required: ['results'],
+      },
+    };
+    const originalTool = structuredClone(tool);
+    const verifier = {
+      ensureAttested: vi.fn().mockResolvedValue(undefined),
+      verifyReceipt: vi.fn().mockResolvedValue(undefined),
+    };
+    const usageSink = vi.fn();
+    const track = vi.fn();
+    const response = {
+      choices: [{ message: { content: '{"results":[{"factId":"f1","relevance":0.9}]}' } }],
+      usage: { prompt_tokens: 17, completion_tokens: 5 },
+    };
+    const fetchMock = makeFetch(response);
+    vi.stubGlobal('fetch', fetchMock);
+    const backend = new OpenAICompatBackend({
+      baseUrl: BASE_URL,
+      structuredOutputMode: 'json_schema',
+      responseVerifier: verifier,
+      usageSink,
+      telemetry: { track, captureError: vi.fn(), flush: vi.fn() } as unknown as TelemetryClient,
+    });
+
+    await expect(
+      backend.generateStructured('judge', {
+        tool,
+        model: 'judge/model',
+        modelRevision: 'revision-7',
+        systemPrompt: 'Return only the object.',
+        maxTokens: 321,
+        temperature: 0.25,
+      }),
+    ).resolves.toEqual({ results: [{ factId: 'f1', relevance: 0.9 }] });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const requestText = init.body as string;
+    expect(requestText).toBe(
+      JSON.stringify({
+        model: 'judge/model',
+        model_revision: 'revision-7',
+        messages: [
+          { role: 'system', content: 'Return only the object.' },
+          { role: 'user', content: 'judge' },
+        ],
+        max_tokens: 321,
+        temperature: 0.25,
+        stream: false,
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: tool.name, strict: true, schema: tool.parameters },
+        },
+      }),
+    );
+    const body = JSON.parse(requestText) as Record<string, unknown>;
+    expect(body).not.toHaveProperty('tools');
+    expect(body).not.toHaveProperty('tool_choice');
+    expect(tool).toEqual(originalTool);
+
+    expect(verifier.ensureAttested).toHaveBeenCalledOnce();
+    expect(verifier.verifyReceipt).toHaveBeenCalledOnce();
+    const evidence = verifier.verifyReceipt.mock.calls[0]?.[1] as { nonce: string };
+    expect(evidence).toMatchObject({
+      model: 'judge/model',
+      modelRevision: 'revision-7',
+      requestSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      responseSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+    });
+    const headers = init.headers as Record<string, string>;
+    expect(headers['X-Folklore-Inference-Nonce']).toBe(evidence.nonce);
+    expect(usageSink).toHaveBeenCalledWith({
+      model: 'judge/model',
+      operation: 'structured',
+      promptTokens: 17,
+      completionTokens: 5,
+      cached: false,
+    });
+    expect(track).toHaveBeenCalledWith('inference.generate', 'system', {
+      model: 'judge/model',
+      latencyMs: expect.any(Number),
+    });
+    expect(JSON.stringify(track.mock.calls)).not.toContain('Return only the object.');
+    expect(JSON.stringify(track.mock.calls)).not.toContain('f1');
+  });
+
+  it('accepts an explicit empty object in json_schema mode', async () => {
+    vi.stubGlobal('fetch', makeFetch({ choices: [{ message: { content: '{}' } }] }));
+    const backend = new OpenAICompatBackend({
+      baseUrl: BASE_URL,
+      structuredOutputMode: 'json_schema',
+    });
+
+    await expect(backend.generateStructured('judge', { tool: RELEVANCE_TOOL })).resolves.toEqual(
+      {},
+    );
+  });
+
+  it.each([
+    ['empty content', ''],
+    ['whitespace content', ' \n\t'],
+    ['plain prose', 'not JSON: secret-content'],
+    ['prose-wrapped object', 'Here is the result: {"results":[]}'],
+    ['fenced object', '```json\n{}\n```'],
+    ['malformed JSON', '{"results":[}'],
+    ['null', null],
+    ['primitive', 'true'],
+    ['array', '[]'],
+  ])('rejects %s in json_schema mode with a static error', async (_caseName, content) => {
+    const usageSink = vi.fn();
+    const track = vi.fn();
+    vi.stubGlobal(
+      'fetch',
+      makeFetch({
+        choices: [{ message: { content } }],
+        usage: { prompt_tokens: 17, completion_tokens: 5 },
+      }),
+    );
+    const backend = new OpenAICompatBackend({
+      baseUrl: BASE_URL,
+      structuredOutputMode: 'json_schema',
+      usageSink,
+      telemetry: { track, captureError: vi.fn(), flush: vi.fn() } as unknown as TelemetryClient,
+    });
+
+    await expect(backend.generateStructured('judge', { tool: RELEVANCE_TOOL })).rejects.toThrow(
+      'OpenAI-compatible endpoint returned invalid structured output',
+    );
+    expect(usageSink).not.toHaveBeenCalled();
+    if (typeof content === 'string' && content.length > 0) {
+      expect(JSON.stringify(track.mock.calls)).not.toContain(content);
+    }
   });
 
   it('falls back to parsing a JSON object from message.content when tool_calls is absent', async () => {
