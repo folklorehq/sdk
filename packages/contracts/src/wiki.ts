@@ -4,6 +4,8 @@ import { documentTypeSchema } from './document-types.js';
 
 import { canonicalBase64BytesSchema } from './shared.js';
 
+export const WIKI_PUBLICATION_TITLE_MAX_LENGTH = 240;
+
 // Rich wiki content blocks. Shared, frozen shape: synthesis (@folklore/wiki
 // + enclave) emits these and the box renders them from this single definition — never a
 // re-declared mirror. A block's outer `type` is `${kind}:${id}` so a page may hold many
@@ -467,7 +469,7 @@ export const wikiPublishRequestSchema = z
   .object({
     requestId: z.string().uuid(),
     expectedRevisionId: z.string().uuid().nullable(),
-    title: z.string().trim().min(1).max(240),
+    title: z.string().trim().min(1).max(WIKI_PUBLICATION_TITLE_MAX_LENGTH),
     markdown: z.string().max(500_000),
     yjsState: canonicalBase64BytesSchema({ maxDecodedBytes: 1_500_000, minEncodedBytes: 4 }),
   })
