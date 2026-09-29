@@ -33,7 +33,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "pnpm --filter @folklore/utils build && tsc",
     "dev": "tsc --watch",
     "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.task-2a-tests.json",
     "lint": "eslint .",
