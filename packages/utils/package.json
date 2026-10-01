@@ -9,6 +9,9 @@
     "*": {
       "canonical-json-pure": [
         "dist/canonical-json-pure.d.ts"
+      ],
+      "uuid": [
+        "dist/uuid.d.ts"
       ]
     }
   },

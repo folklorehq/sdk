@@ -24,19 +24,19 @@ describe('agentPrincipalName', () => {
     },
   );
 
-  // Pool and org ids are minted as UUIDv8 (prod pool c0626b90-f744-863b-…), and a pool's agent
+  // Pool and org ids are minted as UUIDv8, and a pool's agent
   // principal is derived from its pool id, so a v1-5-only check failed every pool preview.
   it('derives the principal from a UUIDv8 pool or org id', () => {
-    const v8 = 'c0626b90-f744-863b-9254-c3ba1d8dd760';
-    expect(agentPrincipalName(v8)).toBe('folklore_agent_c0626b90f744863b9254c3ba1d8dd760');
-    expect(purgePrincipalName(v8)).toBe('folklore_purge_c0626b90f744863b9254c3ba1d8dd760');
+    const v8 = '018f2e3d-4c5b-8a69-b7c8-d9e0f1a2b3c4';
+    expect(agentPrincipalName(v8)).toBe('folklore_agent_018f2e3d4c5b8a69b7c8d9e0f1a2b3c4');
+    expect(purgePrincipalName(v8)).toBe('folklore_purge_018f2e3d4c5b8a69b7c8d9e0f1a2b3c4');
   });
 
   it.each([
     '00000000-0000-0000-0000-000000000000',
-    'c0626b90-f744-063b-9254-c3ba1d8dd760',
-    'c0626b90-f744-963b-9254-c3ba1d8dd760',
-    'c0626b90-f744-863b-c254-c3ba1d8dd760',
+    '018f2e3d-4c5b-0a69-b7c8-d9e0f1a2b3c4',
+    '018f2e3d-4c5b-9a69-b7c8-d9e0f1a2b3c4',
+    '018f2e3d-4c5b-8a69-c7c8-d9e0f1a2b3c4',
   ])('still rejects a nil, unknown-version or non-RFC-variant id %s', (value) => {
     expect(() => agentPrincipalName(value)).toThrow();
     expect(() => purgePrincipalName(value)).toThrow();
