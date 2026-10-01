@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-const NIL_UUID = '00000000-0000-0000-0000-000000000000';
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+import { isRfcUuid } from './uuid.js';
 
 /** Derives the only allowed RDS IAM login role for an organization. */
 export function agentPrincipalName(orgId: string): string {
   const normalized = orgId.toLowerCase();
-  if (!UUID_PATTERN.test(normalized) || normalized === NIL_UUID) {
+  if (!isRfcUuid(normalized)) {
     throw new Error('organization id must be a non-nil UUID');
   }
   return `folklore_agent_${normalized.replaceAll('-', '')}`;
@@ -14,7 +13,7 @@ export function agentPrincipalName(orgId: string): string {
 /** Derives the isolated RDS IAM login role used only for the authorized tenant purge. */
 export function purgePrincipalName(orgId: string): string {
   const normalized = orgId.toLowerCase();
-  if (!UUID_PATTERN.test(normalized) || normalized === NIL_UUID) {
+  if (!isRfcUuid(normalized)) {
     throw new Error('organization id must be a non-nil UUID');
   }
   return `folklore_purge_${normalized.replaceAll('-', '')}`;

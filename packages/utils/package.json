@@ -38,6 +38,11 @@
       "types": "./dist/canonical-json-pure.d.ts",
       "default": "./dist/canonical-json-pure.js"
     },
+    "./uuid": {
+      "development": "./src/uuid.ts",
+      "types": "./dist/uuid.d.ts",
+      "default": "./dist/uuid.js"
+    },
     "./tenant": {
       "development": "./src/tenant.ts",
       "types": "./dist/tenant.d.ts",

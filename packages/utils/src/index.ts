@@ -28,4 +28,5 @@ export {
 } from './tenant.js';
 export { emailDomain, isPublicEmailDomain, isWorkEmail } from './public-email-domains.js';
 export { agentPrincipalName, isAgentPrincipalName, purgePrincipalName } from './agent-principal.js';
+export { RFC_UUID_PATTERN_SOURCE, isRfcUuid } from './uuid.js';
 export { verifyControlPlaneCertificate, matchesSpkiPin } from './control-plane-pin.js';

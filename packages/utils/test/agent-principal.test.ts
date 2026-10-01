@@ -24,6 +24,24 @@ describe('agentPrincipalName', () => {
     },
   );
 
+  // Pool and org ids are minted as UUIDv8 (prod pool c0626b90-f744-863b-…), and a pool's agent
+  // principal is derived from its pool id, so a v1-5-only check failed every pool preview.
+  it('derives the principal from a UUIDv8 pool or org id', () => {
+    const v8 = 'c0626b90-f744-863b-9254-c3ba1d8dd760';
+    expect(agentPrincipalName(v8)).toBe('folklore_agent_c0626b90f744863b9254c3ba1d8dd760');
+    expect(purgePrincipalName(v8)).toBe('folklore_purge_c0626b90f744863b9254c3ba1d8dd760');
+  });
+
+  it.each([
+    '00000000-0000-0000-0000-000000000000',
+    'c0626b90-f744-063b-9254-c3ba1d8dd760',
+    'c0626b90-f744-963b-9254-c3ba1d8dd760',
+    'c0626b90-f744-863b-c254-c3ba1d8dd760',
+  ])('still rejects a nil, unknown-version or non-RFC-variant id %s', (value) => {
+    expect(() => agentPrincipalName(value)).toThrow();
+    expect(() => purgePrincipalName(value)).toThrow();
+  });
+
   it('derives a distinct purge principal from the same org UUID', () => {
     expect(purgePrincipalName(ORG_ID)).toBe(PURGE_PRINCIPAL);
     expect(purgePrincipalName(ORG_ID)).not.toBe(PRINCIPAL);
