@@ -2,7 +2,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   emailDeliverySchema,
+  inviteEmailSchema,
   orgInviteContextSchema,
+  orgInviteViewSchema,
   phaseForProvisioningStatus,
   provisionOperationSchema,
   provisioningStatusSchema,
@@ -75,6 +77,33 @@ describe('orgInviteContextSchema', () => {
         acceptUrl: 'https://console.test/invite?token=abc',
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('inviteEmailSchema', () => {
+  it('normalizes a padded, mixed-case address and refuses malformed or oversized ones', () => {
+    expect(inviteEmailSchema.parse('  Dana@Acme.com ')).toBe('dana@acme.com');
+    expect(inviteEmailSchema.safeParse('bad-email').success).toBe(false);
+    expect(inviteEmailSchema.safeParse(`${'a'.repeat(320)}@acme.com`).success).toBe(false);
+  });
+});
+
+describe('orgInviteViewSchema', () => {
+  const view = {
+    id: '11111111-1111-4111-8111-111111111111',
+    email: 'dana@acme.com',
+    role: 'member',
+    status: 'pending',
+    expiresAt: '2026-10-08T00:00:00.000Z',
+    createdAt: '2026-10-01T00:00:00.000Z',
+  };
+
+  it('accepts the listed invite row and refuses the token hash or inviting account', () => {
+    expect(orgInviteViewSchema.safeParse(view).success).toBe(true);
+    expect(orgInviteViewSchema.safeParse({ ...view, tokenHash: 'h' }).success).toBe(false);
+    expect(orgInviteViewSchema.safeParse({ ...view, invitedByAccountId: view.id }).success).toBe(
+      false,
+    );
   });
 });
 

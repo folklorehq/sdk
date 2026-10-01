@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
+import { MAX_EMAIL_LEN } from './auth.js';
+
+// Normalized here so the route, the console forms and the service agree on one address.
+export const inviteEmailSchema = z.string().trim().toLowerCase().email().max(MAX_EMAIL_LEN);
 
 export const membershipRoleSchema = z.enum(['owner', 'admin', 'member']);
 export type MembershipRole = z.infer<typeof membershipRoleSchema>;
@@ -33,6 +37,19 @@ export type AccessGrantScope = z.infer<typeof accessGrantScopeSchema>;
 
 export const inviteStatusSchema = z.enum(['pending', 'accepted', 'revoked']);
 export type InviteStatus = z.infer<typeof inviteStatusSchema>;
+
+// `GET /v1/orgs/:id/invites` row: never the token hash or the inviting account.
+export const orgInviteViewSchema = z
+  .object({
+    id: z.string().uuid(),
+    email: z.string(),
+    role: membershipRoleSchema,
+    status: inviteStatusSchema,
+    expiresAt: z.string().datetime(),
+    createdAt: z.string().datetime(),
+  })
+  .strict();
+export type OrgInviteView = z.infer<typeof orgInviteViewSchema>;
 
 export const emailDeliverySchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('sent'), provider: z.literal('resend') }).strict(),

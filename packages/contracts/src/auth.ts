@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
-const MAX_EMAIL_LEN = 320;
+export const MAX_EMAIL_LEN = 320;
 
 // Magic-link sign-in request. `returnTo` is rejected by the handler: box sign-in now delivers
 // through the console callback, so a return target is never honored. Content-free.
