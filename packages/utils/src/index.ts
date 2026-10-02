@@ -35,6 +35,7 @@ export {
 } from './agent-principal.js';
 export {
   AGENT_DATABASE_AUTH_ENV,
+  AGENT_DATABASE_AUTH_RDS_IAM,
   AGENT_DATABASE_AUTH_SCRAM,
   AGENT_DATABASE_CREDENTIAL_SSM_PATH_ENV,
   generateAgentDatabaseCredential,

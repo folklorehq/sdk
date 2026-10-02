@@ -5,6 +5,7 @@ export const AGENT_DATABASE_AUTH_ENV = 'AGENT_DATABASE_AUTH';
 export const AGENT_DATABASE_CREDENTIAL_SSM_PATH_ENV = 'AGENT_DATABASE_CREDENTIAL_SSM_PATH';
 export type AgentDatabaseAuth = 'rds_iam' | 'scram';
 export const AGENT_DATABASE_AUTH_SCRAM = 'scram' satisfies AgentDatabaseAuth;
+export const AGENT_DATABASE_AUTH_RDS_IAM = 'rds_iam' satisfies AgentDatabaseAuth;
 
 const CREDENTIAL_VERSION = 1;
 const PASSWORD_BYTES = 32;
@@ -21,7 +22,6 @@ const SCRAM_KEY_BYTES = 32;
 const SCRAM_DIGEST = 'sha256';
 const SCRAM_PARAMETERS_INVALID = 'scram_verifier_parameters_invalid';
 
-// UNWIRED: no caller yet; the credential reader and writer land with plan #2343 (WS-C, WS-D).
 /** A database login secret, held only in the SecureString at agentDatabaseCredentialSsmPath. */
 export interface AgentDatabaseCredential {
   readonly agentPassword: string;
