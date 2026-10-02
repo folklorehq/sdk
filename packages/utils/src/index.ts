@@ -27,6 +27,22 @@ export {
   resolveTenantFromHost,
 } from './tenant.js';
 export { emailDomain, isPublicEmailDomain, isWorkEmail } from './public-email-domains.js';
-export { agentPrincipalName, isAgentPrincipalName, purgePrincipalName } from './agent-principal.js';
+export {
+  agentDatabaseCredentialSsmPath,
+  agentPrincipalName,
+  isAgentPrincipalName,
+  purgePrincipalName,
+} from './agent-principal.js';
+export {
+  AGENT_DATABASE_AUTH_ENV,
+  AGENT_DATABASE_AUTH_SCRAM,
+  AGENT_DATABASE_CREDENTIAL_SSM_PATH_ENV,
+  generateAgentDatabaseCredential,
+  parseAgentDatabaseCredential,
+  scramSha256Verifier,
+  serializeAgentDatabaseCredential,
+  type AgentDatabaseAuth,
+  type AgentDatabaseCredential,
+} from './agent-database-credential.js';
 export { RFC_UUID_PATTERN_SOURCE, isLowercaseRfcUuid, isRfcUuid } from './uuid.js';
 export { verifyControlPlaneCertificate, matchesSpkiPin } from './control-plane-pin.js';

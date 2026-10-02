@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import {
+  agentDatabaseCredentialSsmPath,
   agentPrincipalName,
   isAgentPrincipalName,
   purgePrincipalName,
@@ -46,4 +47,19 @@ describe('agentPrincipalName', () => {
     expect(purgePrincipalName(ORG_ID)).toBe(PURGE_PRINCIPAL);
     expect(purgePrincipalName(ORG_ID)).not.toBe(PRINCIPAL);
   });
+});
+
+describe('agentDatabaseCredentialSsmPath', () => {
+  it('derives the pool agent credential path from a lowercased UUID', () => {
+    expect(agentDatabaseCredentialSsmPath('018F2E3D-4C5B-8A69-B7C8-D9E0F1A2B3C4')).toBe(
+      '/folklore/018f2e3d-4c5b-8a69-b7c8-d9e0f1a2b3c4/agent-db-credential',
+    );
+  });
+
+  it.each(['not-a-uuid', '', '00000000-0000-0000-0000-000000000000', '../x/agent-db-credential'])(
+    'rejects a non-UUID id %s',
+    (value) => {
+      expect(() => agentDatabaseCredentialSsmPath(value)).toThrow();
+    },
+  );
 });
