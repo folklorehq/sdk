@@ -27,6 +27,7 @@ export const SAFE_LOG_FIELDS = Object.freeze([
   'messageId',
   'model',
   'operation',
+  'operationId',
   'orgId',
   'outcome',
   'phase',

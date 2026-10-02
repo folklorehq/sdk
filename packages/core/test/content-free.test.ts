@@ -75,6 +75,15 @@ describe('account id fields are distinct ids, not free text', () => {
   });
 });
 
+describe('an infrastructure operation id is a distinct id, not free text', () => {
+  it('accepts the derived v8 operation id and nothing that is not a UUID', () => {
+    expect(checkSafeLogContext({ operationId: '0ff47048-4385-813c-93be-6b3309dbeffe' })).toBeNull();
+    for (const value of ['requests/0ff47048.json', 'shared_tenant_provision', '']) {
+      expect(checkSafeLogContext({ operationId: value })).not.toBeNull();
+    }
+  });
+});
+
 describe('contentFreeErrorType', () => {
   // An Error's `name` is capitalized, and the boundary's code-value filter only admits lower-case
   // tokens. Passing `error.name` through as `error_type` made PinoLogger replace the whole record
