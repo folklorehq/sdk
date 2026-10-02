@@ -18,9 +18,11 @@ export { isAllowedRecallMeetingUrl } from './recall/meeting-host.js';
 export { mulberry32, seedFromString } from './random.js';
 export { clamp01, cosine, mean, median, jaccard } from './math.js';
 export {
+  PUNYCODE_ACE_PREFIX,
   RESERVED_SUBDOMAINS,
   SUBDOMAIN_LABEL_MIN_LENGTH,
   SUBDOMAIN_LABEL_MAX_LENGTH,
+  SUBDOMAIN_LABEL_RE,
   isValidSubdomainLabel,
   isReservedSubdomain,
   isValidTenantSubdomain,

@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import {
+  PUNYCODE_ACE_PREFIX,
+  RESERVED_SUBDOMAINS,
+  SUBDOMAIN_LABEL_MAX_LENGTH,
+  SUBDOMAIN_LABEL_MIN_LENGTH,
+  SUBDOMAIN_LABEL_RE,
   isReservedSubdomain,
   isValidSubdomainLabel,
   isValidTenantSubdomain,
   resolveTenantFromHost,
 } from '../src/tenant.js';
+import * as utils from '../src/index.js';
 
 describe('isValidSubdomainLabel', () => {
   it('accepts lowercase alphanumeric labels with internal hyphens', () => {
@@ -55,6 +61,52 @@ describe('isValidTenantSubdomain', () => {
 
   it('rejects a punycode label even though it is otherwise a well-formed DNS label', () => {
     expect(isValidTenantSubdomain('xn--pple-43d')).toBe(false);
+  });
+});
+
+describe('SUBDOMAIN_LABEL_RE', () => {
+  const cases = [
+    'acme',
+    'acme-corp',
+    'a1b2c3',
+    'Acme',
+    '-acme',
+    'acme-',
+    'ab',
+    'a'.repeat(41),
+    'under_score',
+    'has.dot',
+    'xn--pple-43d',
+    'xn--acme-1a2b3',
+    'app',
+    'controlplane',
+    '-bad',
+  ];
+
+  // Consumers that cannot import this package rebuild the check from its exports.
+  const rebuiltFromExports = (label: string): boolean =>
+    label.length >= SUBDOMAIN_LABEL_MIN_LENGTH &&
+    label.length <= SUBDOMAIN_LABEL_MAX_LENGTH &&
+    SUBDOMAIN_LABEL_RE.test(label) &&
+    !label.startsWith(PUNYCODE_ACE_PREFIX) &&
+    !RESERVED_SUBDOMAINS.has(label);
+
+  it.each(cases)('agrees with isValidTenantSubdomain on %s', (label) => {
+    expect(rebuiltFromExports(label)).toBe(isValidTenantSubdomain(label));
+  });
+
+  it('is stateless, so its source can be interpolated and reused', () => {
+    expect(SUBDOMAIN_LABEL_RE.flags).toBe('');
+  });
+
+  // An escape lost when the source is embedded in another string would silently widen the rule.
+  it('has a source with no escapes or delimiters to lose when embedded', () => {
+    expect(SUBDOMAIN_LABEL_RE.source).not.toMatch(/[\\/]/);
+  });
+
+  it('is exported from the package root beside the rest of the rule', () => {
+    expect(utils.SUBDOMAIN_LABEL_RE).toBe(SUBDOMAIN_LABEL_RE);
+    expect(utils.PUNYCODE_ACE_PREFIX).toBe(PUNYCODE_ACE_PREFIX);
   });
 });
 
