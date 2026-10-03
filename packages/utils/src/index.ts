@@ -49,3 +49,8 @@ export {
 } from './agent-database-credential.js';
 export { RFC_UUID_PATTERN_SOURCE, isLowercaseRfcUuid, isRfcUuid } from './uuid.js';
 export { verifyControlPlaneCertificate, matchesSpkiPin } from './control-plane-pin.js';
+export {
+  ed25519PublicKeyFromRaw,
+  verifyEd25519Signature,
+  type Ed25519SignatureInput,
+} from './signing/ed25519.js';
