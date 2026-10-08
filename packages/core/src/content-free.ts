@@ -26,6 +26,8 @@ const MAX_VALUE_LENGTH = 256;
 const MAX_LOG_EVENT_LENGTH = 96;
 const MAX_LOG_FIELD_LENGTH = 64;
 const SAFE_LOG_EVENT_PATTERN = /^[a-z][a-z0-9]*(?:[._][a-z0-9]+)*$/;
+const MAX_FAILURE_CODE_LENGTH = 64;
+const FAILURE_CODE_SLUG_PATTERN = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$/;
 const SAFE_DISTINCT_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SAFE_LOG_REQUEST_ID_PATTERN =
@@ -157,6 +159,17 @@ export function contentFreeErrorType(error: unknown): string | null {
   return candidate.length <= MAX_VALUE_LENGTH && SAFE_LOG_EVENT_PATTERN.test(candidate)
     ? candidate
     : null;
+}
+
+/** True for a multi-part guard name that the logging boundary accepts as a code field. */
+export function isFailureCodeSlug(value: unknown): value is string {
+  // Underscores only: a dotted value is the shape of a hostname or customer domain, and a value
+  // with no separator may be a bare identifier or a hex digest.
+  return (
+    typeof value === 'string' &&
+    value.length <= MAX_FAILURE_CODE_LENGTH &&
+    FAILURE_CODE_SLUG_PATTERN.test(value)
+  );
 }
 
 /** Internal text (a request path, a schema path) as a code-field token, or null when none survives. */

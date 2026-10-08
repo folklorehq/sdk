@@ -4,6 +4,7 @@ import {
   checkSafeLogContext,
   contentFreeErrorType,
   contentFreeLogCode,
+  isFailureCodeSlug,
   SAFE_LOG_FIELDS,
   type SafeLogContext,
   type SafeLogField,
@@ -159,5 +160,46 @@ describe('contentFreeLogCode', () => {
     expect(code).not.toBeNull();
     expect(code!.length).toBeLessThanOrEqual(256);
     expect(checkSafeLogContext({ route: code })).toBeNull();
+  });
+});
+
+describe('isFailureCodeSlug', () => {
+  it.each([
+    'signer_kms_message_too_large',
+    'active_policy_high_water_regression',
+    `a_${'b'.repeat(62)}`,
+  ])('accepts the guard name %s', (value) => {
+    expect(isFailureCodeSlug(value)).toBe(true);
+  });
+
+  it.each([
+    ['empty', ''],
+    ['a dotted code', 'signer.boundary.unavailable'],
+    ['a customer domain', 'acme.com'],
+    ['a hostname', 's3.amazonaws.com'],
+    ['a trailing underscore', 'signer_kms_'],
+    ['a double underscore', 'signer__kms'],
+    ['a leading underscore', '_signer_kms'],
+    ['a hex-looking 64-character digest', `a${'0f'.repeat(31)}e`],
+    ['a bare identifier', 'org1'],
+    ['an uppercase letter', 'Signer_kms'],
+    ['a leading digit', '1_code'],
+    ['prose', 'policy for org-1 failed'],
+    ['a path', 's3://bucket/key'],
+    ['a hyphenated id', 'org-1'],
+    ['over 64 characters', `a_${'b'.repeat(63)}`],
+    ['a non-string', 42],
+    ['undefined', undefined],
+  ])('rejects %s', (_label, value) => {
+    expect(isFailureCodeSlug(value)).toBe(false);
+  });
+
+  it('accepts nothing the logging boundary would refuse as a code field', () => {
+    const candidates = ['signer_kms_', 'signer__kms', 'a.b', 'a_b', 'a._b', 'ab_1c'];
+    for (const value of candidates) {
+      if (isFailureCodeSlug(value)) {
+        expect(checkSafeLogContext({ errorCode: value })).toBeNull();
+      }
+    }
   });
 });

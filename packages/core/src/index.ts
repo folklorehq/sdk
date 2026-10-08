@@ -23,6 +23,7 @@ export {
   contentFreeErrorType,
   contentFreeLogCode,
   ContentFreeViolationError,
+  isFailureCodeSlug,
   type SafeLogRejectionReason,
   type SafeLogContextSnapshot,
 } from './content-free.js';
