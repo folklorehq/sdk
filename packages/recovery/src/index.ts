@@ -2,6 +2,7 @@
 export {
   deriveRecoveryMaterial,
   generateRecoveryMaterial,
+  generateWorkspaceRecoveryNonce,
   isRecoveryPublicKeyHex,
   recoveryFingerprint,
   toRecoverySubmission,

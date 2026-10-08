@@ -4,6 +4,7 @@ import type { RecoveryMaterial } from './keygen.js';
 export interface RecoveryFileContext {
   orgName?: string;
   generatedAt?: Date;
+  workspaceNonce?: string;
 }
 
 function numberedWords(words: string[]): string {
@@ -29,6 +30,11 @@ export function buildRecoveryFileContents(
     '',
     `Recovery public key (shared with Folklore, not secret): ${material.publicKeyHex}`,
     `Fingerprint (verify this matches the console): ${material.fingerprint}`,
+    ...(context.workspaceNonce
+      ? [
+          `Workspace code (shared with Folklore, not secret; your workspace ID is made from it and the public key): ${context.workspaceNonce}`,
+        ]
+      : []),
     '',
     'Keep these words secret: anyone who holds them can recover your workspace data.',
     '',

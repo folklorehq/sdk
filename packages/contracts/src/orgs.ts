@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 import { MAX_EMAIL_LEN } from './auth.js';
+import { digest64Schema } from './shared.js';
 
 // Normalized here so the route, the console forms and the service agree on one address.
 export const inviteEmailSchema = z.string().trim().toLowerCase().email().max(MAX_EMAIL_LEN);
@@ -132,11 +133,15 @@ export const PROVISIONING_REFUSAL_REASON = {
   fleetFull: 'provisioning_fleet_full',
 } as const satisfies Record<string, ProvisioningRefusalReason>;
 
-export const orgCreationRefusalReasonSchema = z.enum(['organization_quota_exceeded']);
+export const orgCreationRefusalReasonSchema = z.enum([
+  'organization_quota_exceeded',
+  'organization_commitment_conflict',
+]);
 export type OrgCreationRefusalReason = z.infer<typeof orgCreationRefusalReasonSchema>;
 
 export const ORG_CREATION_REFUSAL_REASON = {
   quotaExceeded: 'organization_quota_exceeded',
+  commitmentConflict: 'organization_commitment_conflict',
 } as const satisfies Record<string, OrgCreationRefusalReason>;
 
 /*
@@ -324,6 +329,25 @@ export type RecoveryKeyRegistrationInput = z.infer<typeof recoveryKeyRegistratio
 /** Explicit acknowledgement captured when an admin selects the shared processing tier (shared-processing-tier §7/§8). */
 export const coProcessingConsentInputSchema = z.object({ disclosureVersion: z.string() }).strict();
 export type CoProcessingConsentInput = z.infer<typeof coProcessingConsentInputSchema>;
+
+// The new workspace's id is derived from these, so both are fixed in the browser before it exists.
+export const workspaceRecoveryCommitmentSchema = z
+  .object({ recoveryPublicKeyHex: digest64Schema, nonce: digest64Schema })
+  .strict();
+export type WorkspaceRecoveryCommitment = z.infer<typeof workspaceRecoveryCommitmentSchema>;
+
+export const createOrgInputSchema = z.object({
+  name: z.string().trim().min(1),
+  slug: z.string().optional(),
+  region: z.string().optional(),
+  tier: z.string().optional(),
+  // Shared is the only electable processing tier; `dedicated` is retired and rejected.
+  processingTier: z.literal('shared').default('shared'),
+  coProcessingConsent: z.object({ disclosureVersion: z.string().min(1) }).optional(),
+  marketingOptIn: z.boolean().optional(),
+  recoveryCommitment: workspaceRecoveryCommitmentSchema,
+});
+export type CreateOrgInput = z.input<typeof createOrgInputSchema>;
 
 /** Registered recovery pubkey + fingerprint for provenance verification. */
 export const recoveryStatusSchema = z

@@ -4,6 +4,7 @@ import {
   buildRecoveryFileContents,
   deriveRecoveryMaterial,
   generateRecoveryMaterial,
+  generateWorkspaceRecoveryNonce,
   isRecoveryPublicKeyHex,
   recoveryFingerprint,
   toRecoverySubmission,
@@ -79,5 +80,27 @@ describe('buildRecoveryFileContents', () => {
     expect(file).toContain('Acme');
     expect(file).toContain('Keep these words secret');
     expect(file).not.toContain('docs/security/master-key-recovery.md');
+  });
+
+  it('records the workspace nonce next to the public key when the workspace commits to it', () => {
+    const m = deriveRecoveryMaterial(PHRASE);
+    const nonce = '0f'.repeat(32);
+    const file = buildRecoveryFileContents(m, { workspaceNonce: nonce });
+    expect(file).toContain(
+      `Workspace code (shared with Folklore, not secret; your workspace ID is made from it and the public key): ${nonce}`,
+    );
+  });
+
+  it('omits the nonce line for a phrase with no workspace nonce', () => {
+    const file = buildRecoveryFileContents(deriveRecoveryMaterial(PHRASE));
+    expect(file).not.toContain('Workspace code');
+  });
+});
+
+describe('generateWorkspaceRecoveryNonce', () => {
+  it('returns 32 random bytes as lower-case hex', () => {
+    const first = generateWorkspaceRecoveryNonce();
+    expect(first).toMatch(/^[0-9a-f]{64}$/);
+    expect(generateWorkspaceRecoveryNonce()).not.toBe(first);
   });
 });

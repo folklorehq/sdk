@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { x25519 } from '@noble/curves/ed25519';
 import { sha256 } from '@noble/hashes/sha2';
-import { bytesToHex, concatBytes, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
+import { bytesToHex, concatBytes, hexToBytes, randomBytes, utf8ToBytes } from '@noble/hashes/utils';
 import { generateMnemonic, mnemonicToEntropy, validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
 
@@ -14,6 +14,7 @@ const RECOVERY_ENTROPY_BITS = 256;
 const X25519_DERIVATION_DOMAIN = 'folklore-recovery-x25519-v1';
 const FINGERPRINT_BYTES = 8;
 const RAW_KEY_HEX_LENGTH = 64;
+const WORKSPACE_NONCE_BYTES = 32;
 
 export interface RecoveryMaterial {
   mnemonic: string;
@@ -76,6 +77,10 @@ export function deriveRecoveryPublicKeyHex(mnemonic: string): string {
 
 export function generateRecoveryMaterial(): RecoveryMaterial {
   return deriveRecoveryMaterial(generateMnemonic(wordlist, RECOVERY_ENTROPY_BITS));
+}
+
+export function generateWorkspaceRecoveryNonce(): string {
+  return bytesToHex(randomBytes(WORKSPACE_NONCE_BYTES));
 }
 
 export function toRecoverySubmission(material: RecoveryMaterial): RecoverySubmission {

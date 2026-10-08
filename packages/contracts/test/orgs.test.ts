@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import {
+  createOrgInputSchema,
   emailDeliverySchema,
   inviteEmailSchema,
   orgInviteContextSchema,
@@ -10,7 +11,15 @@ import {
   provisioningStatusSchema,
   provisioningStateSchema,
   recoveryKeyRegistrationInputSchema,
+  workspaceRecoveryCommitmentSchema,
 } from '../src/orgs.js';
+
+const RECOVERY_PUBLIC_KEY_HEX = 'ab'.repeat(32);
+const WORKSPACE_NONCE = '0f'.repeat(32);
+const RECOVERY_COMMITMENT = {
+  recoveryPublicKeyHex: RECOVERY_PUBLIC_KEY_HEX,
+  nonce: WORKSPACE_NONCE,
+};
 
 describe('provisioningStateSchema', () => {
   it('accepts only the four persisted provisioning states', () => {
@@ -35,6 +44,52 @@ describe('recoveryKeyRegistrationInputSchema', () => {
     ).toBe(false);
     expect(
       recoveryKeyRegistrationInputSchema.safeParse({ ...input, phrase: 'customer recovery words' })
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe('workspaceRecoveryCommitmentSchema', () => {
+  it('accepts a lower-case 32-byte key and nonce', () => {
+    expect(workspaceRecoveryCommitmentSchema.parse(RECOVERY_COMMITMENT)).toEqual(
+      RECOVERY_COMMITMENT,
+    );
+  });
+
+  it.each([
+    ['an upper-case key', { ...RECOVERY_COMMITMENT, recoveryPublicKeyHex: 'AB'.repeat(32) }],
+    ['a short key', { ...RECOVERY_COMMITMENT, recoveryPublicKeyHex: 'ab'.repeat(31) }],
+    ['a short nonce', { ...RECOVERY_COMMITMENT, nonce: '0f'.repeat(31) }],
+    ['a non-hex nonce', { ...RECOVERY_COMMITMENT, nonce: 'zz'.repeat(32) }],
+    ['a missing nonce', { recoveryPublicKeyHex: RECOVERY_PUBLIC_KEY_HEX }],
+    ['an extra key', { ...RECOVERY_COMMITMENT, fingerprint: 'abcd-abcd-abcd-abcd' }],
+  ])('refuses %s', (_case, input) => {
+    expect(workspaceRecoveryCommitmentSchema.safeParse(input).success).toBe(false);
+  });
+});
+
+describe('createOrgInputSchema', () => {
+  it('requires the recovery commitment the workspace id is derived from', () => {
+    expect(createOrgInputSchema.safeParse({ name: 'Acme Inc.' }).success).toBe(false);
+    expect(
+      createOrgInputSchema.parse({ name: ' Acme Inc. ', recoveryCommitment: RECOVERY_COMMITMENT }),
+    ).toEqual({
+      name: 'Acme Inc.',
+      processingTier: 'shared',
+      recoveryCommitment: RECOVERY_COMMITMENT,
+    });
+  });
+
+  it('refuses the retired dedicated tier and an empty name', () => {
+    expect(
+      createOrgInputSchema.safeParse({
+        name: 'Acme Inc.',
+        processingTier: 'dedicated',
+        recoveryCommitment: RECOVERY_COMMITMENT,
+      }).success,
+    ).toBe(false);
+    expect(
+      createOrgInputSchema.safeParse({ name: '  ', recoveryCommitment: RECOVERY_COMMITMENT })
         .success,
     ).toBe(false);
   });
