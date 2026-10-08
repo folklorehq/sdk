@@ -680,6 +680,11 @@ export const oauthRefreshCommandSchema = z
   .strict();
 export type OAuthRefreshCommand = z.infer<typeof oauthRefreshCommandSchema>;
 
+const githubInstallationIdSchema = z
+  .string()
+  .regex(/^[0-9]+$/)
+  .max(32);
+
 export const enclaveAuthorizationCodeGrantSchema = z
   .object({
     version: z.literal(1),
@@ -695,11 +700,47 @@ export const enclaveAuthorizationCodeGrantSchema = z
     codeVerifier: z.string().min(43).max(256).nullable(),
     accountId: z.string().uuid().optional(),
     memberEmail: z.string().email().max(320).optional(),
+    installationId: githubInstallationIdSchema.optional(),
     issuedAt: z.string().datetime({ offset: true }),
     expiresAt: z.string().datetime({ offset: true }),
   })
   .strict();
 export type EnclaveAuthorizationCodeGrant = z.infer<typeof enclaveAuthorizationCodeGrantSchema>;
+
+const OAUTH_CODE_GRANT_AAD_PREFIX = 'folklore.oauth-code-grant.v1';
+
+/** The AAD both the control plane (sealer) and the enclave (opener) bind a code grant to. */
+export function oauthCodeGrantAad(
+  grant: Pick<
+    EnclaveAuthorizationCodeGrant,
+    | 'deploymentId'
+    | 'orgId'
+    | 'sourceKind'
+    | 'callbackUri'
+    | 'attestationGeneration'
+    | 'activationGeneration'
+    | 'stateBindingId'
+    | 'installationId'
+    | 'issuedAt'
+    | 'expiresAt'
+  >,
+): string {
+  const parts = [
+    OAUTH_CODE_GRANT_AAD_PREFIX,
+    grant.deploymentId,
+    grant.orgId,
+    grant.sourceKind,
+    grant.callbackUri,
+    grant.attestationGeneration,
+    grant.activationGeneration ?? '',
+    grant.stateBindingId,
+    grant.issuedAt,
+    grant.expiresAt,
+  ];
+  // Appended only when present so every non-GitHub grant keeps its existing AAD.
+  if (grant.installationId !== undefined) parts.push(`installation:${grant.installationId}`);
+  return parts.join('|');
+}
 
 // Callback output is deliberately opaque. Authorization codes, PKCE verifiers, provider tokens,
 // and provider response bodies are enclave-only; the control plane may carry this envelope but may
@@ -729,10 +770,11 @@ export const sealedGitHubInstallationSubmissionSchema = z
     activationGeneration: z.string().uuid(),
     attestationGeneration: z.string().min(1).max(128),
     stateBindingId: z.string().regex(/^[a-f0-9]{64}$/),
-    installationId: z
-      .string()
-      .regex(/^[0-9]+$/)
-      .max(32),
+    installationId: githubInstallationIdSchema,
+    // The install-time code proves the installer can access the installation; the
+    // control plane carries it only inside this enclave-sealed grant.
+    encryptedCodeGrant: opaqueCiphertextSchema,
+    ciphertextSha256: z.string().regex(/^[a-f0-9]{64}$/),
   })
   .strict();
 export type SealedGitHubInstallationSubmission = z.infer<

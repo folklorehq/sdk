@@ -7,6 +7,8 @@ import {
   pullCompleteSignalSchema,
   pullDueMessageSchema,
   oauthDisconnectCleanupCommandSchema,
+  oauthCodeGrantAad,
+  sealedGitHubInstallationSubmissionSchema,
   synthesisQueueRequestSchema,
   synthesisRequestSchema,
   teamOnboardingSynthesisRequestSchema,
@@ -44,6 +46,69 @@ const webhookBinding = {
   sourceKind: 'jira',
   attestationGeneration: 'gen-1',
 };
+
+describe('oauthCodeGrantAad', () => {
+  const grant = {
+    deploymentId: 'd',
+    orgId: 'o',
+    sourceKind: 'slack',
+    callbackUri: 'https://cb.example/x',
+    attestationGeneration: 'g',
+    activationGeneration: 'a',
+    stateBindingId: 's',
+    issuedAt: 'i',
+    expiresAt: 'e',
+  };
+
+  it('keeps the existing AAD for a grant without an installation', () => {
+    expect(oauthCodeGrantAad(grant)).toBe(
+      'folklore.oauth-code-grant.v1|d|o|slack|https://cb.example/x|g|a|s|i|e',
+    );
+    expect(oauthCodeGrantAad({ ...grant, activationGeneration: undefined })).toBe(
+      'folklore.oauth-code-grant.v1|d|o|slack|https://cb.example/x|g||s|i|e',
+    );
+  });
+
+  it('binds a GitHub installation id into the AAD', () => {
+    expect(oauthCodeGrantAad({ ...grant, sourceKind: 'github', installationId: '555000' })).toBe(
+      'folklore.oauth-code-grant.v1|d|o|github|https://cb.example/x|g|a|s|i|e|installation:555000',
+    );
+  });
+});
+
+describe('sealedGitHubInstallationSubmissionSchema', () => {
+  const submission = {
+    deploymentId: RUNTIME_DEPLOYMENT_ID,
+    orgId: '22222222-2222-4222-8222-222222222222',
+    sourceKind: 'github',
+    connectionId: '33333333-3333-4333-8333-333333333333',
+    activationGeneration: '44444444-4444-4444-8444-444444444444',
+    attestationGeneration: 'generation-1',
+    stateBindingId: 'a'.repeat(64),
+    installationId: '555000',
+    encryptedCodeGrant: '{"sealed":true}',
+    ciphertextSha256: 'b'.repeat(64),
+  };
+
+  it('carries the install code only as a sealed grant', () => {
+    expect(sealedGitHubInstallationSubmissionSchema.parse(submission)).toEqual(submission);
+  });
+
+  it.each(['encryptedCodeGrant', 'ciphertextSha256'] as const)(
+    'refuses a submission without %s',
+    (field) => {
+      const { [field]: _omitted, ...rest } = submission;
+      expect(sealedGitHubInstallationSubmissionSchema.safeParse(rest).success).toBe(false);
+    },
+  );
+
+  it('refuses a plaintext install code', () => {
+    expect(
+      sealedGitHubInstallationSubmissionSchema.safeParse({ ...submission, code: 'install-code' })
+        .success,
+    ).toBe(false);
+  });
+});
 
 describe('webhook lifecycle enclave contracts', () => {
   const validFinalize = {
