@@ -27,6 +27,7 @@ export * from './onboarding.js';
 export * from './operation-identity.js';
 export * from './orgs.js';
 export * from './preview.js';
+export * from './recovery-key-binding.js';
 export * from './review.js';
 export * from './rollout.js';
 export * from './sealed-content.js';
