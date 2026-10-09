@@ -30,6 +30,8 @@ const MAX_FAILURE_CODE_LENGTH = 64;
 const FAILURE_CODE_SLUG_PATTERN = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$/;
 const SAFE_DISTINCT_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// The check-in wire accepts any canonical UUID as a deployment id, so the log boundary does too.
+const SAFE_LOG_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SAFE_LOG_REQUEST_ID_PATTERN =
   /^(?:[a-z][a-z0-9]{0,31}_[a-z0-9]{1,95}|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 const SAFE_LOG_MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
@@ -213,6 +215,7 @@ function isSafeLogValue(key: string, value: unknown): boolean {
   )
     return SAFE_DISTINCT_ID_PATTERN.test(value);
   if (key === 'model') return SAFE_LOG_MODEL_PATTERN.test(value);
+  if (key === 'deploymentId') return SAFE_LOG_UUID_PATTERN.test(value);
   return false;
 }
 

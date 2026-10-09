@@ -85,6 +85,35 @@ describe('an infrastructure operation id is a distinct id, not free text', () =>
   });
 });
 
+describe('a deployment id is a canonical uuid, not free text', () => {
+  it('accepts any canonical uuid the check-in wire accepts', () => {
+    expect(
+      checkSafeLogContext({ deploymentId: '61f38fae-269f-8e60-8554-bbc64fbf1bdf' }),
+    ).toBeNull();
+    expect(
+      checkSafeLogContext({ deploymentId: '11111111-1111-1111-1111-111111111111' }),
+    ).toBeNull();
+  });
+
+  it.each([
+    'acme corp',
+    'tenant.example.com',
+    '61f38fae269f8e608554bbc64fbf1bdf',
+    '',
+    'x'.repeat(36),
+  ])('refuses %j', (value) => {
+    expect(checkSafeLogContext({ deploymentId: value })).not.toBeNull();
+  });
+});
+
+describe('numeric enclave boot fields', () => {
+  it('accepts an exit code and restart count and refuses text in them', () => {
+    expect(checkSafeLogContext({ exitCode: 1, restarts: 44 })).toBeNull();
+    expect(checkSafeLogContext({ exitCode: 'segfault in acme' })).not.toBeNull();
+    expect(checkSafeLogContext({ restarts: 'many' })).not.toBeNull();
+  });
+});
+
 describe('contentFreeErrorType', () => {
   // An Error's `name` is capitalized, and the boundary's code-value filter only admits lower-case
   // tokens. Passing `error.name` through as `error_type` made PinoLogger replace the whole record
