@@ -276,7 +276,7 @@ const MAX_ACI_CLOCK_SKEW_SECONDS = 3_600;
 const MAX_ACI_JSON_DEPTH = 64;
 const MAX_ACI_JSON_NODES = 4_096;
 
-const aciPrefixedDigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
+export const aciPrefixedDigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const MAX_ACI_RAW_EVIDENCE_COMPONENT_BYTES = 1_048_576;
 const MAX_ACI_RAW_EVIDENCE_AGGREGATE_BYTES = 4_194_304;
 const MAX_ACI_RAW_EVIDENCE_COMPONENT_BASE64_LENGTH =
@@ -597,7 +597,14 @@ export const aciSessionClaimsSchema = z
   })
   .catchall(aciBoundedJsonValueSchema);
 
-const aciKnownChannelBindingTypes = new Set(['tls_spki_sha256', 'e2ee_public_key_sha256']);
+const aciKnownChannelBindingTypes: ReadonlySet<string> = new Set([
+  'tls_spki_sha256',
+  'e2ee_public_key_sha256',
+]);
+
+export function isAciKnownChannelBindingType(type: string): boolean {
+  return aciKnownChannelBindingTypes.has(type);
+}
 
 const aciTlsSpkiChannelBindingSchema = z
   .object({
@@ -621,7 +628,7 @@ const aciKnownChannelBindingSchema = z.union([
 ]);
 const aciUnknownChannelBindingSchema = z
   .object({
-    type: aciStringSchema.refine((type) => !aciKnownChannelBindingTypes.has(type)),
+    type: aciStringSchema.refine((type) => !isAciKnownChannelBindingType(type)),
   })
   .catchall(aciBoundedJsonValueSchema);
 const aciChannelBindingSchema = z.union([

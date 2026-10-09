@@ -6,6 +6,8 @@ import {
   aciSessionSchema,
   type AciReceipt,
   type AciSession,
+  isAciKnownChannelBindingType,
+  type InferenceTrustPolicyV2,
 } from '@folklore/contracts';
 import { canonicalJson } from '@folklore/utils';
 
@@ -19,6 +21,8 @@ const MAX_SESSION_BYTES = 1_048_576;
 const DEFAULT_FETCH_TIMEOUT_MS = 5_000;
 
 type UpstreamEvent = Extract<AciReceipt['event_log'][number], { type: 'upstream.verified' }>;
+type AcceptedChannelBinding = InferenceTrustPolicyV2['channelPolicy']['acceptedBindings'][number];
+type SessionChannelBinding = AciSession['channel_binding'][number];
 
 export type PublicAciVerifiedKeyset = Readonly<{
   workloadKeysetDigest: string;
@@ -36,8 +40,8 @@ export type PublicAciSessionPolicy = Readonly<{
   maxSessionLifetimeSeconds: number;
   requiredSessionClaims: readonly string[];
   permittedClaimSources: readonly string[];
-  /** Bare SHA-256 from the verified tenant role, over canonical {channel_binding}. */
-  channelKeyDigest: string;
+  /** The boot-signed provider policy's binding kinds; the session names its upstream, so domains are not compared. */
+  acceptedChannelBindings: readonly AcceptedChannelBinding[];
 }>;
 
 export type PublicAciSessionVerificationInput = Readonly<{
@@ -113,8 +117,8 @@ export class PublicAciSessionVerifier {
   }
 
   private validatePolicy(policy: PublicAciSessionPolicy): PublicAciSessionPolicy {
-    if (!/^[0-9a-f]{64}$/.test(policy.channelKeyDigest)) {
-      throw new Error('public ACI signed channel digest is invalid');
+    if (policy.acceptedChannelBindings.length === 0) {
+      throw new Error('public ACI channel policy is invalid');
     }
     let url: URL;
     try {
@@ -283,10 +287,15 @@ export class PublicAciSessionVerifier {
         throw new Error('public ACI session claim policy failed');
       }
     }
-    const channelKeyDigest = createHash('sha256')
-      .update(canonicalJson({ channel_binding: session.channel_binding }))
-      .digest('hex');
-    if (channelKeyDigest !== policy.channelKeyDigest) {
+    const known = session.channel_binding.filter((binding) =>
+      isAciKnownChannelBindingType(binding.type),
+    );
+    if (
+      known.length === 0 ||
+      !known.every((binding) =>
+        this.channelBindingAccepted(binding, policy.acceptedChannelBindings),
+      )
+    ) {
       throw new Error('public ACI session channel policy failed');
     }
     const encoded = session.evidence.data;
@@ -303,5 +312,17 @@ export class PublicAciSessionVerifier {
     ) {
       throw new Error('public ACI session evidence digest failed');
     }
+  }
+
+  private channelBindingAccepted(
+    binding: SessionChannelBinding,
+    accepted: readonly AcceptedChannelBinding[],
+  ): boolean {
+    return accepted.some((candidate) => {
+      if (candidate.type !== binding.type) return false;
+      if (candidate.type !== 'e2ee_public_key_sha256') return true;
+      const algorithm = 'algorithm' in binding ? binding.algorithm : undefined;
+      return candidate.algorithms.some((allowed) => allowed === algorithm);
+    });
   }
 }

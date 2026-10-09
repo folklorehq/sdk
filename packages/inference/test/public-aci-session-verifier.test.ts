@@ -48,11 +48,23 @@ function policy(): PublicAciSessionPolicy {
     maxSessionLifetimeSeconds: 100,
     requiredSessionClaims: ['tee_attested'],
     permittedClaimSources: ['hardware_proven'],
-    channelKeyDigest: createHash('sha256')
-      .update(canonicalJson({ channel_binding: [channelBinding] }))
-      .digest('hex'),
+    acceptedChannelBindings: [
+      {
+        type: 'e2ee_public_key_sha256',
+        domains: ['inference.example.com'],
+        algorithms: ['x25519-aes-256-gcm-hkdf-sha256'],
+      },
+      { type: 'tls_spki_sha256', domains: ['inference.example.com'] },
+    ],
   };
 }
+
+const e2eeBinding = (algorithm: string) => ({
+  type: 'e2ee_public_key_sha256',
+  provider: 'upstream',
+  algorithm,
+  public_key_sha256: 'e'.repeat(64),
+});
 
 function signedReceipt(
   sessionId: string,
@@ -154,21 +166,59 @@ describe('PublicAciSessionVerifier', () => {
     },
   );
 
-  it('rejects a signed session whose channels differ from the authorized role digest', async () => {
+  it('accepts an upstream channel key the provider policy accepts by type', async () => {
     const { verifier, input } = setup({
       channel_binding: [{ ...channelBinding, spki_sha256: 'c'.repeat(64) }],
+    });
+    await expect(verifier.verify(input)).resolves.toMatchObject({
+      channelBindings: [{ ...channelBinding, spki_sha256: 'c'.repeat(64) }],
+    });
+  });
+
+  it('accepts an accepted binding next to one the policy does not name', async () => {
+    const { verifier, input } = setup({
+      channel_binding: [
+        { type: 'quantum_tunnel', value: 'x' },
+        e2eeBinding('x25519-aes-256-gcm-hkdf-sha256'),
+      ],
+    });
+    await expect(verifier.verify(input)).resolves.toBeDefined();
+  });
+
+  it.each([
+    ['an unknown binding type', [{ type: 'quantum_tunnel', value: 'x' }]],
+    [
+      'an e2ee algorithm the policy does not list',
+      [e2eeBinding('secp256k1-aes-256-gcm-hkdf-sha256')],
+    ],
+  ])('rejects a session whose only channel binding is %s', async (_label, channel_binding) => {
+    const { verifier, input } = setup({ channel_binding });
+    await expect(verifier.verify(input)).rejects.toThrow('channel policy');
+  });
+
+  it('rejects an unlisted e2ee algorithm even beside an accepted TLS binding', async () => {
+    const { verifier, input } = setup({
+      channel_binding: [channelBinding, e2eeBinding('secp256k1-aes-256-gcm-hkdf-sha256')],
     });
     await expect(verifier.verify(input)).rejects.toThrow('channel policy');
   });
 
-  it.each(['', 'a'.repeat(63), `sha256:${'a'.repeat(64)}`, 'A'.repeat(64)])(
-    'rejects a malformed signed role channel digest %s',
-    async (channelKeyDigest) => {
-      const { verifier, input } = setup();
-      input.policy = { ...input.policy, channelKeyDigest };
-      await expect(verifier.verify(input)).rejects.toThrow('signed channel digest');
-    },
-  );
+  it('rejects a TLS binding when the policy accepts only e2ee', async () => {
+    const { verifier, input } = setup();
+    input.policy = {
+      ...input.policy,
+      acceptedChannelBindings: input.policy.acceptedChannelBindings.filter(
+        (binding) => binding.type === 'e2ee_public_key_sha256',
+      ),
+    };
+    await expect(verifier.verify(input)).rejects.toThrow('channel policy');
+  });
+
+  it('rejects a policy that accepts no channel binding', async () => {
+    const { verifier, input } = setup();
+    input.policy = { ...input.policy, acceptedChannelBindings: [] };
+    await expect(verifier.verify(input)).rejects.toThrow('channel policy is invalid');
+  });
 
   it('rejects a session longer than the signed policy permits', async () => {
     const { verifier, input } = setup();
