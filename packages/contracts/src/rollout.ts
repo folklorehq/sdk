@@ -36,3 +36,15 @@ export const immutableEnclaveArtifactSchema = z
   .strict();
 
 export type ImmutableEnclaveArtifact = z.infer<typeof immutableEnclaveArtifactSchema>;
+
+/** The same EIF identity in the camelCase shape a signed host release descriptor carries. */
+export const enclaveArtifactDescriptorSchema = z
+  .object({
+    bucket: immutableArtifactBucketSchema,
+    key: immutableArtifactKeySchema,
+    versionId: immutableArtifactVersionIdSchema,
+    digest: immutableArtifactDigestSchema,
+  })
+  .strict();
+
+export type EnclaveArtifactDescriptor = z.infer<typeof enclaveArtifactDescriptorSchema>;
