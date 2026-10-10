@@ -13,10 +13,6 @@ export const CONTROL_PLANE_BASIS_KINDS = [
   'pool_boot_manifest_mint',
   'shared_tenant_provision',
 ] as const;
-export const CONTROL_PLANE_PLATFORM_OWNED_KINDS = [
-  'pool_provision',
-  'pool_boot_manifest_mint',
-] as const;
 
 const PREIMAGE_SCHEMA = 'ControlPlaneOperationAuthorizationPreimageV1' as const;
 const KEY_ID_PATTERN = /^[A-Za-z0-9._-]{1,128}$/;
@@ -91,4 +87,15 @@ export function controlPlaneOperationAuthorizationDigestV1(
   input: ControlPlaneOperationAuthorizationPreimageInput,
 ): string {
   return bytesToHex(sha256(controlPlaneOperationAuthorizationPreimageV1(input)));
+}
+
+// The one placement-mode vocabulary the control plane and the deploy both read; decided turns the control-plane basis on.
+export const placementModeSchema = z.enum(['authority', 'decided']);
+export type PlacementMode = z.infer<typeof placementModeSchema>;
+
+/** Unset or empty is the authority; a value outside the schema is undefined, for the caller to refuse by its own code. */
+export function parsePlacementMode(value: string | undefined): PlacementMode | undefined {
+  if (value === undefined || value === '') return 'authority';
+  const parsed = placementModeSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
 }

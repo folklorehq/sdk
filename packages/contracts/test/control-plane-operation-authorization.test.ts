@@ -6,12 +6,12 @@ import {
   CONTROL_PLANE_OPERATION_AUTHORIZATION_DOMAIN,
   CONTROL_PLANE_OPERATION_KEY_EPOCH,
   CONTROL_PLANE_OPERATION_KEY_ID,
-  CONTROL_PLANE_PLATFORM_OWNED_KINDS,
   controlPlaneOperationAuthorizationDigestV1,
   controlPlaneOperationAuthorizationPreimageV1,
   controlPlaneOperationAuthorizationV1Schema,
   controlPlaneOperationKeyPinV1Schema,
   infrastructureOperationMintRequestV2Schema,
+  parsePlacementMode,
 } from '../src/control-plane-operation-authorization.js';
 import { canonicalJson } from '../src/shared.js';
 
@@ -82,15 +82,11 @@ describe('control-plane operation authorization preimage', () => {
     );
   });
 
-  it('names the three basis kinds and the two platform-owned ones', () => {
+  it('names the three basis kinds', () => {
     expect(CONTROL_PLANE_BASIS_KINDS).toEqual([
       'pool_provision',
       'pool_boot_manifest_mint',
       'shared_tenant_provision',
-    ]);
-    expect(CONTROL_PLANE_PLATFORM_OWNED_KINDS).toEqual([
-      'pool_provision',
-      'pool_boot_manifest_mint',
     ]);
   });
 });
@@ -137,5 +133,18 @@ describe('mint request V2 schema', () => {
     expect(infrastructureOperationMintRequestV2Schema.safeParse({ ...V2, extra: 1 }).success).toBe(
       false,
     );
+  });
+});
+
+describe('placement mode', () => {
+  it.each([
+    [undefined, 'authority'],
+    ['', 'authority'],
+    ['authority', 'authority'],
+    ['decided', 'decided'],
+    ['Decided', undefined],
+    ['x', undefined],
+  ] as const)('parses %s as %s', (value, expected) => {
+    expect(parsePlacementMode(value)).toBe(expected);
   });
 });
