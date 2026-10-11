@@ -54,3 +54,4 @@ export {
   verifyEd25519Signature,
   type Ed25519SignatureInput,
 } from './signing/ed25519.js';
+export { postgresErrorType } from './postgres-error-type.js';

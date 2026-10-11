@@ -25,6 +25,8 @@ const COMPONENTS = new Set([
   'worker',
 ]);
 
+const STDOUT_FD = 1;
+
 type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 type BindingRejectionReason = 'invalid_child_bindings' | 'invalid_merged_bindings';
 type RejectionReason = SafeLogRejectionReason | BindingRejectionReason;
@@ -63,11 +65,18 @@ export class PinoLogger implements Logger {
           }
         : {}),
     };
-    this.pino = destination ? pino(opts, destination) : pino(opts);
+    const syncLambdaStdout = !pretty && Boolean(process.env['AWS_LAMBDA_FUNCTION_NAME']);
+    const target = destination ?? (syncLambdaStdout ? PinoLogger.stdoutDestination() : undefined);
+    this.pino = target ? pino(opts, target) : pino(opts);
     const bindingSnapshot = snapshotSafeLogContext(bindings);
     this.bindings = bindingSnapshot.context ?? {};
     this.bindingRejection = bindingSnapshot.rejection ? 'invalid_child_bindings' : null;
     this.component = componentFor(name);
+  }
+
+  // Lambda freezes the sandbox after the handler returns, losing pino's async buffer; sync stays Lambda-only because a blocked pipe would stall a long-running process.
+  private static stdoutDestination(): DestinationStream {
+    return pino.destination({ dest: STDOUT_FD, sync: true });
   }
 
   private static fromParent(

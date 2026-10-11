@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
+import fs from 'node:fs';
 import { Writable } from 'node:stream';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PinoLoggerOptions } from '../src/index.js';
 import type { SafeLogContext } from '@folklore/core';
 import { PinoLogger } from '../src/index.js';
@@ -303,5 +304,47 @@ describe('PinoLogger', () => {
     expect(records).toHaveLength(1);
     expect(records[0]?.['eventCode']).toBeUndefined();
     expect(JSON.stringify(records)).not.toContain(SENTINEL);
+  });
+
+  describe('stdout destination', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.unstubAllEnvs();
+    });
+
+    function spyWriteSync() {
+      return vi.spyOn(fs, 'writeSync').mockImplementation((_fd, data) => String(data).length);
+    }
+
+    it('writes synchronously to fd 1 inside Lambda so a frozen sandbox loses no lines', () => {
+      vi.stubEnv('AWS_LAMBDA_FUNCTION_NAME', 'flk-pool-syn-enclave-outputs');
+      const writeSync = spyWriteSync();
+
+      new PinoLogger({ name: 'worker' }).info('enclave_output_halted_retry');
+
+      const [fd, line] = writeSync.mock.calls[0] ?? [];
+      expect(fd).toBe(1);
+      expect(JSON.parse(String(line))).toMatchObject({ msg: 'enclave_output_halted_retry' });
+    });
+
+    it('keeps the async pino default outside Lambda', () => {
+      vi.stubEnv('AWS_LAMBDA_FUNCTION_NAME', '');
+      const writeSync = spyWriteSync();
+
+      new PinoLogger({ name: 'worker' }).info('enclave_output_halted_retry');
+
+      expect(writeSync).not.toHaveBeenCalled();
+    });
+
+    it('prefers an explicit destination inside Lambda', () => {
+      vi.stubEnv('AWS_LAMBDA_FUNCTION_NAME', 'flk-pool-syn-enclave-outputs');
+      const writeSync = spyWriteSync();
+      const { logger, records } = recordingLogger();
+
+      logger.info('enclave_output_halted_retry');
+
+      expect(records).toHaveLength(1);
+      expect(writeSync).not.toHaveBeenCalled();
+    });
   });
 });
