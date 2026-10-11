@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { Logger } from '@folklore/core';
+import { retry } from '@octokit/plugin-retry';
 import { Octokit } from '@octokit/rest';
 import type { GitHubClient } from './client.js';
 import type {
@@ -12,6 +13,12 @@ import type {
 } from './types.js';
 
 const PAGE_SIZE = 100;
+// Diff counts are computed per PR: measured pages took up to 7.4s at 100 (intermittent 5xx), 2.0s at 25.
+const PULL_REQUEST_PAGE_SIZE = 25;
+// plugin-retry backs off (retryCount + 1)^2 times this base: 1s, 4s, 9s for its 3 retries.
+const RETRY_BASE_MS = 1_000;
+const RETRIES = 3;
+const RetryingOctokit = Octokit.plugin(retry);
 const BOT_LOGIN_SUFFIX = '[bot]';
 const ISSUE_NUMBER_FROM_URL = /\/issues\/(\d+)$/;
 const REPOSITORY_UNRESOLVED = 'github_repository_unresolved';
@@ -20,7 +27,7 @@ const REPOSITORY_UNRESOLVED = 'github_repository_unresolved';
 const PULL_REQUESTS_BY_UPDATED_DESC = `
   query ($owner: String!, $name: String!, $cursor: String) {
     repository(owner: $owner, name: $name) {
-      pullRequests(first: ${PAGE_SIZE}, after: $cursor, orderBy: { field: UPDATED_AT, direction: DESC }) {
+      pullRequests(first: ${PULL_REQUEST_PAGE_SIZE}, after: $cursor, orderBy: { field: UPDATED_AT, direction: DESC }) {
         nodes {
           fullDatabaseId
           number
@@ -76,6 +83,7 @@ type IdentifiedPullRequestNode = PullRequestNode & { fullDatabaseId: string };
 export interface OctokitGitHubClientOptions {
   transport?: typeof fetch;
   logger?: Logger;
+  retryBaseMs?: number;
 }
 
 interface PullRequestPage {
@@ -88,12 +96,13 @@ interface PullRequestPageResponse {
 }
 
 export class OctokitGitHubClient implements GitHubClient {
-  private readonly octokit: Octokit;
+  private readonly octokit: InstanceType<typeof RetryingOctokit>;
   private readonly logger: Logger | undefined;
 
   constructor(token: string, options: OctokitGitHubClientOptions = {}) {
-    this.octokit = new Octokit({
+    this.octokit = new RetryingOctokit({
       auth: token,
+      retry: { retries: RETRIES, retryAfterBaseValue: options.retryBaseMs ?? RETRY_BASE_MS },
       ...(options.transport ? { request: { fetch: options.transport } } : {}),
     });
     this.logger = options.logger;

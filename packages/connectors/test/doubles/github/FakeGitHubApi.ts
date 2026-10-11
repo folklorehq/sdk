@@ -53,7 +53,7 @@ interface GraphqlRequest {
 
 const API_BASE = 'https://api.github.com';
 const DEFAULT_PAGE_SIZE = 30;
-const GRAPHQL_PAGE_SIZE = 100;
+const GRAPHQL_FIRST = /pullRequests\(first: (\d+)/;
 const BOT_LOGIN_SUFFIX = '[bot]';
 
 // Serves the REST and GraphQL GitHub endpoints the connector uses from one in-memory world, so the
@@ -152,7 +152,7 @@ export class FakeGitHubApi {
     const repo = this.repository(`${request.variables.owner}/${request.variables.name}`);
     const ordered = [...repo.pullRequests].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
     const start = request.variables.cursor ? Number(request.variables.cursor) : 0;
-    const end = start + GRAPHQL_PAGE_SIZE;
+    const end = start + this.pageSize(request.query);
     return {
       data: {
         repository: {
@@ -163,6 +163,12 @@ export class FakeGitHubApi {
         },
       },
     };
+  }
+
+  private pageSize(query: string): number {
+    const first = GRAPHQL_FIRST.exec(query)?.[1];
+    if (!first) throw new Error('graphql pull request query must page with first');
+    return Number(first);
   }
 
   private graphqlPull(pr: FakeGitHubPullRequest): unknown {

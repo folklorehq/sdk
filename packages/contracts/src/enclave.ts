@@ -559,6 +559,27 @@ export const pullCompleteSignalSchema = z
   .strict();
 export type PullCompleteSignal = z.infer<typeof pullCompleteSignalSchema>;
 
+// Lower snake case, the shape the structured-log boundary accepts for a code value.
+export const PULL_FAILURE_CODE_PATTERN = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
+export const PULL_FAILURE_CODE_MAX = 64;
+export const PULL_FAILURE_ATTEMPTS_MAX = 100;
+const pullFailureCode = z.string().max(PULL_FAILURE_CODE_MAX).regex(PULL_FAILURE_CODE_PATTERN);
+export const PULL_FAILURE_PHASES = ['route', 'archive', 'emit', 'release'] as const;
+export const PULL_FAILURE_STATUS_CLASSES = ['client_error', 'server_error'] as const;
+
+// Why the last attempt failed, as fixed codes only: never a message, URL, name or provider text.
+export const pullFailureReasonSchema = z
+  .object({
+    phase: z.enum(PULL_FAILURE_PHASES),
+    errorType: pullFailureCode,
+    errorCode: pullFailureCode.optional(),
+    operation: pullFailureCode.optional(),
+    statusClass: z.enum(PULL_FAILURE_STATUS_CLASSES).optional(),
+    attempts: z.number().int().min(1).max(PULL_FAILURE_ATTEMPTS_MAX),
+  })
+  .strict();
+export type PullFailureReason = z.infer<typeof pullFailureReasonSchema>;
+
 // Content-free enclave→worker failure signal emitted when a pull reaches the queue redrive limit.
 // It marks the connector offline and requests a recovery backfill without advancing its success
 // watermark; no provider error or source content crosses the boundary.
@@ -570,6 +591,7 @@ export const pullFailedSignalSchema = z
     sourceId: z.string(),
     failedAt: z.string().datetime(),
     backfillLeaseToken: z.string().uuid().optional(),
+    reason: pullFailureReasonSchema.optional(),
   })
   .strict();
 export type PullFailedSignal = z.infer<typeof pullFailedSignalSchema>;

@@ -65,6 +65,9 @@ importers:
       '@notionhq/client':
         specifier: ^5.22.0
         version: 5.27.0
+      '@octokit/plugin-retry':
+        specifier: ^7.2.1
+        version: 7.2.1(@octokit/core@6.1.6)
       '@octokit/rest':
         specifier: ^21.0.0
         version: 21.1.1
@@ -795,6 +798,12 @@ packages:
     peerDependencies:
       '@octokit/core': '>=6'
 
+  '@octokit/plugin-retry@7.2.1':
+    resolution: {integrity: sha512-wUc3gv0D6vNHpGxSaR3FlqJpTXGWgqmk607N9L3LvPL4QjaxDgX/1nY2mGpT37Khn+nlIXdljczkRnNdTTV3/A==}
+    engines: {node: '>= 18'}
+    peerDependencies:
+      '@octokit/core': '>=6'
+
   '@octokit/request-error@6.1.8':
     resolution: {integrity: sha512-WEi/R0Jmq+IJKydWlKDmryPcmdYSVjL3ekaiEL1L9eo1sUnqMJ+grqmC9cjk7CA7+b2/T397tO5d8YLOH3qYpQ==}
     engines: {node: '>= 18'}
@@ -1063,6 +1072,9 @@ packages:
 
   bignumber.js@9.3.1:
     resolution: {integrity: sha512-Ko0uX15oIUS7wJ3Rb30Fs6SkVbLmPBAKdlm7q9+ak9bbIeFf0MwuBsQV6z7+X768/cHsfg+WlysDWJcmthjsjQ==}
+
+  bottleneck@2.19.5:
+    resolution: {integrity: sha512-VHiNCbI1lKdl44tGrhNfU3lup0Tj/ZBMJB5/2ZbNXRCPuRCO7ed2mgcK4r17y+KB2EfuYuRaVlwNbAeaWGSpbw==}
 
   brace-expansion@1.1.21:
     resolution: {integrity: sha512-9zeA+KLZNNzglF2TPKRQEDyx6Yby7daAkuy8MiPzpXPsYDWi/DRM8jmwUDxokQjYqBpv5DgPiwD4h4ZZSy1Ujw==}
@@ -2174,6 +2186,13 @@ snapshots:
       '@octokit/core': 6.1.6
       '@octokit/types': 13.10.0
 
+  '@octokit/plugin-retry@7.2.1(@octokit/core@6.1.6)':
+    dependencies:
+      '@octokit/core': 6.1.6
+      '@octokit/request-error': 6.1.8
+      '@octokit/types': 14.1.0
+      bottleneck: 2.19.5
+
   '@octokit/request-error@6.1.8':
     dependencies:
       '@octokit/types': 14.1.0
@@ -2419,6 +2438,8 @@ snapshots:
   before-after-hook@3.0.2: {}
 
   bignumber.js@9.3.1: {}
+
+  bottleneck@2.19.5: {}
 
   brace-expansion@1.1.21:
     dependencies:

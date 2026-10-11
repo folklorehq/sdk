@@ -62,7 +62,7 @@ describe('GitHub backfill over the real Octokit transport', () => {
     expect(JSON.stringify(result)).toBe(expected);
   });
 
-  it('spends one GraphQL page per 100 PRs and one REST page per 100 comments, stopping at since', async () => {
+  it('spends one GraphQL page per 25 PRs and one REST page per 100 comments, stopping at since', async () => {
     const api = new FakeGitHubApi(buildBackfillWorld());
 
     await backfill(api);
@@ -76,7 +76,7 @@ describe('GitHub backfill over the real Octokit transport', () => {
       issueComments: api.count('issue-comments'),
     }).toEqual({
       repositories: 1,
-      graphql: 4,
+      graphql: 11,
       repoComments: 3,
       pullsList: 0,
       pullsGet: 0,
