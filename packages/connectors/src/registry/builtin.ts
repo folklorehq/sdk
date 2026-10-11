@@ -28,7 +28,10 @@ export function registerBuiltinConnectors(registry: ConnectorRegistry): void {
     kind: 'github',
     createForWebhook: webhookOnly(GitHubConnector),
     createForPull: (deps) =>
-      new GitHubConnector({ logger: deps.logger }, new OctokitGitHubClient(deps.token)),
+      new GitHubConnector(
+        { logger: deps.logger },
+        new OctokitGitHubClient(deps.token, { logger: deps.logger }),
+      ),
   });
 
   registry.register({

@@ -28,11 +28,16 @@ export interface GitHubPullRequest {
   closed_at?: string | null;
 }
 
-/** Top-level PR diff counts from `pulls.get` — scalars only, never the filenames or patch. */
+/** Top-level PR diff counts — scalars only, never the filenames or patch. */
 export interface GitHubPullRequestDetail {
   additions: number;
   deletions: number;
   changed_files: number;
+}
+
+export interface GitHubPullRequestWithDetail {
+  pullRequest: GitHubPullRequest;
+  detail: GitHubPullRequestDetail;
 }
 
 export interface GitHubIssueComment {
@@ -40,6 +45,11 @@ export interface GitHubIssueComment {
   body: string;
   user: GitHubUser;
   created_at: string;
+}
+
+export interface GitHubRepositoryIssueComment {
+  issueNumber: number;
+  comment: GitHubIssueComment;
 }
 
 export interface GitHubPullRequestFile {

@@ -205,9 +205,8 @@ describe('GitHubConnector.pull', () => {
   it('treats an empty incremental response as successful and preserves its cursor', async () => {
     const client: GitHubClient = {
       listRepositories: async () => [repo],
-      listPullRequests: async () => [],
-      getPullRequest: async () => ({ additions: 0, deletions: 0, changed_files: 0 }),
-      listIssueComments: async () => [],
+      listPullRequestsUpdatedSince: async () => [],
+      listIssueCommentsUpdatedSince: async () => [],
       getPullRequestFiles: async () => [],
     };
     const connector = new GitHubConnector(context, client);
@@ -222,14 +221,27 @@ describe('GitHubConnector.pull', () => {
   it('produces containers + facts and advances the cursor', async () => {
     const client: GitHubClient = {
       listRepositories: async () => [repo],
-      listPullRequests: async () => [pr],
-      getPullRequest: async () => ({ additions: 10, deletions: 3, changed_files: 2 }),
-      listIssueComments: async () => [
+      listPullRequestsUpdatedSince: async () => [
+        { pullRequest: pr, detail: { additions: 10, deletions: 3, changed_files: 2 } },
+      ],
+      listIssueCommentsUpdatedSince: async () => [
         {
-          id: 900,
-          body: 'ship it',
-          user: { id: 6, login: 'rev' },
-          created_at: '2026-06-02T09:00:00Z',
+          issueNumber: 7,
+          comment: {
+            id: 900,
+            body: 'ship it',
+            user: { id: 6, login: 'rev' },
+            created_at: '2026-06-02T09:00:00Z',
+          },
+        },
+        {
+          issueNumber: 8,
+          comment: {
+            id: 901,
+            body: 'plain issue comment',
+            user: { id: 6, login: 'rev' },
+            created_at: '2026-06-02T09:30:00Z',
+          },
         },
       ],
       getPullRequestFiles: async () => [],
@@ -258,9 +270,8 @@ describe('GitHubConnector.pull', () => {
       listRepositories: async () => {
         throw { status: 429 };
       },
-      listPullRequests: async () => [],
-      getPullRequest: async () => ({ additions: 0, deletions: 0, changed_files: 0 }),
-      listIssueComments: async () => [],
+      listPullRequestsUpdatedSince: async () => [],
+      listIssueCommentsUpdatedSince: async () => [],
       getPullRequestFiles: async () => [],
     };
     const connector = new GitHubConnector(context, client);
@@ -274,9 +285,8 @@ describe('GitHubConnector.pull', () => {
 describe('GitHubConnector construction', () => {
   const client: GitHubClient = {
     listRepositories: async () => [],
-    listPullRequests: async () => [],
-    getPullRequest: async () => ({ additions: 0, deletions: 0, changed_files: 0 }),
-    listIssueComments: async () => [],
+    listPullRequestsUpdatedSince: async () => [],
+    listIssueCommentsUpdatedSince: async () => [],
     getPullRequestFiles: async () => [],
   };
 

@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 import type {
-  GitHubIssueComment,
-  GitHubPullRequest,
-  GitHubPullRequestDetail,
   GitHubPullRequestFile,
+  GitHubPullRequestWithDetail,
   GitHubRepo,
+  GitHubRepositoryIssueComment,
 } from './types.js';
 
 export interface GitHubClient {
   listRepositories(): Promise<GitHubRepo[]>;
-  listPullRequests(repoFullName: string, since?: string): Promise<GitHubPullRequest[]>;
-  listIssueComments(
+  /** Most recently updated first, ending at the first PR last updated before `since`. */
+  listPullRequestsUpdatedSince(
     repoFullName: string,
-    pullNumber: number,
     since?: string,
-  ): Promise<GitHubIssueComment[]>;
-  getPullRequest(repoFullName: string, pullNumber: number): Promise<GitHubPullRequestDetail>;
+  ): Promise<GitHubPullRequestWithDetail[]>;
+  /** Every issue and PR comment in the repo updated at or after `since`, oldest created first. */
+  listIssueCommentsUpdatedSince(
+    repoFullName: string,
+    since?: string,
+  ): Promise<GitHubRepositoryIssueComment[]>;
   getPullRequestFiles(repoFullName: string, pullNumber: number): Promise<GitHubPullRequestFile[]>;
 }
