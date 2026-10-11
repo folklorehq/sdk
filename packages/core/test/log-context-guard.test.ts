@@ -44,6 +44,8 @@ const VETTED_CONTEXT_SPREADS: Record<string, string> = {
     'appError.toLogContext() yields error_type (an AppError code) and component (a lower-case code); the optional requestId is a canonical UUID.',
   'apps/worker/src/workers/ingest/EnclaveOutputsConsumer.ts:enclave_output_persist_failed':
     'errorCode is the literal persistence_failed and the optional messageId is a canonical UUID.',
+  'apps/control-plane-server/src/auth/source-oauth/handlers/SourceOAuthHandler.ts:source_oauth.submission_failed':
+    'outcome is present only when isFailureCodeSlug accepts the enclave reason.',
 };
 
 // A code field (component/errorCode/error_type/outcome/operation/phase/route/status) is validated
