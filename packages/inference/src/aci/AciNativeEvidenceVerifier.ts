@@ -83,9 +83,9 @@ export class AciNativeEvidenceVerifier {
           expectation: { ...input.expectation, deadline, signal: controller.signal },
         }),
       );
-    } catch {
+    } catch (error) {
       if (timer !== undefined) clearTimeout(timer);
-      throw new AciVerificationError('native_verification_failed');
+      throw new AciVerificationError('native_verification_failed', { cause: error });
     }
     if (performance.now() >= deadline) {
       didTimeout = true;
@@ -96,9 +96,9 @@ export class AciNativeEvidenceVerifier {
     let result: unknown;
     try {
       result = await Promise.race([operation, timeout]);
-    } catch {
+    } catch (error) {
       if (didTimeout) throw timeoutError;
-      throw new AciVerificationError('native_verification_failed');
+      throw new AciVerificationError('native_verification_failed', { cause: error });
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }

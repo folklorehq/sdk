@@ -31,8 +31,8 @@ export type AciVerificationErrorCode =
 export class AciVerificationError extends Error {
   readonly code: AciVerificationErrorCode;
 
-  constructor(code: AciVerificationErrorCode) {
-    super(`ACI verification failed: ${code}`);
+  constructor(code: AciVerificationErrorCode, options?: ErrorOptions) {
+    super(`ACI verification failed: ${code}`, options);
     this.name = 'AciVerificationError';
     this.code = code;
   }

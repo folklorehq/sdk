@@ -159,7 +159,7 @@ export class AciPublicQuotePolicyVerifier {
       return parsed.data;
     } catch (error) {
       if (error instanceof AciVerificationError) throw error;
-      throw new AciVerificationError('native_verification_failed');
+      throw new AciVerificationError('native_verification_failed', { cause: error });
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }

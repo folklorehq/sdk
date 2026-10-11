@@ -803,6 +803,18 @@ describe('AciReceiptVerifier', () => {
     );
   });
 
+  it('keeps the transport failure as the cause of receipt_fetch_failed', async () => {
+    const transportError = new TypeError('fetch failed');
+    const fetchImpl = vi.fn(async () => {
+      throw transportError;
+    }) as unknown as typeof fetch;
+
+    const failure = verifier(ACI_RECEIPT_FIXTURE, { fetchImpl }).verify(INPUT);
+
+    await expectCode(failure, 'receipt_fetch_failed');
+    await expect(failure).rejects.toHaveProperty('cause', transportError);
+  });
+
   it('rejects a receipt response with no final URL', async () => {
     const fetchImpl = vi.fn(async () =>
       Response.json(ACI_RECEIPT_FIXTURE),

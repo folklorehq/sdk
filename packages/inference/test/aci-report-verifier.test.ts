@@ -793,6 +793,22 @@ describe('AciReportVerifier', () => {
     );
   });
 
+  it('keeps the transport failure as the cause of report_fetch_failed', async () => {
+    const transportError = new TypeError('fetch failed', {
+      cause: new Error('inference_spki_pin_mismatch'),
+    });
+    const fetchImpl = vi.fn(async () => {
+      throw transportError;
+    }) as unknown as typeof fetch;
+
+    const failure = verifierFor(reportFor(), nativeBindings(reportFor(), NONCE), {
+      fetchImpl,
+    }).verify();
+
+    await expectCode(failure, 'report_fetch_failed');
+    await expect(failure).rejects.toHaveProperty('cause', transportError);
+  });
+
   it('rejects a report response with no final URL', async () => {
     const fetchImpl = vi.fn(
       async () => new Response(JSON.stringify(reportFor()), { status: 200 }),

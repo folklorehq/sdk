@@ -424,7 +424,9 @@ class AciSessionVerifierCore {
         );
       } catch (error) {
         if (error instanceof AciSessionVerificationError) throw error;
-        throw new AciSessionVerificationError('session_evidence_verification_failed');
+        throw new AciSessionVerificationError('session_evidence_verification_failed', {
+          cause: error,
+        });
       } finally {
         if (timeout !== undefined) clearTimeout(timeout);
         controller.abort();
@@ -443,8 +445,11 @@ class AciSessionVerifierCore {
         throw new AciSessionVerificationError('session_evidence_verification_failed');
       }
       return digest;
-    } catch {
-      throw new AciSessionVerificationError('session_evidence_verification_failed');
+    } catch (error) {
+      if (error instanceof AciSessionVerificationError) throw error;
+      throw new AciSessionVerificationError('session_evidence_verification_failed', {
+        cause: error,
+      });
     }
   }
 
@@ -724,8 +729,8 @@ class AciSessionVerifierCore {
     }
     try {
       return (await readTrustedTimeSample(this.trustedTimeAuthority, context)).trustedNow;
-    } catch {
-      throw new AciSessionVerificationError('clock_invalid');
+    } catch (error) {
+      throw new AciSessionVerificationError('clock_invalid', { cause: error });
     }
   }
 

@@ -29,8 +29,8 @@ export type AciReceiptVerificationErrorCode =
 export class AciReceiptVerificationError extends Error {
   readonly code: AciReceiptVerificationErrorCode;
 
-  constructor(code: AciReceiptVerificationErrorCode) {
-    super(`ACI receipt verification failed: ${code}`);
+  constructor(code: AciReceiptVerificationErrorCode, options?: ErrorOptions) {
+    super(`ACI receipt verification failed: ${code}`, options);
     this.name = 'AciReceiptVerificationError';
     this.code = code;
   }

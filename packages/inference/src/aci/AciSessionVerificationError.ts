@@ -27,8 +27,8 @@ export type AciSessionVerificationErrorCode =
 export class AciSessionVerificationError extends Error {
   readonly code: AciSessionVerificationErrorCode;
 
-  constructor(code: AciSessionVerificationErrorCode) {
-    super(`ACI session verification failed: ${code}`);
+  constructor(code: AciSessionVerificationErrorCode, options?: ErrorOptions) {
+    super(`ACI session verification failed: ${code}`, options);
     this.name = 'AciSessionVerificationError';
     this.code = code;
   }

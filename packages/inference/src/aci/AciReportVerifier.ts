@@ -230,8 +230,9 @@ class AciReportVerifierCore {
         throw new AciVerificationError('native_verification_failed');
       }
       return digest;
-    } catch {
-      throw new AciVerificationError('native_verification_failed');
+    } catch (error) {
+      if (error instanceof AciVerificationError) throw error;
+      throw new AciVerificationError('native_verification_failed', { cause: error });
     }
   }
 
@@ -268,8 +269,8 @@ class AciReportVerifierCore {
         policyGeneration: this.policy.generation,
         activationGeneration: this.activationGeneration,
       });
-    } catch {
-      throw new AciVerificationError('high_water_unavailable');
+    } catch (error) {
+      throw new AciVerificationError('high_water_unavailable', { cause: error });
     }
     return this.publishKeyset(report, channelPins, channelKeyDigest, version);
   }
@@ -297,7 +298,7 @@ class AciReportVerifierCore {
       return parsed.origin;
     } catch (error) {
       if (error instanceof AciVerificationError) throw error;
-      throw new AciVerificationError('origin_mismatch');
+      throw new AciVerificationError('origin_mismatch', { cause: error });
     }
   }
 
@@ -328,8 +329,8 @@ class AciReportVerifierCore {
     let value: Uint8Array;
     try {
       value = Uint8Array.from(await this.nonceSource());
-    } catch {
-      throw new AciVerificationError('nonce_must_be_32_bytes');
+    } catch (error) {
+      throw new AciVerificationError('nonce_must_be_32_bytes', { cause: error });
     }
     if (value.byteLength !== NONCE_BYTES) {
       throw new AciVerificationError('nonce_must_be_32_bytes');
@@ -348,7 +349,7 @@ class AciReportVerifierCore {
       );
     } catch (error) {
       if (error instanceof AciVerificationError) throw error;
-      throw new AciVerificationError('report_fetch_failed');
+      throw new AciVerificationError('report_fetch_failed', { cause: error });
     }
   }
 
@@ -585,8 +586,8 @@ class AciReportVerifierCore {
     }
     try {
       return (await readTrustedTimeSample(this.trustedTimeAuthority, context)).trustedNow;
-    } catch {
-      throw new AciVerificationError('clock_invalid');
+    } catch (error) {
+      throw new AciVerificationError('clock_invalid', { cause: error });
     }
   }
 

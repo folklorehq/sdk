@@ -147,7 +147,7 @@ export class AciReceiptVerifier implements AciReceiptVerifierPort {
       return await this.replayStore.claim(replayClaim);
     } catch (error) {
       if (error instanceof AciReceiptVerificationError) throw error;
-      throw new AciReceiptVerificationError('receipt_replay');
+      throw new AciReceiptVerificationError('receipt_replay', { cause: error });
     }
   }
 
@@ -159,7 +159,7 @@ export class AciReceiptVerifier implements AciReceiptVerifierPort {
       );
     } catch (error) {
       if (error instanceof AciReceiptVerificationError) throw error;
-      throw new AciReceiptVerificationError('receipt_fetch_failed');
+      throw new AciReceiptVerificationError('receipt_fetch_failed', { cause: error });
     }
   }
 
@@ -559,8 +559,8 @@ export class AciReceiptVerifier implements AciReceiptVerifierPort {
     }
     try {
       return (await readTrustedTimeSample(this.trustedTimeAuthority, context)).trustedNow;
-    } catch {
-      throw new AciReceiptVerificationError('clock_invalid');
+    } catch (error) {
+      throw new AciReceiptVerificationError('clock_invalid', { cause: error });
     }
   }
 }
