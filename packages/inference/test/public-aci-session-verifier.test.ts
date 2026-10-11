@@ -18,6 +18,8 @@ const channelBinding = {
   spki_sha256: 'b'.repeat(64),
 };
 const evidence = Buffer.from('public-evidence');
+const alias = 'qwen/qwen3-embedding-8b';
+const attestedModel = 'Qwen/Qwen3-Embedding-8B-TEE';
 const evidenceDigest = `sha256:${createHash('sha256').update(evidence).digest('hex')}`;
 
 function makeSession(extra: Record<string, unknown> = {}): AciSession {
@@ -44,7 +46,7 @@ function policy(): PublicAciSessionPolicy {
   return {
     origin,
     workloadKeysetDigest,
-    model: 'model-a',
+    model: alias,
     maxSessionLifetimeSeconds: 100,
     requiredSessionClaims: ['tee_attested'],
     permittedClaimSources: ['hardware_proven'],
@@ -66,28 +68,42 @@ const e2eeBinding = (algorithm: string) => ({
   public_key_sha256: 'e'.repeat(64),
 });
 
+type UpstreamOverride = Record<string, unknown>;
+type ReceiptShape = Readonly<{ model?: string; beforeForward?: string[]; beforeReturn?: string[] }>;
+
+function upstreamEvent(sessionId: string, override: UpstreamOverride = {}) {
+  return {
+    type: 'upstream.verified' as const,
+    model_id: attestedModel,
+    result: 'verified' as const,
+    required: true,
+    ...(override.result === 'failed' ? {} : { session_id: sessionId }),
+    ...override,
+  };
+}
+
 function signedReceipt(
   sessionId: string,
   privateKey: ReturnType<typeof generateKeyPairSync>['privateKey'],
   servedAt = 150,
+  upstream: readonly UpstreamOverride[] | undefined = undefined,
+  shape: ReceiptShape = {},
 ): AciReceipt {
+  const extension = (type: string) => ({ type }) as unknown as AciReceipt['event_log'][number];
   const unsigned = {
     api_version: 'aci/1' as const,
     receipt_id: 'receipt-1',
+    ...(shape.model === undefined ? {} : { model: shape.model }),
     workload_keyset_digest: workloadKeysetDigest,
     endpoint: '/v1/chat/completions',
     method: 'POST',
     served_at: servedAt,
     event_log: [
       { type: 'request.received' as const, body_hash: `sha256:${'1'.repeat(64)}` },
+      ...(shape.beforeForward ?? []).map(extension),
       { type: 'request.forwarded' as const, body_hash: `sha256:${'1'.repeat(64)}` },
-      {
-        type: 'upstream.verified' as const,
-        model_id: 'model-a',
-        result: 'verified' as const,
-        required: true,
-        session_id: sessionId,
-      },
+      ...(upstream ?? [{}]).map((override) => upstreamEvent(sessionId, override)),
+      ...(shape.beforeReturn ?? []).map(extension),
       { type: 'response.returned' as const, body_hash: `sha256:${'2'.repeat(64)}` },
     ],
     key_id: 'receipt-key',
@@ -98,12 +114,17 @@ function signedReceipt(
   };
 }
 
-function setup(extraSession: Record<string, unknown> = {}, servedAt = 150) {
+function setup(
+  extraSession: Record<string, unknown> = {},
+  servedAt = 150,
+  upstream: readonly UpstreamOverride[] | undefined = undefined,
+  shape: ReceiptShape = {},
+) {
   const keys = generateKeyPairSync('ed25519');
   const parsedSession = makeSession();
   const session = { ...parsedSession, ...extraSession } as AciSession;
   const sessionId = createHash('sha256').update(canonicalJson(session)).digest('hex');
-  const receipt = signedReceipt(sessionId, keys.privateKey, servedAt);
+  const receipt = signedReceipt(sessionId, keys.privateKey, servedAt, upstream, shape);
   const publicKey = keys.publicKey
     .export({ format: 'der', type: 'spki' })
     .subarray(-32)
@@ -129,6 +150,13 @@ function setup(extraSession: Record<string, unknown> = {}, servedAt = 150) {
       trustedNow: 150,
     },
   };
+}
+
+async function refusal(verification: Promise<unknown>): Promise<string | undefined> {
+  return verification.then(
+    () => undefined,
+    (caught: unknown) => (caught instanceof Error ? caught.message : undefined),
+  );
 }
 
 describe('PublicAciSessionVerifier', () => {
@@ -253,8 +281,90 @@ describe('PublicAciSessionVerifier', () => {
     const { verifier, input } = setup();
     await expect(verifier.verify(input)).resolves.toMatchObject({
       verificationMode: 'gateway-authenticated-public-session',
-      model: 'model-a',
+      model: alias,
     });
+  });
+
+  const failed = { result: 'failed', required: false, reason: 'quote rejected' };
+
+  it.each<[string, readonly UpstreamOverride[], string]>([
+    ['no upstream event', [], 'public ACI upstream event is absent'],
+    ['only a failed upstream event', [failed], 'public ACI upstream result is not verified'],
+    [
+      'a verified but optional upstream',
+      [{ required: false }],
+      'public ACI upstream is not required',
+    ],
+    [
+      'an attested id that differs only in case',
+      [{ model_id: 'Qwen/qwen3-embedding-8b-tee' }],
+      'public ACI upstream model differs only in case',
+    ],
+    [
+      'the gateway alias as the upstream id',
+      [{ model_id: alias }],
+      'public ACI upstream model does not match',
+    ],
+    [
+      'another attested model',
+      [{ model_id: 'Qwen/Qwen3-32B-TEE' }],
+      'public ACI upstream model does not match',
+    ],
+    [
+      'a failed event beside a verified optional one',
+      [failed, { required: false }],
+      'public ACI upstream is not required',
+    ],
+    [
+      'an optional event beside a required other model',
+      [{ required: false }, { model_id: 'Qwen/Qwen3-32B-TEE' }],
+      'public ACI upstream model does not match',
+    ],
+    [
+      'a case-only mismatch beside another model',
+      [{ model_id: alias }, { model_id: 'QWEN/QWEN3-EMBEDDING-8B-TEE' }],
+      'public ACI upstream model differs only in case',
+    ],
+  ])('refuses %s with its own fixed sentence', async (_label, upstream, sentence) => {
+    const { verifier, input } = setup({}, 150, upstream);
+    const message = await refusal(verifier.verify(input));
+    expect(message).toBe(sentence);
+    expect(message).not.toMatch(/qwen|quote rejected|receipt-1/i);
+  });
+
+  it('refuses an alias with no attested upstream mapping', async () => {
+    const { verifier, input } = setup({}, 150, [{ model_id: 'model-a' }]);
+    input.policy = { ...input.policy, model: 'model-a' };
+    expect(await refusal(verifier.verify(input))).toBe(
+      'public ACI upstream model alias is unmapped',
+    );
+  });
+
+  it.each([
+    ['z-ai/glm-5.2', 'zai-org/GLM-5.2-TEE'],
+    ['qwen/qwen3-32b', 'Qwen/Qwen3-32B-TEE'],
+    ['qwen/qwen3-embedding-8b', 'Qwen/Qwen3-Embedding-8B-TEE'],
+  ])('accepts %s only by its exact attested upstream id %s', async (model, upstreamId) => {
+    const accepted = setup({}, 150, [{ model_id: upstreamId }]);
+    accepted.input.policy = { ...accepted.input.policy, model };
+    await expect(accepted.verifier.verify(accepted.input)).resolves.toMatchObject({ model });
+    const aliased = setup({}, 150, [{ model_id: model }]);
+    aliased.input.policy = { ...aliased.input.policy, model };
+    await expect(aliased.verifier.verify(aliased.input)).rejects.toThrow();
+  });
+
+  it('accepts the observed gateway receipt shape', async () => {
+    const { verifier, input } = setup({}, 150, [{}], {
+      model: alias,
+      beforeForward: ['middleware.forwarded', 'route.selected'],
+      beforeReturn: ['response.received'],
+    });
+    await expect(verifier.verify(input)).resolves.toMatchObject({ model: alias });
+  });
+
+  it('accepts a matching upstream event beside refused ones', async () => {
+    const { verifier, input } = setup({}, 150, [failed, { model_id: alias }, {}]);
+    await expect(verifier.verify(input)).resolves.toMatchObject({ model: alias });
   });
 
   it('rejects an unknown top-level session field', async () => {

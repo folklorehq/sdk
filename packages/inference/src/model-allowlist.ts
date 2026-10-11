@@ -24,3 +24,15 @@ export function parseModelAllowlist(
     .filter((model) => model.length > 0);
   return models.length > 0 ? models : fallback;
 }
+
+// Phala receipts name the attested upstream in provider naming, not the gateway alias; exact only.
+const ATTESTED_UPSTREAM_MODEL_IDS: ReadonlyMap<string, string> = new Map([
+  ['z-ai/glm-5.2', 'zai-org/GLM-5.2-TEE'],
+  ['qwen/qwen3-32b', 'Qwen/Qwen3-32B-TEE'],
+  ['qwen/qwen3-embedding-8b', 'Qwen/Qwen3-Embedding-8B-TEE'],
+]);
+
+/** An unmapped alias has no attested upstream, so it matches no receipt event. */
+export function attestedUpstreamModelId(alias: string): string | undefined {
+  return ATTESTED_UPSTREAM_MODEL_IDS.get(alias);
+}

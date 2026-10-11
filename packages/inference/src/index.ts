@@ -109,7 +109,11 @@ export {
   type InferenceConfig,
   type InferenceMode,
 } from './factory.js';
-export { DEFAULT_VERIFIED_MODELS, parseModelAllowlist } from './model-allowlist.js';
+export {
+  attestedUpstreamModelId,
+  DEFAULT_VERIFIED_MODELS,
+  parseModelAllowlist,
+} from './model-allowlist.js';
 export {
   AciReceiptVerifier,
   InferenceAttestationError,

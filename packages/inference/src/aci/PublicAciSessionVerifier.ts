@@ -11,6 +11,7 @@ import {
 } from '@folklore/contracts';
 import { canonicalJson } from '@folklore/utils';
 
+import { attestedUpstreamModelId } from '../model-allowlist.js';
 import { parseStrictJsonBytes } from './strict-json.js';
 
 const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
@@ -186,16 +187,24 @@ export class PublicAciSessionVerifier {
     }
   }
 
-  private findUpstreamEvent(receipt: AciReceipt, model: string): UpstreamEvent {
-    const event = receipt.event_log.find(
-      (candidate): candidate is UpstreamEvent =>
-        candidate.type === 'upstream.verified' &&
-        candidate.result === 'verified' &&
-        candidate.required === true &&
-        candidate.model_id === model,
+  // Each refusal names the furthest predicate any upstream event reached and carries no receipt value.
+  private findUpstreamEvent(receipt: AciReceipt, alias: string): UpstreamEvent {
+    const upstream = receipt.event_log.filter(
+      (candidate): candidate is UpstreamEvent => candidate.type === 'upstream.verified',
     );
-    if (event === undefined) throw new Error('public ACI upstream verification is missing');
-    return event;
+    if (upstream.length === 0) throw new Error('public ACI upstream event is absent');
+    const verified = upstream.filter((candidate) => candidate.result === 'verified');
+    if (verified.length === 0) throw new Error('public ACI upstream result is not verified');
+    const required = verified.filter((candidate) => candidate.required === true);
+    if (required.length === 0) throw new Error('public ACI upstream is not required');
+    const model = attestedUpstreamModelId(alias);
+    if (model === undefined) throw new Error('public ACI upstream model alias is unmapped');
+    const event = required.find((candidate) => candidate.model_id === model);
+    if (event !== undefined) return event;
+    if (required.some((candidate) => candidate.model_id.toLowerCase() === model.toLowerCase())) {
+      throw new Error('public ACI upstream model differs only in case');
+    }
+    throw new Error('public ACI upstream model does not match');
   }
 
   private async fetchSession(origin: string, sessionId: string): Promise<AciSession> {
