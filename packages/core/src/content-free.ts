@@ -41,6 +41,7 @@ const CODE_VALUE_FIELDS = new Set([
   'component',
   'errorCode',
   'error_type',
+  'lastFailure',
   'outcome',
   'operation',
   'phase',
