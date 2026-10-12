@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { MAX_EMAIL_LEN } from './auth.js';
 import { digest64Schema } from './shared.js';
+import { workspacePermissionSchema } from './workspace-permissions.js';
 
 // Normalized here so the route, the console forms and the service agree on one address.
 export const inviteEmailSchema = z.string().trim().toLowerCase().email().max(MAX_EMAIL_LEN);
@@ -15,6 +16,8 @@ export const workspaceAccessSchema = z
     name: z.string(),
     slug: z.string().nullable(),
     role: membershipRoleSchema,
+    isOwner: z.boolean(),
+    permissions: z.array(workspacePermissionSchema),
     appAvailable: z.boolean(),
   })
   .strict();
@@ -365,6 +368,8 @@ export const memberViewSchema = z
     accountId: z.string(),
     email: z.string(),
     role: membershipRoleSchema,
+    isOwner: z.boolean(),
+    permissions: z.array(workspacePermissionSchema),
     status: membershipStatusSchema,
   })
   .strict();

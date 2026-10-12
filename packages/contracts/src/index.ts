@@ -42,3 +42,4 @@ export * from './trusted-time.js';
 export * from './wiki.js';
 export * from './wiki-export.js';
 export * from './worker-database.js';
+export * from './workspace-permissions.js';

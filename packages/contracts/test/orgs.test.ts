@@ -4,6 +4,7 @@ import {
   createOrgInputSchema,
   emailDeliverySchema,
   inviteEmailSchema,
+  memberViewSchema,
   orgInviteContextSchema,
   orgInviteViewSchema,
   phaseForProvisioningStatus,
@@ -11,8 +12,10 @@ import {
   provisioningStatusSchema,
   provisioningStateSchema,
   recoveryKeyRegistrationInputSchema,
+  workspaceAccessSchema,
   workspaceRecoveryCommitmentSchema,
 } from '../src/orgs.js';
+import { WORKSPACE_PRESETS } from '../src/workspace-permissions.js';
 
 const RECOVERY_PUBLIC_KEY_HEX = 'ab'.repeat(32);
 const WORKSPACE_NONCE = '0f'.repeat(32);
@@ -235,5 +238,66 @@ describe('phaseForProvisioningStatus', () => {
 
     expect(phaseForProvisioningStatus(status)).toBe('placementRequired');
     expect(phaseForProvisioningStatus({ ...status, blocker: null })).toBe('provisioning');
+  });
+});
+
+describe('workspaceAccessSchema', () => {
+  const access = {
+    orgId: '11111111-1111-4111-8111-111111111111',
+    name: 'Acme',
+    slug: 'acme',
+    role: 'admin',
+    isOwner: false,
+    permissions: [...WORKSPACE_PRESETS.admin],
+    appAvailable: true,
+  };
+
+  it('accepts an access carrying the owner flag and catalog permissions', () => {
+    expect(workspaceAccessSchema.parse(access)).toEqual(access);
+  });
+
+  it('refuses an access without isOwner', () => {
+    const { isOwner: _isOwner, ...withoutIsOwner } = access;
+    expect(workspaceAccessSchema.safeParse(withoutIsOwner).success).toBe(false);
+  });
+
+  it('refuses an access without permissions', () => {
+    const { permissions: _permissions, ...withoutPermissions } = access;
+    expect(workspaceAccessSchema.safeParse(withoutPermissions).success).toBe(false);
+  });
+
+  it('refuses a permission outside the catalog', () => {
+    expect(workspaceAccessSchema.safeParse({ ...access, permissions: ['bogus'] }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe('memberViewSchema', () => {
+  const member = {
+    accountId: 'account-1',
+    email: 'a@acme.com',
+    role: 'member',
+    isOwner: false,
+    permissions: [],
+    status: 'active',
+  };
+
+  it('accepts a member carrying the owner flag and catalog permissions', () => {
+    expect(memberViewSchema.parse(member)).toEqual(member);
+  });
+
+  it('refuses a member without isOwner', () => {
+    const { isOwner: _isOwner, ...withoutIsOwner } = member;
+    expect(memberViewSchema.safeParse(withoutIsOwner).success).toBe(false);
+  });
+
+  it('refuses a member without permissions', () => {
+    const { permissions: _permissions, ...withoutPermissions } = member;
+    expect(memberViewSchema.safeParse(withoutPermissions).success).toBe(false);
+  });
+
+  it('refuses a permission outside the catalog', () => {
+    expect(memberViewSchema.safeParse({ ...member, permissions: ['bogus'] }).success).toBe(false);
   });
 });
