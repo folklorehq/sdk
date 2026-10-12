@@ -27,3 +27,6 @@ export const reviewActionSchema = z.object({
   action: z.enum(['assign', 'remove']),
 });
 export type ReviewAction = z.infer<typeof reviewActionSchema>;
+
+export const reviewCountSchema = z.object({ total: z.number().int().nonnegative() }).strict();
+export type ReviewCount = z.infer<typeof reviewCountSchema>;
