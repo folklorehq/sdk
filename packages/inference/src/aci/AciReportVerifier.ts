@@ -5,6 +5,7 @@ import {
   aciWorkloadReportSchema,
   aciDstackRawEvidenceV1Schema,
   inferenceTrustPolicyV2Schema,
+  policyBindingAdmitsProvider,
   type AciWorkloadReport,
   type AciDstackRawEvidenceV1,
   type InferenceTrustPolicyV2,
@@ -515,7 +516,12 @@ class AciReportVerifierCore {
       }
     }
     for (const binding of this.policy.channelPolicy.acceptedBindings) {
-      if (binding.type !== 'e2ee_public_key_sha256' || !binding.domains.includes(hostname))
+      // A gateway report key names no provider, so a provider-scoped upstream binding never pins one.
+      if (
+        binding.type !== 'e2ee_public_key_sha256' ||
+        !policyBindingAdmitsProvider(binding, undefined) ||
+        !binding.domains.includes(hostname)
+      )
         continue;
       for (const key of report.attestation.workload_keyset.e2ee_public_keys) {
         if (!binding.algorithms.includes(key.algo as (typeof binding.algorithms)[number])) continue;

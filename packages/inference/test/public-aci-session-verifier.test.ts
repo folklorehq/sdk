@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 import { aciSessionSchema, type AciReceipt, type AciSession } from '@folklore/contracts';
 import { canonicalJson } from '@folklore/utils';
@@ -9,6 +10,7 @@ import {
   PublicAciSessionVerifier,
   type PublicAciSessionPolicy,
 } from '../src/aci/PublicAciSessionVerifier.js';
+import { DEFAULT_VERIFIED_MODELS, attestedUpstreamModelId } from '../src/model-allowlist.js';
 
 const origin = 'https://inference.example.com';
 const workloadKeysetDigest = `sha256:${'a'.repeat(64)}`;
@@ -58,7 +60,60 @@ function policy(): PublicAciSessionPolicy {
       },
       { type: 'tls_spki_sha256', domains: ['inference.example.com'] },
     ],
+    evidenceFreeVerifiers: [],
   };
+}
+
+const chutesVerifier = 'private-ai-verifier/chutes/v1';
+const chutesChannel = {
+  type: 'e2ee_public_key_sha256' as const,
+  domains: ['inference.example.com'],
+  algorithms: ['chutes-ml-kem-768' as const],
+  providers: ['chutes'],
+};
+const chutesBinding = (overrides: Record<string, unknown> = {}) => ({
+  type: 'e2ee_public_key_sha256',
+  provider: 'chutes',
+  key_id: 'instance-1',
+  algorithm: 'chutes-ml-kem-768',
+  public_key_sha256: 'e'.repeat(64),
+  ...overrides,
+});
+// Phala's public transparency session for qwen/qwen3-embedding-8b, fetched 2026-10-11.
+const observedSession = JSON.parse(
+  readFileSync(
+    new URL('./fixtures/phala-public/chutes-embed-session.json', import.meta.url),
+    'utf8',
+  ),
+) as Record<string, unknown>;
+const OBSERVED_SESSION_ID = '5f0afd6e7d5dad1b0cbd007954aa1c4c3e7a06485b98dbdd709ce38fefa08c0d';
+
+function chutesPolicy(verifiers: readonly string[] = [chutesVerifier]): PublicAciSessionPolicy {
+  const base = policy();
+  return {
+    ...base,
+    acceptedChannelBindings: [chutesChannel, ...base.acceptedChannelBindings],
+    evidenceFreeVerifiers: verifiers,
+  };
+}
+
+function evidenceFreeSetup(
+  extra: Record<string, unknown> = {},
+  upstream: readonly UpstreamOverride[] | undefined = undefined,
+  sessionPolicy: PublicAciSessionPolicy = chutesPolicy(),
+  servedAt = 150,
+) {
+  const { verifier, input } = setup(
+    {
+      verifier_id: chutesVerifier,
+      channel_binding: [chutesBinding()],
+      evidence: {},
+      ...extra,
+    },
+    servedAt,
+    upstream,
+  );
+  return { verifier, input: { ...input, policy: sessionPolicy } };
 }
 
 const e2eeBinding = (algorithm: string) => ({
@@ -189,7 +244,9 @@ describe('PublicAciSessionVerifier', () => {
       // The contract schema rejects unstructured URIs before the verifier runs; the verifier
       // itself rejects the structurally valid but empty payload. Both paths must fail closed.
       await expect(verifier.verify(input)).rejects.toThrow(
-        data.endsWith(',') ? 'evidence encoding' : /evidence|Invalid/,
+        data.endsWith(',')
+          ? 'public ACI session evidence encoding failed'
+          : 'public ACI session schema is invalid',
       );
     },
   );
@@ -350,7 +407,17 @@ describe('PublicAciSessionVerifier', () => {
     await expect(accepted.verifier.verify(accepted.input)).resolves.toMatchObject({ model });
     const aliased = setup({}, 150, [{ model_id: model }]);
     aliased.input.policy = { ...aliased.input.policy, model };
-    await expect(aliased.verifier.verify(aliased.input)).rejects.toThrow();
+    expect(await refusal(aliased.verifier.verify(aliased.input))).toBe(
+      'public ACI upstream model does not match',
+    );
+  });
+
+  it.each(DEFAULT_VERIFIED_MODELS)('maps verified model %s to an attested upstream id', (model) => {
+    expect(attestedUpstreamModelId(model)).toBeTypeOf('string');
+  });
+
+  it.each(['__proto__', 'constructor'])('leaves the alias %s unmapped', (name) => {
+    expect(attestedUpstreamModelId(name)).toBeUndefined();
   });
 
   it('accepts the observed gateway receipt shape', async () => {
@@ -369,7 +436,181 @@ describe('PublicAciSessionVerifier', () => {
 
   it('rejects an unknown top-level session field', async () => {
     const { verifier, input } = setup({ unknown: true });
-    await expect(verifier.verify(input)).rejects.toThrow();
+    await expect(verifier.verify(input)).rejects.toThrow('public ACI session schema is invalid');
+  });
+
+  it('accepts an allowlisted evidence-free session behind a verified upstream', async () => {
+    const { verifier, input } = evidenceFreeSetup();
+    await expect(verifier.verify(input)).resolves.toMatchObject({
+      verifierId: chutesVerifier,
+      evidenceMode: 'verifier-attested',
+      evidenceDigest: null,
+    });
+  });
+
+  it('keeps the hashed-evidence mode for a session that carries evidence', async () => {
+    const { verifier, input } = setup();
+    await expect(verifier.verify({ ...input, policy: chutesPolicy() })).resolves.toMatchObject({
+      evidenceMode: 'hashed',
+      evidenceDigest,
+    });
+  });
+
+  it.each<[string, PublicAciSessionPolicy]>([
+    ['a policy that allowlists no verifier', chutesPolicy([])],
+    ['a policy that allowlists another verifier', chutesPolicy(['private-ai-verifier/other/v1'])],
+  ])('refuses an evidence-free session under %s', async (_label, sessionPolicy) => {
+    const { verifier, input } = evidenceFreeSetup({}, undefined, sessionPolicy);
+    await expect(refusal(verifier.verify(input))).resolves.toBe(
+      'public ACI session evidence is missing',
+    );
+  });
+
+  it('refuses an evidence-free session from a verifier differing only in case', async () => {
+    const { verifier, input } = evidenceFreeSetup({ verifier_id: chutesVerifier.toUpperCase() });
+    await expect(refusal(verifier.verify(input))).resolves.toBe(
+      'public ACI session evidence is missing',
+    );
+  });
+
+  it.each<[string, readonly UpstreamOverride[], string]>([
+    ['a failed upstream', [failed], 'public ACI upstream result is not verified'],
+    ['an optional upstream', [{ required: false }], 'public ACI upstream is not required'],
+    [
+      'another attested model',
+      [{ model_id: 'Qwen/Qwen3-32B-TEE' }],
+      'public ACI upstream model does not match',
+    ],
+  ])(
+    'refuses an allowlisted evidence-free session behind %s',
+    async (_label, upstream, expected) => {
+      const { verifier, input } = evidenceFreeSetup({}, upstream);
+      await expect(refusal(verifier.verify(input))).resolves.toBe(expected);
+    },
+  );
+
+  it.each<[string, Record<string, unknown>, string]>([
+    [
+      'an unreviewed channel algorithm',
+      { channel_binding: [chutesBinding({ algorithm: 'kyber-512' })] },
+      'public ACI session channel policy failed',
+    ],
+    [
+      'the reviewed algorithm from another provider',
+      { channel_binding: [chutesBinding({ provider: 'other' })] },
+      'public ACI session channel policy failed',
+    ],
+    [
+      'a required claim from an unpermitted source',
+      {
+        claims: {
+          tee_attested: { status: 'asserted', source: 'verifier_derived', reason: 'verified' },
+        },
+      },
+      'public ACI session claim policy failed',
+    ],
+    [
+      'a lifetime longer than the policy permits',
+      { expires_at: 201, established_at: 100 },
+      'public ACI session time or content binding is invalid',
+    ],
+    [
+      'evidence that is not empty',
+      { evidence: { note: 'partial' } },
+      'public ACI session schema is invalid',
+    ],
+    ['an unknown top-level field', { unknown: true }, 'public ACI session schema is invalid'],
+  ])('refuses an allowlisted evidence-free session with %s', async (_label, extra, expected) => {
+    const { verifier, input } = evidenceFreeSetup(extra);
+    await expect(refusal(verifier.verify(input))).resolves.toBe(expected);
+  });
+
+  it.each([99, 200])(
+    'refuses an allowlisted evidence-free session served outside its window: %s',
+    async (servedAt) => {
+      const { verifier, input } = evidenceFreeSetup({}, undefined, chutesPolicy(), servedAt);
+      await expect(refusal(verifier.verify(input))).resolves.toBe(
+        'public ACI session time or content binding is invalid',
+      );
+    },
+  );
+
+  it('refuses an allowlisted evidence-free session that does not hash to the cited id', async () => {
+    const { input } = evidenceFreeSetup();
+    const event = input.receipt.event_log.find((entry) => entry.type === 'upstream.verified');
+    const citedId = event && 'session_id' in event ? event.session_id : undefined;
+    const substituted = { ...makeSession(), verifier_id: chutesVerifier, evidence: {} };
+    const verifier = new PublicAciSessionVerifier(async () => {
+      const response = new Response(
+        JSON.stringify({ ...substituted, channel_binding: [chutesBinding()], expires_at: 199 }),
+        { status: 200 },
+      );
+      Object.defineProperty(response, 'url', { value: `${origin}/v1/aci/sessions/${citedId}` });
+      return response;
+    });
+    await expect(refusal(verifier.verify(input))).resolves.toBe(
+      'public ACI session time or content binding is invalid',
+    );
+  });
+
+  it('refuses the reviewed chutes algorithm under a policy without the chutes channel', async () => {
+    const { verifier, input } = evidenceFreeSetup({}, undefined, {
+      ...policy(),
+      evidenceFreeVerifiers: [chutesVerifier],
+    });
+    await expect(refusal(verifier.verify(input))).resolves.toBe(
+      'public ACI session channel policy failed',
+    );
+  });
+
+  it('accepts the observed Phala chutes session end to end', async () => {
+    const servedAt = 1_791_763_000;
+    const { verifier, input } = setup(observedSession, servedAt);
+    await expect(
+      verifier.verify({
+        ...input,
+        trustedNow: servedAt,
+        policy: { ...chutesPolicy(), maxSessionLifetimeSeconds: 3_600 },
+      }),
+    ).resolves.toMatchObject({
+      sessionId: OBSERVED_SESSION_ID,
+      upstreamName: 'chutes-qwen3-embedding-8b',
+      evidenceMode: 'verifier-attested',
+    });
+  });
+
+  it('refuses the observed Phala chutes session when no verifier is allowlisted', async () => {
+    const servedAt = 1_791_763_000;
+    const { verifier, input } = setup(observedSession, servedAt);
+    await expect(
+      refusal(
+        verifier.verify({
+          ...input,
+          trustedNow: servedAt,
+          policy: { ...chutesPolicy([]), maxSessionLifetimeSeconds: 3_600 },
+        }),
+      ),
+    ).resolves.toBe('public ACI session evidence is missing');
+  });
+
+  it.each<[string, Record<string, unknown>]>([
+    ['a null evidence member', { evidence: null }],
+    [
+      'evidence data without a digest',
+      { evidence: { data: `data:application/octet-stream;base64,${evidence.toString('base64')}` } },
+    ],
+  ])('refuses %s as missing evidence', async (_label, extra) => {
+    const { verifier, input } = setup(extra);
+    await expect(refusal(verifier.verify(input))).resolves.toBe(
+      'public ACI session evidence is missing',
+    );
+  });
+
+  it('refuses a receipt outside the contract schema by a fixed sentence', async () => {
+    const { verifier, input } = setup();
+    await expect(
+      refusal(verifier.verify({ ...input, receipt: { ...input.receipt, event_log: [] } })),
+    ).resolves.toBe('public ACI receipt schema is invalid');
   });
 
   it('rejects oversized session evidence', async () => {
@@ -379,6 +620,6 @@ describe('PublicAciSessionVerifier', () => {
         data: `data:application/octet-stream;base64,${Buffer.alloc(1_048_577).toString('base64')}`,
       },
     });
-    await expect(verifier.verify(input)).rejects.toThrow();
+    await expect(verifier.verify(input)).rejects.toThrow('public ACI session');
   });
 });

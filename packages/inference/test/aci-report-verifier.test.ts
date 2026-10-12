@@ -678,6 +678,39 @@ describe('AciReportVerifier', () => {
     expect(JSON.stringify(keyset)).not.toContain(MEASUREMENT);
   });
 
+  it('never pins a gateway key under a provider-scoped upstream binding', async () => {
+    const gatewayKeys = ACI_REPORT_FIXTURE.attestation.workload_keyset.e2ee_public_keys;
+    const report = reportFor({
+      keyset: {
+        e2ee_public_keys: [
+          ...gatewayKeys,
+          { key_id: 'e2ee-chutes', algo: 'chutes-ml-kem-768', public_key: 'ab'.repeat(32) },
+        ],
+      },
+    });
+    const scoped = inferenceTrustPolicyV2Schema.parse({
+      ...ACI_POLICY_FIXTURE,
+      channelPolicy: {
+        acceptedBindings: [
+          {
+            type: 'e2ee_public_key_sha256',
+            domains: ['inference.phala.com'],
+            algorithms: ['chutes-ml-kem-768'],
+            providers: ['chutes'],
+          },
+          ...ACI_POLICY_FIXTURE.channelPolicy.acceptedBindings,
+        ],
+      },
+    });
+    const unscopedPins = (await verifierFor(report).verify()).channelPins;
+    const scopedPins = (
+      await verifierFor(report, nativeBindings(report, NONCE), { policy: scoped }).verify()
+    ).channelPins;
+
+    expect(scopedPins).toEqual(unscopedPins);
+    expect(scopedPins.some((pin) => pin.keyId === 'e2ee-chutes')).toBe(false);
+  });
+
   it('admits keysets with the deployment activation generation instead of zero', async () => {
     const report = reportFor();
     const admitKeyset = vi.fn(async () => 9);

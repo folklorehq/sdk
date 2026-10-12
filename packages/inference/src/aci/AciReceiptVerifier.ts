@@ -268,6 +268,7 @@ export class AciReceiptVerifier implements AciReceiptVerifierPort {
     if (receipt.workload_keyset_digest !== input.snapshot.keyset.workloadKeysetDigest) {
       throw new AciReceiptVerificationError('keyset_mismatch');
     }
+    // not yet wired: official ACI alias/upstream model mapping — needs a captured official receipt
     if (receipt.model !== session.model) throw new AciReceiptVerificationError('model_mismatch');
     if (receipt.endpoint !== input.endpoint) {
       throw new AciReceiptVerificationError('endpoint_mismatch');

@@ -729,27 +729,40 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return prototype === Object.prototype || prototype === null;
 }
 
+const aciSessionFields = {
+  api_version: z.literal('aci/1'),
+  upstream_name: aciStringSchema,
+  endpoint: aciOriginSchema.nullable().optional(),
+  verifier_id: aciStringSchema,
+  established_at: aciPositiveIntegerSchema,
+  expires_at: aciPositiveIntegerSchema,
+  identity: aciSessionIdentitySchema.optional(),
+  channel_binding: aciSessionChannelBindingsSchema,
+  claims: aciSessionClaimsSchema,
+};
+
+function refineAciSession(
+  session: { established_at: number; expires_at: number; [field: string]: unknown },
+  context: z.RefinementCtx,
+): void {
+  if (session.expires_at <= session.established_at) {
+    addSortedIssue(context, ['expires_at'], 'expires_at must be later than established_at');
+  }
+  rejectFields(session, ['session_id'], context);
+}
+
 export const aciSessionSchema = z
-  .object({
-    api_version: z.literal('aci/1'),
-    upstream_name: aciStringSchema,
-    endpoint: aciOriginSchema.nullable().optional(),
-    verifier_id: aciStringSchema,
-    established_at: aciPositiveIntegerSchema,
-    expires_at: aciPositiveIntegerSchema,
-    identity: aciSessionIdentitySchema.optional(),
-    channel_binding: aciSessionChannelBindingsSchema,
-    claims: aciSessionClaimsSchema,
-    evidence: aciEvidenceRefSchema,
-  })
+  .object({ ...aciSessionFields, evidence: aciEvidenceRefSchema })
   .strict()
-  .superRefine((session, context) => {
-    if (session.expires_at <= session.established_at) {
-      addSortedIssue(context, ['expires_at'], 'expires_at must be later than established_at');
-    }
-    rejectFields(session, ['session_id'], context);
-  });
+  .superRefine(refineAciSession);
 export type AciSession = z.infer<typeof aciSessionSchema>;
+
+/** A session whose verifier publishes no evidence; only a policy-allowlisted verifier may serve one. */
+export const aciEvidenceFreeSessionSchema = z
+  .object({ ...aciSessionFields, evidence: z.object({}).strict() })
+  .strict()
+  .superRefine(refineAciSession);
+export type AciEvidenceFreeSession = z.infer<typeof aciEvidenceFreeSessionSchema>;
 
 const aciBodyHashSchema = aciPrefixedDigestSchema;
 const aciRequestReceivedEventSchema = z
@@ -943,7 +956,21 @@ const aciPolicyClockSkewSchema = z
 const aciTcbStatusSchema = identifierSchema;
 const aciDstackIdentitySchema = aciStringSchema;
 
-const aciPolicyChannelBindingSchema = z.discriminatedUnion('type', [
+// Phala's chutes upstream channel; never a gateway report key algorithm.
+export const UPSTREAM_SESSION_E2EE_ALGORITHM = 'chutes-ml-kem-768' as const;
+
+/** Whether a policy e2ee binding admits a channel from `provider`; an unscoped binding admits any, a scoped one only a listed provider. */
+export function policyBindingAdmitsProvider(
+  binding: { readonly providers?: readonly string[] },
+  provider: string | undefined,
+): boolean {
+  return (
+    binding.providers === undefined ||
+    (provider !== undefined && binding.providers.includes(provider))
+  );
+}
+
+const aciPolicyChannelBindingSchema = z.union([
   z
     .object({
       type: z.literal('tls_spki_sha256'),
@@ -955,11 +982,36 @@ const aciPolicyChannelBindingSchema = z.discriminatedUnion('type', [
       type: z.literal('e2ee_public_key_sha256'),
       domains: z.array(aciHostnameSchema).min(1).max(MAX_POLICY_ITEMS),
       algorithms: z
-        .array(z.enum(['x25519-aes-256-gcm-hkdf-sha256', 'secp256k1-aes-256-gcm-hkdf-sha256']))
+        .array(
+          z.enum([
+            UPSTREAM_SESSION_E2EE_ALGORITHM,
+            'secp256k1-aes-256-gcm-hkdf-sha256',
+            'x25519-aes-256-gcm-hkdf-sha256',
+          ]),
+        )
         .min(1)
         .max(MAX_POLICY_ITEMS),
+      // Present only on an upstream-session binding: the session's `provider` must be listed.
+      providers: z.array(identifierSchema).min(1).max(MAX_POLICY_ITEMS).optional(),
     })
-    .strict(),
+    .strict()
+    .superRefine((binding, context) => {
+      const upstreamOnly = binding.algorithms.includes(UPSTREAM_SESSION_E2EE_ALGORITHM);
+      if (upstreamOnly !== (binding.providers !== undefined)) {
+        addSortedIssue(
+          context,
+          ['providers'],
+          'an upstream-session algorithm requires providers, and only it may carry them',
+        );
+      }
+      if (upstreamOnly && binding.algorithms.length !== 1) {
+        addSortedIssue(
+          context,
+          ['algorithms'],
+          'an upstream-session binding names its one algorithm alone',
+        );
+      }
+    }),
 ]);
 
 const aciPolicyEvidenceSchema = z
@@ -1018,9 +1070,20 @@ export const inferenceTrustPolicyV2Schema = z
     maxKeysetLifetimeSeconds: aciPolicyDurationSchema,
     maxSessionLifetimeSeconds: aciPolicyDurationSchema,
     clockSkewSeconds: aciPolicyClockSkewSchema,
+    evidenceFreeSessionVerifiers: z.array(aciStringSchema).min(1).max(MAX_POLICY_ITEMS).optional(),
   })
   .strict()
   .superRefine((policy, context) => {
+    if (
+      policy.evidenceFreeSessionVerifiers !== undefined &&
+      !sortedUnique(policy.evidenceFreeSessionVerifiers)
+    ) {
+      addSortedIssue(
+        context,
+        ['evidenceFreeSessionVerifiers'],
+        'evidence-free session verifiers must be sorted and unique',
+      );
+    }
     if (!sortedUnique(policy.requiredSessionClaims)) {
       addSortedIssue(
         context,
@@ -1162,6 +1225,13 @@ export const inferenceTrustPolicyV2Schema = z
           context,
           ['channelPolicy', 'acceptedBindings', index, 'algorithms'],
           'channel algorithms must be sorted and unique',
+        );
+      }
+      if ('providers' in binding && binding.providers && !sortedUnique(binding.providers)) {
+        addSortedIssue(
+          context,
+          ['channelPolicy', 'acceptedBindings', index, 'providers'],
+          'channel providers must be sorted and unique',
         );
       }
     }

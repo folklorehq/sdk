@@ -3,6 +3,7 @@ import { generateKeyPairSync, sign, verify } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   aciDstackRawEvidenceV1Schema,
+  aciEvidenceFreeSessionSchema,
   aciReceiptSchema,
   aciSessionSchema,
   aciWorkloadReportSchema,
@@ -585,6 +586,75 @@ describe('inferenceTrustPolicyV2Schema', () => {
         },
       }).success,
     ).toBe(false);
+  });
+
+  describe('the chutes upstream session channel and evidence-free verifiers', () => {
+    const chutes = {
+      type: 'e2ee_public_key_sha256',
+      domains: ['inference.phala.com'],
+      algorithms: ['chutes-ml-kem-768'],
+      providers: ['chutes'],
+    };
+    const withBindings = (first: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+      ...ACI_POLICY_FIXTURE,
+      channelPolicy: {
+        acceptedBindings: [first, ...ACI_POLICY_FIXTURE.channelPolicy.acceptedBindings],
+      },
+      ...extra,
+    });
+
+    it('accepts a provider-scoped chutes binding and a sorted verifier list', () => {
+      const parsed = inferenceTrustPolicyV2Schema.parse(
+        withBindings(chutes, { evidenceFreeSessionVerifiers: ['private-ai-verifier/chutes/v1'] }),
+      );
+      expect(parsed.channelPolicy.acceptedBindings[0]).toEqual(chutes);
+      expect(parsed.evidenceFreeSessionVerifiers).toEqual(['private-ai-verifier/chutes/v1']);
+    });
+
+    it('keeps a policy without either field exactly as it was', () => {
+      expect(inferenceTrustPolicyV2Schema.parse(ACI_POLICY_FIXTURE)).not.toHaveProperty(
+        'evidenceFreeSessionVerifiers',
+      );
+    });
+
+    it.each<[string, Record<string, unknown>]>([
+      ['the chutes algorithm without providers', { ...chutes, providers: undefined }],
+      [
+        'providers on a gateway algorithm',
+        { ...chutes, algorithms: ['x25519-aes-256-gcm-hkdf-sha256'] },
+      ],
+      [
+        'the chutes algorithm beside a gateway algorithm',
+        { ...chutes, algorithms: ['chutes-ml-kem-768', 'x25519-aes-256-gcm-hkdf-sha256'] },
+      ],
+      ['unsorted providers', { ...chutes, providers: ['chutes', 'alpha'] }],
+      ['an unreviewed algorithm', { ...chutes, algorithms: ['kyber-512'] }],
+    ])('refuses %s', (_label, binding) => {
+      expect(inferenceTrustPolicyV2Schema.safeParse(withBindings(binding)).success).toBe(false);
+    });
+
+    it.each([[[]], [['b-verifier', 'a-verifier']], [['a-verifier', 'a-verifier']]])(
+      'refuses an empty, unsorted or duplicate verifier list: %j',
+      (verifiers) => {
+        expect(
+          inferenceTrustPolicyV2Schema.safeParse({
+            ...ACI_POLICY_FIXTURE,
+            evidenceFreeSessionVerifiers: verifiers,
+          }).success,
+        ).toBe(false);
+      },
+    );
+
+    it('models the evidence-free session as its own variant, never in the hashed schema', () => {
+      const evidenceFree = { ...ACI_SESSION_FIXTURE, evidence: {} };
+      expect(aciSessionSchema.safeParse(evidenceFree).success).toBe(false);
+      expect(aciEvidenceFreeSessionSchema.safeParse(evidenceFree).success).toBe(true);
+      expect(aciEvidenceFreeSessionSchema.safeParse(ACI_SESSION_FIXTURE).success).toBe(false);
+      expect(
+        aciEvidenceFreeSessionSchema.safeParse({ ...evidenceFree, session_id: 'a'.repeat(64) })
+          .success,
+      ).toBe(false);
+    });
   });
 
   it('accepts reviewed evidence, provenance, channel, model, and role bindings', () => {

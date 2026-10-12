@@ -6,6 +6,7 @@ import {
   aciSessionSchema,
   aciDstackRawEvidenceV1Schema,
   inferenceTrustPolicyV2Schema,
+  policyBindingAdmitsProvider,
   type AciSession,
   type AciDstackRawEvidenceV1,
   type InferenceModelRole,
@@ -834,7 +835,8 @@ class AciSessionVerifierCore {
       (accepted) =>
         accepted.type === binding.type &&
         (endpoint === null || accepted.domains.includes(new URL(endpoint).hostname)) &&
-        accepted.algorithms.some((algorithm) => algorithm === binding.algorithm),
+        accepted.algorithms.some((algorithm) => algorithm === binding.algorithm) &&
+        policyBindingAdmitsProvider(accepted, binding.provider),
     );
     return policyAccepts;
   }
