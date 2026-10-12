@@ -58,3 +58,13 @@ export const themeMergeActionSchema = z.object({
   action: z.enum(['approve', 'reject']),
 });
 export type ThemeMergeAction = z.infer<typeof themeMergeActionSchema>;
+
+export const THEME_MERGE_CONFLICT_REASONS = [
+  'merge_crosses_owner',
+  'merge_involves_aggregate',
+] as const;
+export const themeMergeConflictSchema = z.object({
+  error: z.literal('conflict'),
+  reason: z.enum(THEME_MERGE_CONFLICT_REASONS),
+});
+export type ThemeMergeConflict = z.infer<typeof themeMergeConflictSchema>;
