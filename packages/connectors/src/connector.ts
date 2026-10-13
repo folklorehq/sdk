@@ -11,6 +11,8 @@ export interface SyncCursor {
 export interface PullOptions {
   /** Oldest record timestamp to include; connectors MUST stop paginating once they cross this boundary (set by onboarding backfill). Undefined means incremental with no lower bound. */
   since?: Date;
+  /** Fact budget for one pull; a connector that honors it returns the oldest updates first, its cursor at the last one taken, and `hasMore` while any remain. */
+  maxFacts?: number;
 }
 
 /** An inbound webhook delivery, before source-specific decoding. */
