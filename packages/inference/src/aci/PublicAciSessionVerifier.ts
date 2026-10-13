@@ -21,7 +21,8 @@ const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 const SESSION_ID = /^[0-9a-f]{64}$/;
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
 const PUBLIC_KEY = /^[0-9a-f]{64}$/;
-const MAX_SESSION_BYTES = 1_048_576;
+// Bounds read volume only: the session id and evidence digest bind every byte read.
+const MAX_SESSION_BYTES = 8_388_608;
 const DEFAULT_FETCH_TIMEOUT_MS = 5_000;
 
 type UpstreamEvent = Extract<AciReceipt['event_log'][number], { type: 'upstream.verified' }>;
@@ -82,7 +83,7 @@ export class PublicAciSessionVerifier {
   constructor(fetchImpl: typeof fetch = fetch, fetchTimeoutMs = DEFAULT_FETCH_TIMEOUT_MS) {
     this.fetchImpl = fetchImpl;
     if (!Number.isSafeInteger(fetchTimeoutMs) || fetchTimeoutMs <= 0) {
-      throw new Error('public ACI fetch timeout is invalid');
+      throw new Error('public_aci_fetch_timeout_invalid');
     }
     this.fetchTimeoutMs = fetchTimeoutMs;
   }
@@ -93,20 +94,20 @@ export class PublicAciSessionVerifier {
     const policy = this.validatePolicy(input.policy);
     const keyset = this.validateKeyset(input.keyset);
     if (keyset.workloadKeysetDigest !== policy.workloadKeysetDigest) {
-      throw new Error('public ACI keyset policy digest mismatch');
+      throw new Error('public_aci_keyset_policy_digest_mismatch');
     }
     if (!Number.isSafeInteger(input.trustedNow) || input.trustedNow < 0) {
-      throw new Error('public ACI trusted time is invalid');
+      throw new Error('public_aci_trusted_time_invalid');
     }
     const receipt = this.parseReceipt(input.receipt);
     if (receipt.workload_keyset_digest !== policy.workloadKeysetDigest) {
-      throw new Error('public ACI receipt keyset digest mismatch');
+      throw new Error('public_aci_receipt_keyset_digest_mismatch');
     }
     this.verifyReceiptSignature(receipt, keyset);
     const event = this.findUpstreamEvent(receipt, policy.model);
     const sessionId = event.session_id;
     if (sessionId === undefined || !SESSION_ID.test(sessionId)) {
-      throw new Error('public ACI receipt session reference is invalid');
+      throw new Error('public_aci_receipt_session_reference_invalid');
     }
     const validatedSessionId: string = sessionId;
     const parsed = await this.fetchSession(policy, validatedSessionId);
@@ -130,13 +131,13 @@ export class PublicAciSessionVerifier {
 
   private validatePolicy(policy: PublicAciSessionPolicy): PublicAciSessionPolicy {
     if (policy.acceptedChannelBindings.length === 0) {
-      throw new Error('public ACI channel policy is invalid');
+      throw new Error('public_aci_channel_policy_invalid');
     }
     let url: URL;
     try {
       url = new URL(policy.origin);
     } catch {
-      throw new Error('public ACI policy origin is invalid');
+      throw new Error('public_aci_policy_origin_invalid');
     }
     if (
       url.protocol !== 'https:' ||
@@ -147,7 +148,7 @@ export class PublicAciSessionVerifier {
       url.search ||
       url.hash
     ) {
-      throw new Error('public ACI policy origin is invalid');
+      throw new Error('public_aci_policy_origin_invalid');
     }
     if (
       policy.workloadKeysetDigest !== policy.workloadKeysetDigest.toLowerCase() ||
@@ -156,18 +157,18 @@ export class PublicAciSessionVerifier {
       !Number.isSafeInteger(policy.maxSessionLifetimeSeconds) ||
       policy.maxSessionLifetimeSeconds <= 0
     ) {
-      throw new Error('public ACI policy is invalid');
+      throw new Error('public_aci_policy_invalid');
     }
     return policy;
   }
 
   private validateKeyset(keyset: PublicAciVerifiedKeyset): PublicAciVerifiedKeyset {
     if (!DIGEST.test(keyset.workloadKeysetDigest) || keyset.receiptSigningKeys.length === 0) {
-      throw new Error('public ACI keyset is invalid');
+      throw new Error('public_aci_keyset_invalid');
     }
     for (const key of keyset.receiptSigningKeys) {
       if (key.algorithm !== 'ed25519' || !PUBLIC_KEY.test(key.publicKey)) {
-        throw new Error('public ACI receipt signer is invalid');
+        throw new Error('public_aci_receipt_signer_invalid');
       }
     }
     return keyset;
@@ -175,7 +176,7 @@ export class PublicAciSessionVerifier {
 
   private verifyReceiptSignature(receipt: AciReceipt, keyset: PublicAciVerifiedKeyset): void {
     const signer = keyset.receiptSigningKeys.find((key) => key.keyId === receipt.key_id);
-    if (signer === undefined) throw new Error('public ACI receipt signer is unknown');
+    if (signer === undefined) throw new Error('public_aci_receipt_signer_unknown');
     const { signature, ...unsigned } = receipt;
     try {
       const key = createPublicKey({
@@ -194,7 +195,7 @@ export class PublicAciSessionVerifier {
         throw new Error();
       }
     } catch {
-      throw new Error('public ACI receipt signature is invalid');
+      throw new Error('public_aci_receipt_signature_invalid');
     }
   }
 
@@ -203,19 +204,19 @@ export class PublicAciSessionVerifier {
     const upstream = receipt.event_log.filter(
       (candidate): candidate is UpstreamEvent => candidate.type === 'upstream.verified',
     );
-    if (upstream.length === 0) throw new Error('public ACI upstream event is absent');
+    if (upstream.length === 0) throw new Error('public_aci_upstream_event_absent');
     const verified = upstream.filter((candidate) => candidate.result === 'verified');
-    if (verified.length === 0) throw new Error('public ACI upstream result is not verified');
+    if (verified.length === 0) throw new Error('public_aci_upstream_result_unverified');
     const required = verified.filter((candidate) => candidate.required === true);
-    if (required.length === 0) throw new Error('public ACI upstream is not required');
+    if (required.length === 0) throw new Error('public_aci_upstream_not_required');
     const model = attestedUpstreamModelId(alias);
-    if (model === undefined) throw new Error('public ACI upstream model alias is unmapped');
+    if (model === undefined) throw new Error('public_aci_upstream_model_alias_unmapped');
     const event = required.find((candidate) => candidate.model_id === model);
     if (event !== undefined) return event;
     if (required.some((candidate) => candidate.model_id.toLowerCase() === model.toLowerCase())) {
-      throw new Error('public ACI upstream model differs only in case');
+      throw new Error('public_aci_upstream_model_case_mismatch');
     }
-    throw new Error('public ACI upstream model does not match');
+    throw new Error('public_aci_upstream_model_mismatch');
   }
 
   private async fetchSession(
@@ -234,13 +235,12 @@ export class PublicAciSessionVerifier {
         signal: controller.signal,
       });
       if (!response.ok || new URL(response.url).origin !== new URL(origin).origin) {
-        throw new Error('public ACI session fetch failed');
+        throw new Error('public_aci_session_fetch_failed');
       }
       const reader = response.body?.getReader();
       if (reader === undefined) {
         const bytes = new Uint8Array(await response.arrayBuffer());
-        if (bytes.byteLength > MAX_SESSION_BYTES)
-          throw new Error('public ACI session is too large');
+        if (bytes.byteLength > MAX_SESSION_BYTES) throw new Error('public_aci_session_too_large');
         return this.parseSession(bytes, policy);
       }
       const chunks: Uint8Array[] = [];
@@ -250,7 +250,7 @@ export class PublicAciSessionVerifier {
           const chunk = await reader.read();
           if (chunk.done) break;
           length += chunk.value.byteLength;
-          if (length > MAX_SESSION_BYTES) throw new Error('public ACI session is too large');
+          if (length > MAX_SESSION_BYTES) throw new Error('public_aci_session_too_large');
           chunks.push(chunk.value);
         }
       } finally {
@@ -271,7 +271,7 @@ export class PublicAciSessionVerifier {
 
   private parseReceipt(value: unknown): AciReceipt {
     const parsed = aciReceiptSchema.safeParse(value);
-    if (!parsed.success) throw new Error('public ACI receipt schema is invalid');
+    if (!parsed.success) throw new Error('public_aci_receipt_schema_invalid');
     return parsed.data;
   }
 
@@ -280,21 +280,21 @@ export class PublicAciSessionVerifier {
     try {
       value = parseStrictJsonBytes(bytes, MAX_SESSION_BYTES, { asciiMemberNames: true });
     } catch {
-      throw new Error('public ACI session is malformed');
+      throw new Error('public_aci_session_malformed');
     }
     if (!this.hasEvidenceDigest(value)) return this.parseEvidenceFreeSession(value, policy);
     const parsed = aciSessionSchema.safeParse(value);
-    if (!parsed.success) throw new Error('public ACI session schema is invalid');
+    if (!parsed.success) throw new Error('public_aci_session_schema_invalid');
     return { evidenceMode: 'hashed', session: parsed.data };
   }
 
   // Only an exactly empty `evidence` from a policy-allowlisted verifier is accepted.
   private parseEvidenceFreeSession(value: unknown, policy: PublicAciSessionPolicy): ParsedSession {
     if (!this.namesAllowlistedVerifier(value, policy)) {
-      throw new Error('public ACI session evidence is missing');
+      throw new Error('public_aci_session_evidence_missing');
     }
     const parsed = aciEvidenceFreeSessionSchema.safeParse(value);
-    if (!parsed.success) throw new Error('public ACI session schema is invalid');
+    if (!parsed.success) throw new Error('public_aci_session_schema_invalid');
     return { evidenceMode: 'verifier-attested', session: parsed.data };
   }
 
@@ -326,7 +326,7 @@ export class PublicAciSessionVerifier {
       servedAt < session.established_at ||
       servedAt >= session.expires_at
     ) {
-      throw new Error('public ACI session time or content binding is invalid');
+      throw new Error('public_aci_session_binding_invalid');
     }
     for (const claimName of policy.requiredSessionClaims) {
       const claim = (session.claims as Record<string, unknown>)[claimName];
@@ -340,7 +340,7 @@ export class PublicAciSessionVerifier {
         typeof claim.source !== 'string' ||
         !policy.permittedClaimSources.includes(claim.source)
       ) {
-        throw new Error('public ACI session claim policy failed');
+        throw new Error('public_aci_session_claim_policy_failed');
       }
     }
     const known = session.channel_binding.filter((binding) =>
@@ -352,23 +352,23 @@ export class PublicAciSessionVerifier {
         this.channelBindingAccepted(binding, policy.acceptedChannelBindings),
       )
     ) {
-      throw new Error('public ACI session channel policy failed');
+      throw new Error('public_aci_session_channel_policy_failed');
     }
     if (parsed.evidenceMode === 'hashed') this.validateEvidence(parsed.session.evidence);
   }
 
   private validateEvidence(evidence: AciSession['evidence']): void {
     const encoded = evidence.data;
-    if (encoded === undefined) throw new Error('public ACI session evidence is missing');
+    if (encoded === undefined) throw new Error('public_aci_session_evidence_missing');
     const match = /^data:[^,]{1,256};base64,([A-Za-z0-9+/]*={0,2})$/.exec(encoded);
     const payload = match?.[1];
-    if (!payload) throw new Error('public ACI session evidence encoding failed');
+    if (!payload) throw new Error('public_aci_session_evidence_encoding_invalid');
     const bytes = Buffer.from(payload, 'base64');
     if (bytes.length === 0 || bytes.toString('base64') !== payload) {
-      throw new Error('public ACI session evidence encoding failed');
+      throw new Error('public_aci_session_evidence_encoding_invalid');
     }
     if (`sha256:${createHash('sha256').update(bytes).digest('hex')}` !== evidence.digest) {
-      throw new Error('public ACI session evidence digest failed');
+      throw new Error('public_aci_session_evidence_digest_mismatch');
     }
   }
 

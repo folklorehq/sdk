@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash, generateKeyPairSync, randomBytes, sign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { aciSessionSchema, type AciReceipt, type AciSession } from '@folklore/contracts';
@@ -23,6 +23,29 @@ const evidence = Buffer.from('public-evidence');
 const alias = 'qwen/qwen3-embedding-8b';
 const attestedModel = 'Qwen/Qwen3-Embedding-8B-TEE';
 const evidenceDigest = `sha256:${createHash('sha256').update(evidence).digest('hex')}`;
+
+const MAX_SESSION_BYTES = 8_388_608;
+const OBSERVED_GPU_EVIDENCE_BYTES = 819_485;
+const MULTIPART_BOUNDARY = 'aci-evidence-250c87de73891fc021999f62';
+
+function sha256Hex(bytes: Uint8Array): string {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
+function multipartEvidence(partBytes: number): Buffer {
+  return Buffer.concat([
+    Buffer.from(`--${MULTIPART_BOUNDARY}\r\ncontent-type: application/octet-stream\r\n\r\n`),
+    randomBytes(partBytes),
+    Buffer.from(`\r\n--${MULTIPART_BOUNDARY}--\r\n`),
+  ]);
+}
+
+function multipartEvidenceRef(bytes: Buffer, digested: Buffer = bytes) {
+  return {
+    digest: `sha256:${sha256Hex(digested)}`,
+    data: `data:multipart/mixed;boundary=${MULTIPART_BOUNDARY};base64,${bytes.toString('base64')}`,
+  };
+}
 
 function makeSession(extra: Record<string, unknown> = {}): AciSession {
   return aciSessionSchema.parse({
@@ -184,9 +207,10 @@ function setup(
     .export({ format: 'der', type: 'spki' })
     .subarray(-32)
     .toString('hex');
+  const body = JSON.stringify(session);
   const verifier = new PublicAciSessionVerifier(async (input) => {
     expect(String(input)).toBe(`${origin}/v1/aci/sessions/${sessionId}`);
-    const response = new Response(JSON.stringify(session), {
+    const response = new Response(body, {
       status: 200,
       headers: { location: origin },
     });
@@ -195,6 +219,7 @@ function setup(
   });
   return {
     verifier,
+    sessionBytes: Buffer.byteLength(body),
     input: {
       receipt,
       keyset: {
@@ -245,8 +270,8 @@ describe('PublicAciSessionVerifier', () => {
       // itself rejects the structurally valid but empty payload. Both paths must fail closed.
       await expect(verifier.verify(input)).rejects.toThrow(
         data.endsWith(',')
-          ? 'public ACI session evidence encoding failed'
-          : 'public ACI session schema is invalid',
+          ? 'public_aci_session_evidence_encoding_invalid'
+          : 'public_aci_session_schema_invalid',
       );
     },
   );
@@ -278,14 +303,18 @@ describe('PublicAciSessionVerifier', () => {
     ],
   ])('rejects a session whose only channel binding is %s', async (_label, channel_binding) => {
     const { verifier, input } = setup({ channel_binding });
-    await expect(verifier.verify(input)).rejects.toThrow('channel policy');
+    await expect(verifier.verify(input)).rejects.toThrow(
+      'public_aci_session_channel_policy_failed',
+    );
   });
 
   it('rejects an unlisted e2ee algorithm even beside an accepted TLS binding', async () => {
     const { verifier, input } = setup({
       channel_binding: [channelBinding, e2eeBinding('secp256k1-aes-256-gcm-hkdf-sha256')],
     });
-    await expect(verifier.verify(input)).rejects.toThrow('channel policy');
+    await expect(verifier.verify(input)).rejects.toThrow(
+      'public_aci_session_channel_policy_failed',
+    );
   });
 
   it('rejects a TLS binding when the policy accepts only e2ee', async () => {
@@ -296,13 +325,15 @@ describe('PublicAciSessionVerifier', () => {
         (binding) => binding.type === 'e2ee_public_key_sha256',
       ),
     };
-    await expect(verifier.verify(input)).rejects.toThrow('channel policy');
+    await expect(verifier.verify(input)).rejects.toThrow(
+      'public_aci_session_channel_policy_failed',
+    );
   });
 
   it('rejects a policy that accepts no channel binding', async () => {
     const { verifier, input } = setup();
     input.policy = { ...input.policy, acceptedChannelBindings: [] };
-    await expect(verifier.verify(input)).rejects.toThrow('channel policy is invalid');
+    await expect(verifier.verify(input)).rejects.toThrow('public_aci_channel_policy_invalid');
   });
 
   it('rejects a session longer than the signed policy permits', async () => {
@@ -316,7 +347,7 @@ describe('PublicAciSessionVerifier', () => {
     async (badOrigin) => {
       const { verifier, input } = setup();
       input.policy = { ...input.policy, origin: badOrigin };
-      await expect(verifier.verify(input)).rejects.toThrow('policy origin');
+      await expect(verifier.verify(input)).rejects.toThrow('public_aci_policy_origin_invalid');
     },
   );
 
@@ -331,7 +362,7 @@ describe('PublicAciSessionVerifier', () => {
 
   it.each([99, 200])('rejects a signed receipt outside session validity: %s', async (servedAt) => {
     const { verifier, input } = setup({}, servedAt);
-    await expect(verifier.verify(input)).rejects.toThrow('time or content binding');
+    await expect(verifier.verify(input)).rejects.toThrow('public_aci_session_binding_invalid');
   });
 
   it('verifies a quote-bound, content-addressed public session', async () => {
@@ -345,42 +376,38 @@ describe('PublicAciSessionVerifier', () => {
   const failed = { result: 'failed', required: false, reason: 'quote rejected' };
 
   it.each<[string, readonly UpstreamOverride[], string]>([
-    ['no upstream event', [], 'public ACI upstream event is absent'],
-    ['only a failed upstream event', [failed], 'public ACI upstream result is not verified'],
-    [
-      'a verified but optional upstream',
-      [{ required: false }],
-      'public ACI upstream is not required',
-    ],
+    ['no upstream event', [], 'public_aci_upstream_event_absent'],
+    ['only a failed upstream event', [failed], 'public_aci_upstream_result_unverified'],
+    ['a verified but optional upstream', [{ required: false }], 'public_aci_upstream_not_required'],
     [
       'an attested id that differs only in case',
       [{ model_id: 'Qwen/qwen3-embedding-8b-tee' }],
-      'public ACI upstream model differs only in case',
+      'public_aci_upstream_model_case_mismatch',
     ],
     [
       'the gateway alias as the upstream id',
       [{ model_id: alias }],
-      'public ACI upstream model does not match',
+      'public_aci_upstream_model_mismatch',
     ],
     [
       'another attested model',
       [{ model_id: 'Qwen/Qwen3-32B-TEE' }],
-      'public ACI upstream model does not match',
+      'public_aci_upstream_model_mismatch',
     ],
     [
       'a failed event beside a verified optional one',
       [failed, { required: false }],
-      'public ACI upstream is not required',
+      'public_aci_upstream_not_required',
     ],
     [
       'an optional event beside a required other model',
       [{ required: false }, { model_id: 'Qwen/Qwen3-32B-TEE' }],
-      'public ACI upstream model does not match',
+      'public_aci_upstream_model_mismatch',
     ],
     [
       'a case-only mismatch beside another model',
       [{ model_id: alias }, { model_id: 'QWEN/QWEN3-EMBEDDING-8B-TEE' }],
-      'public ACI upstream model differs only in case',
+      'public_aci_upstream_model_case_mismatch',
     ],
   ])('refuses %s with its own fixed sentence', async (_label, upstream, sentence) => {
     const { verifier, input } = setup({}, 150, upstream);
@@ -392,9 +419,7 @@ describe('PublicAciSessionVerifier', () => {
   it('refuses an alias with no attested upstream mapping', async () => {
     const { verifier, input } = setup({}, 150, [{ model_id: 'model-a' }]);
     input.policy = { ...input.policy, model: 'model-a' };
-    expect(await refusal(verifier.verify(input))).toBe(
-      'public ACI upstream model alias is unmapped',
-    );
+    expect(await refusal(verifier.verify(input))).toBe('public_aci_upstream_model_alias_unmapped');
   });
 
   it.each([
@@ -408,7 +433,7 @@ describe('PublicAciSessionVerifier', () => {
     const aliased = setup({}, 150, [{ model_id: model }]);
     aliased.input.policy = { ...aliased.input.policy, model };
     expect(await refusal(aliased.verifier.verify(aliased.input))).toBe(
-      'public ACI upstream model does not match',
+      'public_aci_upstream_model_mismatch',
     );
   });
 
@@ -436,7 +461,7 @@ describe('PublicAciSessionVerifier', () => {
 
   it('rejects an unknown top-level session field', async () => {
     const { verifier, input } = setup({ unknown: true });
-    await expect(verifier.verify(input)).rejects.toThrow('public ACI session schema is invalid');
+    await expect(verifier.verify(input)).rejects.toThrow('public_aci_session_schema_invalid');
   });
 
   it('accepts an allowlisted evidence-free session behind a verified upstream', async () => {
@@ -462,24 +487,24 @@ describe('PublicAciSessionVerifier', () => {
   ])('refuses an evidence-free session under %s', async (_label, sessionPolicy) => {
     const { verifier, input } = evidenceFreeSetup({}, undefined, sessionPolicy);
     await expect(refusal(verifier.verify(input))).resolves.toBe(
-      'public ACI session evidence is missing',
+      'public_aci_session_evidence_missing',
     );
   });
 
   it('refuses an evidence-free session from a verifier differing only in case', async () => {
     const { verifier, input } = evidenceFreeSetup({ verifier_id: chutesVerifier.toUpperCase() });
     await expect(refusal(verifier.verify(input))).resolves.toBe(
-      'public ACI session evidence is missing',
+      'public_aci_session_evidence_missing',
     );
   });
 
   it.each<[string, readonly UpstreamOverride[], string]>([
-    ['a failed upstream', [failed], 'public ACI upstream result is not verified'],
-    ['an optional upstream', [{ required: false }], 'public ACI upstream is not required'],
+    ['a failed upstream', [failed], 'public_aci_upstream_result_unverified'],
+    ['an optional upstream', [{ required: false }], 'public_aci_upstream_not_required'],
     [
       'another attested model',
       [{ model_id: 'Qwen/Qwen3-32B-TEE' }],
-      'public ACI upstream model does not match',
+      'public_aci_upstream_model_mismatch',
     ],
   ])(
     'refuses an allowlisted evidence-free session behind %s',
@@ -493,12 +518,12 @@ describe('PublicAciSessionVerifier', () => {
     [
       'an unreviewed channel algorithm',
       { channel_binding: [chutesBinding({ algorithm: 'kyber-512' })] },
-      'public ACI session channel policy failed',
+      'public_aci_session_channel_policy_failed',
     ],
     [
       'the reviewed algorithm from another provider',
       { channel_binding: [chutesBinding({ provider: 'other' })] },
-      'public ACI session channel policy failed',
+      'public_aci_session_channel_policy_failed',
     ],
     [
       'a required claim from an unpermitted source',
@@ -507,19 +532,19 @@ describe('PublicAciSessionVerifier', () => {
           tee_attested: { status: 'asserted', source: 'verifier_derived', reason: 'verified' },
         },
       },
-      'public ACI session claim policy failed',
+      'public_aci_session_claim_policy_failed',
     ],
     [
       'a lifetime longer than the policy permits',
       { expires_at: 201, established_at: 100 },
-      'public ACI session time or content binding is invalid',
+      'public_aci_session_binding_invalid',
     ],
     [
       'evidence that is not empty',
       { evidence: { note: 'partial' } },
-      'public ACI session schema is invalid',
+      'public_aci_session_schema_invalid',
     ],
-    ['an unknown top-level field', { unknown: true }, 'public ACI session schema is invalid'],
+    ['an unknown top-level field', { unknown: true }, 'public_aci_session_schema_invalid'],
   ])('refuses an allowlisted evidence-free session with %s', async (_label, extra, expected) => {
     const { verifier, input } = evidenceFreeSetup(extra);
     await expect(refusal(verifier.verify(input))).resolves.toBe(expected);
@@ -530,7 +555,7 @@ describe('PublicAciSessionVerifier', () => {
     async (servedAt) => {
       const { verifier, input } = evidenceFreeSetup({}, undefined, chutesPolicy(), servedAt);
       await expect(refusal(verifier.verify(input))).resolves.toBe(
-        'public ACI session time or content binding is invalid',
+        'public_aci_session_binding_invalid',
       );
     },
   );
@@ -549,7 +574,7 @@ describe('PublicAciSessionVerifier', () => {
       return response;
     });
     await expect(refusal(verifier.verify(input))).resolves.toBe(
-      'public ACI session time or content binding is invalid',
+      'public_aci_session_binding_invalid',
     );
   });
 
@@ -559,7 +584,7 @@ describe('PublicAciSessionVerifier', () => {
       evidenceFreeVerifiers: [chutesVerifier],
     });
     await expect(refusal(verifier.verify(input))).resolves.toBe(
-      'public ACI session channel policy failed',
+      'public_aci_session_channel_policy_failed',
     );
   });
 
@@ -590,7 +615,7 @@ describe('PublicAciSessionVerifier', () => {
           policy: { ...chutesPolicy([]), maxSessionLifetimeSeconds: 3_600 },
         }),
       ),
-    ).resolves.toBe('public ACI session evidence is missing');
+    ).resolves.toBe('public_aci_session_evidence_missing');
   });
 
   it.each<[string, Record<string, unknown>]>([
@@ -602,7 +627,7 @@ describe('PublicAciSessionVerifier', () => {
   ])('refuses %s as missing evidence', async (_label, extra) => {
     const { verifier, input } = setup(extra);
     await expect(refusal(verifier.verify(input))).resolves.toBe(
-      'public ACI session evidence is missing',
+      'public_aci_session_evidence_missing',
     );
   });
 
@@ -610,16 +635,55 @@ describe('PublicAciSessionVerifier', () => {
     const { verifier, input } = setup();
     await expect(
       refusal(verifier.verify({ ...input, receipt: { ...input.receipt, event_log: [] } })),
-    ).resolves.toBe('public ACI receipt schema is invalid');
+    ).resolves.toBe('public_aci_receipt_schema_invalid');
   });
 
-  it('rejects oversized session evidence', async () => {
+  it('refuses a large evidence blob that does not hash to its digest', async () => {
     const { verifier, input } = setup({
       evidence: {
         digest: `sha256:${'c'.repeat(64)}`,
         data: `data:application/octet-stream;base64,${Buffer.alloc(1_048_577).toString('base64')}`,
       },
     });
-    await expect(verifier.verify(input)).rejects.toThrow('public ACI session');
+    await expect(refusal(verifier.verify(input))).resolves.toBe(
+      'public_aci_session_evidence_digest_mismatch',
+    );
+  });
+
+  it('verifies a session over 1 MiB whose multipart GPU evidence hashes to its digest', async () => {
+    const bytes = multipartEvidence(OBSERVED_GPU_EVIDENCE_BYTES);
+    const { verifier, input, sessionBytes } = setup({ evidence: multipartEvidenceRef(bytes) });
+    expect(sessionBytes).toBeGreaterThan(1_048_576);
+    await expect(verifier.verify(input)).resolves.toMatchObject({
+      evidenceMode: 'hashed',
+      evidenceDigest: `sha256:${sha256Hex(bytes)}`,
+    });
+  });
+
+  it('refuses large multipart evidence whose digest names other bytes', async () => {
+    const bytes = multipartEvidence(OBSERVED_GPU_EVIDENCE_BYTES);
+    const tampered = Buffer.from(bytes);
+    const last = tampered.length - 1;
+    tampered.writeUInt8(tampered.readUInt8(last) ^ 1, last);
+    const { verifier, input } = setup({ evidence: multipartEvidenceRef(tampered, bytes) });
+    await expect(refusal(verifier.verify(input))).resolves.toBe(
+      'public_aci_session_evidence_digest_mismatch',
+    );
+  });
+
+  it('refuses evidence data past the contract cap while the session is under its own', async () => {
+    const bytes = Buffer.alloc(6_000_003);
+    const { verifier, input, sessionBytes } = setup({ evidence: multipartEvidenceRef(bytes) });
+    expect(sessionBytes).toBeLessThanOrEqual(MAX_SESSION_BYTES);
+    await expect(refusal(verifier.verify(input))).resolves.toBe(
+      'public_aci_session_schema_invalid',
+    );
+  });
+
+  it('refuses a session body over the cap before parsing it', async () => {
+    const bytes = Buffer.alloc(6_300_000);
+    const { verifier, input, sessionBytes } = setup({ evidence: multipartEvidenceRef(bytes) });
+    expect(sessionBytes).toBeGreaterThan(MAX_SESSION_BYTES);
+    await expect(refusal(verifier.verify(input))).resolves.toBe('public_aci_session_too_large');
   });
 });

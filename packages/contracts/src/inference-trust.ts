@@ -269,7 +269,6 @@ export function inferenceReceiptV1Payload(input: InferenceReceiptV1): string {
 const MAX_ACI_STRING_LENGTH = 512;
 const MAX_ACI_EVENTS = 128;
 const MAX_ACI_CHANNEL_BINDINGS = 8;
-const MAX_ACI_EVIDENCE_DATA_LENGTH = 1_048_576;
 const MAX_ACI_V2_EVIDENCE_DATA_LENGTH = 8_000_000;
 const MAX_ACI_DURATION_SECONDS = 31_536_000;
 const MAX_ACI_CLOCK_SKEW_SECONDS = 3_600;
@@ -650,17 +649,6 @@ const aciEvidenceRefSchema = z
       .string()
       .max(MAX_ACI_V2_EVIDENCE_DATA_LENGTH)
       .regex(/^data:[^,]{1,256};base64,[A-Za-z0-9+/=_-]*$/)
-      .refine((value) => {
-        if (value.length <= MAX_ACI_EVIDENCE_DATA_LENGTH) return true;
-        const comma = value.indexOf(',');
-        if (comma < 0) return false;
-        try {
-          const decoded = Buffer.from(value.slice(comma + 1), 'base64').toString('utf8');
-          return aciDstackRawEvidenceV1Schema.safeParse(JSON.parse(decoded) as unknown).success;
-        } catch {
-          return false;
-        }
-      })
       .optional(),
   })
   .catchall(aciBoundedJsonValueSchema);

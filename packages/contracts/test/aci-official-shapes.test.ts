@@ -530,6 +530,21 @@ describe('official ACI/1 wire shapes', () => {
     ).toBe(false);
   });
 
+  it('bounds session evidence data of any media type by the evidence length cap', () => {
+    const withData = (length: number) => ({
+      ...OFFICIAL_SESSION,
+      evidence: {
+        digest: `sha256:${'a'.repeat(64)}`,
+        data: `data:multipart/mixed;boundary=aci-evidence-0;base64,${'A'.repeat(length)}`,
+      },
+    });
+    const prefixLength = withData(0).evidence.data.length;
+
+    expect(aciSessionSchema.safeParse(withData(1_092_644)).success).toBe(true);
+    expect(aciSessionSchema.safeParse(withData(8_000_000 - prefixLength)).success).toBe(true);
+    expect(aciSessionSchema.safeParse(withData(8_000_001 - prefixLength)).success).toBe(false);
+  });
+
   it('accepts future claim and channel-binding extensions while keeping known fields required', () => {
     const session = {
       ...OFFICIAL_SESSION,
