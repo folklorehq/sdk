@@ -31,6 +31,11 @@
       "types": "./dist/text.d.ts",
       "default": "./dist/text.js"
     },
+    "./time": {
+      "development": "./src/time.ts",
+      "types": "./dist/time.d.ts",
+      "default": "./dist/time.js"
+    },
     "./async": {
       "development": "./src/async.ts",
       "types": "./dist/async.d.ts",
