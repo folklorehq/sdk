@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { MAX_EMAIL_LEN } from './auth.js';
 import { digest64Schema } from './shared.js';
-import { workspacePermissionSchema } from './workspace-permissions.js';
+import { workspacePermissionSchema, workspacePresetLabelSchema } from './workspace-permissions.js';
 
 // Normalized here so the route, the console forms and the service agree on one address.
 export const inviteEmailSchema = z.string().trim().toLowerCase().email().max(MAX_EMAIL_LEN);
@@ -42,12 +42,18 @@ export type AccessGrantScope = z.infer<typeof accessGrantScopeSchema>;
 export const inviteStatusSchema = z.enum(['pending', 'accepted', 'revoked']);
 export type InviteStatus = z.infer<typeof inviteStatusSchema>;
 
-// `GET /v1/orgs/:id/invites` row: never the token hash or the inviting account.
+// `GET /v1/orgs/:id/invites` row: never the token hash or the inviting account id. The inviter's
+// e-mail is resolved only through their membership in the same org and is listed only to members
+// who may invite.
 export const orgInviteViewSchema = z
   .object({
     id: z.string().uuid(),
     email: z.string(),
     role: membershipRoleSchema,
+    preset: workspacePresetLabelSchema,
+    permissions: z.array(workspacePermissionSchema),
+    teamId: z.string().uuid().nullable(),
+    invitedByEmail: z.string().nullable(),
     status: inviteStatusSchema,
     expiresAt: z.string().datetime(),
     createdAt: z.string().datetime(),
@@ -62,11 +68,25 @@ export const emailDeliverySchema = z.discriminatedUnion('status', [
 ]);
 export type EmailDelivery = z.infer<typeof emailDeliverySchema>;
 
+export const createdInviteSchema = z
+  .object({
+    email: z.string(),
+    role: membershipRoleSchema,
+    preset: workspacePresetLabelSchema,
+    permissions: z.array(workspacePermissionSchema),
+    status: z.enum(['invited', 'already_pending']),
+    delivery: emailDeliverySchema.optional(),
+    acceptUrl: z.string().optional(),
+  })
+  .strict();
+export type CreatedInviteView = z.infer<typeof createdInviteSchema>;
+
 export const orgInviteContextSchema = z
   .object({
     orgName: z.string(),
     email: z.string(),
     role: membershipRoleSchema,
+    preset: workspacePresetLabelSchema,
     status: inviteStatusSchema,
     isExpired: z.boolean(),
   })
@@ -81,6 +101,7 @@ export const pendingOrgInviteSchema = z
     orgId: z.string().uuid(),
     orgName: z.string(),
     role: membershipRoleSchema,
+    preset: workspacePresetLabelSchema,
   })
   .strict();
 export type PendingOrgInvite = z.infer<typeof pendingOrgInviteSchema>;

@@ -11,6 +11,7 @@ export const TelemetryEvent = {
   SourceConnected: 'source.connected',
   SourceRoutingConflict: 'source.routing_conflict',
   MemberInvited: 'member.invited',
+  MemberInvitesRevoked: 'member.invites_revoked',
   BetaInviteCreated: 'beta_invite.created',
   BetaInviteAccepted: 'beta_invite.accepted',
   DirectoryImported: 'directory.imported',
@@ -52,6 +53,14 @@ export const TelemetryEvent = {
   ErrorCaptured: 'error.captured',
 } as const;
 
+export type InvitePresetLabel = 'admin' | 'member' | 'custom';
+export type InviteRevocationCause =
+  // not yet wired: emitted by WS-3 (member suspension)
+  | 'member_suspended'
+  | 'invite_permission_removed'
+  | 'inviter_no_longer_permitted'
+  | 'inviter_cannot_readmit';
+
 /** Actor-visible lifecycle: org → sources → members → directory → billing → reading. */
 type ProductEvents = {
   'org.created': {
@@ -77,7 +86,8 @@ type ProductEvents = {
   };
   'co_processing_consent.recorded': { orgId: string; tier: string; disclosureVersion: string };
   'source.connected': { orgId: string; sourceKind: string; hasRefreshToken: boolean };
-  'member.invited': { orgId: string; role: string; count: number };
+  'member.invited': { orgId: string; role: InvitePresetLabel; count: number };
+  'member.invites_revoked': { orgId: string; count: number; cause: InviteRevocationCause };
   'beta_invite.created': Record<string, never>;
   'beta_invite.accepted': { betaInviteId: string };
   'directory.imported': {

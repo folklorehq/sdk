@@ -42,6 +42,11 @@ const VALID_SERVER_EVENT_FIXTURES = {
     rejectedBy: 'postgres_upsert',
   },
   'member.invited': { orgId: ORGANIZATION_ID, role: 'member', count: 1 },
+  'member.invites_revoked': {
+    orgId: ORGANIZATION_ID,
+    count: 1,
+    cause: 'inviter_no_longer_permitted',
+  },
   'beta_invite.created': {},
   'beta_invite.accepted': { betaInviteId: ORGANIZATION_ID },
   'directory.imported': {
@@ -204,6 +209,62 @@ describe('PostHogTelemetryClient final boundary', () => {
     const { client, captured } = recordingClient();
 
     client.track('fact.ingested', ORGANIZATION_ID, properties as never);
+
+    expect(captured).toEqual([]);
+  });
+
+  it.each(['admin', 'member', 'custom'])('accepts a member.invited preset label: %s', (role) => {
+    const { client, captured } = recordingClient();
+
+    client.track('member.invited', ORGANIZATION_ID, { orgId: ORGANIZATION_ID, role, count: 1 });
+
+    expect(captured).toHaveLength(1);
+  });
+
+  it.each([
+    ['an owner role', { orgId: ORGANIZATION_ID, role: 'owner', count: 1 }],
+    ['an extra key', { orgId: ORGANIZATION_ID, role: 'member', count: 1, email: 'a@b.c' }],
+  ])('rejects a member.invited payload with %s', (_case, properties) => {
+    const { client, captured } = recordingClient();
+
+    client.track('member.invited', ORGANIZATION_ID, properties as never);
+
+    expect(captured).toEqual([]);
+  });
+
+  it.each([
+    'member_suspended',
+    'invite_permission_removed',
+    'inviter_no_longer_permitted',
+    'inviter_cannot_readmit',
+  ])('accepts a member.invites_revoked cause: %s', (cause) => {
+    const { client, captured } = recordingClient();
+
+    client.track('member.invites_revoked', ORGANIZATION_ID, {
+      orgId: ORGANIZATION_ID,
+      count: 2,
+      cause: cause as never,
+    });
+
+    expect(captured).toHaveLength(1);
+  });
+
+  it.each([
+    ['an unknown cause', { orgId: ORGANIZATION_ID, count: 1, cause: 'Project Zephyr' }],
+    [
+      'an extra key',
+      {
+        orgId: ORGANIZATION_ID,
+        count: 1,
+        cause: 'member_suspended',
+        inviteeEmail: 'dana@acme.com',
+      },
+    ],
+    ['a missing count', { orgId: ORGANIZATION_ID, cause: 'member_suspended' }],
+  ])('rejects a member.invites_revoked payload with %s', (_case, properties) => {
+    const { client, captured } = recordingClient();
+
+    client.track('member.invites_revoked', ORGANIZATION_ID, properties as never);
 
     expect(captured).toEqual([]);
   });

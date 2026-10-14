@@ -171,8 +171,18 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   }),
   'member.invited': propertyContract({
     ...orgId,
-    role: literal('admin', 'member'),
+    role: literal('admin', 'member', 'custom'),
     count,
+  }),
+  'member.invites_revoked': propertyContract({
+    ...orgId,
+    count,
+    cause: literal(
+      'member_suspended',
+      'invite_permission_removed',
+      'inviter_no_longer_permitted',
+      'inviter_cannot_readmit',
+    ),
   }),
   'beta_invite.created': propertyContract({}),
   'beta_invite.accepted': propertyContract({ betaInviteId: uuid }),

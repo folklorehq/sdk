@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 export type { TelemetryClient } from './ports.js';
-export type { TelemetryEventMap, TelemetryEventName } from './events.js';
+export type {
+  InvitePresetLabel,
+  InviteRevocationCause,
+  TelemetryEventMap,
+  TelemetryEventName,
+} from './events.js';
 export { TelemetryEvent } from './events.js';
 export {
   checkContentFree,

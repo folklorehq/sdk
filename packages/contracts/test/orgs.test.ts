@@ -4,9 +4,11 @@ import {
   createOrgInputSchema,
   emailDeliverySchema,
   inviteEmailSchema,
+  createdInviteSchema,
   memberViewSchema,
   orgInviteContextSchema,
   orgInviteViewSchema,
+  pendingOrgInviteSchema,
   phaseForProvisioningStatus,
   provisionOperationSchema,
   provisioningStatusSchema,
@@ -121,15 +123,17 @@ describe('orgInviteContextSchema', () => {
         orgName: 'Acme',
         email: 'dana@acme.com',
         role: 'admin',
+        preset: 'admin',
         status: 'pending',
         isExpired: false,
       }),
-    ).toMatchObject({ orgName: 'Acme', role: 'admin', isExpired: false });
+    ).toMatchObject({ orgName: 'Acme', role: 'admin', preset: 'admin', isExpired: false });
     expect(
       orgInviteContextSchema.safeParse({
         orgName: 'Acme',
         email: 'dana@acme.com',
         role: 'owner',
+        preset: 'member',
         status: 'pending',
         isExpired: false,
         acceptUrl: 'https://console.test/invite?token=abc',
@@ -151,6 +155,10 @@ describe('orgInviteViewSchema', () => {
     id: '11111111-1111-4111-8111-111111111111',
     email: 'dana@acme.com',
     role: 'member',
+    preset: 'member',
+    permissions: [],
+    teamId: null,
+    invitedByEmail: 'owner@acme.com',
     status: 'pending',
     expiresAt: '2026-10-08T00:00:00.000Z',
     createdAt: '2026-10-01T00:00:00.000Z',
@@ -162,6 +170,53 @@ describe('orgInviteViewSchema', () => {
     expect(orgInviteViewSchema.safeParse({ ...view, invitedByAccountId: view.id }).success).toBe(
       false,
     );
+  });
+
+  it('names the preset and refuses a permission outside the catalog', () => {
+    expect(orgInviteViewSchema.safeParse({ ...view, preset: 'custom' }).success).toBe(true);
+    expect(orgInviteViewSchema.safeParse({ ...view, preset: 'owner' }).success).toBe(false);
+    expect(orgInviteViewSchema.safeParse({ ...view, permissions: ['wiki.read'] }).success).toBe(
+      false,
+    );
+    expect(orgInviteViewSchema.safeParse({ ...view, invitedByEmail: null }).success).toBe(true);
+  });
+});
+
+describe('createdInviteSchema', () => {
+  const created = {
+    email: 'dana@acme.com',
+    role: 'admin',
+    preset: 'admin',
+    permissions: ['members.invite'],
+    status: 'invited',
+  };
+
+  it('accepts a created invite and refuses the token hash', () => {
+    expect(createdInviteSchema.safeParse(created).success).toBe(true);
+    expect(createdInviteSchema.safeParse({ ...created, tokenHash: 'h' }).success).toBe(false);
+    expect(createdInviteSchema.safeParse({ ...created, status: 'accepted' }).success).toBe(false);
+  });
+});
+
+describe('invite preset on the invitee-facing shapes', () => {
+  it('requires the preset on the invite context and the pending listing', () => {
+    const context = {
+      orgName: 'Acme',
+      email: 'dana@acme.com',
+      role: 'member',
+      status: 'pending',
+      isExpired: false,
+    };
+    expect(orgInviteContextSchema.safeParse(context).success).toBe(false);
+    expect(orgInviteContextSchema.safeParse({ ...context, preset: 'member' }).success).toBe(true);
+    const pending = {
+      id: '11111111-1111-4111-8111-111111111111',
+      orgId: '22222222-2222-4222-8222-222222222222',
+      orgName: 'Acme',
+      role: 'admin',
+    };
+    expect(pendingOrgInviteSchema.safeParse(pending).success).toBe(false);
+    expect(pendingOrgInviteSchema.safeParse({ ...pending, preset: 'admin' }).success).toBe(true);
   });
 });
 
