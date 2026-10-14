@@ -47,3 +47,16 @@ export type MfaEnrollStart = z.infer<typeof mfaEnrollStartSchema>;
 // Recovery codes are returned exactly once, at enrollment confirmation.
 export const mfaConfirmResultSchema = z.object({ recoveryCodes: z.array(z.string()) }).strict();
 export type MfaConfirmResult = z.infer<typeof mfaConfirmResultSchema>;
+
+// Authenticator replacement start: the staged secret, its otpauth:// URI and the replacement recovery
+// codes, each returned once; the current factor stays valid until the replacement is confirmed.
+export const mfaRotationStartSchema = z
+  .object({ secret: z.string(), otpauthUri: z.string(), recoveryCodes: z.array(z.string()) })
+  .strict();
+export type MfaRotationStart = z.infer<typeof mfaRotationStartSchema>;
+
+export const mfaChangeResultSchema = z.object({ status: z.literal('applied') }).strict();
+export type MfaChangeResult = z.infer<typeof mfaChangeResultSchema>;
+
+export const sessionsRevokedSchema = z.object({ revoked: z.number().int().nonnegative() }).strict();
+export type SessionsRevoked = z.infer<typeof sessionsRevokedSchema>;
