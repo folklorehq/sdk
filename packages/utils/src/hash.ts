@@ -45,7 +45,6 @@ export function deriveMemberSourceId(orgId: string, kind: string, ownerAccountId
   );
 }
 
-// UNWIRED: no production caller yet.
 /** Fact-id key for a member pull; hash it under MEMBER_FACT_ID_NAMESPACE, never the org 'fact' namespace. */
 export function memberFactKey(
   orgId: string,
