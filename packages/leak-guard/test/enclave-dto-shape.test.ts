@@ -132,7 +132,14 @@ const FROZEN: Record<string, string[]> = {
     'requestId',
   ],
   pullCompleteSignal: ['backfillLeaseToken', 'completedAt', 'orgId', 'sourceId', 'sourceKind'],
-  pullDueMessage: ['activationGeneration', 'backfillLeaseToken', 'kind', 'sourceId', 'tenant_id'],
+  pullDueMessage: [
+    'activationGeneration',
+    'backfillLeaseToken',
+    'kind',
+    'ownerAccountId',
+    'sourceId',
+    'tenant_id',
+  ],
 };
 
 const SCHEMAS = {

@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-export { sha256Hex, deterministicUuid, deriveSourceId } from './hash.js';
+export {
+  sha256Hex,
+  deterministicUuid,
+  deriveSourceId,
+  deriveMemberSourceId,
+  memberFactKey,
+  MEMBER_FACT_ID_NAMESPACE,
+  type KeyedSourceFactId,
+} from './hash.js';
 export { canonicalJson, canonicalJsonHash } from './canonical-json.js';
 export { toVectorLiteral } from './vector.js';
 export {

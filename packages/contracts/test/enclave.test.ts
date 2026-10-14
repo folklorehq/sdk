@@ -22,11 +22,15 @@ import {
   webhookLifecycleFinalizeSchema,
   webhookProtocolCaptureSchema,
   wikiSynthesisResultSchema,
+  type CritiqueOutcome,
+  type EncryptedBodyRead,
   type KnowledgeSkeleton,
   type PullCompleteSignal,
   type PullDueMessage,
+  type SensitivityLevel,
   type SynthesisRequest,
   type ThemeSynthesisRequest,
+  type TokenUsage,
   type WikiSynthesisResult,
 } from '../src/enclave.js';
 
@@ -391,7 +395,7 @@ describe('wikiSynthesisResultSchema', () => {
       ],
       citedFactIds: ['f1'],
     });
-    expect(parsed.blocks[0]?.body.format).toBe('esdk-v1');
+    expect(parsed.blocks[0]?.body).toMatchObject({ format: 'esdk-v1' });
   });
 
   it('defaults richBlockCounts to an empty array when a legacy enclave omits it', () => {
@@ -831,7 +835,7 @@ describe('teamOnboardingSynthesisResultSchema', () => {
       ],
       citedFactIds: ['f1'],
     });
-    expect(parsed.blocks[0]?.body.format).toBe('esdk-v1');
+    expect(parsed.blocks[0]?.body).toMatchObject({ format: 'esdk-v1' });
   });
 
   it('rejects an unknown root field', () => {
@@ -958,10 +962,23 @@ type EnclaveSynthesisRequest = {
   themeName: string;
   themeType: string;
   parentThemeCount: number;
-  factRefs: { factId: string; s3Key: string; occurredAt: string; kind: string; score: number }[];
+  factRefs: {
+    factId: string;
+    s3Key: string;
+    occurredAt: string;
+    kind: string;
+    score: number;
+    sourceKind?: string;
+    sensitivityLevel: SensitivityLevel;
+  }[];
   relatedThemes: { themeId: string; name: string; similarity: number }[];
   contributorCount: number;
-  audiences: { id: string | null; name: string; publicEligible: boolean }[];
+  audiences: {
+    id: string | null;
+    name: string;
+    publicEligible: boolean;
+    maxSensitivity: SensitivityLevel;
+  }[];
   newlyAssociatedFactIds: string[];
   inputTokenBudget: number;
   knowledgeSkeleton?: EnclaveKnowledgeSkeleton;
@@ -975,26 +992,26 @@ type EnclaveWikiSynthesisResult = {
   themeId: string;
   orgId: string;
   leaseToken: string;
-  articles: {
-    audienceId: string | null;
-    content: string;
-    contentFormat: 'esdk-v1' | 'plaintext';
-    factCount: number;
-  }[];
+  articles: (
+    | { audienceId: string | null; content: string; contentFormat: 'esdk-v1'; factCount: number }
+    | { audienceId: string | null; content: ''; contentFormat: 'plaintext'; factCount: number }
+  )[];
   blocks: {
     type: string;
-    sensitivityLevel: 'public' | 'team_scoped' | 'restricted' | 'confidential';
+    sensitivityLevel: SensitivityLevel;
     audienceId: string | null;
     factIds: string[];
-    body: { format: 'esdk-v1'; ciphertext: string };
+    body: EncryptedBodyRead;
   }[];
   citedFactIds: string[];
   richBlockCounts: {
-    kind: 'diagram' | 'graph' | 'chart' | 'code' | 'embed';
+    kind: 'diagram' | 'graph' | 'chart' | 'code' | 'embed' | 'canvas';
     seen: number;
     dropped: number;
     repaired: number;
   }[];
+  critique?: CritiqueOutcome;
+  tokenUsage: TokenUsage[];
 };
 
 type _WikiSynthesisResultPinned = Expect<Equal<WikiSynthesisResult, EnclaveWikiSynthesisResult>>;
@@ -1010,7 +1027,7 @@ type EnclaveThemeSynthesisRequest = {
     containerId: string;
     label: string;
     team: string;
-    factRefs: { factId: string; s3Key: string; occurredAt: string }[];
+    factRefs: { factId: string; s3Key: string; occurredAt: string; entities: string[] }[];
   }[];
 };
 
@@ -1023,6 +1040,7 @@ type EnclavePullDueMessage =
       kind: string;
       backfill: boolean;
       backfillLeaseToken?: string;
+      ownerAccountId?: string;
     }
   | {
       type: 'pull-due';
@@ -1032,6 +1050,7 @@ type EnclavePullDueMessage =
       kind: string;
       activationGeneration: string;
       backfill: true;
+      ownerAccountId?: string;
     };
 
 type EnclavePullCompleteSignal = {

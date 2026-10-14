@@ -36,6 +36,7 @@
     "build": "pnpm --filter @folklore/utils build && tsc",
     "dev": "tsc --watch",
     "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.task-2a-tests.json",
+    "check-types:tests": "tsc --noEmit -p tsconfig.tests.json",
     "lint": "eslint .",
     "test": "vitest run",
     "clean": "rm -rf dist .turbo"

@@ -605,6 +605,7 @@ const scheduledPullDueMessageSchema = z
     kind: z.string(),
     backfill: z.boolean(),
     backfillLeaseToken: z.string().uuid().optional(),
+    ownerAccountId: z.string().uuid().optional(),
   })
   .strict();
 
@@ -617,6 +618,7 @@ const activationPullDueMessageSchema = z
     kind: z.string(),
     activationGeneration: z.string().uuid(),
     backfill: z.literal(true),
+    ownerAccountId: z.string().uuid().optional(),
   })
   .strict();
 
@@ -698,6 +700,7 @@ export const oauthRefreshCommandSchema = z
     attestationGeneration: z.string().min(1).max(128),
     attemptId: z.string().regex(/^[a-f0-9]{64}$/),
     expectedRefreshCiphertextSha256: z.string().regex(/^[a-f0-9]{64}$/),
+    ownerAccountId: z.string().uuid().optional(),
   })
   .strict();
 export type OAuthRefreshCommand = z.infer<typeof oauthRefreshCommandSchema>;
@@ -1162,6 +1165,33 @@ export const enclaveSourceConnectionsResponseSchema = z
 export type EnclaveSourceConnectionsResponse = z.infer<
   typeof enclaveSourceConnectionsResponseSchema
 >;
+
+// Declared here rather than imported so this module stays free of source-policy code; a test pins the list.
+const MEMBER_SOURCE_CONNECTION_KINDS = [
+  'gmail',
+  'microsoft365_mail',
+  'google_calendar',
+  'microsoft365_calendar',
+  'google_drive',
+  'microsoft365',
+] as const;
+
+// ownerAccountId is advisory here; the enclave must bind it into the member token's encryption context.
+export const enclaveMemberSourceConnectionProjectionSchema = enclaveSourceConnectionProjectionSchema
+  .extend({
+    orgId: webhookLifecycleUuidSchema,
+    kind: z.enum(MEMBER_SOURCE_CONNECTION_KINDS),
+    installationId: z.null(),
+    externalTenantId: z.null(),
+    ownerAccountId: z.string().uuid(),
+  })
+  .strict();
+export type EnclaveMemberSourceConnectionProjection = z.infer<
+  typeof enclaveMemberSourceConnectionProjectionSchema
+>;
+export const enclaveMemberSourceConnectionsResponseSchema = z
+  .object({ connections: z.array(enclaveMemberSourceConnectionProjectionSchema).max(1) })
+  .strict();
 
 export const oauthDisconnectCleanupCommandSchema = z
   .object({
