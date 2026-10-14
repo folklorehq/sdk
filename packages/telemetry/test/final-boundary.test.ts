@@ -216,6 +216,17 @@ describe('PostHogTelemetryClient final boundary', () => {
     expect(captured).toHaveLength(1);
   });
 
+  it('accepts the judge and critique model moonshotai/kimi-k3 on an inference error', () => {
+    const { client, captured } = recordingClient();
+
+    client.track('inference.error', 'system', {
+      model: 'moonshotai/kimi-k3',
+      errorType: 'structured_failed',
+    });
+
+    expect(captured).toHaveLength(1);
+  });
+
   it('rejects an ACI session identifier that could carry prose', () => {
     const { client, captured } = recordingClient();
 

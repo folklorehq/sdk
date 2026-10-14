@@ -111,6 +111,48 @@ const observedSession = JSON.parse(
 ) as Record<string, unknown>;
 const OBSERVED_SESSION_ID = '5f0afd6e7d5dad1b0cbd007954aa1c4c3e7a06485b98dbdd709ce38fefa08c0d';
 
+// Phala's public session for moonshotai/kimi-k3, fetched 2026-10-14 and kept byte-identical.
+const KIMI_SESSION_BYTES = readFileSync(
+  new URL('./fixtures/phala-public/chutes-kimi-k3-session.json', import.meta.url),
+);
+const KIMI_SESSION_ID = '3f7644a9f5a0de08555ac6fe21995bc4defb9c450715bf02d888f28229ec1716';
+const KIMI_EVIDENCE_DIGEST =
+  'sha256:4c9126bd46015b4122d9f923ee6b0d4ea78b7641969ceb24ecad32a1bd10c9a5';
+const KIMI_SERVED_AT = 1_791_973_000;
+
+function kimiSetup(upstreamModelId: string) {
+  const keys = generateKeyPairSync('ed25519');
+  const receipt = signedReceipt(KIMI_SESSION_ID, keys.privateKey, KIMI_SERVED_AT, [
+    { model_id: upstreamModelId },
+  ]);
+  const publicKey = keys.publicKey
+    .export({ format: 'der', type: 'spki' })
+    .subarray(-32)
+    .toString('hex');
+  const verifier = new PublicAciSessionVerifier(async (input) => {
+    expect(String(input)).toBe(`${origin}/v1/aci/sessions/${KIMI_SESSION_ID}`);
+    const response = new Response(KIMI_SESSION_BYTES, { status: 200 });
+    Object.defineProperty(response, 'url', { value: String(input) });
+    return response;
+  });
+  return {
+    verifier,
+    input: {
+      receipt,
+      keyset: {
+        workloadKeysetDigest,
+        receiptSigningKeys: [{ keyId: 'receipt-key', algorithm: 'ed25519', publicKey }],
+      },
+      policy: {
+        ...chutesPolicy(),
+        model: 'moonshotai/kimi-k3',
+        maxSessionLifetimeSeconds: 3_600,
+      },
+      trustedNow: KIMI_SERVED_AT,
+    },
+  };
+}
+
 function chutesPolicy(verifiers: readonly string[] = [chutesVerifier]): PublicAciSessionPolicy {
   const base = policy();
   return {
@@ -423,6 +465,7 @@ describe('PublicAciSessionVerifier', () => {
   });
 
   it.each([
+    ['moonshotai/kimi-k3', 'moonshotai/Kimi-K3-TEE'],
     ['z-ai/glm-5.2', 'zai-org/GLM-5.2-TEE'],
     ['qwen/qwen3-32b', 'Qwen/Qwen3-32B-TEE'],
     ['qwen/qwen3-embedding-8b', 'Qwen/Qwen3-Embedding-8B-TEE'],
@@ -602,6 +645,31 @@ describe('PublicAciSessionVerifier', () => {
       upstreamName: 'chutes-qwen3-embedding-8b',
       evidenceMode: 'verifier-attested',
     });
+  });
+
+  it('keeps the kimi-k3 fixture byte-identical to the public session it is named for', () => {
+    expect(sha256Hex(KIMI_SESSION_BYTES)).toBe(KIMI_SESSION_ID);
+  });
+
+  it('verifies the observed kimi-k3 chutes session through its hashed evidence', async () => {
+    const { verifier, input } = kimiSetup('moonshotai/Kimi-K3-TEE');
+    await expect(verifier.verify(input)).resolves.toMatchObject({
+      sessionId: KIMI_SESSION_ID,
+      model: 'moonshotai/kimi-k3',
+      upstreamName: 'chutes',
+      verifierId: chutesVerifier,
+      evidenceMode: 'hashed',
+      evidenceDigest: KIMI_EVIDENCE_DIGEST,
+    });
+  });
+
+  it.each([
+    ['the Hugging Face id', 'moonshotai/Kimi-K3', 'public_aci_upstream_model_mismatch'],
+    ['the gateway alias', 'moonshotai/kimi-k3', 'public_aci_upstream_model_mismatch'],
+    ['a case variant', 'moonshotai/kimi-k3-tee', 'public_aci_upstream_model_case_mismatch'],
+  ])('refuses the kimi-k3 session when the receipt names %s', async (_label, id, code) => {
+    const { verifier, input } = kimiSetup(id);
+    expect(await refusal(verifier.verify(input))).toBe(code);
   });
 
   it('refuses the observed Phala chutes session when no verifier is allowlisted', async () => {
