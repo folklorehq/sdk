@@ -15,6 +15,7 @@ import {
 import { toVectorLiteral } from '../src/vector.js';
 import { mulberry32, seedFromString } from '../src/random.js';
 import { mapWithConcurrency } from '../src/async.js';
+import { WORKSPACE_ROOT_DOMAIN, workspaceAddress } from '../src/index.js';
 
 describe('mapWithConcurrency', () => {
   it('preserves input order in the result', async () => {
@@ -110,5 +111,17 @@ describe('text', () => {
   });
   it('escapes SQL LIKE wildcards and the escape character', () => {
     expect(escapeSqlLikePattern('a%b_c\\d')).toBe('a\\%b\\_c\\\\d');
+  });
+});
+
+describe('workspaceAddress', () => {
+  it('puts the slug under the workspace root domain', () => {
+    expect(WORKSPACE_ROOT_DOMAIN).toBe('folklorehq.com');
+    expect(workspaceAddress('acme')).toBe('acme.folklorehq.com');
+  });
+
+  it('has no address for a missing or empty slug', () => {
+    expect(workspaceAddress(null)).toBeNull();
+    expect(workspaceAddress('')).toBeNull();
   });
 });

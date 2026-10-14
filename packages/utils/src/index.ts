@@ -24,10 +24,12 @@ export {
   SUBDOMAIN_LABEL_MIN_LENGTH,
   SUBDOMAIN_LABEL_MAX_LENGTH,
   SUBDOMAIN_LABEL_RE,
+  WORKSPACE_ROOT_DOMAIN,
   isValidSubdomainLabel,
   isReservedSubdomain,
   isValidTenantSubdomain,
   resolveTenantFromHost,
+  workspaceAddress,
 } from './tenant.js';
 export { emailDomain, isPublicEmailDomain, isWorkEmail } from './public-email-domains.js';
 export {

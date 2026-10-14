@@ -94,3 +94,9 @@ export function resolveTenantFromHost(hostname: string, rootDomain?: string): st
   if (label === null) return null;
   return isValidTenantSubdomain(label) ? label : null;
 }
+
+export const WORKSPACE_ROOT_DOMAIN = 'folklorehq.com';
+
+export function workspaceAddress(slug: string | null): string | null {
+  return slug ? `${slug}.${WORKSPACE_ROOT_DOMAIN}` : null;
+}
