@@ -4,7 +4,7 @@
   "tasks": {
     "test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "../../apps/**"]
+      "inputs": ["$TURBO_DEFAULT$", "../../apps/**", "../../packages/**/*.ts"]
     }
   }
 }
