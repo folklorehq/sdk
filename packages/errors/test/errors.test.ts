@@ -16,7 +16,11 @@ import {
   NotFoundError,
   PERSONAL_SOURCE_FACT_DENIALS,
   PersonalSourceFactRejectedError,
+  PersonalSourceAccountConflictError,
   PersonalSourceOwnerConflictError,
+  PERSONAL_SOURCE_RECONNECT_CONFLICTS,
+  PersonalSourceReconnectConflictError,
+  SourceConnectionScopeViolationError,
   ValidationError,
   isAppError,
   normalizeError,
@@ -154,6 +158,41 @@ describe('personal-source errors', () => {
     expect(err.message).toBe('PERSONAL_SOURCE_FACT_REJECTED');
     expect(JSON.stringify(err.toTelemetry())).not.toContain(reason);
   });
+
+  it('reports a provider account already held by another member as a code-only conflict', () => {
+    const err = new PersonalSourceAccountConflictError({ component: 'personal_source_connect' });
+    expect(err).toBeInstanceOf(AppError);
+    expect(err.code).toBe('personal_source_account_conflict');
+    expect(err.httpStatus).toBe(409);
+    expect(err.message).toBe('PERSONAL_SOURCE_ACCOUNT_CONFLICT');
+    expect(err.toTelemetry()).toEqual({
+      error_type: 'personal_source_account_conflict',
+      component: 'personal_source_connect',
+    });
+  });
+
+  it('reports a connection written outside its owner scope as a code-only conflict', () => {
+    const err = new SourceConnectionScopeViolationError();
+    expect(err).toBeInstanceOf(AppError);
+    expect(err.code).toBe('source_scope_violation');
+    expect(err.httpStatus).toBe(409);
+    expect(err.message).toBe('SOURCE_SCOPE_VIOLATION');
+    expect(err.toTelemetry()).toEqual({
+      error_type: 'source_scope_violation',
+      component: 'unknown',
+    });
+  });
+
+  it.each(PERSONAL_SOURCE_RECONNECT_CONFLICTS)(
+    'reports the reconnect conflict %s with a code-only telemetry shape',
+    (reason) => {
+      const err = new PersonalSourceReconnectConflictError(reason);
+      expect(err.code).toBe('personal_source_reconnect_conflict');
+      expect(err.httpStatus).toBe(409);
+      expect(err.reason).toBe(reason);
+      expect(JSON.stringify(err.toTelemetry())).not.toContain(reason);
+    },
+  );
 });
 
 describe('ConcurrencyLimitError', () => {

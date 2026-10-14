@@ -27,7 +27,12 @@ export {
   InternalError,
   PERSONAL_SOURCE_FACT_DENIALS,
   PersonalSourceFactRejectedError,
+  PersonalSourceAccountConflictError,
   PersonalSourceOwnerConflictError,
+  PERSONAL_SOURCE_RECONNECT_CONFLICTS,
+  PersonalSourceReconnectConflictError,
+  type PersonalSourceReconnectConflict,
+  SourceConnectionScopeViolationError,
   requireService,
   type PersonalSourceFactDenial,
 } from './errors.js';

@@ -207,6 +207,48 @@ export class PersonalSourceOwnerConflictError extends AppError {
   }
 }
 
+/** The provider account is already connected by another member of the org; carries no identifier. */
+export class PersonalSourceAccountConflictError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('PERSONAL_SOURCE_ACCOUNT_CONFLICT', {
+      ...options,
+      code: 'personal_source_account_conflict',
+      category: 'conflict',
+    });
+  }
+}
+
+export const PERSONAL_SOURCE_RECONNECT_CONFLICTS = [
+  'connection_superseded',
+  'disconnect_pending',
+] as const;
+export type PersonalSourceReconnectConflict = (typeof PERSONAL_SOURCE_RECONNECT_CONFLICTS)[number];
+
+/** A member write whose sealed connection id no longer matches the stored row; `reason` is a closed literal. */
+export class PersonalSourceReconnectConflictError extends AppError {
+  constructor(
+    readonly reason: PersonalSourceReconnectConflict,
+    options: AppErrorOptions = {},
+  ) {
+    super('PERSONAL_SOURCE_RECONNECT_CONFLICT', {
+      ...options,
+      code: 'personal_source_reconnect_conflict',
+      category: 'conflict',
+    });
+  }
+}
+
+/** A source connection write broke the owner-scope rule for its kind; carries no identifier. */
+export class SourceConnectionScopeViolationError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('SOURCE_SCOPE_VIOLATION', {
+      ...options,
+      code: 'source_scope_violation',
+      category: 'conflict',
+    });
+  }
+}
+
 /** A processed fact failed the member-owned persist rules; `reason` is a closed literal, never fact data. */
 export class PersonalSourceFactRejectedError extends AppError {
   constructor(
