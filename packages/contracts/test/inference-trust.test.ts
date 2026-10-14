@@ -1000,6 +1000,61 @@ describe('activeInferenceTrustPolicyV2Schema', () => {
   });
 });
 
+describe('TLS leaf pins on the active V2 policy', () => {
+  const pins = (count: number) =>
+    Array.from({ length: count }, (_, index) => index.toString(16).repeat(64));
+
+  function withPins(channel: string[]) {
+    const policy = activePolicyFixture();
+    return {
+      ...policy,
+      channel: { ...policy.channel, tlsSpkiSha256: channel },
+      roles: Object.fromEntries(
+        Object.entries(policy.roles).map(([role, binding]) => [
+          role,
+          { ...binding, channelPins: channel },
+        ]),
+      ),
+    };
+  }
+
+  it('accepts one key per observed provider deployment, up to four', () => {
+    expect(activeInferenceTrustPolicyV2Schema.safeParse(withPins(pins(3))).success).toBe(true);
+    expect(activeInferenceTrustPolicyV2Schema.safeParse(withPins(pins(4))).success).toBe(true);
+  });
+
+  it('refuses five pins on the channel or on a role binding', () => {
+    expect(activeInferenceTrustPolicyV2Schema.safeParse(withPins(pins(5))).success).toBe(false);
+    const policy = activePolicyFixture();
+    expect(
+      activeInferenceTrustPolicyV2Schema.safeParse({
+        ...policy,
+        roles: { ...policy.roles, embed: { ...policy.roles.embed, channelPins: pins(5) } },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('refuses an empty pin set on the channel or on a role binding', () => {
+    expect(activeInferenceTrustPolicyV2Schema.safeParse(withPins([])).success).toBe(false);
+    const policy = activePolicyFixture();
+    expect(
+      activeInferenceTrustPolicyV2Schema.safeParse({
+        ...policy,
+        roles: { ...policy.roles, embed: { ...policy.roles.embed, channelPins: [] } },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('keeps the legacy V1 policy at one or two pins', () => {
+    for (const count of [0, 3]) {
+      expect(
+        inferenceTrustPolicyV1Schema.safeParse({ ...policyV1Fixture(), tlsSpkiSha256: pins(count) })
+          .success,
+      ).toBe(false);
+    }
+  });
+});
+
 describe('activePolicyAuthorizationEnvelopeV1Schema', () => {
   it('requires the exact KMS authority identity fields and strict wire shape', () => {
     const envelope = activePolicyAuthorizationEnvelopeFixture();

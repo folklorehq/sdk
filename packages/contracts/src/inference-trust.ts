@@ -42,6 +42,8 @@ const routeSchema = z
   );
 
 const spkiPinSchema = digestSchema;
+const MAX_TLS_LEAF_PINS = 4;
+const tlsLeafPinsSchema = z.array(digestSchema).min(1).max(MAX_TLS_LEAF_PINS);
 
 function isExactHttpsOrigin(value: string): boolean {
   try {
@@ -1362,7 +1364,7 @@ const activeRoleBindingSchema = z
     upstreamIdentityDigest: digestSchema,
     workloadKeysetDigest: digestSchema,
     channelKeyDigest: digestSchema,
-    channelPins: z.array(digestSchema).min(1).max(2),
+    channelPins: tlsLeafPinsSchema,
     routeIdentityDigest: digestSchema,
     requiredSessionClaims: z.array(aciClaimNameSchema).min(1).max(MAX_POLICY_ITEMS),
     permittedClaimSources: z.array(aciClaimSourceSchema).min(1).max(MAX_POLICY_ITEMS),
@@ -1433,7 +1435,7 @@ export const activeInferenceTrustPolicyV2Schema = z
       .strict(),
     channel: z
       .object({
-        tlsSpkiSha256: z.array(digestSchema).min(1).max(2),
+        tlsSpkiSha256: tlsLeafPinsSchema,
         e2eeKeyId: identifierSchema,
         channelKeyDigest: digestSchema,
         exporterLabel: identifierSchema,
