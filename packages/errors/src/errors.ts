@@ -40,6 +40,61 @@ export class CannotChangeSelfError extends AppError {
   }
 }
 
+/** More than one instance matches a pool host. */
+export class AmbiguousHostError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('More than one instance matches this pool host', {
+      ...options,
+      code: 'host_instance_ambiguous',
+      category: 'conflict',
+    });
+  }
+}
+
+/** The matched instance is not the recorded pool host instance. */
+export class HostInstanceMismatchError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('The matched instance is not the recorded pool host instance', {
+      ...options,
+      code: 'host_instance_mismatch',
+      category: 'conflict',
+    });
+  }
+}
+
+/** No live instance carries the pool host's tag. */
+export class HostInstanceMissingError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('No instance matches this pool host', {
+      ...options,
+      code: 'host_instance_missing',
+      category: 'conflict',
+    });
+  }
+}
+
+/** The pool host has no recorded region, so it cannot be looked up. */
+export class HostLocationUnknownError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('This pool host has no recorded region', {
+      ...options,
+      code: 'host_location_unknown',
+      category: 'conflict',
+    });
+  }
+}
+
+/** A rollout or provisioning holds the pool host. */
+export class HostBusyError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('A rollout or provisioning holds this pool host', {
+      ...options,
+      code: 'host_busy',
+      category: 'conflict',
+    });
+  }
+}
+
 /** A role change must leave one or more super admins. */
 export class LastSuperAdminError extends AppError {
   constructor(options: AppErrorOptions = {}) {

@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import {
+  AmbiguousHostError,
   ConcurrencyLimitError,
   AppError,
   CannotChangeSelfError,
   ConflictError,
   ExternalServiceError,
+  HostBusyError,
+  HostInstanceMismatchError,
+  HostInstanceMissingError,
+  HostLocationUnknownError,
   InternalError,
   LastSuperAdminError,
   NotFoundError,
@@ -37,6 +42,20 @@ describe('AppError subclasses', () => {
     expect(new CannotChangeSelfError().httpStatus).toBe(409);
     expect(new LastSuperAdminError().code).toBe('last_super_admin');
     expect(new LastSuperAdminError().httpStatus).toBe(409);
+  });
+
+  it.each([
+    ['host_instance_ambiguous', new AmbiguousHostError()],
+    ['host_instance_mismatch', new HostInstanceMismatchError()],
+    ['host_instance_missing', new HostInstanceMissingError()],
+    ['host_location_unknown', new HostLocationUnknownError()],
+    ['host_busy', new HostBusyError()],
+  ])('uses the stable pool host conflict code %s', (code, err) => {
+    expect(err.code).toBe(code);
+    expect(err.category).toBe('conflict');
+    expect(err.httpStatus).toBe(409);
+    expect(err.toTelemetry()).toEqual({ error_type: code, component: 'unknown' });
+    expect(JSON.stringify(err.toTelemetry())).not.toContain(err.message);
   });
 
   it('treat internal errors as non-operational by default', () => {
