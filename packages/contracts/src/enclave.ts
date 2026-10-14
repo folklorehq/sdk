@@ -518,13 +518,6 @@ export const teamOnboardingSynthesisRequestSchema = z.object({
 });
 export type TeamOnboardingSynthesisRequest = z.infer<typeof teamOnboardingSynthesisRequestSchema>;
 
-export const synthesisQueueRequestSchema = z.discriminatedUnion('type', [
-  synthesisRequestSchema,
-  themeSynthesisRequestSchema,
-  teamOnboardingSynthesisRequestSchema,
-]);
-export type SynthesisQueueRequest = z.infer<typeof synthesisQueueRequestSchema>;
-
 // The enclave→worker result of a team-onboarding synthesis. Reuses the wiki article/block shapes
 // (ESDK ciphertext bound to the row identity); the worker persists it as a team-scoped wiki_pages
 // row (theme_id null, team_id set) and never decrypts the bodies.
@@ -565,8 +558,14 @@ export const associationJudgementFactRefSchema = z
   .strict();
 export type AssociationJudgementFactRef = z.infer<typeof associationJudgementFactRefSchema>;
 
-function judgeSensitivityRank(level: JudgeSensitivity): number {
-  return JUDGE_SENSITIVITY_ORDER.indexOf(level);
+export function isJudgeSensitivity(level: unknown): level is JudgeSensitivity {
+  return (JUDGE_SENSITIVITY_ORDER as readonly unknown[]).includes(level);
+}
+
+// False when either level is outside JUDGE_SENSITIVITY_ORDER, so an unknown value never passes as lower.
+export function judgeSensitivityAtMost(level: unknown, ceiling: unknown): boolean {
+  if (!isJudgeSensitivity(level) || !isJudgeSensitivity(ceiling)) return false;
+  return JUDGE_SENSITIVITY_ORDER.indexOf(level) <= JUDGE_SENSITIVITY_ORDER.indexOf(ceiling);
 }
 
 // A context body more sensitive than the fact under judgement must never reach the judge.
@@ -584,9 +583,8 @@ export const associationJudgementItemSchema = z
   .strict()
   .refine(
     (item) =>
-      item.contextFacts.every(
-        (context) =>
-          judgeSensitivityRank(context.sensitivity) <= judgeSensitivityRank(item.fact.sensitivity),
+      item.contextFacts.every((context) =>
+        judgeSensitivityAtMost(context.sensitivity, item.fact.sensitivity),
       ),
     {
       message: 'context fact is more sensitive than the fact under judgement',
@@ -595,7 +593,6 @@ export const associationJudgementItemSchema = z
   );
 export type AssociationJudgementItem = z.infer<typeof associationJudgementItemSchema>;
 
-// Standalone: the queue union above does not accept this type until the enclave can dispatch it.
 export const associationJudgementRequestSchema = z
   .object({
     type: z.literal('association_judgement'),
@@ -605,6 +602,15 @@ export const associationJudgementRequestSchema = z
   })
   .strict();
 export type AssociationJudgementRequest = z.infer<typeof associationJudgementRequestSchema>;
+
+// The judgement request joins the union only alongside the enclave dispatch branch that handles it.
+export const synthesisQueueRequestSchema = z.discriminatedUnion('type', [
+  synthesisRequestSchema,
+  themeSynthesisRequestSchema,
+  teamOnboardingSynthesisRequestSchema,
+  associationJudgementRequestSchema,
+]);
+export type SynthesisQueueRequest = z.infer<typeof synthesisQueueRequestSchema>;
 
 export const associationVerdictSchema = z.enum(['assign', 'remove', 'abstain']);
 export type AssociationVerdict = z.infer<typeof associationVerdictSchema>;

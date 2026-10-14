@@ -8,6 +8,8 @@ import {
   associationJudgementItemSchema,
   associationJudgementRequestSchema,
   associationJudgementResultSchema,
+  isJudgeSensitivity,
+  judgeSensitivityAtMost,
   synthesisQueueRequestSchema,
 } from '../src/enclave.js';
 
@@ -160,8 +162,14 @@ describe('associationJudgementRequestSchema', () => {
     },
   );
 
-  it('is not a member of the enclave synthesis queue union', () => {
-    expect(synthesisQueueRequestSchema.safeParse(request()).success).toBe(false);
+  it('is a member of the enclave synthesis queue union', () => {
+    expect(synthesisQueueRequestSchema.safeParse(request()).success).toBe(true);
+  });
+
+  it('keeps the queue union strict for a judgement request with an unknown key', () => {
+    expect(
+      synthesisQueueRequestSchema.safeParse(request([item()], { leaseToken: 'x' })).success,
+    ).toBe(false);
   });
 });
 
@@ -216,5 +224,31 @@ describe('associationJudgementResultSchema', () => {
   it('rejects more verdicts than the request maximum', () => {
     const verdicts = Array.from({ length: ASSOCIATION_JUDGEMENT_MAX_ITEMS + 1 }, () => verdict());
     expect(associationJudgementResultSchema.safeParse(result({ verdicts })).success).toBe(false);
+  });
+});
+
+describe('judge sensitivity helpers', () => {
+  it.each(['public', 'team_scoped'])('recognizes %s', (level) => {
+    expect(isJudgeSensitivity(level)).toBe(true);
+  });
+
+  it.each(['restricted', 'confidential', '', 'PUBLIC', null, undefined, 1])(
+    'does not recognize %j',
+    (level) => {
+      expect(isJudgeSensitivity(level)).toBe(false);
+    },
+  );
+
+  it.each([
+    ['public', 'public', true],
+    ['public', 'team_scoped', true],
+    ['team_scoped', 'team_scoped', true],
+    ['team_scoped', 'public', false],
+    ['restricted', 'team_scoped', false],
+    ['public', 'restricted', false],
+    ['public', undefined, false],
+    [undefined, 'public', false],
+  ])('orders %j under %j as %s', (level, ceiling, expected) => {
+    expect(judgeSensitivityAtMost(level, ceiling)).toBe(expected);
   });
 });
