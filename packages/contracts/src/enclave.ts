@@ -91,6 +91,7 @@ export const processedFactSchema = z
     // Content-free numeric upstream signals — closed-vocab scalars only; never a path or
     // diff. Defaults to [] so an older enclave that omits it still parses.
     metrics: z.array(factMetricSchema).default([]),
+    ownerAccountId: z.string().uuid().optional(),
   })
   .strict();
 export type ProcessedFact = z.infer<typeof processedFactSchema>;

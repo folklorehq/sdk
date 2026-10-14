@@ -5,6 +5,7 @@ import {
   deriveMemberSourceId,
   deterministicUuid,
   deriveSourceId,
+  isKeyedSourceFactId,
   memberFactKey,
   type KeyedSourceFactId,
 } from '../src/index.js';
@@ -114,5 +115,24 @@ describe('memberFactKey', () => {
     expect(() => memberFactKey(orgId, kind, ownerAccountId, KEYED_FACT_ID)).toThrow(
       /memberFactKey/,
     );
+  });
+});
+
+describe('isKeyedSourceFactId', () => {
+  it('accepts a 64-character lowercase hex digest', () => {
+    expect(isKeyedSourceFactId('a'.repeat(64))).toBe(true);
+    expect(isKeyedSourceFactId('0123456789abcdef'.repeat(4))).toBe(true);
+  });
+
+  it.each([
+    ['empty', ''],
+    ['63 characters', 'a'.repeat(63)],
+    ['65 characters', 'a'.repeat(65)],
+    ['uppercase hex', 'A'.repeat(64)],
+    ['non-hex characters', 'g'.repeat(64)],
+    ['a surrounding newline', `${'a'.repeat(64)}\n`],
+    ['an event id', 'event-1'],
+  ])('rejects %s', (_label, value) => {
+    expect(isKeyedSourceFactId(value)).toBe(false);
   });
 });

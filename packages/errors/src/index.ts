@@ -25,7 +25,11 @@ export {
   EncryptionContextMismatchError,
   ConfigurationError,
   InternalError,
+  PERSONAL_SOURCE_FACT_DENIALS,
+  PersonalSourceFactRejectedError,
+  PersonalSourceOwnerConflictError,
   requireService,
+  type PersonalSourceFactDenial,
 } from './errors.js';
 export { isAppError, normalizeError } from './normalize.js';
 export {

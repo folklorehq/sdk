@@ -183,3 +183,40 @@ export class IdentityLinkRequiredError extends ConflictError {
     this.name = 'IdentityLinkRequiredError';
   }
 }
+
+export const PERSONAL_SOURCE_FACT_DENIALS = [
+  'org_kind_with_owner',
+  'personal_kind_without_owner',
+  'derived_field_present',
+  'sensitivity_not_pinned',
+  'identifier_not_keyed',
+  'source_missing',
+  'source_not_active',
+  'owner_mismatch',
+] as const;
+export type PersonalSourceFactDenial = (typeof PERSONAL_SOURCE_FACT_DENIALS)[number];
+
+/** A member source row already belongs to a different owner; carries no identifier. */
+export class PersonalSourceOwnerConflictError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('PERSONAL_SOURCE_OWNER_CONFLICT', {
+      ...options,
+      code: 'personal_source_owner_conflict',
+      category: 'conflict',
+    });
+  }
+}
+
+/** A processed fact failed the member-owned persist rules; `reason` is a closed literal, never fact data. */
+export class PersonalSourceFactRejectedError extends AppError {
+  constructor(
+    readonly reason: PersonalSourceFactDenial,
+    options: AppErrorOptions = {},
+  ) {
+    super('PERSONAL_SOURCE_FACT_REJECTED', {
+      ...options,
+      code: 'personal_source_fact_rejected',
+      category: 'forbidden',
+    });
+  }
+}

@@ -14,6 +14,9 @@ import {
   InternalError,
   LastSuperAdminError,
   NotFoundError,
+  PERSONAL_SOURCE_FACT_DENIALS,
+  PersonalSourceFactRejectedError,
+  PersonalSourceOwnerConflictError,
   ValidationError,
   isAppError,
   normalizeError,
@@ -128,6 +131,28 @@ describe('normalizeError', () => {
     expect(isAppError(new ValidationError('x'))).toBe(true);
     expect(isAppError(new Error('x'))).toBe(false);
     expect(isAppError('x')).toBe(false);
+  });
+});
+
+describe('personal-source errors', () => {
+  it('reports the owner conflict as a code-only conflict', () => {
+    const err = new PersonalSourceOwnerConflictError({ component: 'personal_source_binding' });
+    expect(err).toBeInstanceOf(AppError);
+    expect(err.code).toBe('personal_source_owner_conflict');
+    expect(err.httpStatus).toBe(409);
+    expect(err.toTelemetry()).toEqual({
+      error_type: 'personal_source_owner_conflict',
+      component: 'personal_source_binding',
+    });
+    expect(err.message).toBe('PERSONAL_SOURCE_OWNER_CONFLICT');
+  });
+
+  it.each(PERSONAL_SOURCE_FACT_DENIALS)('carries only the closed reason %s', (reason) => {
+    const err = new PersonalSourceFactRejectedError(reason);
+    expect(err.code).toBe('personal_source_fact_rejected');
+    expect(err.reason).toBe(reason);
+    expect(err.message).toBe('PERSONAL_SOURCE_FACT_REJECTED');
+    expect(JSON.stringify(err.toTelemetry())).not.toContain(reason);
   });
 });
 

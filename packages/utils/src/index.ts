@@ -5,6 +5,7 @@ export {
   deriveSourceId,
   deriveMemberSourceId,
   memberFactKey,
+  isKeyedSourceFactId,
   MEMBER_FACT_ID_NAMESPACE,
   type KeyedSourceFactId,
 } from './hash.js';

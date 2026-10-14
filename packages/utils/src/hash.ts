@@ -24,12 +24,17 @@ export function deriveSourceId(orgId: string, kind: string): string {
 
 export type KeyedSourceFactId = string & { readonly __brand: 'KeyedSourceFactId' };
 
+const KEYED_SOURCE_FACT_ID_PATTERN = /^[0-9a-f]{64}$/;
+
+export function isKeyedSourceFactId(value: string): value is KeyedSourceFactId {
+  return KEYED_SOURCE_FACT_ID_PATTERN.test(value);
+}
+
 export const MEMBER_FACT_ID_NAMESPACE = 'member-fact';
 const MEMBER_SOURCE_ID_NAMESPACE = 'member-source';
 const MEMBER_FIELD_SEPARATOR = '\0';
 const SOURCE_KIND_PATTERN = /^[a-z0-9_]+$/;
 
-// UNWIRED: no production caller yet.
 /** The `sources`-row id for one member's personal source; never equal to an org source id. */
 export function deriveMemberSourceId(orgId: string, kind: string, ownerAccountId: string): string {
   assertMemberScope('deriveMemberSourceId', orgId, kind, ownerAccountId);

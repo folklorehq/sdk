@@ -36,6 +36,7 @@ const FROZEN: Record<string, string[]> = {
     'hnswNeighbors[].factId',
     'occurredAt',
     'orgId',
+    'ownerAccountId',
     'sourceFactId',
     'sourceKind',
     'sourceThreadId',
