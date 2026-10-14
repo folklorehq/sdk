@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 import { factKindSchema } from './enclave.js';
+import { SNIPPET_MAX_CHARS } from './search.js';
+
+export const FACT_EXCERPT_MAX_CHARS = 1_200;
+export const FACT_EXCERPT_BATCH_MAX = 50;
+export const FACT_SNIPPETS_ENABLED = '1';
 
 export const factSourceKindSchema = z.enum([
   'github',
@@ -31,6 +36,7 @@ export const factListQuerySchema = z
     occurredTo: z.string().datetime().optional(),
     limit: z.coerce.number().int().min(1).max(200).default(50),
     offset: z.coerce.number().int().min(0).default(0),
+    snippets: z.string().optional(),
   })
   .strict();
 export type FactListQuery = z.infer<typeof factListQuerySchema>;
@@ -44,6 +50,7 @@ export const factSummarySchema = z
     sourceFactId: z.string().nullable(),
     occurredAt: z.string().datetime(),
     ingestedAt: z.string().datetime(),
+    snippet: z.string().max(SNIPPET_MAX_CHARS).optional(),
   })
   .strict();
 export type FactSummary = z.infer<typeof factSummarySchema>;
@@ -58,3 +65,11 @@ export const factListResponseSchema = z
   })
   .strict();
 export type FactListResponse = z.infer<typeof factListResponseSchema>;
+
+export const factExcerptResponseSchema = z
+  .object({
+    factId: z.string().uuid(),
+    excerpt: z.string().max(FACT_EXCERPT_MAX_CHARS),
+  })
+  .strict();
+export type FactExcerptResponse = z.infer<typeof factExcerptResponseSchema>;
