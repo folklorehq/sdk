@@ -5,7 +5,13 @@ import { describe, expect, it } from 'vitest';
 import { deterministicUuid, sha256Hex } from '../src/hash.js';
 import { canonicalJsonHash } from '../src/canonical-json.js';
 import { canonicalJson } from '../src/canonical-json-pure.js';
-import { collapseWhitespace, escapeRegExp, initials, truncate } from '../src/text.js';
+import {
+  collapseWhitespace,
+  escapeRegExp,
+  escapeSqlLikePattern,
+  initials,
+  truncate,
+} from '../src/text.js';
 import { toVectorLiteral } from '../src/vector.js';
 import { mulberry32, seedFromString } from '../src/random.js';
 import { mapWithConcurrency } from '../src/async.js';
@@ -101,5 +107,8 @@ describe('text', () => {
   it('escapes regex metacharacters', () => {
     expect(escapeRegExp('a.b*c')).toBe('a\\.b\\*c');
     expect(new RegExp(escapeRegExp('a.b')).test('axb')).toBe(false);
+  });
+  it('escapes SQL LIKE wildcards and the escape character', () => {
+    expect(escapeSqlLikePattern('a%b_c\\d')).toBe('a\\%b\\_c\\\\d');
   });
 });

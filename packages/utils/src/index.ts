@@ -7,6 +7,7 @@ export {
   truncate,
   initials,
   escapeRegExp,
+  escapeSqlLikePattern,
   extractExplicitLinks,
   extractMentions,
 } from './text.js';

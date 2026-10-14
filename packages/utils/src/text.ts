@@ -24,6 +24,10 @@ export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+export function escapeSqlLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
 const URL_RE = /https?:\/\/[^\s)]+/g;
 const ISSUE_REF_RE = /(?:^|\s)(#\d+)\b/g;
 
