@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import {
+  ConcurrencyLimitError,
   AppError,
   CannotChangeSelfError,
   ConflictError,
@@ -108,5 +109,16 @@ describe('normalizeError', () => {
     expect(isAppError(new ValidationError('x'))).toBe(true);
     expect(isAppError(new Error('x'))).toBe(false);
     expect(isAppError('x')).toBe(false);
+  });
+});
+
+describe('ConcurrencyLimitError', () => {
+  it('is a 429 carrying the code it was given', () => {
+    const error = new ConcurrencyLimitError('busy', 'audience_lens_busy');
+    expect([error.httpStatus, error.code, error.isOperational]).toEqual([
+      429,
+      'audience_lens_busy',
+      true,
+    ]);
   });
 });

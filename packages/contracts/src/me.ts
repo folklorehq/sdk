@@ -22,3 +22,5 @@ export const meProfileSchema = z
   })
   .strict();
 export type MeProfile = z.infer<typeof meProfileSchema>;
+
+export const audienceLensIdSchema = z.string().toLowerCase().uuid();

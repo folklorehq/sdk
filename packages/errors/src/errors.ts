@@ -58,6 +58,13 @@ export class RateLimitError extends AppError {
   }
 }
 
+/** An in-flight bound was hit (429); `code` is the one fixed reason, so the response never says which bound. */
+export class ConcurrencyLimitError extends AppError {
+  constructor(message: string, code: string, options: AppErrorOptions = {}) {
+    super(message, { ...options, code, category: 'rate_limit' });
+  }
+}
+
 /** An upstream source/integration call failed (Slack, GitHub, ...). */
 export class ExternalServiceError extends AppError {
   constructor(message: string, options: AppErrorOptions = {}) {

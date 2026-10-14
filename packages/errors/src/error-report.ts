@@ -10,6 +10,7 @@ import {
   InternalError,
   NotFoundError,
   RateLimitError,
+  ConcurrencyLimitError,
   ServiceUnavailableError,
   ValidationError,
 } from './errors.js';
@@ -203,7 +204,8 @@ function classificationType(error: AppError): ErrorReportType {
   if (error instanceof NotFoundError) return 'not_found';
   if (error instanceof ForbiddenError) return 'forbidden';
   if (error instanceof ConflictError) return 'conflict';
-  if (error instanceof RateLimitError) return 'rate_limit';
+  if (error instanceof RateLimitError || error instanceof ConcurrencyLimitError)
+    return 'rate_limit';
   if (error instanceof ExternalServiceError) return 'external_service_error';
   if (error instanceof ServiceUnavailableError) return 'service_unavailable';
   if (error instanceof EncryptionContextMismatchError) return 'encryption_context_mismatch';

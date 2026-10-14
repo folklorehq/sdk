@@ -14,6 +14,7 @@ export {
   LastSuperAdminError,
   IdentityLinkRequiredError,
   RateLimitError,
+  ConcurrencyLimitError,
   ExternalServiceError,
   ServiceUnavailableError,
   EncryptionContextMismatchError,

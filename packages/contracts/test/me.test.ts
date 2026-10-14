@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { meProfileSchema } from '../src/me.js';
+import { audienceLensIdSchema, meProfileSchema } from '../src/me.js';
 
 const PROFILE = {
   userId: 'usr_1',
@@ -39,5 +39,25 @@ describe('meProfileSchema', () => {
       meProfileSchema.safeParse({ ...PROFILE, audiences: [{ id: '', name: 'Engineering' }] })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('audienceLensIdSchema', () => {
+  const LENS_ID = '3f2b8c1e-9d4a-4e6b-8a57-0c1d2e3f4a5b';
+
+  it('accepts a uuid', () => {
+    expect(audienceLensIdSchema.parse(LENS_ID)).toBe(LENS_ID);
+  });
+
+  it('lowercases an uppercase uuid', () => {
+    expect(audienceLensIdSchema.parse(LENS_ID.toUpperCase())).toBe(LENS_ID);
+  });
+
+  it.each([
+    ['the empty all-members sentinel', ''],
+    ['a non-uuid audience id', 'aud_eng'],
+    ['a uuid with a trailing space', `${LENS_ID} `],
+  ])('rejects %s', (_label, value) => {
+    expect(audienceLensIdSchema.safeParse(value).success).toBe(false);
   });
 });
