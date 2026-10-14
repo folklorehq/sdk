@@ -217,6 +217,12 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   }),
   'fact.promoted': propertyContract({ ...orgId, containerId: uuid }),
   'association.drain.run': propertyContract({ count, durationMs: count }),
+  'association.judged': propertyContract({
+    ...orgId,
+    assigned: count,
+    removed: count,
+    recorded: count,
+  }),
   'theme.resolved': propertyContract({ ...orgId, fallback: bool }),
   'theme.inference': propertyContract({ ...orgId, fallback: bool }),
   'theme.graph_edge_failed': propertyContract({

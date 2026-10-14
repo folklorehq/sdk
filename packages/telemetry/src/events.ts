@@ -25,6 +25,7 @@ export const TelemetryEvent = {
   FactScored: 'fact.scored',
   FactPromoted: 'fact.promoted',
   AssociationDrainRun: 'association.drain.run',
+  AssociationJudged: 'association.judged',
   ThemeResolved: 'theme.resolved',
   ThemeInference: 'theme.inference',
   ThemeGraphEdgeFailed: 'theme.graph_edge_failed',
@@ -114,6 +115,7 @@ type OpsEvents = {
   };
   'fact.promoted': { orgId: string; containerId: string };
   'association.drain.run': { count: number; durationMs: number };
+  'association.judged': { orgId: string; assigned: number; removed: number; recorded: number };
   'theme.resolved': { orgId: string; fallback: boolean };
   'theme.inference': { orgId: string; fallback: boolean };
   'theme.merged': { orgId: string; trigger: 'auto' | 'approved' };

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { formatAbsoluteTime, formatRelativeTime } from '../src/time.js';
+import { formatAbsoluteTime, formatRelativeTime, utcDayStart } from '../src/time.js';
 
 const NOW = Date.parse('2026-10-02T12:00:00.000Z');
 const SECOND = 1000;
@@ -229,5 +229,25 @@ describe('formatAbsoluteTime', () => {
   it('returns the invalid label for an unparseable timestamp', () => {
     expect(formatAbsoluteTime('nope')).toBe('');
     expect(formatAbsoluteTime('nope', 'Not reported')).toBe('Not reported');
+  });
+});
+
+describe('utcDayStart', () => {
+  it('returns the UTC midnight of the instant, one millisecond before the next day', () => {
+    expect(utcDayStart(new Date('2026-10-14T23:59:59.999Z')).toISOString()).toBe(
+      '2026-10-14T00:00:00.000Z',
+    );
+  });
+
+  it('is its own value at exactly UTC midnight', () => {
+    expect(utcDayStart(new Date('2026-10-15T00:00:00.000Z')).toISOString()).toBe(
+      '2026-10-15T00:00:00.000Z',
+    );
+  });
+
+  it('ignores the offset the instant was written in', () => {
+    expect(utcDayStart(new Date('2026-10-15T09:30:00+14:00')).toISOString()).toBe(
+      '2026-10-14T00:00:00.000Z',
+    );
   });
 });

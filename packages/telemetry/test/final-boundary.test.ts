@@ -70,6 +70,7 @@ const VALID_SERVER_EVENT_FIXTURES = {
   'fact.scored': { orgId: ORGANIZATION_ID, confidence: 'high', hnswExpanded: false },
   'fact.promoted': { orgId: ORGANIZATION_ID, containerId: ORGANIZATION_ID },
   'association.drain.run': { count: 1, durationMs: 1 },
+  'association.judged': { orgId: ORGANIZATION_ID, assigned: 1, removed: 1, recorded: 1 },
   'theme.resolved': { orgId: ORGANIZATION_ID, fallback: false },
   'theme.inference': { orgId: ORGANIZATION_ID, fallback: false },
   'theme.graph_edge_failed': { orgId: ORGANIZATION_ID, kind: 'fact_theme' },
@@ -209,6 +210,22 @@ describe('PostHogTelemetryClient final boundary', () => {
     const { client, captured } = recordingClient();
 
     client.track('fact.ingested', ORGANIZATION_ID, properties as never);
+
+    expect(captured).toEqual([]);
+  });
+
+  it.each([
+    ['a missing count', { orgId: ORGANIZATION_ID, assigned: 1, removed: 1 }],
+    [
+      'an extra key',
+      { orgId: ORGANIZATION_ID, assigned: 1, removed: 1, recorded: 1, containerLabel: 'x' },
+    ],
+    ['a negative count', { orgId: ORGANIZATION_ID, assigned: -1, removed: 0, recorded: 0 }],
+    ['a non-numeric count', { orgId: ORGANIZATION_ID, assigned: '1', removed: 0, recorded: 0 }],
+  ])('rejects an association.judged payload with %s', (_case, properties) => {
+    const { client, captured } = recordingClient();
+
+    client.track('association.judged', ORGANIZATION_ID, properties as never);
 
     expect(captured).toEqual([]);
   });

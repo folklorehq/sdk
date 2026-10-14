@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 const MS_PER_MINUTE = 60_000;
 const MS_PER_HOUR = 60 * MS_PER_MINUTE;
-const MS_PER_DAY = 24 * MS_PER_HOUR;
+export const MS_PER_DAY = 24 * MS_PER_HOUR;
 const DAYS_PER_WEEK = 7;
 const DEFAULT_JUST_NOW = 'just now';
 
@@ -67,4 +67,8 @@ export function formatRelativeTime(
   }
   const unit = wholeUnit(elapsed, options.rounding ?? 'floor');
   return unit === null ? (options.justNowLabel ?? DEFAULT_JUST_NOW) : describeUnit(unit, options);
+}
+
+export function utcDayStart(at: Date): Date {
+  return new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
 }

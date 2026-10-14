@@ -544,6 +544,103 @@ export const teamOnboardingSynthesisResultSchema = z
   .strict();
 export type TeamOnboardingSynthesisResult = z.infer<typeof teamOnboardingSynthesisResultSchema>;
 
+export const ASSOCIATION_JUDGEMENT_MAX_ITEMS = 20;
+export const ASSOCIATION_JUDGEMENT_MAX_CONTEXT_FACTS = 5;
+export const ASSOCIATION_JUDGEMENT_S3_KEY_MAX = 1024;
+export const ASSOCIATION_JUDGEMENT_THEME_NAME_MAX = 1024;
+export const JUDGE_CONFIDENCE_STEP = 0.05;
+const JUDGE_CONFIDENCE_STEP_TOLERANCE = 1e-9;
+const JUDGEMENT_REQUEST_ID_PATTERN = /^[0-9a-f]{64}$/;
+
+export const JUDGE_SENSITIVITY_ORDER = ['public', 'team_scoped'] as const;
+export const judgeSensitivitySchema = z.enum(JUDGE_SENSITIVITY_ORDER);
+export type JudgeSensitivity = z.infer<typeof judgeSensitivitySchema>;
+
+export const associationJudgementFactRefSchema = z
+  .object({
+    factId: z.string().uuid(),
+    s3Key: z.string().min(1).max(ASSOCIATION_JUDGEMENT_S3_KEY_MAX),
+    sensitivity: judgeSensitivitySchema,
+  })
+  .strict();
+export type AssociationJudgementFactRef = z.infer<typeof associationJudgementFactRefSchema>;
+
+function judgeSensitivityRank(level: JudgeSensitivity): number {
+  return JUDGE_SENSITIVITY_ORDER.indexOf(level);
+}
+
+// A context body more sensitive than the fact under judgement must never reach the judge.
+export const associationJudgementItemSchema = z
+  .object({
+    scoreId: z.string().uuid(),
+    fact: associationJudgementFactRefSchema,
+    containerId: z.string().uuid(),
+    containerLabel: containerLabelSchema,
+    themeName: z.string().max(ASSOCIATION_JUDGEMENT_THEME_NAME_MAX).nullable(),
+    contextFacts: z
+      .array(associationJudgementFactRefSchema)
+      .max(ASSOCIATION_JUDGEMENT_MAX_CONTEXT_FACTS),
+  })
+  .strict()
+  .refine(
+    (item) =>
+      item.contextFacts.every(
+        (context) =>
+          judgeSensitivityRank(context.sensitivity) <= judgeSensitivityRank(item.fact.sensitivity),
+      ),
+    {
+      message: 'context fact is more sensitive than the fact under judgement',
+      path: ['contextFacts'],
+    },
+  );
+export type AssociationJudgementItem = z.infer<typeof associationJudgementItemSchema>;
+
+// Standalone: the queue union above does not accept this type until the enclave can dispatch it.
+export const associationJudgementRequestSchema = z
+  .object({
+    type: z.literal('association_judgement'),
+    requestId: z.string().regex(JUDGEMENT_REQUEST_ID_PATTERN),
+    orgId: z.string().uuid(),
+    items: z.array(associationJudgementItemSchema).min(1).max(ASSOCIATION_JUDGEMENT_MAX_ITEMS),
+  })
+  .strict();
+export type AssociationJudgementRequest = z.infer<typeof associationJudgementRequestSchema>;
+
+export const associationVerdictSchema = z.enum(['assign', 'remove', 'abstain']);
+export type AssociationVerdict = z.infer<typeof associationVerdictSchema>;
+
+export const associationJudgementVerdictSchema = z
+  .object({
+    scoreId: z.string().uuid(),
+    factId: z.string().uuid(),
+    containerId: z.string().uuid(),
+    verdict: associationVerdictSchema,
+    confidence: z
+      .number()
+      .min(0)
+      .max(1)
+      .refine((confidence) => {
+        const steps = confidence / JUDGE_CONFIDENCE_STEP;
+        return Math.abs(steps - Math.round(steps)) < JUDGE_CONFIDENCE_STEP_TOLERANCE;
+      }, 'confidence must be quantized to 0.05'),
+  })
+  .strict();
+export type AssociationJudgementVerdict = z.infer<typeof associationJudgementVerdictSchema>;
+
+// Ids, an enum and a quantized float only: a verdict never carries text.
+export const associationJudgementResultSchema = z
+  .object({
+    type: z.literal('association_judgement'),
+    requestId: z.string().regex(JUDGEMENT_REQUEST_ID_PATTERN),
+    orgId: z.string().uuid(),
+    model: z.string().max(128),
+    modelRevision: z.string().max(128),
+    verdicts: z.array(associationJudgementVerdictSchema).max(ASSOCIATION_JUDGEMENT_MAX_ITEMS),
+    tokenUsage: tokenUsageArray,
+  })
+  .strict();
+export type AssociationJudgementResult = z.infer<typeof associationJudgementResultSchema>;
+
 // Content-free enclave→worker completion signal: a scheduled pull cycle
 // finished cleanly, so the worker can advance connector_sync_state.last_successful_sync_at
 // (the enclave has no DB access — so the write stays worker-side). Carries only

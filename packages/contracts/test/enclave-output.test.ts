@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { enclaveOutputEnvelopeSchema } from '../src/enclave-output.js';
+import {
+  enclaveOutputBindingForPayload,
+  enclaveOutputEnvelopeSchema,
+  enclaveOutputTypeSchema,
+} from '../src/enclave-output.js';
 
 function envelope() {
   return {
@@ -62,5 +66,39 @@ describe('enclaveOutputEnvelopeSchema', () => {
         authenticator: { ...value.authenticator, unexpected: true },
       }),
     ).toThrow();
+  });
+});
+
+describe('association judgement binding', () => {
+  const identity = {
+    deploymentId: 'deployment-1',
+    assignmentGeneration: 3,
+    nonce: '22'.repeat(32),
+  };
+  const payload = {
+    type: 'association_judgement',
+    requestId: 'b'.repeat(64),
+    orgId: 'org-1',
+    verdicts: [{ factId: 'fact-b' }, { factId: 'fact-a' }, { factId: 'fact-b' }],
+  };
+
+  it('binds the request id and the sorted unique fact ids', () => {
+    const binding = enclaveOutputBindingForPayload(payload, identity);
+
+    expect(binding.outputType).toBe('association_judgement');
+    expect(binding.outputId).toBe('b'.repeat(64));
+    expect(binding.resourceIds).toEqual(['fact-a', 'fact-b']);
+  });
+
+  it('accepts the output type on a signed envelope', () => {
+    expect(enclaveOutputTypeSchema.safeParse('association_judgement').success).toBe(true);
+  });
+
+  it('rejects a verdict without a fact id', () => {
+    const missing = { ...payload, verdicts: [{ scoreId: 'score-1' }] };
+
+    expect(() => enclaveOutputBindingForPayload(missing, identity)).toThrow(
+      'enclave_output_field_invalid',
+    );
   });
 });

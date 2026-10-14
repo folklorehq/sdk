@@ -13,6 +13,7 @@ export const enclaveOutputTypeSchema = z.enum([
   'wiki_synthesis',
   'theme_synthesis',
   'team_onboarding_synthesis',
+  'association_judgement',
 ]);
 export type EnclaveOutputType = z.infer<typeof enclaveOutputTypeSchema>;
 
@@ -127,6 +128,17 @@ export function enclaveOutputBindingForPayload(
         requiredString(payload, 'teamId'),
         ...requiredStringArray(payload, 'citedFactIds'),
       ],
+      payload,
+      identity,
+    });
+  }
+  if (type === 'association_judgement') {
+    return outputBinding({
+      outputType: 'association_judgement',
+      outputId: requiredString(payload, 'requestId'),
+      resourceIds: requiredRecordArray(payload, 'verdicts').map((verdict) =>
+        requiredString(verdict, 'factId'),
+      ),
       payload,
       identity,
     });
