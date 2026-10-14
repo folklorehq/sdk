@@ -2,14 +2,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TelemetryClient } from '@folklore/telemetry';
 import { OpenAICompatBackend } from '../src/OpenAICompatBackend.js';
+import { MAX_RETRY_AFTER_MS, ProviderHttpError } from '../src/ProviderHttpError.js';
 
 const BASE_URL = 'http://vllm:8000';
 
-function makeFetch(response: Record<string, unknown>, status = 200) {
+function makeFetch(response: Record<string, unknown>, status = 200, headers: HeadersInit = {}) {
   const bytes = new TextEncoder().encode(JSON.stringify(response));
   return vi.fn().mockResolvedValue({
     status,
     ok: status >= 200 && status < 300,
+    headers: new Headers(headers),
     arrayBuffer: () => Promise.resolve(bytes.buffer as ArrayBuffer),
     body: null,
   });
@@ -175,6 +177,75 @@ describe('OpenAICompatBackend', () => {
     await expect(backend.generate('x')).rejects.toThrow(
       'OpenAI-compatible endpoint generate failed: 503',
     );
+  });
+
+  describe('a refused HTTP status', () => {
+    const refusal = async (operation: (backend: OpenAICompatBackend) => Promise<unknown>) => {
+      const backend = new OpenAICompatBackend({ baseUrl: BASE_URL });
+      return operation(backend).then(
+        () => expect.fail('expected a refusal'),
+        (error: unknown) => error,
+      );
+    };
+    const TOOL = { tool: { name: 'judge', description: 'judge', parameters: { type: 'object' } } };
+
+    it.each([
+      ['embed', (b: OpenAICompatBackend) => b.embed('x')],
+      ['generate', (b: OpenAICompatBackend) => b.generate('x')],
+      ['tool call', (b: OpenAICompatBackend) => b.generateStructured('x', TOOL)],
+      ['stream', (b: OpenAICompatBackend) => b.stream('x').next()],
+    ])('types the %s status and keeps the exact sentence', async (name, operation) => {
+      vi.stubGlobal('fetch', makeFetch({}, 429, { 'retry-after': '2' }));
+
+      const error = await refusal(operation);
+
+      expect(error).toBeInstanceOf(ProviderHttpError);
+      expect(error).toMatchObject({ status: 429, retryAfterMs: 2_000 });
+      expect((error as Error).message).toBe(`OpenAI-compatible endpoint ${name} failed: 429`);
+    });
+
+    it('reads an HTTP-date Retry-After against the wall clock', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-14T12:00:00Z'));
+      vi.stubGlobal(
+        'fetch',
+        makeFetch({}, 429, { 'retry-after': 'Wed, 14 Oct 2026 12:00:07 GMT' }),
+      );
+      try {
+        await expect(refusal((b) => b.generate('x'))).resolves.toMatchObject({
+          retryAfterMs: 7_000,
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('clamps a Retry-After beyond the ceiling', async () => {
+      vi.stubGlobal('fetch', makeFetch({}, 429, { 'retry-after': '86400' }));
+
+      await expect(refusal((b) => b.generate('x'))).resolves.toMatchObject({
+        retryAfterMs: MAX_RETRY_AFTER_MS,
+      });
+    });
+
+    it.each([['soon'], ['-5'], ['']])('ignores an invalid Retry-After %p', async (value) => {
+      vi.stubGlobal('fetch', makeFetch({}, 429, { 'retry-after': value }));
+
+      const error = await refusal((b) => b.generate('x'));
+
+      expect(error).toMatchObject({ status: 429 });
+      expect((error as ProviderHttpError).retryAfterMs).toBeUndefined();
+    });
+
+    it('never carries the provider body', async () => {
+      vi.stubGlobal('fetch', makeFetch({ error: 'echoed prompt secret' }, 400));
+
+      const error = await refusal((b) => b.generate('x'));
+
+      expect(error).toMatchObject({ status: 400 });
+      expect(JSON.stringify(error)).not.toContain('echoed prompt secret');
+      expect((error as Error).message).not.toContain('echoed prompt secret');
+    });
   });
 
   const RELEVANCE_TOOL = {

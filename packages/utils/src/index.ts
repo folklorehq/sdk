@@ -55,3 +55,4 @@ export {
   type Ed25519SignatureInput,
 } from './signing/ed25519.js';
 export { postgresErrorType } from './postgres-error-type.js';
+export { parseRetryAfterMs } from './retry-after.js';

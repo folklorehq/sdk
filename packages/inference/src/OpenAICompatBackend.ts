@@ -13,6 +13,7 @@ import type {
   StructuredOptions,
 } from './ports.js';
 import { ACI_RECEIPT_ID_HEADER } from './aci-verifier.js';
+import { ProviderHttpError } from './ProviderHttpError.js';
 
 export interface OpenAICompatConfig {
   /** Base URL of an OpenAI-compatible inference server — MUST be a local/in-box endpoint (vLLM, TGI, llama.cpp, LocalAI). */
@@ -168,7 +169,7 @@ export class OpenAICompatBackend implements InferenceBackend {
       });
 
       if (!this.isOk(res)) {
-        throw new Error(`${this.label} embed failed: ${res.status}`);
+        throw this.refused('embed', res);
       }
 
       const rawResponse = await this.readResponse(res);
@@ -223,7 +224,7 @@ export class OpenAICompatBackend implements InferenceBackend {
       });
 
       if (!this.isOk(res)) {
-        throw new Error(`${this.label} generate failed: ${res.status}`);
+        throw this.refused('generate', res);
       }
 
       const rawResponse = await this.readResponse(res);
@@ -268,7 +269,7 @@ export class OpenAICompatBackend implements InferenceBackend {
       });
 
       if (!this.isOk(res)) {
-        throw new Error(`${this.label} tool call failed: ${res.status}`);
+        throw this.refused('tool call', res);
       }
 
       const rawResponse = await this.readResponse(res);
@@ -320,7 +321,7 @@ export class OpenAICompatBackend implements InferenceBackend {
       });
 
       if (!this.isOk(res) || !res.body) {
-        throw new Error(`${this.label} stream failed: ${res.status}`);
+        throw this.refused('stream', res);
       }
 
       const reader = res.body.getReader();
@@ -498,6 +499,11 @@ export class OpenAICompatBackend implements InferenceBackend {
 
   protected isOk(res: { status: number }): boolean {
     return res.status >= 200 && res.status < 300;
+  }
+
+  // The sentence stays fixed so failure codes can name the status; the body may echo the prompt.
+  private refused(operation: string, res: Response): ProviderHttpError {
+    return ProviderHttpError.fromResponse(`${this.label} ${operation} failed: ${res.status}`, res);
   }
 
   // Fail-closed model guard: a config typo or an unverified-model swap throws before any
