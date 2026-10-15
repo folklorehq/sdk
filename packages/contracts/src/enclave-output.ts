@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { base64Ed25519SignatureSchema, digest64Schema } from './shared.js';
 
 export const ENCLAVE_OUTPUT_VERSION = 1 as const;
+// SQS's MaximumMessageSize ceiling, set on the output and request queues: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SetQueueAttributes.html
+export const OUTPUT_QUEUE_MAX_MESSAGE_BYTES = 1_048_576;
 const NONCE_PATTERN = /^[0-9a-f]{64}$/;
 
 export const enclaveOutputTypeSchema = z.enum([
