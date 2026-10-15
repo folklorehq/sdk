@@ -16,6 +16,9 @@ export const notificationCadenceSchema = z.enum([
 export type NotificationCadence = z.infer<typeof notificationCadenceSchema>;
 export type DigestCadence = Extract<NotificationCadence, 'digest_periodic' | 'digest_daily'>;
 
+/** The 409 refusal reason when a settings save carries a stale `expectedUpdatedAt`. */
+export const PREFERENCES_CHANGED_REASON = 'preferences_changed';
+
 const MAX_PAGE_TITLE_CHARS = 300;
 const SLACK_WEBHOOK_PREFIX = 'https://hooks.slack.com/';
 
@@ -81,6 +84,7 @@ const legacyPreferencesShape = {
   ...perTypeToggleShape,
   slackEnabled: z.boolean(),
   slackWebhookUrl: z.string().url().nullable(),
+  updatedAt: z.string().datetime().optional(),
 };
 
 export const legacyNotificationPreferencesSchema = z.object(legacyPreferencesShape).strict();
@@ -106,6 +110,7 @@ const legacyUpdatePreferencesShape = {
     .startsWith(SLACK_WEBHOOK_PREFIX, 'Must be a Slack incoming-webhook URL')
     .nullable()
     .default(null),
+  expectedUpdatedAt: z.string().datetime().optional(),
 };
 
 const enabledSlackWebhook = (value: { slackEnabled: boolean; slackWebhookUrl: string | null }) =>

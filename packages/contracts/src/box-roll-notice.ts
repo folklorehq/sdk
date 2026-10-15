@@ -6,6 +6,7 @@ import { z } from 'zod';
 export const BOX_ROLL_NOTICE_PATH = '/v1/box/roll-notice';
 export const BOX_ROLL_NOTICE_POLL_MS = 30_000;
 export const BOX_ROLL_NOTICE_SCHEDULED_POLL_MS = 10_000;
+export const ROLL_SW_PATH = '/roll-sw.js';
 export const BOX_ROLL_PHASES = ['none', 'scheduled', 'in_progress'] as const;
 
 export const boxRollNoticeRequestSchema = z.union([

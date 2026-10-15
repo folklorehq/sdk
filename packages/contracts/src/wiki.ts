@@ -566,6 +566,12 @@ export const wikiCommentReplySchema = z
   .strict();
 export type WikiCommentReply = z.infer<typeof wikiCommentReplySchema>;
 
+// One random UUID per user action, resent on every retry of a once-only wiki write; never content.
+export const IDEMPOTENCY_KEY_HEADER = 'Idempotency-Key';
+export const idempotencyKeySchema = z.string().uuid();
+export const INVALID_IDEMPOTENCY_KEY = 'invalid_idempotency_key';
+export const IDEMPOTENCY_KEY_REUSED = 'idempotency_key_reused';
+
 export const wikiEditSignalSchema = z
   .object({
     blockType: z.string(),
