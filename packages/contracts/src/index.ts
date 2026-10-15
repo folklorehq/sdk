@@ -11,6 +11,7 @@ export * from './commissioning-acceptance.js';
 export * from './control-plane-environment.js';
 export * from './control-plane-operation-authorization.js';
 export * from './current-authority-pointer.js';
+export * from './data-correction.js';
 export * from './document-types.js';
 export * from './enclave.js';
 export * from './enclave-output.js';
