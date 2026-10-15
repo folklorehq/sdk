@@ -82,11 +82,12 @@ describe('control-plane operation authorization preimage', () => {
     );
   });
 
-  it('names the three basis kinds', () => {
+  it('names the four basis kinds', () => {
     expect(CONTROL_PLANE_BASIS_KINDS).toEqual([
       'pool_provision',
       'pool_boot_manifest_mint',
       'shared_tenant_provision',
+      'pool_destroy',
     ]);
   });
 });

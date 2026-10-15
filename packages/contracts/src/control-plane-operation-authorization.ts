@@ -12,6 +12,7 @@ export const CONTROL_PLANE_BASIS_KINDS = [
   'pool_provision',
   'pool_boot_manifest_mint',
   'shared_tenant_provision',
+  'pool_destroy',
 ] as const;
 
 const PREIMAGE_SCHEMA = 'ControlPlaneOperationAuthorizationPreimageV1' as const;
