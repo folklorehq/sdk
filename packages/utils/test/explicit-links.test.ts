@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { extractExplicitLinks, githubItemKey } from '../src/text.js';
+import { extractExplicitLinks, githubItemKey, isBareIssueKey } from '../src/text.js';
 
 describe('extractExplicitLinks', () => {
   it('extracts unique URLs and issue references without changing their existing grouping', () => {
@@ -47,5 +47,25 @@ describe('extractExplicitLinks', () => {
 
   it('builds the owner/repo#N key', () => {
     expect(githubItemKey('acme/api', 42)).toBe('acme/api#42');
+  });
+});
+
+describe('isBareIssueKey', () => {
+  it.each(['PROJ-7', 'LAYOFFS-2025', 'Q3-2026', 'AB12-1'])('matches the bare key %s', (value) => {
+    expect(isBareIssueKey(value)).toBe(true);
+  });
+
+  it.each([
+    'https://acme.atlassian.net/browse/PROJ-12',
+    'acme/api#7',
+    '#12',
+    'proj-7',
+    'P-7',
+    'PROJ-',
+    'PROJ-7x',
+    ' PROJ-7',
+    'PROJ-7\n',
+  ])('does not match %j', (value) => {
+    expect(isBareIssueKey(value)).toBe(false);
   });
 });

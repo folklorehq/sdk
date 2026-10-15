@@ -63,6 +63,13 @@ export function extractExplicitLinks(body: string, repoFullName?: string): strin
   return [...links];
 }
 
+const BARE_ISSUE_KEY_RE = /^[A-Z][A-Z0-9]+-\d+$/;
+
+/** True for a bare `WORD-N` token, a shape body text yields too freely to persist as a link. */
+export function isBareIssueKey(link: string): boolean {
+  return BARE_ISSUE_KEY_RE.test(link);
+}
+
 const MENTION_TOKEN = '[A-Za-z0-9._-]{1,64}';
 // `fk-person:<slug>` mention pills and `@handle` tokens (the latter only when not preceded by a word
 // char, so `foo@bar.com` in an address is not a mention). Returns lowercased target tokens only —

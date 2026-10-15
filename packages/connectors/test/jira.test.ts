@@ -146,10 +146,28 @@ describe('normalizeJiraIssueEvent — created', () => {
     expect(fact.containerRefs).toContain('PROJ-42');
   });
 
-  it('extracts URLs and Jira issue keys as explicit links', () => {
+  it('extracts URLs as explicit links', () => {
     const fact = normalizeJiraIssueEvent(issueEvent('jira:issue_created')).facts[0]!;
-    expect(fact.content?.explicitLinks).toContain('PROJ-7');
-    expect(fact.content?.explicitLinks).toContain('https://x.test/a');
+    expect(fact.content?.explicitLinks).toEqual(['https://x.test/a']);
+  });
+
+  it('keeps a Jira browse URL whole as an explicit link', () => {
+    const issue = makeIssue({
+      description: adfDoc('See https://acme.atlassian.net/browse/PROJ-12'),
+    });
+    const fact = normalizeJiraIssueEvent(issueEvent('jira:issue_created', issue)).facts[0]!;
+    expect(fact.content?.explicitLinks).toEqual(['https://acme.atlassian.net/browse/PROJ-12']);
+  });
+
+  it('never lifts bare WORD-N tokens out of issue text', () => {
+    const issue = makeIssue({
+      summary: 'LAYOFFS-2025 planning',
+      description: adfDoc('Target Q3-2026, see PROJ-7'),
+    });
+    for (const kind of ['jira:issue_created', 'jira:issue_updated'] as const) {
+      const fact = normalizeJiraIssueEvent(issueEvent(kind, issue)).facts[0]!;
+      expect(fact.content?.explicitLinks).toEqual([]);
+    }
   });
 
   it('exposes the issue key as the structural entity', () => {
@@ -217,6 +235,14 @@ describe('normalizeJiraCommentEvent', () => {
     expect(fact.sourceThreadId).toBe('PROJ-42');
     expect(fact.authors[0]!.sourceUserId).toBe('acc-assignee');
     expect(fact.sourceFactId).toContain('comment-9');
+    expect(fact.entities).toEqual(['PROJ-42']);
+  });
+
+  it('never lifts bare WORD-N tokens out of comment text', () => {
+    const event = commentEvent();
+    event.comment.body = adfDoc('LAYOFFS-2025 lands in Q3-2026');
+    const fact = normalizeJiraCommentEvent(event).facts[0]!;
+    expect(fact.content?.explicitLinks).toEqual([]);
     expect(fact.entities).toEqual(['PROJ-42']);
   });
 });

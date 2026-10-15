@@ -11,19 +11,9 @@ import type {
   JiraUser,
 } from './types.js';
 
-const JIRA_KEY_RE = /\b([A-Z][A-Z0-9]+-\d+)\b/g;
-
 /** The issue key (e.g. PROJ-123) is the stable container id and native thread id. */
 export function jiraIssueContainerId(issue: JiraIssue): string {
   return issue.key;
-}
-
-function extractJiraLinks(text: string): string[] {
-  const links = new Set(extractExplicitLinks(text));
-  for (const match of text.matchAll(JIRA_KEY_RE)) {
-    if (match[1]) links.add(match[1]);
-  }
-  return [...links];
 }
 
 function userToActor(user: JiraUser | null | undefined): NormalizedActor[] {
@@ -75,7 +65,7 @@ function normalizeIssueCreated(event: JiraIssueEvent, occurredAt: Date): Normali
         containerRefs: [containerId],
         sourceThreadId: containerId,
         entities: [containerId],
-        content: { body, explicitLinks: extractJiraLinks(body) },
+        content: { body, explicitLinks: extractExplicitLinks(body) },
         raw: event,
       },
     ],
@@ -130,7 +120,7 @@ function normalizeIssueEdited(event: JiraIssueEvent, occurredAt: Date): Normaliz
         containerRefs: [containerId],
         sourceThreadId: containerId,
         entities: [containerId],
-        content: { body, explicitLinks: extractJiraLinks(body) },
+        content: { body, explicitLinks: extractExplicitLinks(body) },
         raw: event,
       },
     ],
@@ -173,7 +163,7 @@ export function normalizeJiraCommentEvent(event: JiraCommentEvent): NormalizedRe
         containerRefs: [containerId],
         sourceThreadId: containerId,
         entities: [containerId],
-        content: { body, explicitLinks: extractJiraLinks(body) },
+        content: { body, explicitLinks: extractExplicitLinks(body) },
         raw: event,
       },
     ],
