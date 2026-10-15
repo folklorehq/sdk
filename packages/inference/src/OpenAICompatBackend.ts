@@ -15,6 +15,7 @@ import type {
 } from './ports.js';
 import { ACI_RECEIPT_ID_HEADER } from './aci-verifier.js';
 import { ProviderHttpError } from './ProviderHttpError.js';
+import { REASONING_EFFORT_BY_MODEL } from './model-allowlist.js';
 
 export interface OpenAICompatConfig {
   /** Base URL of an OpenAI-compatible inference server — MUST be a local/in-box endpoint (vLLM, TGI, llama.cpp, LocalAI). */
@@ -222,6 +223,7 @@ export class OpenAICompatBackend implements InferenceBackend {
         messages: this.messages(prompt, options),
         max_tokens: options?.maxTokens,
         temperature: options?.temperature,
+        reasoning_effort: REASONING_EFFORT_BY_MODEL.get(model),
         stream: false,
         ...(this.publicAciRequired ? { provider: { aci_verified: true } } : {}),
       });

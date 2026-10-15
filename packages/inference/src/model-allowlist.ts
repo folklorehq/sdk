@@ -27,6 +27,13 @@ export function parseModelAllowlist(
   return models.length > 0 ? models : fallback;
 }
 
+export type ReasoningEffort = 'low' | 'high' | 'max';
+
+// Reasoning tokens count against max_tokens; at the model's default effort they can exhaust the cap.
+export const REASONING_EFFORT_BY_MODEL: ReadonlyMap<string, ReasoningEffort> = new Map([
+  ['z-ai/glm-5.3', 'low'],
+]);
+
 // The public session's canonical_model_id; each receipt-captured entry below equals its own.
 const KIMI_K3_ATTESTED_UPSTREAM_MODEL_ID = 'moonshotai/Kimi-K3-TEE';
 
