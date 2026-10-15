@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-import { extractExplicitLinks } from '@folklore/utils';
+import { extractExplicitLinks, slackThreadKey } from '@folklore/utils';
 import type { NormalizedFact, NormalizedRecords } from '../normalized.js';
 import type { SlackMessage, SlackReactionEvent } from './types.js';
 
 const EMPTY: NormalizedRecords = { containers: [], facts: [] };
 
 export function slackThreadId(channelId: string, threadTs: string): string {
-  return `slack:${channelId}:${threadTs}`;
+  return slackThreadKey(channelId, threadTs);
 }
 
 function tsToDate(ts: string): Date {

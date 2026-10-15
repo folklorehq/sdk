@@ -18,10 +18,32 @@ export {
   escapeRegExp,
   escapeSqlLikePattern,
   extractExplicitLinks,
-  githubItemKey,
-  isBareIssueKey,
   extractMentions,
 } from './text.js';
+export {
+  ANCHORED_GITHUB_ITEM_KEY_PATTERN,
+  ANCHORED_ISSUE_KEY_PATTERN,
+  CANONICAL_LINK_KEY_PATTERN,
+  GITHUB_ITEM_KEY_PATTERN,
+  ISSUE_KEY_PATTERN,
+  NOTION_PAGE_KEY_PATTERN,
+  SLACK_THREAD_KEY_PATTERN,
+  canonicalNotionPageId,
+  canonicalizeStoredLinks,
+  githubItemKey,
+  githubItemRepo,
+  isCanonicalLinkKey,
+  isIssueKey,
+  issueKey,
+  issueKeyPrefix,
+  linkKeyFromUrl,
+  notionPageKey,
+  scopeExplicitLinks,
+  slackPermalinkTs,
+  slackThreadKey,
+  type LinkScope,
+  type StoredLinkContext,
+} from './link-keys.js';
 export { groupBy, chunk } from './collection.js';
 export { abortAfter, mapWithConcurrency, timeLimited, sleep } from './async.js';
 export { parseJsonFence, extractJsonObject } from './json.js';

@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+import { GITHUB_OWNER_PATTERN, GITHUB_REPO_PATTERN, githubItemKey } from './link-keys.js';
+
 /** Collapse internal whitespace runs to single spaces and trim the ends. */
 export function collapseWhitespace(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
@@ -31,20 +33,13 @@ export function escapeSqlLikePattern(value: string): string {
 const URL_RE = /https?:\/\/[^\s)]+/g;
 const REF_BOUNDARY = '(?:^|[\\s(\\[,])';
 const ISSUE_REF_RE = new RegExp(`${REF_BOUNDARY}(#\\d+)\\b`, 'g');
-const GITHUB_OWNER = '[A-Za-z0-9][A-Za-z0-9-]{0,38}';
-const GITHUB_REPO = '[A-Za-z0-9._-]{1,100}';
 const CROSS_REPO_REF_RE = new RegExp(
-  `${REF_BOUNDARY}(${GITHUB_OWNER}\\/${GITHUB_REPO})#(\\d+)\\b`,
+  `${REF_BOUNDARY}(${GITHUB_OWNER_PATTERN}\\/${GITHUB_REPO_PATTERN})#(\\d+)\\b`,
   'g',
 );
 const GITHUB_ITEM_URL_RE = new RegExp(
-  `^https?:\\/\\/(?:www\\.)?github\\.com\\/(${GITHUB_OWNER}\\/${GITHUB_REPO})\\/(?:pull|issues)\\/(\\d+)\\b`,
+  `^https?:\\/\\/(?:www\\.)?github\\.com\\/(${GITHUB_OWNER_PATTERN}\\/${GITHUB_REPO_PATTERN})\\/(?:pull|issues)\\/(\\d+)\\b`,
 );
-
-/** A GitHub pull request or issue's source-native key, `owner/repo#N`. */
-export function githubItemKey(repoFullName: string, itemNumber: number | string): string {
-  return `${repoFullName}#${itemNumber}`;
-}
 
 /** URLs and `#N` references in free text; GitHub items become `githubItemKey`s, a bare `#N` scoped to `repoFullName` when given. */
 export function extractExplicitLinks(body: string, repoFullName?: string): string[] {
@@ -61,13 +56,6 @@ export function extractExplicitLinks(body: string, repoFullName?: string): strin
     links.add(repoFullName ? githubItemKey(repoFullName, match[1].slice(1)) : match[1]);
   }
   return [...links];
-}
-
-const BARE_ISSUE_KEY_RE = /^[A-Z][A-Z0-9]+-\d+$/;
-
-/** True for a bare `WORD-N` token, a shape body text yields too freely to persist as a link. */
-export function isBareIssueKey(link: string): boolean {
-  return BARE_ISSUE_KEY_RE.test(link);
 }
 
 const MENTION_TOKEN = '[A-Za-z0-9._-]{1,64}';

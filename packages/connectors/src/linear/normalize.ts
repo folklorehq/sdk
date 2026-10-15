@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { extractExplicitLinks } from '@folklore/utils';
+import { extractExplicitLinks, issueKey } from '@folklore/utils';
 import type { NormalizedRecords } from '../normalized.js';
 import type {
   LinearComment,
@@ -10,7 +10,7 @@ import type {
 } from './types.js';
 
 export function linearIssueContainerId(team: LinearTeam, issueNumber: number): string {
-  return `${team.key}-${issueNumber}`;
+  return issueKey(team.key, issueNumber);
 }
 
 function issueAuthors(issue: LinearIssue) {

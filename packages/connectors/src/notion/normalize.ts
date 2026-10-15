@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
-import { extractExplicitLinks } from '@folklore/utils';
+import { extractExplicitLinks, notionPageKey } from '@folklore/utils';
 import type { NormalizedRecords } from '../normalized.js';
 import type { NotionPage, NotionPageEvent } from './types.js';
 
-export function notionPageContainerId(pageId: string): string {
-  return `notion:page:${pageId}`;
+/** Null when the id is not a Notion page id; the page is then dropped rather than keyed. */
+export function notionPageContainerId(pageId: string): string | null {
+  return notionPageKey(pageId);
 }
+
+const EMPTY: NormalizedRecords = { containers: [], facts: [] };
 
 // Ids-only webhook seed (E7/1c): metadata-only by construction (no content field, so raw drives the
 // embedding); distinct sourceFactId keeps the pull's content-bearing create from being deduped away.
 export function normalizeNotionPageSeed(pageId: string): NormalizedRecords {
   const containerId = notionPageContainerId(pageId);
+  if (containerId === null) return EMPTY;
   return {
     containers: [
       {
@@ -55,6 +59,7 @@ function pageTitle(page: NotionPage): string {
 export function normalizeNotionPageEvent(event: NotionPageEvent): NormalizedRecords {
   const { page, type, body } = event;
   const containerId = notionPageContainerId(page.id);
+  if (containerId === null) return EMPTY;
   const title = pageTitle(page);
 
   if (type === 'page.created') {
