@@ -29,6 +29,7 @@ export * from './onboarding.js';
 export * from './operation-identity.js';
 export * from './orgs.js';
 export * from './pool-agent-release.js';
+export * from './pool-readiness.js';
 export * from './preview.js';
 export * from './recovery-key-binding.js';
 export * from './review.js';
