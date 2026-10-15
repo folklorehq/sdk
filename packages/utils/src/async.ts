@@ -44,3 +44,14 @@ export async function mapWithConcurrency<T, R>(
   await Promise.all(Array.from({ length: size }, () => worker()));
   return results;
 }
+
+/** The lowest-index rejection `isSecondary` does not accept; when every rejection is secondary, the lowest one. */
+export function primaryRejection(
+  results: readonly PromiseSettledResult<unknown>[],
+  isSecondary: (reason: unknown) => boolean = () => false,
+): PromiseRejectedResult | undefined {
+  const rejected = results.filter(
+    (result): result is PromiseRejectedResult => result.status === 'rejected',
+  );
+  return rejected.find((result) => !isSecondary(result.reason)) ?? rejected[0];
+}

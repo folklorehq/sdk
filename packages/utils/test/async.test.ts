@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { abortAfter } from '../src/async.js';
+import { abortAfter, primaryRejection } from '../src/async.js';
 
 const TIMEOUT_MS = 1_000;
 
@@ -27,5 +27,45 @@ describe('abortAfter', () => {
     clearTimeout(abortAfter(controller, TIMEOUT_MS));
     vi.advanceTimersByTime(TIMEOUT_MS * 2);
     expect(controller.signal.aborted).toBe(false);
+  });
+});
+
+describe('primaryRejection', () => {
+  const secondary = new Error('secondary');
+  const isSecondary = (reason: unknown): boolean => reason === secondary;
+
+  it('is undefined when nothing rejected', () => {
+    expect(primaryRejection([{ status: 'fulfilled', value: 1 }], isSecondary)).toBeUndefined();
+  });
+
+  it('picks the lowest-index rejection that is not secondary', () => {
+    const first = new Error('first');
+    const second = new Error('second');
+    const results: PromiseSettledResult<number>[] = [
+      { status: 'fulfilled', value: 1 },
+      { status: 'rejected', reason: secondary },
+      { status: 'rejected', reason: first },
+      { status: 'rejected', reason: second },
+    ];
+    expect(primaryRejection(results, isSecondary)?.reason).toBe(first);
+  });
+
+  it('falls back to the lowest rejection when every rejection is secondary', () => {
+    const later = new Error('later');
+    const results: PromiseSettledResult<number>[] = [
+      { status: 'rejected', reason: secondary },
+      { status: 'rejected', reason: later },
+    ];
+    expect(primaryRejection(results, (r) => r === secondary || r === later)?.reason).toBe(
+      secondary,
+    );
+  });
+
+  it('treats every rejection as primary without a predicate', () => {
+    const results: PromiseSettledResult<number>[] = [
+      { status: 'rejected', reason: secondary },
+      { status: 'rejected', reason: new Error('x') },
+    ];
+    expect(primaryRejection(results)?.reason).toBe(secondary);
   });
 });
