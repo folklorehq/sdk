@@ -114,6 +114,7 @@ export {
   attestedUpstreamModelId,
   DEFAULT_VERIFIED_MODELS,
   parseModelAllowlist,
+  reasoningModelsMissingEffort,
 } from './model-allowlist.js';
 export {
   AciReceiptVerifier,
