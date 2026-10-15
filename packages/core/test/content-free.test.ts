@@ -114,6 +114,42 @@ describe('numeric enclave boot fields', () => {
   });
 });
 
+describe('inference timing fields', () => {
+  const NUMERIC = [
+    'seq',
+    'startOffsetMs',
+    'durationMs',
+    'spansDropped',
+    'trustedTimeMs',
+    'trustedTimeMaxMs',
+    'bindMs',
+    'bindMaxMs',
+    'requestMs',
+    'requestMaxMs',
+    'responseMs',
+    'responseMaxMs',
+    'verifyMs',
+    'verifyMaxMs',
+  ] as const;
+  const SENTINEL = 'customer-secret-3f1d the Acme reorg plan';
+
+  it.each(NUMERIC)('%s accepts a number and refuses any string', (field) => {
+    expect(checkSafeLogContext({ [field]: 1200 })).toBeNull();
+    expect(checkSafeLogContext({ [field]: '1200' })).toBe('invalid_context_value');
+    expect(checkSafeLogContext({ [field]: SENTINEL })).toBe('invalid_context_value');
+  });
+
+  it('accepts only the four policy role names as a role', () => {
+    for (const role of ['embed', 'generate', 'critique', 'judge']) {
+      expect(checkSafeLogContext({ role })).toBeNull();
+    }
+    for (const role of ['writer', 'Generate', 'generate_v2', SENTINEL, '']) {
+      expect(checkSafeLogContext({ role }), role).toBe('invalid_context_value');
+    }
+    expect(checkSafeLogContext({ role: null })).toBeNull();
+  });
+});
+
 describe('contentFreeErrorType', () => {
   // An Error's `name` is capitalized, and the boundary's code-value filter only admits lower-case
   // tokens. Passing `error.name` through as `error_type` made PinoLogger replace the whole record

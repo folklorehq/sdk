@@ -108,6 +108,70 @@ describe('PinoLogger', () => {
     });
   });
 
+  it('accepts a content-free inference timeline span and timing aggregate', () => {
+    const { logger, records } = recordingLogger();
+    const span = {
+      orgId: '3e083ed2-433c-4798-ae11-a656c9de08ee',
+      requestId: 'd7a6c468-0ddd-4de2-a29b-12af4f2ba28a',
+      operation: 'wiki_synthesis',
+      count: 2,
+      spansDropped: 0,
+      seq: 1,
+      phase: 'verify_receipt',
+      model: 'z-ai/glm-5.2',
+      role: 'critique',
+      startOffsetMs: 40,
+      durationMs: 6000,
+      outcome: 'error_code',
+      errorCode: 'synthesis_provider_http_503',
+    };
+    const timing = {
+      orgId: '3e083ed2-433c-4798-ae11-a656c9de08ee',
+      model: 'z-ai/glm-5.2',
+      operation: 'generate',
+      calls: 2,
+      trustedTimeMs: 40,
+      trustedTimeMaxMs: 25,
+      bindMs: 60,
+      bindMaxMs: 35,
+      requestMs: 9000,
+      requestMaxMs: 6000,
+      responseMs: 300,
+      responseMaxMs: 200,
+      verifyMs: 120,
+      verifyMaxMs: 80,
+    };
+    const stageMarker = {
+      ...span,
+      phase: 'draft',
+      model: null,
+      role: null,
+      outcome: 'ok',
+      errorCode: null,
+    };
+    logger.info('synthesis_timeline', span);
+    logger.info('synthesis_timeline', stageMarker);
+    logger.info('synthesis_timing', timing);
+
+    expect(records.map((record) => record['msg'])).toEqual([
+      'synthesis_timeline',
+      'synthesis_timeline',
+      'synthesis_timing',
+    ]);
+    expect(records[0]).toMatchObject(span);
+    expect(records[1]).toMatchObject(stageMarker);
+    expect(records[2]).toMatchObject(timing);
+  });
+
+  it.each([{ role: `generate ${SENTINEL}` }, { role: 'Critique' }, { seq: SENTINEL }])(
+    'rejects a timeline field that is not a closed name or a number %#',
+    (context) => {
+      const { logger, records } = recordingLogger();
+      logger.info('synthesis_timeline', unsafeContext(context));
+      expectOnlyRejection(records, 'invalid_context_value');
+    },
+  );
+
   it.each([{ orgId: 'org-1' }, { messageId: SENTINEL }, { model: `qwen/${SENTINEL} words` }])(
     'rejects malformed operational identifiers %#',
     (context) => {

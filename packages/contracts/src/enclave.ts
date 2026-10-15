@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { factMetricSchema } from './metrics.js';
 import { sealedContentEnvelopeV1Schema } from './sealed-content.js';
 import { richBlockKindSchema } from './wiki.js';
+import { inferenceModelRoleSchema } from './inference-trust.js';
 
 export {
   sealedContentEnvelopeV1Schema,
@@ -194,18 +195,45 @@ export type CritiqueOutcome = z.infer<typeof critiqueOutcomeSchema>;
 export const TOKEN_USAGE_MODEL_MAX_LENGTH = 64;
 export const TOKEN_USAGE_MODEL_PATTERN = /^[A-Za-z0-9._:/-]+$/;
 
+const usageModelIdSchema = z
+  .string()
+  .min(1)
+  .max(TOKEN_USAGE_MODEL_MAX_LENGTH)
+  .regex(TOKEN_USAGE_MODEL_PATTERN);
+const wholeMsSchema = z.number().int().nonnegative();
+
+// Sums and per-message maxima of one model's call phases, in milliseconds. `trustedTimeMs` is also
+// counted inside `bindMs` and `verifyMs`; it is broken out because it is a per-call cost of its own.
+export const inferenceTimingSchema = z
+  .object({
+    calls: z.number().int().nonnegative(),
+    trustedTimeMs: wholeMsSchema,
+    trustedTimeMaxMs: wholeMsSchema,
+    bindMs: wholeMsSchema,
+    bindMaxMs: wholeMsSchema,
+    requestMs: wholeMsSchema,
+    requestMaxMs: wholeMsSchema,
+    responseMs: wholeMsSchema,
+    responseMaxMs: wholeMsSchema,
+    verifyMs: wholeMsSchema,
+    verifyMaxMs: wholeMsSchema,
+  })
+  .strict();
+export type InferenceTiming = z.infer<typeof inferenceTimingSchema>;
+
 // Content-free per-run inference cost. `.strict()` rejects any field added on the wire, so a
 // future member cannot reach a consumer unreviewed; every member but `model` is an integer or a
 // closed enum. `cachedCalls` splits free replays out of `calls` — without it a broken meter
 // (gateway returning no `usage`) is byte-identical to a run served entirely from cache.
 export const tokenUsageSchema = z
   .object({
-    model: z.string().min(1).max(TOKEN_USAGE_MODEL_MAX_LENGTH).regex(TOKEN_USAGE_MODEL_PATTERN),
+    model: usageModelIdSchema,
     operation: z.enum(['embed', 'generate', 'structured']),
     calls: z.number().int().nonnegative(),
     cachedCalls: z.number().int().nonnegative().default(0),
     promptTokens: z.number().int().nonnegative(),
     completionTokens: z.number().int().nonnegative(),
+    timing: inferenceTimingSchema.optional(),
   })
   .strict();
 export type TokenUsage = z.infer<typeof tokenUsageSchema>;
@@ -214,6 +242,65 @@ export type TokenUsage = z.infer<typeof tokenUsageSchema>;
 // separately, so an enclave that ships a new usage field first would otherwise fail the whole
 // message and lose the article. Falling back to no telemetry is the recoverable half.
 const tokenUsageArray = z.array(tokenUsageSchema).default([]).catch([]);
+
+export const INFERENCE_TIMELINE_MAX_SPANS = 200;
+export const INFERENCE_SPAN_ERROR_CODE_MAX_LENGTH = 64;
+export const INFERENCE_SPAN_ERROR_CODE_PATTERN = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$/;
+
+export const inferenceSpanPhaseSchema = z.enum([
+  'gate_wait',
+  'trusted_time',
+  'bind',
+  'attest',
+  'request',
+  'response',
+  'verify_receipt',
+  'verify_session',
+  'retry_backoff',
+  'relevance',
+  'draft',
+  'critique',
+  'nli_judge',
+  'repair',
+  'recovery',
+  'persist',
+]);
+export type InferenceSpanPhase = z.infer<typeof inferenceSpanPhaseSchema>;
+
+export const inferenceSpanOutcomeSchema = z.enum(['ok', 'timeout', 'exhausted', 'error_code']);
+export type InferenceSpanOutcome = z.infer<typeof inferenceSpanOutcomeSchema>;
+
+// Closed names, a configured model id and whole milliseconds since the run began; a failure is
+// named only by its fixed slug, never by an error's text.
+export const inferenceSpanSchema = z
+  .object({
+    seq: z.number().int().nonnegative().lt(INFERENCE_TIMELINE_MAX_SPANS),
+    phase: inferenceSpanPhaseSchema,
+    model: usageModelIdSchema.optional(),
+    role: inferenceModelRoleSchema.optional(),
+    startOffsetMs: wholeMsSchema,
+    durationMs: wholeMsSchema,
+    outcome: inferenceSpanOutcomeSchema,
+    errorCode: z
+      .string()
+      .max(INFERENCE_SPAN_ERROR_CODE_MAX_LENGTH)
+      .regex(INFERENCE_SPAN_ERROR_CODE_PATTERN)
+      .optional(),
+  })
+  .strict();
+export type InferenceSpan = z.infer<typeof inferenceSpanSchema>;
+
+export const inferenceTimelineSchema = z
+  .object({
+    spans: z.array(inferenceSpanSchema).max(INFERENCE_TIMELINE_MAX_SPANS),
+    spansDropped: z.number().int().nonnegative(),
+  })
+  .strict();
+export type InferenceTimeline = z.infer<typeof inferenceTimelineSchema>;
+
+// Optional with no default: a result without one parses to no key at all. Like the usage array, a
+// timeline this worker cannot read costs the timeline, never the article.
+const inferenceTimelineField = inferenceTimelineSchema.optional().catch(undefined);
 
 export const wikiSynthesisResultSchema = z
   .object({
@@ -228,6 +315,7 @@ export const wikiSynthesisResultSchema = z
     richBlockCounts: z.array(richBlockKindCountSchema).default([]),
     critique: critiqueOutcomeSchema.optional(),
     tokenUsage: tokenUsageArray,
+    timeline: inferenceTimelineField,
   })
   .strict();
 export type WikiSynthesisResult = z.infer<typeof wikiSynthesisResultSchema>;
@@ -338,6 +426,7 @@ export const themeSynthesisResultSchema = z
     mergeCandidates: z.array(themeMergeCandidateSchema).default([]),
     aggregates: z.array(aggregateThemeSchema).default([]),
     tokenUsage: tokenUsageArray,
+    timeline: inferenceTimelineField,
   })
   .strict();
 export type ThemeSynthesisResult = z.infer<typeof themeSynthesisResultSchema>;
@@ -533,6 +622,7 @@ export const teamOnboardingSynthesisResultSchema = z
     citedFactIds: z.array(z.string()),
     critique: critiqueOutcomeSchema.optional(),
     tokenUsage: tokenUsageArray,
+    timeline: inferenceTimelineField,
   })
   .strict();
 export type TeamOnboardingSynthesisResult = z.infer<typeof teamOnboardingSynthesisResultSchema>;
@@ -643,6 +733,7 @@ export const associationJudgementResultSchema = z
     modelRevision: z.string().max(128),
     verdicts: z.array(associationJudgementVerdictSchema).max(ASSOCIATION_JUDGEMENT_MAX_ITEMS),
     tokenUsage: tokenUsageArray,
+    timeline: inferenceTimelineField,
   })
   .strict();
 export type AssociationJudgementResult = z.infer<typeof associationJudgementResultSchema>;

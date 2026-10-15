@@ -2,6 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SYNTHESIS_INPUT_TOKEN_BUDGET,
+  INFERENCE_TIMELINE_MAX_SPANS,
+  associationJudgementResultSchema,
   knowledgeNeighborhoodSchema,
   processedFactSchema,
   pullCompleteSignalSchema,
@@ -30,6 +32,7 @@ import {
   type SensitivityLevel,
   type SynthesisRequest,
   type ThemeSynthesisRequest,
+  type InferenceTimeline,
   type TokenUsage,
   type WikiSynthesisResult,
 } from '../src/enclave.js';
@@ -563,6 +566,127 @@ describe('tokenUsage on a synthesis result', () => {
   });
 });
 
+describe('inference timing on a synthesis result', () => {
+  const base = {
+    type: 'wiki_synthesis',
+    requestId: 'req-1',
+    themeId: 'theme-1',
+    orgId: 'org-1',
+    leaseToken: 'lease-1',
+    articles: [{ audienceId: null, content: 'ZW5j', contentFormat: 'esdk-v1', factCount: 1 }],
+    blocks: [],
+    citedFactIds: [],
+  };
+  const usage = {
+    model: 'z-ai/glm-5.2',
+    operation: 'generate',
+    calls: 2,
+    cachedCalls: 0,
+    promptTokens: 9,
+    completionTokens: 3,
+  };
+  const timing = {
+    calls: 2,
+    trustedTimeMs: 40,
+    trustedTimeMaxMs: 25,
+    bindMs: 60,
+    bindMaxMs: 35,
+    requestMs: 9000,
+    requestMaxMs: 6000,
+    responseMs: 300,
+    responseMaxMs: 200,
+    verifyMs: 120,
+    verifyMaxMs: 80,
+  };
+  const span = {
+    seq: 0,
+    phase: 'request',
+    model: 'z-ai/glm-5.2',
+    role: 'generate',
+    startOffsetMs: 12,
+    durationMs: 6000,
+    outcome: 'ok',
+  };
+
+  it('carries per-model timing aggregates on a usage entry', () => {
+    const parsed = wikiSynthesisResultSchema.parse({ ...base, tokenUsage: [{ ...usage, timing }] });
+    expect(parsed.tokenUsage[0]?.timing).toEqual(timing);
+  });
+
+  it('parses a result from an enclave that sends no timing, adding none', () => {
+    const parsed = wikiSynthesisResultSchema.parse({ ...base, tokenUsage: [usage] });
+    expect(parsed.tokenUsage[0]).toEqual(usage);
+    expect('timing' in (parsed.tokenUsage[0] ?? {})).toBe(false);
+    expect('timeline' in parsed).toBe(false);
+  });
+
+  it('carries a bounded span timeline with its dropped count', () => {
+    const timeline = {
+      spans: [span, { seq: 1, phase: 'draft', startOffsetMs: 10, durationMs: 7000, outcome: 'ok' }],
+      spansDropped: 3,
+    };
+    const parsed = wikiSynthesisResultSchema.parse({ ...base, tokenUsage: [usage], timeline });
+    expect(parsed.timeline).toEqual(timeline);
+  });
+
+  it.each([
+    ['theme_synthesis', themeSynthesisResultSchema],
+    ['team_onboarding_synthesis', teamOnboardingSynthesisResultSchema],
+    ['association_judgement', associationJudgementResultSchema],
+  ] as const)('accepts a timeline on a %s result', (_type, schema) => {
+    const timeline = { spans: [span], spansDropped: 0 };
+    expect(schema.shape.timeline.parse(timeline)).toEqual(timeline);
+  });
+
+  it('keeps a failure code in its fixed slug shape', () => {
+    const failed = { ...span, outcome: 'error_code', errorCode: 'synthesis_provider_http_503' };
+    const parsed = wikiSynthesisResultSchema.parse({
+      ...base,
+      timeline: { spans: [failed], spansDropped: 0 },
+    });
+    expect(parsed.timeline?.spans[0]?.errorCode).toBe('synthesis_provider_http_503');
+  });
+
+  // A timeline is telemetry: whatever is wrong with it costs the timeline, never the article.
+  it.each([
+    ['an unknown phase', { ...span, phase: 'prompt_dump' }],
+    ['an unknown outcome', { ...span, outcome: 'refused' }],
+    ['a prose error code', { ...span, outcome: 'error_code', errorCode: 'Customer said hello' }],
+    ['a model id with spaces', { ...span, model: 'the quarterly plan' }],
+    ['an unknown role', { ...span, role: 'writer' }],
+    ['a fractional duration', { ...span, durationMs: 1.5 }],
+    ['an extra member', { ...span, text: 'secret' }],
+  ])('drops a timeline with %s and keeps the article', (_label, bad) => {
+    const parsed = wikiSynthesisResultSchema.parse({
+      ...base,
+      timeline: { spans: [bad], spansDropped: 0 },
+    });
+    expect(parsed.timeline).toBeUndefined();
+    expect(parsed.articles).toHaveLength(1);
+  });
+
+  it('refuses a timeline longer than the span cap', () => {
+    const spans = Array.from({ length: INFERENCE_TIMELINE_MAX_SPANS + 1 }, (_, seq) => ({
+      ...span,
+      seq,
+    }));
+    const parsed = wikiSynthesisResultSchema.parse({
+      ...base,
+      timeline: { spans, spansDropped: 0 },
+    });
+    expect(parsed.timeline).toBeUndefined();
+  });
+
+  it('drops usage carrying an unknown timing member, as an older worker drops a newer field', () => {
+    const parsed = wikiSynthesisResultSchema.parse({
+      ...base,
+      tokenUsage: [{ ...usage, timing: { ...timing, promptText: 'secret' } }],
+    });
+    expect(parsed.tokenUsage).toEqual([]);
+    expect(parsed.articles).toHaveLength(1);
+  });
+});
+
 describe('themeSynthesisResultSchema', () => {
   it('accepts a theme_synthesis payload', () => {
     const parsed = themeSynthesisResultSchema.parse({
@@ -1012,6 +1136,7 @@ type EnclaveWikiSynthesisResult = {
   }[];
   critique?: CritiqueOutcome;
   tokenUsage: TokenUsage[];
+  timeline?: InferenceTimeline | undefined;
 };
 
 type _WikiSynthesisResultPinned = Expect<Equal<WikiSynthesisResult, EnclaveWikiSynthesisResult>>;

@@ -10,6 +10,7 @@ import {
   pullCompleteSignalSchema,
   pullDueMessageSchema,
   tokenUsageSchema,
+  inferenceSpanSchema,
   TOKEN_USAGE_MODEL_MAX_LENGTH,
 } from '@folklore/contracts/enclave';
 import { stringLeafPaths } from '../src/zod-introspect.js';
@@ -55,6 +56,8 @@ const FROZEN: Record<string, string[]> = {
     'orgId',
     'requestId',
     'themeId',
+    'timeline.spans[].errorCode',
+    'timeline.spans[].model',
     'tokenUsage[].model',
   ],
   themeSynthesisResult: [
@@ -77,6 +80,8 @@ const FROZEN: Record<string, string[]> = {
     'themes[].team',
     'themes[].themeId',
     'themes[].tags[]',
+    'timeline.spans[].errorCode',
+    'timeline.spans[].model',
     'tokenUsage[].model',
   ],
   teamOnboardingSynthesisResult: [
@@ -93,6 +98,8 @@ const FROZEN: Record<string, string[]> = {
     'requestId',
     'teamId',
     'teamName',
+    'timeline.spans[].errorCode',
+    'timeline.spans[].model',
     'tokenUsage[].model',
   ],
   synthesisRequest: [
@@ -189,6 +196,36 @@ describe('enclave→worker DTO shapes are content-free by construction', () => {
       expect(tokenUsageSchema.safeParse(usageWith(prose)).success, prose).toBe(false);
     }
     expect(tokenUsageSchema.safeParse(usageWith('z-ai/glm-5.2')).success).toBe(true);
+  });
+
+  // A timeline span adds two free strings: a model id under the same pattern, and a failure code
+  // that admits only a lower-case slug, so neither can carry a sentence or an error's text.
+  it('a timeline span rejects a model id or failure code that is not a bare identifier', () => {
+    const span = {
+      seq: 0,
+      phase: 'request',
+      startOffsetMs: 0,
+      durationMs: 1,
+      outcome: 'error_code',
+    };
+    for (const prose of [
+      'the payments team cut over on 2026-01-01',
+      'Provider said: quota exceeded',
+      'synthesis_provider_http_503 leaked',
+      'x'.repeat(65),
+    ]) {
+      expect(inferenceSpanSchema.safeParse({ ...span, errorCode: prose }).success, prose).toBe(
+        false,
+      );
+      expect(inferenceSpanSchema.safeParse({ ...span, model: prose }).success, prose).toBe(false);
+    }
+    expect(
+      inferenceSpanSchema.safeParse({
+        ...span,
+        model: 'z-ai/glm-5.2',
+        errorCode: 'synthesis_provider_http_503',
+      }).success,
+    ).toBe(true);
   });
 
   it('tokenUsage rejects an added field rather than passing it through', () => {

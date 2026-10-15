@@ -36,6 +36,8 @@ const SAFE_LOG_REQUEST_ID_PATTERN =
   /^(?:[a-z][a-z0-9]{0,31}_[a-z0-9]{1,95}|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 const SAFE_LOG_MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
 const SAFE_LOG_FIELD_SET = new Set<string>(SAFE_LOG_FIELDS);
+// The inference roles of the signed policy; a role is one of these names or it is not logged.
+const SAFE_LOG_ROLES: ReadonlySet<string> = new Set(['embed', 'generate', 'critique', 'judge']);
 const EXPLICIT_CONTENT_FREE_FIELDS = new Set(['messageid', 'prompttokens', 'completiontokens']);
 const CODE_VALUE_FIELDS = new Set([
   'component',
@@ -206,6 +208,7 @@ function isSafeLogValue(key: string, value: unknown): boolean {
   if (typeof value === 'number') return Number.isFinite(value);
   if (typeof value !== 'string' || value.length > MAX_VALUE_LENGTH) return false;
   if (CODE_VALUE_FIELDS.has(key)) return SAFE_LOG_EVENT_PATTERN.test(value);
+  if (key === 'role') return SAFE_LOG_ROLES.has(value);
   if (key === 'requestId') return SAFE_LOG_REQUEST_ID_PATTERN.test(value);
   if (
     key === 'orgId' ||
