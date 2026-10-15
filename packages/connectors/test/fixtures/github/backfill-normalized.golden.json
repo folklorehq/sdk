@@ -120,7 +120,7 @@
       "entities": ["acme/widget", "PR#339"],
       "content": {
         "body": "Change 339\n\nBody for 339, follows #338",
-        "explicitLinks": ["#338"]
+        "explicitLinks": ["acme/widget#338"]
       },
       "metrics": [
         {
@@ -235,7 +235,7 @@
       "entities": ["acme/widget", "PR#338"],
       "content": {
         "body": "Change 338\n\nBody for 338, follows #337",
-        "explicitLinks": ["#337"]
+        "explicitLinks": ["acme/widget#337"]
       },
       "metrics": [
         {
@@ -292,7 +292,7 @@
       "entities": ["acme/widget", "PR#337"],
       "content": {
         "body": "Change 337\n\nBody for 337, follows #336",
-        "explicitLinks": ["#336"]
+        "explicitLinks": ["acme/widget#336"]
       },
       "metrics": [
         {
@@ -503,7 +503,7 @@
       "entities": ["acme/widget", "PR#335"],
       "content": {
         "body": "Change 335\n\nBody for 335, follows #334",
-        "explicitLinks": ["#334"]
+        "explicitLinks": ["acme/widget#334"]
       },
       "metrics": [
         {
@@ -606,7 +606,7 @@
       "entities": ["acme/widget", "PR#334"],
       "content": {
         "body": "Change 334\n\nBody for 334, follows #333",
-        "explicitLinks": ["#333"]
+        "explicitLinks": ["acme/widget#333"]
       },
       "metrics": [
         {
@@ -663,7 +663,7 @@
       "entities": ["acme/widget", "PR#333"],
       "content": {
         "body": "Change 333\n\nBody for 333, follows #332",
-        "explicitLinks": ["#332"]
+        "explicitLinks": ["acme/widget#332"]
       },
       "metrics": [
         {
@@ -835,7 +835,7 @@
       "entities": ["acme/widget", "PR#331"],
       "content": {
         "body": "Change 331\n\nBody for 331, follows #330",
-        "explicitLinks": ["#330"]
+        "explicitLinks": ["acme/widget#330"]
       },
       "metrics": [
         {
@@ -892,7 +892,7 @@
       "entities": ["acme/widget", "PR#330"],
       "content": {
         "body": "Change 330\n\nBody for 330, follows #329",
-        "explicitLinks": ["#329"]
+        "explicitLinks": ["acme/widget#329"]
       },
       "metrics": [
         {
@@ -1053,7 +1053,7 @@
       "entities": ["acme/widget", "PR#329"],
       "content": {
         "body": "Change 329\n\nBody for 329, follows #328",
-        "explicitLinks": ["#328"]
+        "explicitLinks": ["acme/widget#328"]
       },
       "metrics": [
         {
@@ -1206,7 +1206,7 @@
       "entities": ["acme/widget", "PR#327"],
       "content": {
         "body": "Change 327\n\nBody for 327, follows #326",
-        "explicitLinks": ["#326"]
+        "explicitLinks": ["acme/widget#326"]
       },
       "metrics": [
         {
@@ -1321,7 +1321,7 @@
       "entities": ["acme/widget", "PR#326"],
       "content": {
         "body": "Change 326\n\nBody for 326, follows #325",
-        "explicitLinks": ["#325"]
+        "explicitLinks": ["acme/widget#325"]
       },
       "metrics": [
         {
@@ -1378,7 +1378,7 @@
       "entities": ["acme/widget", "PR#325"],
       "content": {
         "body": "Change 325\n\nBody for 325, follows #324",
-        "explicitLinks": ["#324"]
+        "explicitLinks": ["acme/widget#324"]
       },
       "metrics": [
         {
@@ -1596,7 +1596,7 @@
       "entities": ["acme/widget", "PR#323"],
       "content": {
         "body": "Change 323\n\nBody for 323, follows #322",
-        "explicitLinks": ["#322"]
+        "explicitLinks": ["acme/widget#322"]
       },
       "metrics": [
         {
@@ -1653,7 +1653,7 @@
       "entities": ["acme/widget", "PR#322"],
       "content": {
         "body": "Change 322\n\nBody for 322, follows #321",
-        "explicitLinks": ["#321"]
+        "explicitLinks": ["acme/widget#321"]
       },
       "metrics": [
         {
@@ -1749,7 +1749,7 @@
       "entities": ["acme/widget", "PR#321"],
       "content": {
         "body": "Change 321\n\nBody for 321, follows #320",
-        "explicitLinks": ["#320"]
+        "explicitLinks": ["acme/widget#320"]
       },
       "metrics": [
         {
@@ -1967,7 +1967,7 @@
       "entities": ["acme/widget", "PR#319"],
       "content": {
         "body": "Change 319\n\nBody for 319, follows #318",
-        "explicitLinks": ["#318"]
+        "explicitLinks": ["acme/widget#318"]
       },
       "metrics": [
         {
@@ -2024,7 +2024,7 @@
       "entities": ["acme/widget", "PR#318"],
       "content": {
         "body": "Change 318\n\nBody for 318, follows #317",
-        "explicitLinks": ["#317"]
+        "explicitLinks": ["acme/widget#317"]
       },
       "metrics": [
         {
@@ -2139,7 +2139,7 @@
       "entities": ["acme/widget", "PR#317"],
       "content": {
         "body": "Change 317\n\nBody for 317, follows #316",
-        "explicitLinks": ["#316"]
+        "explicitLinks": ["acme/widget#316"]
       },
       "metrics": [
         {
@@ -2253,7 +2253,7 @@
       "entities": ["acme/widget", "PR#315"],
       "content": {
         "body": "Change 315\n\nBody for 315, follows #314",
-        "explicitLinks": ["#314"]
+        "explicitLinks": ["acme/widget#314"]
       },
       "metrics": [
         {
@@ -2414,7 +2414,7 @@
       "entities": ["acme/widget", "PR#314"],
       "content": {
         "body": "Change 314\n\nBody for 314, follows #313",
-        "explicitLinks": ["#313"]
+        "explicitLinks": ["acme/widget#313"]
       },
       "metrics": [
         {
@@ -2471,7 +2471,7 @@
       "entities": ["acme/widget", "PR#313"],
       "content": {
         "body": "Change 313\n\nBody for 313, follows #312",
-        "explicitLinks": ["#312"]
+        "explicitLinks": ["acme/widget#312"]
       },
       "metrics": [
         {
@@ -2643,7 +2643,7 @@
       "entities": ["acme/widget", "PR#311"],
       "content": {
         "body": "Change 311\n\nBody for 311, follows #310",
-        "explicitLinks": ["#310"]
+        "explicitLinks": ["acme/widget#310"]
       },
       "metrics": [
         {
@@ -2700,7 +2700,7 @@
       "entities": ["acme/widget", "PR#310"],
       "content": {
         "body": "Change 310\n\nBody for 310, follows #309",
-        "explicitLinks": ["#309"]
+        "explicitLinks": ["acme/widget#309"]
       },
       "metrics": [
         {
@@ -2803,7 +2803,7 @@
       "entities": ["acme/widget", "PR#309"],
       "content": {
         "body": "Change 309\n\nBody for 309, follows #308",
-        "explicitLinks": ["#308"]
+        "explicitLinks": ["acme/widget#308"]
       },
       "metrics": [
         {
@@ -3014,7 +3014,7 @@
       "entities": ["acme/widget", "PR#307"],
       "content": {
         "body": "Change 307\n\nBody for 307, follows #306",
-        "explicitLinks": ["#306"]
+        "explicitLinks": ["acme/widget#306"]
       },
       "metrics": [
         {
@@ -3071,7 +3071,7 @@
       "entities": ["acme/widget", "PR#306"],
       "content": {
         "body": "Change 306\n\nBody for 306, follows #305",
-        "explicitLinks": ["#305"]
+        "explicitLinks": ["acme/widget#305"]
       },
       "metrics": [
         {
@@ -3186,7 +3186,7 @@
       "entities": ["acme/widget", "PR#305"],
       "content": {
         "body": "Change 305\n\nBody for 305, follows #304",
-        "explicitLinks": ["#304"]
+        "explicitLinks": ["acme/widget#304"]
       },
       "metrics": [
         {
@@ -3346,7 +3346,7 @@
       "entities": ["acme/widget", "PR#303"],
       "content": {
         "body": "Change 303\n\nBody for 303, follows #302",
-        "explicitLinks": ["#302"]
+        "explicitLinks": ["acme/widget#302"]
       },
       "metrics": [
         {
@@ -3461,7 +3461,7 @@
       "entities": ["acme/widget", "PR#302"],
       "content": {
         "body": "Change 302\n\nBody for 302, follows #301",
-        "explicitLinks": ["#301"]
+        "explicitLinks": ["acme/widget#301"]
       },
       "metrics": [
         {
@@ -3518,7 +3518,7 @@
       "entities": ["acme/widget", "PR#301"],
       "content": {
         "body": "Change 301\n\nBody for 301, follows #300",
-        "explicitLinks": ["#300"]
+        "explicitLinks": ["acme/widget#300"]
       },
       "metrics": [
         {
@@ -3775,7 +3775,7 @@
       "entities": ["acme/widget", "PR#299"],
       "content": {
         "body": "Change 299\n\nBody for 299, follows #298",
-        "explicitLinks": ["#298"]
+        "explicitLinks": ["acme/widget#298"]
       },
       "metrics": [
         {
@@ -3832,7 +3832,7 @@
       "entities": ["acme/widget", "PR#298"],
       "content": {
         "body": "Change 298\n\nBody for 298, follows #297",
-        "explicitLinks": ["#297"]
+        "explicitLinks": ["acme/widget#297"]
       },
       "metrics": [
         {
@@ -3889,7 +3889,7 @@
       "entities": ["acme/widget", "PR#297"],
       "content": {
         "body": "Change 297\n\nBody for 297, follows #296",
-        "explicitLinks": ["#296"]
+        "explicitLinks": ["acme/widget#296"]
       },
       "metrics": [
         {
@@ -4061,7 +4061,7 @@
       "entities": ["acme/widget", "PR#295"],
       "content": {
         "body": "Change 295\n\nBody for 295, follows #294",
-        "explicitLinks": ["#294"]
+        "explicitLinks": ["acme/widget#294"]
       },
       "metrics": [
         {
@@ -4164,7 +4164,7 @@
       "entities": ["acme/widget", "PR#294"],
       "content": {
         "body": "Change 294\n\nBody for 294, follows #293",
-        "explicitLinks": ["#293"]
+        "explicitLinks": ["acme/widget#293"]
       },
       "metrics": [
         {
@@ -4318,7 +4318,7 @@
       "entities": ["acme/widget", "PR#293"],
       "content": {
         "body": "Change 293\n\nBody for 293, follows #292",
-        "explicitLinks": ["#292"]
+        "explicitLinks": ["acme/widget#292"]
       },
       "metrics": [
         {
@@ -4432,7 +4432,7 @@
       "entities": ["acme/widget", "PR#291"],
       "content": {
         "body": "Change 291\n\nBody for 291, follows #290",
-        "explicitLinks": ["#290"]
+        "explicitLinks": ["acme/widget#290"]
       },
       "metrics": [
         {
@@ -4547,7 +4547,7 @@
       "entities": ["acme/widget", "PR#290"],
       "content": {
         "body": "Change 290\n\nBody for 290, follows #289",
-        "explicitLinks": ["#289"]
+        "explicitLinks": ["acme/widget#289"]
       },
       "metrics": [
         {
@@ -4650,7 +4650,7 @@
       "entities": ["acme/widget", "PR#289"],
       "content": {
         "body": "Change 289\n\nBody for 289, follows #288",
-        "explicitLinks": ["#288"]
+        "explicitLinks": ["acme/widget#288"]
       },
       "metrics": [
         {
@@ -4822,7 +4822,7 @@
       "entities": ["acme/widget", "PR#287"],
       "content": {
         "body": "Change 287\n\nBody for 287, follows #286",
-        "explicitLinks": ["#286"]
+        "explicitLinks": ["acme/widget#286"]
       },
       "metrics": [
         {
@@ -4918,7 +4918,7 @@
       "entities": ["acme/widget", "PR#286"],
       "content": {
         "body": "Change 286\n\nBody for 286, follows #285",
-        "explicitLinks": ["#285"]
+        "explicitLinks": ["acme/widget#285"]
       },
       "metrics": [
         {
@@ -4975,7 +4975,7 @@
       "entities": ["acme/widget", "PR#285"],
       "content": {
         "body": "Change 285\n\nBody for 285, follows #284",
-        "explicitLinks": ["#284"]
+        "explicitLinks": ["acme/widget#284"]
       },
       "metrics": [
         {
@@ -5193,7 +5193,7 @@
       "entities": ["acme/widget", "PR#283"],
       "content": {
         "body": "Change 283\n\nBody for 283, follows #282",
-        "explicitLinks": ["#282"]
+        "explicitLinks": ["acme/widget#282"]
       },
       "metrics": [
         {
@@ -5250,7 +5250,7 @@
       "entities": ["acme/widget", "PR#282"],
       "content": {
         "body": "Change 282\n\nBody for 282, follows #281",
-        "explicitLinks": ["#281"]
+        "explicitLinks": ["acme/widget#281"]
       },
       "metrics": [
         {
@@ -5365,7 +5365,7 @@
       "entities": ["acme/widget", "PR#281"],
       "content": {
         "body": "Change 281\n\nBody for 281, follows #280",
-        "explicitLinks": ["#280"]
+        "explicitLinks": ["acme/widget#280"]
       },
       "metrics": [
         {
@@ -5525,7 +5525,7 @@
       "entities": ["acme/widget", "PR#279"],
       "content": {
         "body": "Change 279\n\nBody for 279, follows #278",
-        "explicitLinks": ["#278"]
+        "explicitLinks": ["acme/widget#278"]
       },
       "metrics": [
         {
@@ -5640,7 +5640,7 @@
       "entities": ["acme/widget", "PR#278"],
       "content": {
         "body": "Change 278\n\nBody for 278, follows #277",
-        "explicitLinks": ["#277"]
+        "explicitLinks": ["acme/widget#277"]
       },
       "metrics": [
         {
@@ -5697,7 +5697,7 @@
       "entities": ["acme/widget", "PR#277"],
       "content": {
         "body": "Change 277\n\nBody for 277, follows #276",
-        "explicitLinks": ["#276"]
+        "explicitLinks": ["acme/widget#276"]
       },
       "metrics": [
         {
@@ -5869,7 +5869,7 @@
       "entities": ["acme/widget", "PR#275"],
       "content": {
         "body": "Change 275\n\nBody for 275, follows #274",
-        "explicitLinks": ["#274"]
+        "explicitLinks": ["acme/widget#274"]
       },
       "metrics": [
         {
@@ -5972,7 +5972,7 @@
       "entities": ["acme/widget", "PR#274"],
       "content": {
         "body": "Change 274\n\nBody for 274, follows #273",
-        "explicitLinks": ["#273"]
+        "explicitLinks": ["acme/widget#273"]
       },
       "metrics": [
         {
@@ -6029,7 +6029,7 @@
       "entities": ["acme/widget", "PR#273"],
       "content": {
         "body": "Change 273\n\nBody for 273, follows #272",
-        "explicitLinks": ["#272"]
+        "explicitLinks": ["acme/widget#272"]
       },
       "metrics": [
         {
@@ -6240,7 +6240,7 @@
       "entities": ["acme/widget", "PR#271"],
       "content": {
         "body": "Change 271\n\nBody for 271, follows #270",
-        "explicitLinks": ["#270"]
+        "explicitLinks": ["acme/widget#270"]
       },
       "metrics": [
         {
@@ -6297,7 +6297,7 @@
       "entities": ["acme/widget", "PR#270"],
       "content": {
         "body": "Change 270\n\nBody for 270, follows #269",
-        "explicitLinks": ["#269"]
+        "explicitLinks": ["acme/widget#269"]
       },
       "metrics": [
         {
@@ -6458,7 +6458,7 @@
       "entities": ["acme/widget", "PR#269"],
       "content": {
         "body": "Change 269\n\nBody for 269, follows #268",
-        "explicitLinks": ["#268"]
+        "explicitLinks": ["acme/widget#268"]
       },
       "metrics": [
         {
@@ -6572,7 +6572,7 @@
       "entities": ["acme/widget", "PR#267"],
       "content": {
         "body": "Change 267\n\nBody for 267, follows #266",
-        "explicitLinks": ["#266"]
+        "explicitLinks": ["acme/widget#266"]
       },
       "metrics": [
         {
@@ -6687,7 +6687,7 @@
       "entities": ["acme/widget", "PR#266"],
       "content": {
         "body": "Change 266\n\nBody for 266, follows #265",
-        "explicitLinks": ["#265"]
+        "explicitLinks": ["acme/widget#265"]
       },
       "metrics": [
         {
@@ -6783,7 +6783,7 @@
       "entities": ["acme/widget", "PR#265"],
       "content": {
         "body": "Change 265\n\nBody for 265, follows #264",
-        "explicitLinks": ["#264"]
+        "explicitLinks": ["acme/widget#264"]
       },
       "metrics": [
         {
@@ -7001,7 +7001,7 @@
       "entities": ["acme/widget", "PR#263"],
       "content": {
         "body": "Change 263\n\nBody for 263, follows #262",
-        "explicitLinks": ["#262"]
+        "explicitLinks": ["acme/widget#262"]
       },
       "metrics": [
         {
@@ -7058,7 +7058,7 @@
       "entities": ["acme/widget", "PR#262"],
       "content": {
         "body": "Change 262\n\nBody for 262, follows #261",
-        "explicitLinks": ["#261"]
+        "explicitLinks": ["acme/widget#261"]
       },
       "metrics": [
         {
@@ -7115,7 +7115,7 @@
       "entities": ["acme/widget", "PR#261"],
       "content": {
         "body": "Change 261\n\nBody for 261, follows #260",
-        "explicitLinks": ["#260"]
+        "explicitLinks": ["acme/widget#260"]
       },
       "metrics": [
         {
@@ -7333,7 +7333,7 @@
       "entities": ["acme/widget", "PR#259"],
       "content": {
         "body": "Change 259\n\nBody for 259, follows #258",
-        "explicitLinks": ["#258"]
+        "explicitLinks": ["acme/widget#258"]
       },
       "metrics": [
         {
@@ -7429,7 +7429,7 @@
       "entities": ["acme/widget", "PR#258"],
       "content": {
         "body": "Change 258\n\nBody for 258, follows #257",
-        "explicitLinks": ["#257"]
+        "explicitLinks": ["acme/widget#257"]
       },
       "metrics": [
         {
@@ -7544,7 +7544,7 @@
       "entities": ["acme/widget", "PR#257"],
       "content": {
         "body": "Change 257\n\nBody for 257, follows #256",
-        "explicitLinks": ["#256"]
+        "explicitLinks": ["acme/widget#256"]
       },
       "metrics": [
         {
@@ -7658,7 +7658,7 @@
       "entities": ["acme/widget", "PR#255"],
       "content": {
         "body": "Change 255\n\nBody for 255, follows #254",
-        "explicitLinks": ["#254"]
+        "explicitLinks": ["acme/widget#254"]
       },
       "metrics": [
         {
@@ -7819,7 +7819,7 @@
       "entities": ["acme/widget", "PR#254"],
       "content": {
         "body": "Change 254\n\nBody for 254, follows #253",
-        "explicitLinks": ["#253"]
+        "explicitLinks": ["acme/widget#253"]
       },
       "metrics": [
         {
@@ -7876,7 +7876,7 @@
       "entities": ["acme/widget", "PR#253"],
       "content": {
         "body": "Change 253\n\nBody for 253, follows #252",
-        "explicitLinks": ["#252"]
+        "explicitLinks": ["acme/widget#252"]
       },
       "metrics": [
         {
@@ -8087,7 +8087,7 @@
       "entities": ["acme/widget", "PR#251"],
       "content": {
         "body": "Change 251\n\nBody for 251, follows #250",
-        "explicitLinks": ["#250"]
+        "explicitLinks": ["acme/widget#250"]
       },
       "metrics": [
         {
@@ -8144,7 +8144,7 @@
       "entities": ["acme/widget", "PR#250"],
       "content": {
         "body": "Change 250\n\nBody for 250, follows #249",
-        "explicitLinks": ["#249"]
+        "explicitLinks": ["acme/widget#249"]
       },
       "metrics": [
         {
@@ -8247,7 +8247,7 @@
       "entities": ["acme/widget", "PR#249"],
       "content": {
         "body": "Change 249\n\nBody for 249, follows #248",
-        "explicitLinks": ["#248"]
+        "explicitLinks": ["acme/widget#248"]
       },
       "metrics": [
         {
@@ -8419,7 +8419,7 @@
       "entities": ["acme/widget", "PR#247"],
       "content": {
         "body": "Change 247\n\nBody for 247, follows #246",
-        "explicitLinks": ["#246"]
+        "explicitLinks": ["acme/widget#246"]
       },
       "metrics": [
         {
@@ -8476,7 +8476,7 @@
       "entities": ["acme/widget", "PR#246"],
       "content": {
         "body": "Change 246\n\nBody for 246, follows #245",
-        "explicitLinks": ["#245"]
+        "explicitLinks": ["acme/widget#245"]
       },
       "metrics": [
         {
@@ -8591,7 +8591,7 @@
       "entities": ["acme/widget", "PR#245"],
       "content": {
         "body": "Change 245\n\nBody for 245, follows #244",
-        "explicitLinks": ["#244"]
+        "explicitLinks": ["acme/widget#244"]
       },
       "metrics": [
         {
@@ -8751,7 +8751,7 @@
       "entities": ["acme/widget", "PR#243"],
       "content": {
         "body": "Change 243\n\nBody for 243, follows #242",
-        "explicitLinks": ["#242"]
+        "explicitLinks": ["acme/widget#242"]
       },
       "metrics": [
         {
@@ -8866,7 +8866,7 @@
       "entities": ["acme/widget", "PR#242"],
       "content": {
         "body": "Change 242\n\nBody for 242, follows #241",
-        "explicitLinks": ["#241"]
+        "explicitLinks": ["acme/widget#241"]
       },
       "metrics": [
         {
@@ -8923,7 +8923,7 @@
       "entities": ["acme/widget", "PR#241"],
       "content": {
         "body": "Change 241\n\nBody for 241, follows #240",
-        "explicitLinks": ["#240"]
+        "explicitLinks": ["acme/widget#240"]
       },
       "metrics": [
         {
@@ -9141,7 +9141,7 @@
       "entities": ["acme/widget", "PR#239"],
       "content": {
         "body": "Change 239\n\nBody for 239, follows #238",
-        "explicitLinks": ["#238"]
+        "explicitLinks": ["acme/widget#238"]
       },
       "metrics": [
         {
@@ -9198,7 +9198,7 @@
       "entities": ["acme/widget", "PR#238"],
       "content": {
         "body": "Change 238\n\nBody for 238, follows #237",
-        "explicitLinks": ["#237"]
+        "explicitLinks": ["acme/widget#237"]
       },
       "metrics": [
         {
@@ -9294,7 +9294,7 @@
       "entities": ["acme/widget", "PR#237"],
       "content": {
         "body": "Change 237\n\nBody for 237, follows #236",
-        "explicitLinks": ["#236"]
+        "explicitLinks": ["acme/widget#236"]
       },
       "metrics": [
         {
@@ -9466,7 +9466,7 @@
       "entities": ["acme/widget", "PR#235"],
       "content": {
         "body": "Change 235\n\nBody for 235, follows #234",
-        "explicitLinks": ["#234"]
+        "explicitLinks": ["acme/widget#234"]
       },
       "metrics": [
         {
@@ -9569,7 +9569,7 @@
       "entities": ["acme/widget", "PR#234"],
       "content": {
         "body": "Change 234\n\nBody for 234, follows #233",
-        "explicitLinks": ["#233"]
+        "explicitLinks": ["acme/widget#233"]
       },
       "metrics": [
         {
@@ -9684,7 +9684,7 @@
       "entities": ["acme/widget", "PR#233"],
       "content": {
         "body": "Change 233\n\nBody for 233, follows #232",
-        "explicitLinks": ["#232"]
+        "explicitLinks": ["acme/widget#232"]
       },
       "metrics": [
         {
@@ -9798,7 +9798,7 @@
       "entities": ["acme/widget", "PR#231"],
       "content": {
         "body": "Change 231\n\nBody for 231, follows #230",
-        "explicitLinks": ["#230"]
+        "explicitLinks": ["acme/widget#230"]
       },
       "metrics": [
         {
@@ -9952,7 +9952,7 @@
       "entities": ["acme/widget", "PR#230"],
       "content": {
         "body": "Change 230\n\nBody for 230, follows #229",
-        "explicitLinks": ["#229"]
+        "explicitLinks": ["acme/widget#229"]
       },
       "metrics": [
         {
@@ -10055,7 +10055,7 @@
       "entities": ["acme/widget", "PR#229"],
       "content": {
         "body": "Change 229\n\nBody for 229, follows #228",
-        "explicitLinks": ["#228"]
+        "explicitLinks": ["acme/widget#228"]
       },
       "metrics": [
         {
@@ -10227,7 +10227,7 @@
       "entities": ["acme/widget", "PR#227"],
       "content": {
         "body": "Change 227\n\nBody for 227, follows #226",
-        "explicitLinks": ["#226"]
+        "explicitLinks": ["acme/widget#226"]
       },
       "metrics": [
         {
@@ -10284,7 +10284,7 @@
       "entities": ["acme/widget", "PR#226"],
       "content": {
         "body": "Change 226\n\nBody for 226, follows #225",
-        "explicitLinks": ["#225"]
+        "explicitLinks": ["acme/widget#225"]
       },
       "metrics": [
         {
@@ -10341,7 +10341,7 @@
       "entities": ["acme/widget", "PR#225"],
       "content": {
         "body": "Change 225\n\nBody for 225, follows #224",
-        "explicitLinks": ["#224"]
+        "explicitLinks": ["acme/widget#224"]
       },
       "metrics": [
         {
@@ -10598,7 +10598,7 @@
       "entities": ["acme/widget", "PR#223"],
       "content": {
         "body": "Change 223\n\nBody for 223, follows #222",
-        "explicitLinks": ["#222"]
+        "explicitLinks": ["acme/widget#222"]
       },
       "metrics": [
         {
@@ -10655,7 +10655,7 @@
       "entities": ["acme/widget", "PR#222"],
       "content": {
         "body": "Change 222\n\nBody for 222, follows #221",
-        "explicitLinks": ["#221"]
+        "explicitLinks": ["acme/widget#221"]
       },
       "metrics": [
         {
@@ -10770,7 +10770,7 @@
       "entities": ["acme/widget", "PR#221"],
       "content": {
         "body": "Change 221\n\nBody for 221, follows #220",
-        "explicitLinks": ["#220"]
+        "explicitLinks": ["acme/widget#220"]
       },
       "metrics": [
         {
@@ -10930,7 +10930,7 @@
       "entities": ["acme/widget", "PR#219"],
       "content": {
         "body": "Change 219\n\nBody for 219, follows #218",
-        "explicitLinks": ["#218"]
+        "explicitLinks": ["acme/widget#218"]
       },
       "metrics": [
         {
@@ -11045,7 +11045,7 @@
       "entities": ["acme/widget", "PR#218"],
       "content": {
         "body": "Change 218\n\nBody for 218, follows #217",
-        "explicitLinks": ["#217"]
+        "explicitLinks": ["acme/widget#217"]
       },
       "metrics": [
         {
@@ -11102,7 +11102,7 @@
       "entities": ["acme/widget", "PR#217"],
       "content": {
         "body": "Change 217\n\nBody for 217, follows #216",
-        "explicitLinks": ["#216"]
+        "explicitLinks": ["acme/widget#216"]
       },
       "metrics": [
         {
@@ -11313,7 +11313,7 @@
       "entities": ["acme/widget", "PR#215"],
       "content": {
         "body": "Change 215\n\nBody for 215, follows #214",
-        "explicitLinks": ["#214"]
+        "explicitLinks": ["acme/widget#214"]
       },
       "metrics": [
         {
@@ -11416,7 +11416,7 @@
       "entities": ["acme/widget", "PR#214"],
       "content": {
         "body": "Change 214\n\nBody for 214, follows #213",
-        "explicitLinks": ["#213"]
+        "explicitLinks": ["acme/widget#213"]
       },
       "metrics": [
         {
@@ -11473,7 +11473,7 @@
       "entities": ["acme/widget", "PR#213"],
       "content": {
         "body": "Change 213\n\nBody for 213, follows #212",
-        "explicitLinks": ["#212"]
+        "explicitLinks": ["acme/widget#212"]
       },
       "metrics": [
         {
@@ -11645,7 +11645,7 @@
       "entities": ["acme/widget", "PR#211"],
       "content": {
         "body": "Change 211\n\nBody for 211, follows #210",
-        "explicitLinks": ["#210"]
+        "explicitLinks": ["acme/widget#210"]
       },
       "metrics": [
         {
@@ -11702,7 +11702,7 @@
       "entities": ["acme/widget", "PR#210"],
       "content": {
         "body": "Change 210\n\nBody for 210, follows #209",
-        "explicitLinks": ["#209"]
+        "explicitLinks": ["acme/widget#209"]
       },
       "metrics": [
         {
@@ -11863,7 +11863,7 @@
       "entities": ["acme/widget", "PR#209"],
       "content": {
         "body": "Change 209\n\nBody for 209, follows #208",
-        "explicitLinks": ["#208"]
+        "explicitLinks": ["acme/widget#208"]
       },
       "metrics": [
         {
@@ -11977,7 +11977,7 @@
       "entities": ["acme/widget", "PR#207"],
       "content": {
         "body": "Change 207\n\nBody for 207, follows #206",
-        "explicitLinks": ["#206"]
+        "explicitLinks": ["acme/widget#206"]
       },
       "metrics": [
         {
@@ -12092,7 +12092,7 @@
       "entities": ["acme/widget", "PR#206"],
       "content": {
         "body": "Change 206\n\nBody for 206, follows #205",
-        "explicitLinks": ["#205"]
+        "explicitLinks": ["acme/widget#205"]
       },
       "metrics": [
         {
@@ -12149,7 +12149,7 @@
       "entities": ["acme/widget", "PR#205"],
       "content": {
         "body": "Change 205\n\nBody for 205, follows #204",
-        "explicitLinks": ["#204"]
+        "explicitLinks": ["acme/widget#204"]
       },
       "metrics": [
         {
@@ -12367,7 +12367,7 @@
       "entities": ["acme/widget", "PR#203"],
       "content": {
         "body": "Change 203\n\nBody for 203, follows #202",
-        "explicitLinks": ["#202"]
+        "explicitLinks": ["acme/widget#202"]
       },
       "metrics": [
         {
@@ -12463,7 +12463,7 @@
       "entities": ["acme/widget", "PR#202"],
       "content": {
         "body": "Change 202\n\nBody for 202, follows #201",
-        "explicitLinks": ["#201"]
+        "explicitLinks": ["acme/widget#201"]
       },
       "metrics": [
         {
@@ -12520,7 +12520,7 @@
       "entities": ["acme/widget", "PR#201"],
       "content": {
         "body": "Change 201\n\nBody for 201, follows #200",
-        "explicitLinks": ["#200"]
+        "explicitLinks": ["acme/widget#200"]
       },
       "metrics": [
         {
@@ -12738,7 +12738,7 @@
       "entities": ["acme/widget", "PR#199"],
       "content": {
         "body": "Change 199\n\nBody for 199, follows #198",
-        "explicitLinks": ["#198"]
+        "explicitLinks": ["acme/widget#198"]
       },
       "metrics": [
         {
@@ -12795,7 +12795,7 @@
       "entities": ["acme/widget", "PR#198"],
       "content": {
         "body": "Change 198\n\nBody for 198, follows #197",
-        "explicitLinks": ["#197"]
+        "explicitLinks": ["acme/widget#197"]
       },
       "metrics": [
         {
@@ -12910,7 +12910,7 @@
       "entities": ["acme/widget", "PR#197"],
       "content": {
         "body": "Change 197\n\nBody for 197, follows #196",
-        "explicitLinks": ["#196"]
+        "explicitLinks": ["acme/widget#196"]
       },
       "metrics": [
         {
@@ -13063,7 +13063,7 @@
       "entities": ["acme/widget", "PR#195"],
       "content": {
         "body": "Change 195\n\nBody for 195, follows #194",
-        "explicitLinks": ["#194"]
+        "explicitLinks": ["acme/widget#194"]
       },
       "metrics": [
         {
@@ -13224,7 +13224,7 @@
       "entities": ["acme/widget", "PR#194"],
       "content": {
         "body": "Change 194\n\nBody for 194, follows #193",
-        "explicitLinks": ["#193"]
+        "explicitLinks": ["acme/widget#193"]
       },
       "metrics": [
         {
@@ -13281,7 +13281,7 @@
       "entities": ["acme/widget", "PR#193"],
       "content": {
         "body": "Change 193\n\nBody for 193, follows #192",
-        "explicitLinks": ["#192"]
+        "explicitLinks": ["acme/widget#192"]
       },
       "metrics": [
         {
@@ -13453,7 +13453,7 @@
       "entities": ["acme/widget", "PR#191"],
       "content": {
         "body": "Change 191\n\nBody for 191, follows #190",
-        "explicitLinks": ["#190"]
+        "explicitLinks": ["acme/widget#190"]
       },
       "metrics": [
         {
@@ -13510,7 +13510,7 @@
       "entities": ["acme/widget", "PR#190"],
       "content": {
         "body": "Change 190\n\nBody for 190, follows #189",
-        "explicitLinks": ["#189"]
+        "explicitLinks": ["acme/widget#189"]
       },
       "metrics": [
         {
@@ -13613,7 +13613,7 @@
       "entities": ["acme/widget", "PR#189"],
       "content": {
         "body": "Change 189\n\nBody for 189, follows #188",
-        "explicitLinks": ["#188"]
+        "explicitLinks": ["acme/widget#188"]
       },
       "metrics": [
         {
@@ -13824,7 +13824,7 @@
       "entities": ["acme/widget", "PR#187"],
       "content": {
         "body": "Change 187\n\nBody for 187, follows #186",
-        "explicitLinks": ["#186"]
+        "explicitLinks": ["acme/widget#186"]
       },
       "metrics": [
         {
@@ -13881,7 +13881,7 @@
       "entities": ["acme/widget", "PR#186"],
       "content": {
         "body": "Change 186\n\nBody for 186, follows #185",
-        "explicitLinks": ["#185"]
+        "explicitLinks": ["acme/widget#185"]
       },
       "metrics": [
         {
@@ -13996,7 +13996,7 @@
       "entities": ["acme/widget", "PR#185"],
       "content": {
         "body": "Change 185\n\nBody for 185, follows #184",
-        "explicitLinks": ["#184"]
+        "explicitLinks": ["acme/widget#184"]
       },
       "metrics": [
         {
@@ -14156,7 +14156,7 @@
       "entities": ["acme/widget", "PR#183"],
       "content": {
         "body": "Change 183\n\nBody for 183, follows #182",
-        "explicitLinks": ["#182"]
+        "explicitLinks": ["acme/widget#182"]
       },
       "metrics": [
         {
@@ -14271,7 +14271,7 @@
       "entities": ["acme/widget", "PR#182"],
       "content": {
         "body": "Change 182\n\nBody for 182, follows #181",
-        "explicitLinks": ["#181"]
+        "explicitLinks": ["acme/widget#181"]
       },
       "metrics": [
         {
@@ -14367,7 +14367,7 @@
       "entities": ["acme/widget", "PR#181"],
       "content": {
         "body": "Change 181\n\nBody for 181, follows #180",
-        "explicitLinks": ["#180"]
+        "explicitLinks": ["acme/widget#180"]
       },
       "metrics": [
         {
@@ -14585,7 +14585,7 @@
       "entities": ["acme/widget", "PR#179"],
       "content": {
         "body": "Change 179\n\nBody for 179, follows #178",
-        "explicitLinks": ["#178"]
+        "explicitLinks": ["acme/widget#178"]
       },
       "metrics": [
         {
@@ -14642,7 +14642,7 @@
       "entities": ["acme/widget", "PR#178"],
       "content": {
         "body": "Change 178\n\nBody for 178, follows #177",
-        "explicitLinks": ["#177"]
+        "explicitLinks": ["acme/widget#177"]
       },
       "metrics": [
         {
@@ -14699,7 +14699,7 @@
       "entities": ["acme/widget", "PR#177"],
       "content": {
         "body": "Change 177\n\nBody for 177, follows #176",
-        "explicitLinks": ["#176"]
+        "explicitLinks": ["acme/widget#176"]
       },
       "metrics": [
         {
@@ -14871,7 +14871,7 @@
       "entities": ["acme/widget", "PR#175"],
       "content": {
         "body": "Change 175\n\nBody for 175, follows #174",
-        "explicitLinks": ["#174"]
+        "explicitLinks": ["acme/widget#174"]
       },
       "metrics": [
         {
@@ -14974,7 +14974,7 @@
       "entities": ["acme/widget", "PR#174"],
       "content": {
         "body": "Change 174\n\nBody for 174, follows #173",
-        "explicitLinks": ["#173"]
+        "explicitLinks": ["acme/widget#173"]
       },
       "metrics": [
         {
@@ -15089,7 +15089,7 @@
       "entities": ["acme/widget", "PR#173"],
       "content": {
         "body": "Change 173\n\nBody for 173, follows #172",
-        "explicitLinks": ["#172"]
+        "explicitLinks": ["acme/widget#172"]
       },
       "metrics": [
         {
@@ -15203,7 +15203,7 @@
       "entities": ["acme/widget", "PR#171"],
       "content": {
         "body": "Change 171\n\nBody for 171, follows #170",
-        "explicitLinks": ["#170"]
+        "explicitLinks": ["acme/widget#170"]
       },
       "metrics": [
         {
@@ -15318,7 +15318,7 @@
       "entities": ["acme/widget", "PR#170"],
       "content": {
         "body": "Change 170\n\nBody for 170, follows #169",
-        "explicitLinks": ["#169"]
+        "explicitLinks": ["acme/widget#169"]
       },
       "metrics": [
         {
@@ -15421,7 +15421,7 @@
       "entities": ["acme/widget", "PR#169"],
       "content": {
         "body": "Change 169\n\nBody for 169, follows #168",
-        "explicitLinks": ["#168"]
+        "explicitLinks": ["acme/widget#168"]
       },
       "metrics": [
         {
@@ -15632,7 +15632,7 @@
       "entities": ["acme/widget", "PR#167"],
       "content": {
         "body": "Change 167\n\nBody for 167, follows #166",
-        "explicitLinks": ["#166"]
+        "explicitLinks": ["acme/widget#166"]
       },
       "metrics": [
         {
@@ -15689,7 +15689,7 @@
       "entities": ["acme/widget", "PR#166"],
       "content": {
         "body": "Change 166\n\nBody for 166, follows #165",
-        "explicitLinks": ["#165"]
+        "explicitLinks": ["acme/widget#165"]
       },
       "metrics": [
         {
@@ -15746,7 +15746,7 @@
       "entities": ["acme/widget", "PR#165"],
       "content": {
         "body": "Change 165\n\nBody for 165, follows #164",
-        "explicitLinks": ["#164"]
+        "explicitLinks": ["acme/widget#164"]
       },
       "metrics": [
         {
@@ -15964,7 +15964,7 @@
       "entities": ["acme/widget", "PR#163"],
       "content": {
         "body": "Change 163\n\nBody for 163, follows #162",
-        "explicitLinks": ["#162"]
+        "explicitLinks": ["acme/widget#162"]
       },
       "metrics": [
         {
@@ -16021,7 +16021,7 @@
       "entities": ["acme/widget", "PR#162"],
       "content": {
         "body": "Change 162\n\nBody for 162, follows #161",
-        "explicitLinks": ["#161"]
+        "explicitLinks": ["acme/widget#161"]
       },
       "metrics": [
         {
@@ -16136,7 +16136,7 @@
       "entities": ["acme/widget", "PR#161"],
       "content": {
         "body": "Change 161\n\nBody for 161, follows #160",
-        "explicitLinks": ["#160"]
+        "explicitLinks": ["acme/widget#160"]
       },
       "metrics": [
         {
@@ -16335,7 +16335,7 @@
       "entities": ["acme/widget", "PR#159"],
       "content": {
         "body": "Change 159\n\nBody for 159, follows #158",
-        "explicitLinks": ["#158"]
+        "explicitLinks": ["acme/widget#158"]
       },
       "metrics": [
         {
@@ -16450,7 +16450,7 @@
       "entities": ["acme/widget", "PR#158"],
       "content": {
         "body": "Change 158\n\nBody for 158, follows #157",
-        "explicitLinks": ["#157"]
+        "explicitLinks": ["acme/widget#157"]
       },
       "metrics": [
         {
@@ -16507,7 +16507,7 @@
       "entities": ["acme/widget", "PR#157"],
       "content": {
         "body": "Change 157\n\nBody for 157, follows #156",
-        "explicitLinks": ["#156"]
+        "explicitLinks": ["acme/widget#156"]
       },
       "metrics": [
         {
@@ -16679,7 +16679,7 @@
       "entities": ["acme/widget", "PR#155"],
       "content": {
         "body": "Change 155\n\nBody for 155, follows #154",
-        "explicitLinks": ["#154"]
+        "explicitLinks": ["acme/widget#154"]
       },
       "metrics": [
         {
@@ -16782,7 +16782,7 @@
       "entities": ["acme/widget", "PR#154"],
       "content": {
         "body": "Change 154\n\nBody for 154, follows #153",
-        "explicitLinks": ["#153"]
+        "explicitLinks": ["acme/widget#153"]
       },
       "metrics": [
         {
@@ -16878,7 +16878,7 @@
       "entities": ["acme/widget", "PR#153"],
       "content": {
         "body": "Change 153\n\nBody for 153, follows #152",
-        "explicitLinks": ["#152"]
+        "explicitLinks": ["acme/widget#152"]
       },
       "metrics": [
         {
@@ -17050,7 +17050,7 @@
       "entities": ["acme/widget", "PR#151"],
       "content": {
         "body": "Change 151\n\nBody for 151, follows #150",
-        "explicitLinks": ["#150"]
+        "explicitLinks": ["acme/widget#150"]
       },
       "metrics": [
         {
@@ -17107,7 +17107,7 @@
       "entities": ["acme/widget", "PR#150"],
       "content": {
         "body": "Change 150\n\nBody for 150, follows #149",
-        "explicitLinks": ["#149"]
+        "explicitLinks": ["acme/widget#149"]
       },
       "metrics": [
         {
@@ -17268,7 +17268,7 @@
       "entities": ["acme/widget", "PR#149"],
       "content": {
         "body": "Change 149\n\nBody for 149, follows #148",
-        "explicitLinks": ["#148"]
+        "explicitLinks": ["acme/widget#148"]
       },
       "metrics": [
         {
@@ -17382,7 +17382,7 @@
       "entities": ["acme/widget", "PR#147"],
       "content": {
         "body": "Change 147\n\nBody for 147, follows #146",
-        "explicitLinks": ["#146"]
+        "explicitLinks": ["acme/widget#146"]
       },
       "metrics": [
         {
@@ -17536,7 +17536,7 @@
       "entities": ["acme/widget", "PR#146"],
       "content": {
         "body": "Change 146\n\nBody for 146, follows #145",
-        "explicitLinks": ["#145"]
+        "explicitLinks": ["acme/widget#145"]
       },
       "metrics": [
         {
@@ -17593,7 +17593,7 @@
       "entities": ["acme/widget", "PR#145"],
       "content": {
         "body": "Change 145\n\nBody for 145, follows #144",
-        "explicitLinks": ["#144"]
+        "explicitLinks": ["acme/widget#144"]
       },
       "metrics": [
         {
@@ -17811,7 +17811,7 @@
       "entities": ["acme/widget", "PR#143"],
       "content": {
         "body": "Change 143\n\nBody for 143, follows #142",
-        "explicitLinks": ["#142"]
+        "explicitLinks": ["acme/widget#142"]
       },
       "metrics": [
         {
@@ -17868,7 +17868,7 @@
       "entities": ["acme/widget", "PR#142"],
       "content": {
         "body": "Change 142\n\nBody for 142, follows #141",
-        "explicitLinks": ["#141"]
+        "explicitLinks": ["acme/widget#141"]
       },
       "metrics": [
         {
@@ -17925,7 +17925,7 @@
       "entities": ["acme/widget", "PR#141"],
       "content": {
         "body": "Change 141\n\nBody for 141, follows #140",
-        "explicitLinks": ["#140"]
+        "explicitLinks": ["acme/widget#140"]
       },
       "metrics": [
         {
@@ -18143,7 +18143,7 @@
       "entities": ["acme/widget", "PR#139"],
       "content": {
         "body": "Change 139\n\nBody for 139, follows #138",
-        "explicitLinks": ["#138"]
+        "explicitLinks": ["acme/widget#138"]
       },
       "metrics": [
         {
@@ -18200,7 +18200,7 @@
       "entities": ["acme/widget", "PR#138"],
       "content": {
         "body": "Change 138\n\nBody for 138, follows #137",
-        "explicitLinks": ["#137"]
+        "explicitLinks": ["acme/widget#137"]
       },
       "metrics": [
         {
@@ -18315,7 +18315,7 @@
       "entities": ["acme/widget", "PR#137"],
       "content": {
         "body": "Change 137\n\nBody for 137, follows #136",
-        "explicitLinks": ["#136"]
+        "explicitLinks": ["acme/widget#136"]
       },
       "metrics": [
         {
@@ -18429,7 +18429,7 @@
       "entities": ["acme/widget", "PR#135"],
       "content": {
         "body": "Change 135\n\nBody for 135, follows #134",
-        "explicitLinks": ["#134"]
+        "explicitLinks": ["acme/widget#134"]
       },
       "metrics": [
         {
@@ -18590,7 +18590,7 @@
       "entities": ["acme/widget", "PR#134"],
       "content": {
         "body": "Change 134\n\nBody for 134, follows #133",
-        "explicitLinks": ["#133"]
+        "explicitLinks": ["acme/widget#133"]
       },
       "metrics": [
         {
@@ -18647,7 +18647,7 @@
       "entities": ["acme/widget", "PR#133"],
       "content": {
         "body": "Change 133\n\nBody for 133, follows #132",
-        "explicitLinks": ["#132"]
+        "explicitLinks": ["acme/widget#132"]
       },
       "metrics": [
         {
@@ -18858,7 +18858,7 @@
       "entities": ["acme/widget", "PR#131"],
       "content": {
         "body": "Change 131\n\nBody for 131, follows #130",
-        "explicitLinks": ["#130"]
+        "explicitLinks": ["acme/widget#130"]
       },
       "metrics": [
         {
@@ -18915,7 +18915,7 @@
       "entities": ["acme/widget", "PR#130"],
       "content": {
         "body": "Change 130\n\nBody for 130, follows #129",
-        "explicitLinks": ["#129"]
+        "explicitLinks": ["acme/widget#129"]
       },
       "metrics": [
         {
@@ -19018,7 +19018,7 @@
       "entities": ["acme/widget", "PR#129"],
       "content": {
         "body": "Change 129\n\nBody for 129, follows #128",
-        "explicitLinks": ["#128"]
+        "explicitLinks": ["acme/widget#128"]
       },
       "metrics": [
         {
@@ -19190,7 +19190,7 @@
       "entities": ["acme/widget", "PR#127"],
       "content": {
         "body": "Change 127\n\nBody for 127, follows #126",
-        "explicitLinks": ["#126"]
+        "explicitLinks": ["acme/widget#126"]
       },
       "metrics": [
         {
@@ -19247,7 +19247,7 @@
       "entities": ["acme/widget", "PR#126"],
       "content": {
         "body": "Change 126\n\nBody for 126, follows #125",
-        "explicitLinks": ["#125"]
+        "explicitLinks": ["acme/widget#125"]
       },
       "metrics": [
         {
@@ -19401,7 +19401,7 @@
       "entities": ["acme/widget", "PR#125"],
       "content": {
         "body": "Change 125\n\nBody for 125, follows #124",
-        "explicitLinks": ["#124"]
+        "explicitLinks": ["acme/widget#124"]
       },
       "metrics": [
         {
@@ -19561,7 +19561,7 @@
       "entities": ["acme/widget", "PR#123"],
       "content": {
         "body": "Change 123\n\nBody for 123, follows #122",
-        "explicitLinks": ["#122"]
+        "explicitLinks": ["acme/widget#122"]
       },
       "metrics": [
         {
@@ -19676,7 +19676,7 @@
       "entities": ["acme/widget", "PR#122"],
       "content": {
         "body": "Change 122\n\nBody for 122, follows #121",
-        "explicitLinks": ["#121"]
+        "explicitLinks": ["acme/widget#121"]
       },
       "metrics": [
         {
@@ -19733,7 +19733,7 @@
       "entities": ["acme/widget", "PR#121"],
       "content": {
         "body": "Change 121\n\nBody for 121, follows #120",
-        "explicitLinks": ["#120"]
+        "explicitLinks": ["acme/widget#120"]
       },
       "metrics": [
         {
@@ -19951,7 +19951,7 @@
       "entities": ["acme/widget", "PR#119"],
       "content": {
         "body": "Change 119\n\nBody for 119, follows #118",
-        "explicitLinks": ["#118"]
+        "explicitLinks": ["acme/widget#118"]
       },
       "metrics": [
         {
@@ -20047,7 +20047,7 @@
       "entities": ["acme/widget", "PR#118"],
       "content": {
         "body": "Change 118\n\nBody for 118, follows #117",
-        "explicitLinks": ["#117"]
+        "explicitLinks": ["acme/widget#117"]
       },
       "metrics": [
         {
@@ -20104,7 +20104,7 @@
       "entities": ["acme/widget", "PR#117"],
       "content": {
         "body": "Change 117\n\nBody for 117, follows #116",
-        "explicitLinks": ["#116"]
+        "explicitLinks": ["acme/widget#116"]
       },
       "metrics": [
         {
@@ -20276,7 +20276,7 @@
       "entities": ["acme/widget", "PR#115"],
       "content": {
         "body": "Change 115\n\nBody for 115, follows #114",
-        "explicitLinks": ["#114"]
+        "explicitLinks": ["acme/widget#114"]
       },
       "metrics": [
         {
@@ -20379,7 +20379,7 @@
       "entities": ["acme/widget", "PR#114"],
       "content": {
         "body": "Change 114\n\nBody for 114, follows #113",
-        "explicitLinks": ["#113"]
+        "explicitLinks": ["acme/widget#113"]
       },
       "metrics": [
         {
@@ -20494,7 +20494,7 @@
       "entities": ["acme/widget", "PR#113"],
       "content": {
         "body": "Change 113\n\nBody for 113, follows #112",
-        "explicitLinks": ["#112"]
+        "explicitLinks": ["acme/widget#112"]
       },
       "metrics": [
         {
@@ -20647,7 +20647,7 @@
       "entities": ["acme/widget", "PR#111"],
       "content": {
         "body": "Change 111\n\nBody for 111, follows #110",
-        "explicitLinks": ["#110"]
+        "explicitLinks": ["acme/widget#110"]
       },
       "metrics": [
         {

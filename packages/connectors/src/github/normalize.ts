@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { FACT_METRIC_KEYS, FACT_METRIC_UNITS, type FactMetricKey } from '@folklore/contracts';
-import { extractExplicitLinks } from '@folklore/utils';
+import { extractExplicitLinks, githubItemKey } from '@folklore/utils';
 import type {
   NormalizedActor,
   NormalizedFact,
@@ -20,7 +20,7 @@ import type {
 } from './types.js';
 
 export function pullRequestContainerId(repo: GitHubRepo, pullNumber: number): string {
-  return `${repo.full_name}#${pullNumber}`;
+  return githubItemKey(repo.full_name, pullNumber);
 }
 
 /** Diff/comment scalars for a PR-opened Fact. Counts only — no filename ever enters. */
@@ -90,7 +90,7 @@ export function normalizePullRequest(
       entities: githubEntities(repo, pr.number),
       content: {
         body: [pr.title, pr.body ?? ''].filter(Boolean).join('\n\n'),
-        explicitLinks: extractExplicitLinks(pr.body ?? ''),
+        explicitLinks: extractExplicitLinks(pr.body ?? '', repo.full_name),
       },
       metrics: metricsInput ? pullRequestMetrics(metricsInput) : undefined,
       raw: pr,
@@ -153,7 +153,10 @@ export function normalizeIssueComment(
     containerRefs: [pullRequestContainerId(repo, pullNumber)],
     sourceThreadId: pullRequestContainerId(repo, pullNumber),
     entities: githubEntities(repo, pullNumber),
-    content: { body: comment.body, explicitLinks: extractExplicitLinks(comment.body) },
+    content: {
+      body: comment.body,
+      explicitLinks: extractExplicitLinks(comment.body, repo.full_name),
+    },
     raw: comment,
   };
 }
@@ -174,7 +177,10 @@ export function normalizeCommit(repo: GitHubRepo, commit: GitHubCommit): Normali
     // Commit↔PR membership is N:M and resolved during ingestion (stacked PRs).
     containerRefs: [],
     entities: [...githubEntities(repo), ...changedFiles],
-    content: { body: commit.message, explicitLinks: extractExplicitLinks(commit.message) },
+    content: {
+      body: commit.message,
+      explicitLinks: extractExplicitLinks(commit.message, repo.full_name),
+    },
     metrics: [metric(FACT_METRIC_KEYS.commitChangedFiles, changedFiles.length)],
     raw: commit,
   };

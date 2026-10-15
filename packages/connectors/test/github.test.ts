@@ -10,6 +10,7 @@ import {
   normalizePullRequest,
   normalizePullRequestEvent,
   normalizePullRequestTransition,
+  pullRequestContainerId,
 } from '../src/github/normalize.js';
 import type {
   GitHubIssueComment,
@@ -47,7 +48,7 @@ describe('Fact vs. Container classification', () => {
     expect(fact.sourceFactId).toBe('github:pr_opened:1001');
     expect(fact.containerRefs).toEqual(['acme/widget#7']);
     expect(fact.authors[0]).toMatchObject({ sourceUserId: '5', displayName: 'Nate A' });
-    expect(fact.content?.explicitLinks).toContain('#3');
+    expect(fact.content?.explicitLinks).toContain('acme/widget#3');
   });
 
   it('exposes repo full_name + PR ref as structured entities, never the branch (#68)', () => {
@@ -98,6 +99,49 @@ describe('Fact vs. Container classification', () => {
     });
     expect(fact.sourceFactId).toBe('github:commit:abc123');
     expect(fact.containerRefs).toEqual([]);
+  });
+});
+
+describe('explicit links use the referenced container key', () => {
+  const otherRepo: GitHubRepo = { id: 43, full_name: 'acme/gadget', private: true };
+  const referenced = [
+    pullRequestContainerId(repo, 12),
+    pullRequestContainerId(otherRepo, 45),
+    pullRequestContainerId(repo, 31),
+    pullRequestContainerId(repo, 418),
+  ];
+  const body =
+    'Fixes #12, closes acme/gadget#45, follow-up to https://github.com/acme/widget/pull/31/files (#418)';
+
+  it('keys a PR body the way the referenced PR containers are keyed', () => {
+    const { fact } = normalizePullRequest(repo, { ...pr, body });
+    expect(fact.content?.explicitLinks).toEqual(expect.arrayContaining(referenced));
+  });
+
+  it('keys a PR comment the same way', () => {
+    const fact = normalizeIssueComment(repo, pr.number, {
+      id: 901,
+      body,
+      user: { id: 6, login: 'rev' },
+      created_at: '2026-06-02T09:00:00Z',
+    });
+    expect(fact.content?.explicitLinks).toEqual(expect.arrayContaining(referenced));
+  });
+
+  it('keys a squash-merge commit title to the PR that merged it', () => {
+    const fact = normalizeCommit(repo, {
+      sha: 'abc124',
+      message: 'feat(api): retry uploads (#418)',
+      author: { id: 5, login: 'nate' },
+      timestamp: '2026-06-02T08:00:00Z',
+    });
+    expect(fact.content?.explicitLinks).toEqual([pullRequestContainerId(repo, 418)]);
+  });
+
+  it('never keys a bare #N to the same number in another repo', () => {
+    const { fact } = normalizePullRequest(repo, { ...pr, body: 'Fixes #45' });
+    expect(fact.content?.explicitLinks).toEqual([pullRequestContainerId(repo, 45)]);
+    expect(fact.content?.explicitLinks).not.toContain(pullRequestContainerId(otherRepo, 45));
   });
 });
 

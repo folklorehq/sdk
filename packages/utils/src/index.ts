@@ -18,6 +18,7 @@ export {
   escapeRegExp,
   escapeSqlLikePattern,
   extractExplicitLinks,
+  githubItemKey,
   extractMentions,
 } from './text.js';
 export { groupBy, chunk } from './collection.js';

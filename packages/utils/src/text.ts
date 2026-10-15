@@ -29,16 +29,36 @@ export function escapeSqlLikePattern(value: string): string {
 }
 
 const URL_RE = /https?:\/\/[^\s)]+/g;
-const ISSUE_REF_RE = /(?:^|\s)(#\d+)\b/g;
+const REF_BOUNDARY = '(?:^|[\\s(\\[,])';
+const ISSUE_REF_RE = new RegExp(`${REF_BOUNDARY}(#\\d+)\\b`, 'g');
+const GITHUB_OWNER = '[A-Za-z0-9][A-Za-z0-9-]{0,38}';
+const GITHUB_REPO = '[A-Za-z0-9._-]{1,100}';
+const CROSS_REPO_REF_RE = new RegExp(
+  `${REF_BOUNDARY}(${GITHUB_OWNER}\\/${GITHUB_REPO})#(\\d+)\\b`,
+  'g',
+);
+const GITHUB_ITEM_URL_RE = new RegExp(
+  `^https?:\\/\\/(?:www\\.)?github\\.com\\/(${GITHUB_OWNER}\\/${GITHUB_REPO})\\/(?:pull|issues)\\/(\\d+)\\b`,
+);
 
-/** Pull URLs and `#123` issue references out of free text (ADL: explicit_links). */
-export function extractExplicitLinks(body: string): string[] {
+/** A GitHub pull request or issue's source-native key, `owner/repo#N`. */
+export function githubItemKey(repoFullName: string, itemNumber: number | string): string {
+  return `${repoFullName}#${itemNumber}`;
+}
+
+/** URLs and `#N` references in free text; GitHub items become `githubItemKey`s, a bare `#N` scoped to `repoFullName` when given. */
+export function extractExplicitLinks(body: string, repoFullName?: string): string[] {
   const links = new Set<string>();
   for (const match of body.matchAll(URL_RE)) {
-    links.add(match[0]);
+    const item = GITHUB_ITEM_URL_RE.exec(match[0]);
+    links.add(item?.[1] && item[2] ? githubItemKey(item[1], item[2]) : match[0]);
+  }
+  for (const match of body.matchAll(CROSS_REPO_REF_RE)) {
+    if (match[1] && match[2]) links.add(githubItemKey(match[1], match[2]));
   }
   for (const match of body.matchAll(ISSUE_REF_RE)) {
-    if (match[1]) links.add(match[1]);
+    if (!match[1]) continue;
+    links.add(repoFullName ? githubItemKey(repoFullName, match[1].slice(1)) : match[1]);
   }
   return [...links];
 }
