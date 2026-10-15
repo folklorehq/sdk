@@ -837,6 +837,24 @@ describe('synthesisRequestSchema', () => {
       }),
     ).toThrow();
   });
+
+  it('keeps a sectioned generation request', () => {
+    expect(synthesisRequestSchema.parse({ ...valid, generation: 'sectioned' }).generation).toBe(
+      'sectioned',
+    );
+    expect(synthesisQueueRequestSchema.parse({ ...valid, generation: 'sectioned' })).toMatchObject({
+      type: 'wiki_synthesis',
+      generation: 'sectioned',
+    });
+  });
+
+  it('leaves generation absent when the producer omits it', () => {
+    expect('generation' in synthesisRequestSchema.parse(valid)).toBe(false);
+  });
+
+  it('rejects an unknown generation', () => {
+    expect(() => synthesisRequestSchema.parse({ ...valid, generation: 'outline' })).toThrow();
+  });
 });
 
 describe('knowledgeNeighborhoodSchema', () => {
@@ -1106,6 +1124,7 @@ type EnclaveSynthesisRequest = {
   newlyAssociatedFactIds: string[];
   inputTokenBudget: number;
   knowledgeSkeleton?: EnclaveKnowledgeSkeleton;
+  generation?: 'article' | 'sectioned';
 };
 
 type _KnowledgeSkeletonPinned = Expect<Equal<KnowledgeSkeleton, EnclaveKnowledgeSkeleton>>;

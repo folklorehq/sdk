@@ -526,6 +526,10 @@ export const synthesisAudienceSchema = z.object({
 });
 export type SynthesisAudience = z.infer<typeof synthesisAudienceSchema>;
 
+export const WIKI_SYNTHESIS_GENERATIONS = ['article', 'sectioned'] as const;
+export const wikiSynthesisGenerationSchema = z.enum(WIKI_SYNTHESIS_GENERATIONS);
+export type WikiSynthesisGeneration = z.infer<typeof wikiSynthesisGenerationSchema>;
+
 export const synthesisRequestSchema = z.object({
   type: z.literal('wiki_synthesis'),
   requestId: z.string(),
@@ -548,6 +552,7 @@ export const synthesisRequestSchema = z.object({
   // Content-free graph neighborhood (ids/edges/weights/tags) the worker assembled from AGE;
   // the enclave hydrates it into a KnowledgeNeighborhood for the cross-wiki prompt block.
   knowledgeSkeleton: knowledgeSkeletonSchema.optional(),
+  generation: wikiSynthesisGenerationSchema.optional(),
 });
 export type SynthesisRequest = z.infer<typeof synthesisRequestSchema>;
 
