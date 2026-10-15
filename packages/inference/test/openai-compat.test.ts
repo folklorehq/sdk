@@ -569,3 +569,151 @@ describe('OpenAICompatBackend', () => {
     );
   });
 });
+
+describe('OpenAICompatBackend response shapes', () => {
+  const SECRET = 'secret-reasoning-about-acme';
+  const EXHAUSTED = 'OpenAI-compatible endpoint exhausted its output tokens';
+  const MALFORMED_CHAT = 'OpenAI-compatible endpoint returned a malformed chat response';
+  const TOOL = { name: 'report', description: 'Report.', parameters: { type: 'object' } };
+
+  function backendReturning(text: string, usageSink = vi.fn()): OpenAICompatBackend {
+    const bytes = new TextEncoder().encode(text);
+    return new OpenAICompatBackend({
+      baseUrl: BASE_URL,
+      usageSink,
+      fetchImpl: vi.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        headers: new Headers(),
+        arrayBuffer: () => Promise.resolve(bytes.buffer as ArrayBuffer),
+        body: null,
+      }) as unknown as typeof fetch,
+    });
+  }
+
+  const reasoningOnly = (finishReason?: string, content: string | null = null) =>
+    JSON.stringify({
+      choices: [
+        {
+          message: { role: 'assistant', content, reasoning_content: SECRET },
+          ...(finishReason === undefined ? {} : { finish_reason: finishReason }),
+        },
+      ],
+    });
+
+  it.each<[string, string, string]>([
+    ['null content after the budget ran out', reasoningOnly('length'), EXHAUSTED],
+    ['blank content after the budget ran out', reasoningOnly('length', ' \n'), EXHAUSTED],
+    ['an answer cut off at the budget', reasoningOnly('length', `partial ${SECRET}`), EXHAUSTED],
+    [
+      'null content with no finish reason',
+      reasoningOnly(),
+      'OpenAI-compatible endpoint returned no content',
+    ],
+    [
+      'a 200 error body with no choices',
+      JSON.stringify({ error: { message: SECRET } }),
+      MALFORMED_CHAT,
+    ],
+    ['a JSON null body', 'null', MALFORMED_CHAT],
+    ['a body that is not JSON', `<html>${SECRET}</html>`, MALFORMED_CHAT],
+    [
+      'content parts instead of a string',
+      JSON.stringify({ choices: [{ message: { content: [{ type: 'text', text: SECRET }] } }] }),
+      MALFORMED_CHAT,
+    ],
+  ])(
+    'generate rejects %s with a fixed sentence, not a TypeError',
+    async (_label, body, sentence) => {
+      const failure = await backendReturning(body)
+        .generate('prompt')
+        .catch((error: unknown) => error);
+
+      expect(failure).not.toBeInstanceOf(TypeError);
+      expect((failure as Error).message).toBe(sentence);
+      expect((failure as Error).cause).toBeUndefined();
+    },
+  );
+
+  it.each<[string, string, string]>([
+    [
+      'a tool call with no function',
+      JSON.stringify({ choices: [{ message: { content: null, tool_calls: [{ id: 'call' }] } }] }),
+      MALFORMED_CHAT,
+    ],
+    [
+      'tool arguments that are an object, not a string',
+      JSON.stringify({
+        choices: [{ message: { tool_calls: [{ function: { name: 'report', arguments: {} } }] } }],
+      }),
+      MALFORMED_CHAT,
+    ],
+    ['no tool call after the budget ran out', reasoningOnly('length'), EXHAUSTED],
+    [
+      'tool arguments that are not valid JSON',
+      JSON.stringify({
+        choices: [
+          {
+            message: {
+              tool_calls: [{ function: { name: 'report', arguments: `{"note": ${SECRET}}` } }],
+            },
+          },
+        ],
+      }),
+      'OpenAI-compatible endpoint returned invalid structured output',
+    ],
+    [
+      'a 200 error body with no choices',
+      JSON.stringify({ error: { message: SECRET } }),
+      MALFORMED_CHAT,
+    ],
+  ])(
+    'generateStructured rejects %s with a fixed sentence, not a TypeError',
+    async (_label, body, sentence) => {
+      const failure = await backendReturning(body)
+        .generateStructured('prompt', { tool: TOOL })
+        .catch((error: unknown) => error);
+
+      expect(failure).not.toBeInstanceOf(TypeError);
+      expect(failure).not.toBeInstanceOf(SyntaxError);
+      expect((failure as Error).message).toBe(sentence);
+      expect((failure as Error).cause).toBeUndefined();
+    },
+  );
+
+  it('rejects an embedding body with no data as malformed', async () => {
+    await expect(
+      backendReturning(JSON.stringify({ error: { message: SECRET } })).embed('text'),
+    ).rejects.toThrow('OpenAI-compatible endpoint returned a malformed embedding response');
+  });
+
+  it('rejects a stream chunk with no choices as malformed', async () => {
+    const bytes = new TextEncoder().encode(`data: {"error":"${SECRET}"}\n\ndata: [DONE]\n`);
+    const backend = new OpenAICompatBackend({
+      baseUrl: BASE_URL,
+      fetchImpl: vi.fn().mockResolvedValue(new Response(bytes, { status: 200 })),
+    });
+    const drain = async () => {
+      for await (const _token of backend.stream('prompt')) {
+        // drained for its failure
+      }
+    };
+
+    await expect(drain()).rejects.toThrow(
+      'OpenAI-compatible endpoint returned a malformed stream response',
+    );
+  });
+
+  it('keeps a non-object usage from failing the call and counts it as zero', async () => {
+    const usageSink = vi.fn();
+    const body = JSON.stringify({
+      choices: [{ message: { content: 'answer' }, finish_reason: 'stop' }],
+      usage: 'not-an-object',
+    });
+
+    await expect(backendReturning(body, usageSink).generate('prompt')).resolves.toBe('answer');
+    expect(usageSink).toHaveBeenCalledWith(
+      expect.objectContaining({ promptTokens: 0, completionTokens: 0 }),
+    );
+  });
+});

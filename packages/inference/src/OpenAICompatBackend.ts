@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash, randomBytes } from 'node:crypto';
 import { abortAfter, extractJsonObject } from '@folklore/utils';
+import { z, type ZodType, type ZodTypeDef } from 'zod';
 import type { TelemetryClient } from '@folklore/telemetry';
 import type {
   EmbedOptions,
@@ -63,31 +64,41 @@ interface OpenAIUsage {
   completion_tokens?: unknown;
 }
 
-interface OpenAIEmbeddingResponse {
-  data: Array<{ embedding: number[] }>;
-  usage?: OpenAIUsage;
-}
+// Cost telemetry must never fail a call, so a usage of any other shape reads as absent.
+const usageSchema = z
+  .unknown()
+  .transform((usage): OpenAIUsage | undefined =>
+    typeof usage === 'object' && usage !== null ? usage : undefined,
+  );
 
-interface OpenAIChatResponse {
-  choices: Array<{ message: { content: string } }>;
-  usage?: OpenAIUsage;
-}
+const embeddingResponseSchema = z.object({
+  data: z.array(z.object({ embedding: z.array(z.number()) })),
+  usage: usageSchema,
+});
 
-interface OpenAIToolChatResponse {
-  choices: Array<{
-    message: {
-      content?: string | null;
-      tool_calls?: Array<{ function: { name: string; arguments: string } }>;
-    };
-  }>;
-  usage?: OpenAIUsage;
-}
+const chatChoiceSchema = z.object({
+  message: z
+    .object({
+      content: z.string().nullish(),
+      tool_calls: z.array(z.object({ function: z.object({ arguments: z.string() }) })).nullish(),
+    })
+    .nullish(),
+  finish_reason: z.string().nullish(),
+});
 
+const chatResponseSchema = z.object({ choices: z.array(chatChoiceSchema), usage: usageSchema });
+
+const chatStreamChunkSchema = z.object({
+  choices: z.array(z.object({ delta: z.object({ content: z.string().nullish() }).nullish() })),
+});
+
+type ChatChoice = z.infer<typeof chatChoiceSchema>;
+type ChatResponse = z.infer<typeof chatResponseSchema>;
+type ResponseKind = 'embedding' | 'chat' | 'stream';
 type ParsedToolArguments = Record<string, unknown>;
 
-interface OpenAIChatStreamChunk {
-  choices: Array<{ delta: { content?: string }; finish_reason: string | null }>;
-}
+// `length` means the reply hit max_tokens: reasoning ate the budget, or the answer was cut off.
+const LENGTH_FINISH_REASON = 'length';
 
 export interface InferenceModelSelection {
   model: string;
@@ -174,7 +185,7 @@ export class OpenAICompatBackend implements InferenceBackend {
 
       const rawResponse = await this.readResponse(res);
       await this.verifyResponse(res, requestText, rawResponse, selection, nonce);
-      const data = this.parseResponse<OpenAIEmbeddingResponse>(rawResponse);
+      const data = this.parseResponse(rawResponse, embeddingResponseSchema, 'embedding');
       const embedding = data.data[0]?.embedding;
       if (!embedding) throw new Error(`${this.label} returned no embedding`);
       if (this.embedDimensions !== undefined && embedding.length !== this.embedDimensions) {
@@ -229,9 +240,8 @@ export class OpenAICompatBackend implements InferenceBackend {
 
       const rawResponse = await this.readResponse(res);
       await this.verifyResponse(res, requestText, rawResponse, selection, nonce);
-      const data = this.parseResponse<OpenAIChatResponse>(rawResponse);
-      const content = data.choices[0]?.message?.content;
-      if (content === undefined) throw new Error(`${this.label} returned no content`);
+      const data = this.parseResponse(rawResponse, chatResponseSchema, 'chat');
+      const content = this.choiceContent(data.choices[0]);
       this.recordUsage(model, 'generate', data.usage);
       this.telemetry?.track('inference.generate', 'system', {
         model,
@@ -274,7 +284,7 @@ export class OpenAICompatBackend implements InferenceBackend {
 
       const rawResponse = await this.readResponse(res);
       await this.verifyResponse(res, requestText, rawResponse, selection, nonce);
-      const data = this.parseResponse<OpenAIToolChatResponse>(rawResponse);
+      const data = this.parseResponse(rawResponse, chatResponseSchema, 'chat');
       const parsed =
         this.structuredOutputMode === 'json_schema'
           ? this.parseJsonSchemaArguments(data)
@@ -346,7 +356,7 @@ export class OpenAICompatBackend implements InferenceBackend {
         if (!trimmed.startsWith('data: ')) continue;
         const payload = trimmed.slice('data: '.length);
         if (payload === '[DONE]') return;
-        const chunk = JSON.parse(payload) as OpenAIChatStreamChunk;
+        const chunk = this.parseJson(payload, chatStreamChunkSchema, 'stream');
         const token = chunk.choices[0]?.delta?.content;
         if (token) yield token;
       }
@@ -402,10 +412,9 @@ export class OpenAICompatBackend implements InferenceBackend {
     return body;
   }
 
-  private parseJsonSchemaArguments(data: OpenAIToolChatResponse): Record<string, unknown> {
-    const message = data.choices[0]?.message;
-    const raw = message?.tool_calls?.[0]?.function.arguments ?? message?.content ?? undefined;
-    if (raw === undefined || raw === null) this.throwInvalidStructuredOutput();
+  private parseJsonSchemaArguments(data: ChatResponse): Record<string, unknown> {
+    const raw = this.structuredText(data.choices[0]);
+    if (raw === undefined) this.throwInvalidStructuredOutput();
 
     let parsed: unknown;
     try {
@@ -425,13 +434,37 @@ export class OpenAICompatBackend implements InferenceBackend {
 
   // A forced tool call returns its JSON in `tool_calls[0].function.arguments`; some models
   // instead inline the object in `content`, so fall back to parsing the first JSON object there.
-  private parseToolArguments(data: OpenAIToolChatResponse, toolName: string): ParsedToolArguments {
-    const message = data.choices[0]?.message;
-    const raw = message?.tool_calls?.[0]?.function.arguments ?? message?.content ?? undefined;
-    if (raw === undefined || raw === null) {
+  private parseToolArguments(data: ChatResponse, toolName: string): ParsedToolArguments {
+    const raw = this.structuredText(data.choices[0]);
+    if (raw === undefined) {
       throw new Error(`${this.label} returned no tool call for "${toolName}"`);
     }
-    return JSON.parse(extractJsonObject(raw));
+    try {
+      return JSON.parse(extractJsonObject(raw)) as ParsedToolArguments;
+    } catch {
+      this.throwInvalidStructuredOutput();
+    }
+  }
+
+  private structuredText(choice: ChatChoice | undefined): string | undefined {
+    const message = choice?.message;
+    const raw = message?.tool_calls?.[0]?.function.arguments ?? message?.content ?? undefined;
+    if (raw === undefined) this.assertNotExhausted(choice);
+    return raw;
+  }
+
+  // A cut-off answer is never returned as finished prose; `null` content never reaches a caller.
+  private choiceContent(choice: ChatChoice | undefined): string {
+    this.assertNotExhausted(choice);
+    const content = choice?.message?.content;
+    if (typeof content !== 'string') throw new Error(`${this.label} returned no content`);
+    return content;
+  }
+
+  private assertNotExhausted(choice: ChatChoice | undefined): void {
+    if (choice?.finish_reason === LENGTH_FINISH_REASON) {
+      throw new Error(`${this.label} exhausted its output tokens`);
+    }
   }
 
   // Cost telemetry must never be able to break inference, so a throwing sink is swallowed — and
@@ -525,8 +558,33 @@ export class OpenAICompatBackend implements InferenceBackend {
     return new Uint8Array(await res.arrayBuffer());
   }
 
-  private parseResponse<T>(raw: Uint8Array): T {
-    return JSON.parse(new TextDecoder().decode(raw)) as T;
+  private parseResponse<T>(
+    raw: Uint8Array,
+    schema: ZodType<T, ZodTypeDef, unknown>,
+    kind: ResponseKind,
+  ): T {
+    return this.parseJson(new TextDecoder().decode(raw), schema, kind);
+  }
+
+  // A JSON parser's message can quote the body, so neither it nor the schema issues are kept.
+  private parseJson<T>(
+    text: string,
+    schema: ZodType<T, ZodTypeDef, unknown>,
+    kind: ResponseKind,
+  ): T {
+    let value: unknown;
+    try {
+      value = JSON.parse(text);
+    } catch {
+      throw this.malformed(kind);
+    }
+    const parsed = schema.safeParse(value);
+    if (!parsed.success) throw this.malformed(kind);
+    return parsed.data;
+  }
+
+  private malformed(kind: ResponseKind): Error {
+    return new Error(`${this.label} returned a malformed ${kind} response`);
   }
 
   private async verifyResponse(
