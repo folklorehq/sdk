@@ -21,6 +21,13 @@ export {
   extractMentions,
 } from './text.js';
 export {
+  CLEAR_ENTITY_PATTERN,
+  HASHED_ENTITY_PATTERN,
+  HASHED_ENTITY_PREFIX,
+  isClearEntity,
+  isStorableEntity,
+} from './entity-keys.js';
+export {
   ANCHORED_GITHUB_ITEM_KEY_PATTERN,
   ANCHORED_ISSUE_KEY_PATTERN,
   CANONICAL_LINK_KEY_PATTERN,
