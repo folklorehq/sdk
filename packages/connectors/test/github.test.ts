@@ -18,21 +18,9 @@ import type {
   GitHubRepo,
   PullRequestEvent,
 } from '../src/github/types.js';
+import { pr, repo } from './fixtures/github.js';
 
 const context: ConnectorContext = { logger: new PinoLogger({ level: 'silent' }) };
-
-const repo: GitHubRepo = { id: 42, full_name: 'acme/widget', private: true };
-
-const pr: GitHubPullRequest = {
-  id: 1001,
-  number: 7,
-  title: 'Add connectors',
-  body: 'Implements the framework. See #3 and https://example.com/spec',
-  state: 'open',
-  user: { id: 5, login: 'nate', name: 'Nate A' },
-  created_at: '2026-06-01T10:00:00Z',
-  updated_at: '2026-06-01T10:00:00Z',
-};
 
 describe('Fact vs. Container classification', () => {
   it('maps a PR to a stateful Container + a seed content Fact', () => {

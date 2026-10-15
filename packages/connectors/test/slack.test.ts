@@ -10,7 +10,8 @@ import {
 import { HttpSlackClient } from '../src/slack/HttpSlackClient.js';
 import type { SlackClient } from '../src/slack/index.js';
 import type { Logger } from '@folklore/core';
-import type { SlackMessage, SlackReactionEvent } from '../src/slack/index.js';
+import type { SlackMessage } from '../src/slack/index.js';
+import { makeMessage, makeReaction } from './fixtures/slack.js';
 
 describe('HttpSlackClient egress agent', () => {
   it('hands the supplied agent to the underlying WebClient (axios sets proxy: false)', () => {
@@ -26,17 +27,6 @@ describe('HttpSlackClient egress agent', () => {
     expect(() => new HttpSlackClient('xoxb-token')).not.toThrow();
   });
 });
-
-function makeMessage(overrides: Partial<SlackMessage> = {}): SlackMessage {
-  return {
-    type: 'message',
-    channel: 'C12345',
-    user: 'U99999',
-    text: 'Hello world',
-    ts: '1700000000.000001',
-    ...overrides,
-  };
-}
 
 describe('slackThreadId', () => {
   it('formats as slack:{channelId}:{ts}', () => {
@@ -239,19 +229,8 @@ describe('normalizeSlackMessage — deletions', () => {
 });
 
 describe('normalizeSlackReaction', () => {
-  function reaction(overrides: Partial<SlackReactionEvent> = {}): SlackReactionEvent {
-    return {
-      type: 'reaction_added',
-      user: 'U55555',
-      reaction: 'thumbsup',
-      item: { type: 'message', channel: 'C12345', ts: '1700000000.000001' },
-      event_ts: '1700000300.000000',
-      ...overrides,
-    };
-  }
-
   it('produces a transition Fact attributed to the reacting user', () => {
-    const result = normalizeSlackReaction(reaction());
+    const result = normalizeSlackReaction(makeReaction());
     expect(result.facts).toHaveLength(1);
     expect(result.facts[0]!.kind).toBe('transition');
     expect(result.facts[0]!.transition?.transitionType).toBe('reaction_added');
@@ -259,27 +238,27 @@ describe('normalizeSlackReaction', () => {
   });
 
   it('keeps the emoji name out of the shared-Postgres metadata detail', () => {
-    const result = normalizeSlackReaction(reaction({ reaction: 'shipit' }));
+    const result = normalizeSlackReaction(makeReaction({ reaction: 'shipit' }));
     expect(JSON.stringify(result.facts[0]!.transition?.detail)).not.toContain('shipit');
     expect(result.facts[0]!.transition?.detail).toEqual({ field: 'reaction' });
   });
 
   it('links the reaction to the reacted message and creates no container', () => {
-    const result = normalizeSlackReaction(reaction());
+    const result = normalizeSlackReaction(makeReaction());
     expect(result.containers).toHaveLength(0);
     expect(result.facts[0]!.sourceThreadId).toBe('slack:C12345:1700000000.000001');
   });
 
   it('distinguishes add from remove and dedups per user+emoji+moment', () => {
-    const added = normalizeSlackReaction(reaction());
-    const removed = normalizeSlackReaction(reaction({ type: 'reaction_removed' }));
+    const added = normalizeSlackReaction(makeReaction());
+    const removed = normalizeSlackReaction(makeReaction({ type: 'reaction_removed' }));
     expect(added.facts[0]!.sourceFactId).not.toBe(removed.facts[0]!.sourceFactId);
     expect(removed.facts[0]!.transition?.transitionType).toBe('reaction_removed');
   });
 
   it('drops a reaction missing its item target', () => {
     const result = normalizeSlackReaction(
-      reaction({ item: { type: 'message', channel: '', ts: '' } }),
+      makeReaction({ item: { type: 'message', channel: '', ts: '' } }),
     );
     expect(result.facts).toHaveLength(0);
   });

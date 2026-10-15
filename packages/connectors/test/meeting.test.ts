@@ -2,8 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { PinoLogger } from '@folklore/logger';
 import { MeetingConnector } from '../src/meeting/index.js';
-import type { DirectUploadPayload } from '../src/meeting/index.js';
 import { normalizeVttUpload } from '../src/meeting/normalize.js';
+import { directUpload } from './fixtures/meeting.js';
 
 const VTT = ['WEBVTT', '', '1', '00:00:00.000 --> 00:00:02.000', '<v Alice>Hello team.', ''].join(
   '\n',
@@ -11,22 +11,6 @@ const VTT = ['WEBVTT', '', '1', '00:00:00.000 --> 00:00:02.000', '<v Alice>Hello
 
 function connector(): MeetingConnector {
   return new MeetingConnector({ logger: new PinoLogger({ level: 'silent' }) });
-}
-
-function directUpload(): DirectUploadPayload {
-  return {
-    id: 'meet-1',
-    title: 'Q3 roadmap sync',
-    startedAt: '2026-01-01T00:00:00Z',
-    participants: [
-      { id: 'p1', displayName: 'Alice' },
-      { id: 'p2', displayName: 'Bob' },
-    ],
-    segments: [
-      { speakerId: 'p1', text: 'Kicking things off.', startMs: 0 },
-      { speakerId: 'p2', text: 'Sounds good.', startMs: 5000 },
-    ],
-  };
 }
 
 describe('MeetingConnector — structural entities', () => {
