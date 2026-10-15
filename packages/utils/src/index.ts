@@ -22,7 +22,7 @@ export {
   extractMentions,
 } from './text.js';
 export { groupBy, chunk } from './collection.js';
-export { mapWithConcurrency, timeLimited, sleep } from './async.js';
+export { abortAfter, mapWithConcurrency, timeLimited, sleep } from './async.js';
 export { parseJsonFence, extractJsonObject } from './json.js';
 export { ingestWebhookUrl } from './ingest.js';
 export { isAllowedRecallMeetingUrl } from './recall/meeting-host.js';

@@ -34,6 +34,7 @@ const SOURCE_KINDS = new Set([
 ]);
 const INFERENCE_MODELS = new Set([
   'moonshotai/kimi-k3',
+  'z-ai/glm-5.3',
   'z-ai/glm-5.2',
   'qwen/qwen3-32b',
   'qwen/qwen3-embedding-8b',

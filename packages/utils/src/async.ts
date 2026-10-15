@@ -17,6 +17,16 @@ export async function timeLimited<T>(promise: Promise<T>, ms: number): Promise<T
   }
 }
 
+const REQUEST_TIMEOUT_ERROR = 'TimeoutError';
+
+/** Aborts `controller` with a `TimeoutError` after `ms`; the caller clears the returned timer. */
+export function abortAfter(controller: AbortController, ms: number): ReturnType<typeof setTimeout> {
+  return setTimeout(
+    () => controller.abort(new DOMException('request timed out', REQUEST_TIMEOUT_ERROR)),
+    ms,
+  );
+}
+
 /** Map `items` through `fn` with at most `limit` in flight, preserving input order. */
 export async function mapWithConcurrency<T, R>(
   items: readonly T[],

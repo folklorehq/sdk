@@ -1,0 +1,54 @@
+{
+  "api_version": "aci/1",
+  "channel_binding": [
+    {
+      "origin": "https://inference.tinfoil.sh",
+      "spki_sha256": "1fb743c49aa79fff8ee99d216d7e1c3a7ac1d8d769af6e55b59954ae4951d9d7",
+      "type": "tls_spki_sha256"
+    }
+  ],
+  "claims": {
+    "extra": {
+      "code_fingerprint": "e5c798b32b679a12f8aaa79cd3f378b4645c66120718436475325a24eff41e4c",
+      "config_repo": "tinfoilsh/confidential-model-router",
+      "evidence_scope": "router",
+      "release_digest": "8daaecd40cd29b45d508d7250feadf5e3eff555cb6fadd58131c996598007e97",
+      "tls_spki_from_report_data": true,
+      "trust_boundary": "router",
+      "used_router": true,
+      "verification_steps": {
+        "compare_measurements": "success",
+        "fetch_digest": "success",
+        "verify_code": "success",
+        "verify_enclave": "success"
+      }
+    },
+    "gpu_attested": { "status": "unknown" },
+    "model_weights_provenance": { "status": "unknown" },
+    "os_known_good": { "status": "unknown" },
+    "serving_software_known_good": {
+      "reason": "Sigstore-verified code measurement matches tinfoilsh/confidential-model-router (release 8daaecd40cd29b45d508d7250feadf5e3eff555cb6fadd58131c996598007e97)",
+      "source": "verifier_derived",
+      "status": "asserted"
+    },
+    "tcb_up_to_date": {
+      "reason": "Tinfoil's verifier requires an up-to-date TCB for a verified result; no separable TcbStatus is surfaced",
+      "source": "verifier_derived",
+      "status": "asserted"
+    },
+    "tee_attested": {
+      "reason": "private-ai-verifier/tinfoil/v1 verified the TEE quote and bound the request channel",
+      "source": "hardware_proven",
+      "status": "asserted"
+    }
+  },
+  "endpoint": "https://inference.tinfoil.sh",
+  "established_at": 1792036901,
+  "evidence": {
+    "data": "data:application/json;base64,eyJjb25maWdfcmVwbyI6InRpbmZvaWxzaC9jb25maWRlbnRpYWwtbW9kZWwtcm91dGVyIiwiZW5jbGF2ZV9ob3N0IjoiaW5mZXJlbmNlLnRpbmZvaWwuc2giLCJyZWxlYXNlX2RpZ2VzdCI6IjhkYWFlY2Q0MGNkMjliNDVkNTA4ZDcyNTBmZWFkZjVlM2VmZjU1NWNiNmZhZGQ1ODEzMWM5OTY1OTgwMDdlOTciLCJjb2RlX2ZpbmdlcnByaW50IjoiZTVjNzk4YjMyYjY3OWExMmY4YWFhNzljZDNmMzc4YjQ2NDVjNjYxMjA3MTg0MzY0NzUzMjVhMjRlZmY0MWU0YyIsImVuY2xhdmVfZmluZ2VycHJpbnQiOiI5YjU0OTM3MTRhZjQ4MjY1NmQ0M2Q5NjM3NzRkYTExODVhNjExZGFjMTRhNDZhMDNjZmJkZTVhMjk4NDIwMWE5ZDQxZmMyYjZhNWY4MWI4MDZlNThhY2FlMTA0MjI2YTYiLCJ0bHNfcHVibGljX2tleV9mcCI6IjFmYjc0M2M0OWFhNzlmZmY4ZWU5OWQyMTZkN2UxYzNhN2FjMWQ4ZDc2OWFmNmU1NWI1OTk1NGFlNDk1MWQ5ZDciLCJocGtlX3B1YmxpY19rZXkiOiJmNzU1N2ViZjJmMjY2MzY2NTNjODhmYjMyODkzYzE4YWYzMDE1MjdiZWEyOWE2NzYyNmYwMTM0OWU3Nzg4YTQzIiwic2VjdXJpdHlfdmVyaWZpZWQiOnRydWUsInN0ZXBzIjp7ImZldGNoX2RpZ2VzdCI6eyJzdGF0dXMiOiJzdWNjZXNzIiwiZXJyb3IiOm51bGx9LCJ2ZXJpZnlfY29kZSI6eyJzdGF0dXMiOiJzdWNjZXNzIiwiZXJyb3IiOm51bGx9LCJ2ZXJpZnlfZW5jbGF2ZSI6eyJzdGF0dXMiOiJzdWNjZXNzIiwiZXJyb3IiOm51bGx9LCJjb21wYXJlX21lYXN1cmVtZW50cyI6eyJzdGF0dXMiOiJzdWNjZXNzIiwiZXJyb3IiOm51bGx9fX0=",
+    "digest": "sha256:6447df0a0b3a07f9cf4aaccdcc41b447f3c9fbf13a9603ff7aa94db047521645"
+  },
+  "expires_at": 1792040501,
+  "upstream_name": "tinfoil",
+  "verifier_id": "private-ai-verifier/tinfoil/v1"
+}

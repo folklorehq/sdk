@@ -5,7 +5,7 @@ import {
   type AciReceipt,
   type InferenceTrustPolicyV2,
 } from '@folklore/contracts';
-import { canonicalJson } from '@folklore/utils';
+import { abortAfter, canonicalJson } from '@folklore/utils';
 import type {
   InferenceAttestationContext,
   InferenceExchangeEvidence,
@@ -137,7 +137,7 @@ export class PublicAciResponseVerifier implements InferenceResponseVerifier {
 
   private async fetchReceipt(receiptId: string): Promise<AciReceipt> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), RECEIPT_FETCH_TIMEOUT_MS);
+    const timer = abortAfter(controller, RECEIPT_FETCH_TIMEOUT_MS);
     let response: Response;
     try {
       response = await this.config.fetchImpl(

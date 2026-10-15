@@ -20,9 +20,10 @@ describe('parseModelAllowlist', () => {
     expect(parseModelAllowlist(undefined, ['only/model'])).toEqual(['only/model']);
   });
 
-  it('includes the four live-verified confidential models by default', () => {
+  it('includes the live-verified confidential models by default', () => {
     expect(DEFAULT_VERIFIED_MODELS).toEqual([
       'moonshotai/kimi-k3',
+      'z-ai/glm-5.3',
       'z-ai/glm-5.2',
       'qwen/qwen3-32b',
       'qwen/qwen3-embedding-8b',

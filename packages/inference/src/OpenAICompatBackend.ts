@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash, randomBytes } from 'node:crypto';
-import { extractJsonObject } from '@folklore/utils';
+import { abortAfter, extractJsonObject } from '@folklore/utils';
 import type { TelemetryClient } from '@folklore/telemetry';
 import type {
   EmbedOptions,
@@ -144,7 +144,7 @@ export class OpenAICompatBackend implements InferenceBackend {
       this.attestationContext(selection, '/v1/embeddings'),
     );
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = abortAfter(controller, this.timeoutMs);
     const start = Date.now();
 
     try {
@@ -201,7 +201,7 @@ export class OpenAICompatBackend implements InferenceBackend {
       this.attestationContext(selection, '/v1/chat/completions'),
     );
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = abortAfter(controller, this.timeoutMs);
     const start = Date.now();
 
     try {
@@ -254,7 +254,7 @@ export class OpenAICompatBackend implements InferenceBackend {
       this.attestationContext(selection, '/v1/chat/completions'),
     );
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = abortAfter(controller, this.timeoutMs);
     const start = Date.now();
 
     try {
@@ -301,7 +301,7 @@ export class OpenAICompatBackend implements InferenceBackend {
       this.attestationContext(selection, '/v1/chat/completions'),
     );
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs * STREAM_TIMEOUT_MULTIPLIER);
+    const timer = abortAfter(controller, this.timeoutMs * STREAM_TIMEOUT_MULTIPLIER);
 
     try {
       const requestText = JSON.stringify({

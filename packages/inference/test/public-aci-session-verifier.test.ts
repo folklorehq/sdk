@@ -110,6 +110,15 @@ const observedSession = JSON.parse(
   ),
 ) as Record<string, unknown>;
 const OBSERVED_SESSION_ID = '5f0afd6e7d5dad1b0cbd007954aa1c4c3e7a06485b98dbdd709ce38fefa08c0d';
+// Phala's public transparency session for z-ai/glm-5.3 (router-scoped evidence), kept byte-identical.
+const observedRouterSession = JSON.parse(
+  readFileSync(
+    new URL('./fixtures/phala-public/tinfoil-glm-5-3-session.json', import.meta.url),
+    'utf8',
+  ),
+) as Record<string, unknown>;
+const OBSERVED_ROUTER_SESSION_ID =
+  'c1766dda4a3143331611db835d505ba08736e0c027d9897b465c0e2c0fbfd678';
 
 // Phala's public session for moonshotai/kimi-k3, fetched 2026-10-14 and kept byte-identical.
 const KIMI_SESSION_BYTES = readFileSync(
@@ -466,6 +475,7 @@ describe('PublicAciSessionVerifier', () => {
 
   it.each([
     ['moonshotai/kimi-k3', 'moonshotai/Kimi-K3-TEE'],
+    ['z-ai/glm-5.3', 'glm-5-3'],
     ['z-ai/glm-5.2', 'zai-org/GLM-5.2-TEE'],
     ['qwen/qwen3-32b', 'Qwen/Qwen3-32B-TEE'],
     ['qwen/qwen3-embedding-8b', 'Qwen/Qwen3-Embedding-8B-TEE'],
@@ -684,6 +694,111 @@ describe('PublicAciSessionVerifier', () => {
         }),
       ),
     ).resolves.toBe('public_aci_session_evidence_missing');
+  });
+
+  describe('the observed router-scoped glm-5.3 session', () => {
+    const servedAt = 1_792_037_000;
+    const routerModel = 'z-ai/glm-5.3';
+    const routerUpstreamId = 'glm-5-3';
+    const reviewedPolicy = (): PublicAciSessionPolicy => ({
+      ...chutesPolicy(),
+      model: routerModel,
+      maxSessionLifetimeSeconds: 3_600,
+    });
+    const verifyObserved = (
+      session: Record<string, unknown>,
+      upstream: readonly UpstreamOverride[] = [{ model_id: routerUpstreamId }],
+      sessionPolicy: PublicAciSessionPolicy = reviewedPolicy(),
+    ) => {
+      const { verifier, input } = setup(session, servedAt, upstream);
+      return verifier.verify({ ...input, trustedNow: servedAt, policy: sessionPolicy });
+    };
+    const claims = observedRouterSession['claims'] as Record<string, unknown>;
+
+    it('verifies on the hashed path under the reviewed policy', async () => {
+      await expect(verifyObserved(observedRouterSession)).resolves.toMatchObject({
+        sessionId: OBSERVED_ROUTER_SESSION_ID,
+        model: routerModel,
+        upstreamName: 'tinfoil',
+        verifierId: 'private-ai-verifier/tinfoil/v1',
+        evidenceMode: 'hashed',
+        evidenceDigest: 'sha256:6447df0a0b3a07f9cf4aaccdcc41b447f3c9fbf13a9603ff7aa94db047521645',
+      });
+    });
+
+    it.each([
+      ['the gateway alias', routerModel],
+      ['the previous generate id', 'zai-org/GLM-5.2-TEE'],
+      ['a near miss', `${routerUpstreamId}-TEE`],
+      ['the model card id', 'zai-org/GLM-5.3'],
+    ])('refuses a receipt naming %s as the upstream', async (_label, modelId) => {
+      await expect(
+        refusal(verifyObserved(observedRouterSession, [{ model_id: modelId }])),
+      ).resolves.toBe('public_aci_upstream_model_mismatch');
+    });
+
+    it('refuses the session stripped of its evidence: its verifier is not evidence-free', async () => {
+      await expect(
+        refusal(verifyObserved({ ...observedRouterSession, evidence: {} })),
+      ).resolves.toBe('public_aci_session_evidence_missing');
+    });
+
+    it('refuses evidence that no longer hashes to its digest', async () => {
+      const evidenceRef = observedRouterSession['evidence'] as { digest: string; data: string };
+      const tampered = {
+        ...evidenceRef,
+        data: `data:application/json;base64,${Buffer.from('{"security_verified":true}').toString('base64')}`,
+      };
+      await expect(
+        refusal(verifyObserved({ ...observedRouterSession, evidence: tampered })),
+      ).resolves.toBe('public_aci_session_evidence_digest_mismatch');
+    });
+
+    it.each<[string, unknown]>([
+      [
+        'a verifier-derived TEE claim',
+        { ...(claims['tee_attested'] as object), source: 'verifier_derived' },
+      ],
+      ['an unknown TEE claim', { status: 'unknown' }],
+      ['a refuted TEE claim', { ...(claims['tee_attested'] as object), status: 'refuted' }],
+    ])('refuses %s', async (_label, teeAttested) => {
+      const session = {
+        ...observedRouterSession,
+        claims: { ...claims, tee_attested: teeAttested },
+      };
+      await expect(refusal(verifyObserved(session))).resolves.toBe(
+        'public_aci_session_claim_policy_failed',
+      );
+    });
+
+    it.each<[string, Record<string, unknown>]>([
+      ['a chutes-algorithm binding from another provider', chutesBinding({ provider: 'tinfoil' })],
+      ['an unreviewed e2ee algorithm', e2eeBinding('hpke-x25519')],
+    ])('refuses %s in place of the TLS binding', async (_label, binding) => {
+      await expect(
+        refusal(verifyObserved({ ...observedRouterSession, channel_binding: [binding] })),
+      ).resolves.toBe('public_aci_session_channel_policy_failed');
+    });
+
+    it('refuses the TLS binding under a policy that accepts no TLS binding', async () => {
+      const base = reviewedPolicy();
+      const tlsFree = {
+        ...base,
+        acceptedChannelBindings: base.acceptedChannelBindings.filter(
+          (binding) => binding.type !== 'tls_spki_sha256',
+        ),
+      };
+      await expect(
+        refusal(verifyObserved(observedRouterSession, undefined, tlsFree)),
+      ).resolves.toBe('public_aci_session_channel_policy_failed');
+    });
+
+    it('refuses a session lifetime beyond the reviewed maximum', async () => {
+      const session = { ...observedRouterSession, expires_at: 1_792_036_901 + 3_601 };
+      await expect(refusal(verifyObserved(session))).resolves.toBe(
+        'public_aci_session_binding_invalid',
+      );
+    });
   });
 
   it.each<[string, Record<string, unknown>]>([

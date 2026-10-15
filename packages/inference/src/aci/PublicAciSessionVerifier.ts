@@ -12,7 +12,7 @@ import {
   policyBindingAdmitsProvider,
   type InferenceTrustPolicyV2,
 } from '@folklore/contracts';
-import { canonicalJson } from '@folklore/utils';
+import { abortAfter, canonicalJson } from '@folklore/utils';
 
 import { attestedUpstreamModelId } from '../model-allowlist.js';
 import { parseStrictJsonBytes } from './strict-json.js';
@@ -226,7 +226,7 @@ export class PublicAciSessionVerifier {
     const { origin } = policy;
     const url = new URL(`/v1/aci/sessions/${sessionId}`, origin);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.fetchTimeoutMs);
+    const timeout = abortAfter(controller, this.fetchTimeoutMs);
     let response: Response;
     try {
       response = await this.fetchImpl(url, {
