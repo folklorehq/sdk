@@ -723,10 +723,66 @@ describe('themeSynthesisResultSchema', () => {
     // docType/confidence default in for an older enclave that omits them.
     expect(parsed.themes[0]?.docType).toBe('concept');
     expect(parsed.themes[0]?.docTypeConfidence).toBe(0);
+    expect(parsed.themes[0]).not.toHaveProperty('namedByFallback');
     expect(parsed.aggregates[0]?.children[0]?.childThemeId).toBe('t1');
     expect(parsed.inputVersion).toBe('input-v1');
     expect(parsed.leaseToken).toBe('legacy-lease-must-not-cross-the-wire');
     expect(parsed.isAuthoritativeBatch).toBe(true);
+  });
+
+  it('carries a boolean fallback-name flag on each theme', () => {
+    const theme = {
+      themeId: 't1',
+      name: 'payments: incident (03-04–03-04)',
+      kind: 'topic',
+      team: 'payments',
+      importance: 0.9,
+      tags: ['incident'],
+      containerIds: ['c1'],
+      facts: [],
+    };
+    const payload = (namedByFallback: unknown) => ({
+      type: 'theme_synthesis',
+      requestId: 'req-1',
+      inputVersion: 'input-v1',
+      leaseToken: 'lease-1',
+      orgId: 'org-1',
+      themes: [{ ...theme, namedByFallback }],
+      related: [],
+    });
+
+    expect(themeSynthesisResultSchema.parse(payload(true)).themes[0]?.namedByFallback).toBe(true);
+    expect(themeSynthesisResultSchema.safeParse(payload('yes')).success).toBe(false);
+  });
+
+  it('round-trips an old-shape theme without adding the fallback flag', () => {
+    const oldShape = {
+      type: 'theme_synthesis',
+      requestId: 'req-1',
+      inputVersion: 'input-v1',
+      leaseToken: 'lease-1',
+      orgId: 'org-1',
+      themes: [
+        {
+          themeId: 't1',
+          name: 'payments: Checkout Reliability',
+          kind: 'topic',
+          team: 'payments',
+          importance: 0.9,
+          tags: ['incident'],
+          containerIds: ['c1'],
+          facts: [],
+        },
+      ],
+      related: [],
+    };
+
+    const parsed = themeSynthesisResultSchema.parse(oldShape);
+    const reparsed = themeSynthesisResultSchema.parse(JSON.parse(JSON.stringify(parsed)));
+
+    expect(parsed.themes[0]).not.toHaveProperty('namedByFallback');
+    expect(JSON.stringify(parsed)).not.toContain('namedByFallback');
+    expect(reparsed.themes[0]).not.toHaveProperty('namedByFallback');
   });
 
   it('defaults aggregates to an empty array when omitted', () => {

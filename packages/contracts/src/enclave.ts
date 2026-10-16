@@ -345,6 +345,9 @@ export const synthesizedThemeSchema = z
     // section skeleton + its 0–1 confidence. Defaulted for an older enclave that omits it.
     docType: z.string().default('concept'),
     docTypeConfidence: z.number().min(0).max(1).default(0),
+    // Sent only as `true`, when `name` is the metadata fallback; no default, so an older strict
+    // worker never sees the key on a model-named theme. The worker then keeps a stored name.
+    namedByFallback: z.boolean().optional(),
   })
   .strict();
 export type SynthesizedTheme = z.infer<typeof synthesizedThemeSchema>;
