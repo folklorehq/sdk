@@ -108,6 +108,37 @@ describe('PinoLogger', () => {
     });
   });
 
+  it('accepts a pool lifecycle line with its source sha and program revision', () => {
+    const { logger, records } = recordingLogger();
+    logger.info('pool_lifecycle_stage', {
+      deploymentId: '61f38fae-269f-8e60-8554-bbc64fbf1bdf',
+      sourceSha: 'eea69fa108f5b61c127292c557ff51c4a25408ef',
+      revision: 20,
+    });
+
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      msg: 'pool_lifecycle_stage',
+      deploymentId: '61f38fae-269f-8e60-8554-bbc64fbf1bdf',
+      sourceSha: 'eea69fa108f5b61c127292c557ff51c4a25408ef',
+      revision: 20,
+    });
+  });
+
+  it('rejects a pool lifecycle line whose source sha is not a commit sha', () => {
+    const { logger, records } = recordingLogger();
+    logger.info(
+      'pool_lifecycle_stage',
+      unsafeContext({
+        deploymentId: '61f38fae-269f-8e60-8554-bbc64fbf1bdf',
+        sourceSha: 'not-a-sha',
+        revision: 20,
+      }),
+    );
+
+    expectOnlyRejection(records, 'invalid_context_value');
+    expect(records[0]).not.toHaveProperty('sourceSha');
+  });
   it('accepts a content-free inference timeline span and timing aggregate', () => {
     const { logger, records } = recordingLogger();
     const span = {

@@ -35,6 +35,7 @@ const SAFE_LOG_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-
 const SAFE_LOG_REQUEST_ID_PATTERN =
   /^(?:[a-z][a-z0-9]{0,31}_[a-z0-9]{1,95}|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 const SAFE_LOG_MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
+const SAFE_LOG_SOURCE_SHA_PATTERN = /^[0-9a-f]{40}$/;
 const SAFE_LOG_FIELD_SET = new Set<string>(SAFE_LOG_FIELDS);
 // The inference roles of the signed policy; a role is one of these names or it is not logged.
 const SAFE_LOG_ROLES: ReadonlySet<string> = new Set(['embed', 'generate', 'critique', 'judge']);
@@ -220,6 +221,7 @@ function isSafeLogValue(key: string, value: unknown): boolean {
     return SAFE_DISTINCT_ID_PATTERN.test(value);
   if (key === 'model') return SAFE_LOG_MODEL_PATTERN.test(value);
   if (key === 'deploymentId') return SAFE_LOG_UUID_PATTERN.test(value);
+  if (key === 'sourceSha') return SAFE_LOG_SOURCE_SHA_PATTERN.test(value);
   return false;
 }
 

@@ -106,6 +106,26 @@ describe('a deployment id is a canonical uuid, not free text', () => {
   });
 });
 
+describe('a source sha is a full lower-case commit sha, not free text', () => {
+  it('accepts 40 lower-case hex characters', () => {
+    expect(checkSafeLogContext({ sourceSha: 'a1b2c3d4e5'.repeat(4) })).toBeNull();
+  });
+
+  it.each(['a1b2c3d4e5'.repeat(4).slice(1), 'A1B2C3D4E5'.repeat(4), 'main', ''])(
+    'refuses %j',
+    (value) => {
+      expect(checkSafeLogContext({ sourceSha: value })).toBe('invalid_context_value');
+    },
+  );
+});
+
+describe('a pool program revision is a number, never a string', () => {
+  it('accepts a numeric revision and refuses the same value as text', () => {
+    expect(checkSafeLogContext({ revision: 20 })).toBeNull();
+    expect(checkSafeLogContext({ revision: '20' })).toBe('invalid_context_value');
+  });
+});
+
 describe('numeric enclave boot fields', () => {
   it('accepts an exit code and restart count and refuses text in them', () => {
     expect(checkSafeLogContext({ exitCode: 1, restarts: 44 })).toBeNull();
