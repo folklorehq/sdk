@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { postgresErrorType } from '../src/postgres-error-type.js';
+import { isRetryablePostgresError, postgresErrorType } from '../src/postgres-error-type.js';
 
 describe('postgresErrorType', () => {
   it('reads the SQLSTATE from the cause of a wrapped driver error', () => {
@@ -41,4 +41,18 @@ describe('postgresErrorType', () => {
     expect(postgresErrorType({ code: 'P0001' })).toBe('sqlstate_p0001');
     expect(postgresErrorType({ code: '42P01' })).toBe('sqlstate_42p01');
   });
+});
+
+describe('isRetryablePostgresError', () => {
+  it.each(['40P01', '40001'])('is true for SQLSTATE %s, bare or wrapped by drizzle', (code) => {
+    expect(isRetryablePostgresError({ code })).toBe(true);
+    expect(isRetryablePostgresError({ message: 'Failed query', cause: { code } })).toBe(true);
+  });
+
+  it.each([{ code: '23505' }, { code: 'EPIPE' }, new Error('x'), null, 'text'])(
+    'is false for %o',
+    (error) => {
+      expect(isRetryablePostgresError(error)).toBe(false);
+    },
+  );
 });

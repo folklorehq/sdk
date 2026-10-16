@@ -12,8 +12,22 @@ const valid = {
 
 describe('worker database metadata contract', () => {
   it('accepts pinned endpoint and secret references', () => {
-    expect(workerDatabaseConfigSchema.parse(valid)).toEqual(valid);
+    expect(workerDatabaseConfigSchema.parse(valid)).toEqual({ ...valid, username: 'folklore_app' });
   });
+
+  it('defaults the username to folklore_app and admits folklore_pool_worker', () => {
+    expect(workerDatabaseConfigSchema.parse(valid).username).toBe('folklore_app');
+    expect(
+      workerDatabaseConfigSchema.parse({ ...valid, username: 'folklore_pool_worker' }).username,
+    ).toBe('folklore_pool_worker');
+  });
+
+  it.each(['folklore', 'postgres', 'folklore_operator', 'FOLKLORE_APP', ''])(
+    'rejects the username %j',
+    (username) => {
+      expect(workerDatabaseConfigSchema.safeParse({ ...valid, username }).success).toBe(false);
+    },
+  );
 
   it('rejects envelope-shaped or unknown fields at every level', () => {
     expect(workerDatabaseConfigSchema.safeParse({ ...valid, envelope: {} }).success).toBe(false);

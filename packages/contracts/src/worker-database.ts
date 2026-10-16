@@ -28,6 +28,9 @@ const secretArnSchema = z
     /^arn:[a-z0-9-]+:secretsmanager:[a-z0-9-]+:\d{12}:secret:[A-Za-z0-9/_+=.@-]*-[A-Za-z0-9]{6}$/,
   );
 
+export const WORKER_DATABASE_USERNAMES = ['folklore_app', 'folklore_pool_worker'] as const;
+export type WorkerDatabaseUsername = (typeof WORKER_DATABASE_USERNAMES)[number];
+
 export const workerDatabaseConfigSchema = z
   .object({
     version: z.literal(1),
@@ -40,6 +43,8 @@ export const workerDatabaseConfigSchema = z
     database: databaseNameSchema,
     secretArn: secretArnSchema,
     secretVersionId: secretsManagerVersionIdSchema,
+    // The master role is never admissible; a config that omits the name keeps today's role.
+    username: z.enum(WORKER_DATABASE_USERNAMES).default('folklore_app'),
   })
   .strict();
 

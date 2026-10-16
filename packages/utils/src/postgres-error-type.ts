@@ -29,6 +29,17 @@ export function postgresErrorType(error: unknown): string | null {
     : null;
 }
 
+const RETRYABLE_SQLSTATES: ReadonlySet<string> = new Set([
+  '40001', // serialization_failure
+  '40P01', // deadlock_detected
+]);
+
+/** True when the error is a serialization failure or deadlock, which a retry of the transaction can clear. */
+export function isRetryablePostgresError(error: unknown): boolean {
+  const { sqlState } = postgresDetail(error);
+  return sqlState !== undefined && RETRYABLE_SQLSTATES.has(sqlState);
+}
+
 // Only standard codes and our own schema identifiers survive; message and detail carry values.
 function postgresDetail(error: unknown, depth = 0): PostgresErrorDetail {
   if (typeof error !== 'object' || error === null) return {};

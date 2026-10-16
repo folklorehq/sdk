@@ -48,6 +48,47 @@ export const containerSeedSchema = z
   .strict();
 export type ContainerSeed = z.infer<typeof containerSeedSchema>;
 
+export const PROCESSED_FACT_MAX_AUTHORS = 50;
+export const AUTHOR_SOURCE_USER_ID_MAX = 256;
+export const AUTHOR_EMAIL_MAX = 320;
+export const AUTHOR_DISPLAY_NAME_MAX = 256;
+export const AUTHOR_EMAIL_PATTERN = /^[^\s@]*@[^\s@]*$/;
+
+// Lowercased GitHub login; a bot login keeps its "[bot]" suffix (OctokitGitHubClient.ts:238-242).
+export const GITHUB_LOGIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,38})(?:\[bot\])?$/;
+
+const authorRoleSchema = z.enum(['author', 'co_author']);
+
+// Source-derived personal data: plaintext in the tenant DB under RLS, never content.
+export const processedFactAuthorSchema = z
+  .object({
+    sourceUserId: z.string().min(1).max(AUTHOR_SOURCE_USER_ID_MAX),
+    role: authorRoleSchema,
+    email: z.string().min(3).max(AUTHOR_EMAIL_MAX).regex(AUTHOR_EMAIL_PATTERN).optional(),
+    // Set only by the enclave, from the authoritative source kind.
+    emailVerified: z.literal(true).optional(),
+    displayName: z.string().min(1).max(AUTHOR_DISPLAY_NAME_MAX).optional(),
+    sourceLogin: z.string().regex(GITHUB_LOGIN_PATTERN).optional(),
+  })
+  .strict()
+  .refine((author) => author.emailVerified === undefined || author.email !== undefined, {
+    message: 'emailVerified requires email',
+    path: ['emailVerified'],
+  });
+export type ProcessedFactAuthor = z.infer<typeof processedFactAuthorSchema>;
+
+export const processedFactUnlinkedAuthorSchema = z
+  .object({
+    role: authorRoleSchema,
+    sourceLogin: z.string().regex(GITHUB_LOGIN_PATTERN).optional(),
+    displayName: z.string().min(1).max(AUTHOR_DISPLAY_NAME_MAX).optional(),
+  })
+  .strict()
+  .refine((author) => author.sourceLogin !== undefined || author.displayName !== undefined, {
+    message: 'an unlinked author needs a login or a name',
+  });
+export type ProcessedFactUnlinkedAuthor = z.infer<typeof processedFactUnlinkedAuthorSchema>;
+
 export const hnswNeighborSchema = z
   .object({
     factId: z.string(),
@@ -93,6 +134,13 @@ export const processedFactSchema = z
     // diff. Defaults to [] so an older enclave that omits it still parses.
     metrics: z.array(factMetricSchema).default([]),
     ownerAccountId: z.string().uuid().optional(),
+    // UNWIRED: no enclave emits these and no worker reads them until identity-linking WS1b and WS3.
+    // No .default(): an enclave would then sign `authors: []`, which an older worker's .strict() parse rejects.
+    authors: z.array(processedFactAuthorSchema).max(PROCESSED_FACT_MAX_AUTHORS).optional(),
+    unlinkedAuthors: z
+      .array(processedFactUnlinkedAuthorSchema)
+      .max(PROCESSED_FACT_MAX_AUTHORS)
+      .optional(),
   })
   .strict();
 export type ProcessedFact = z.infer<typeof processedFactSchema>;

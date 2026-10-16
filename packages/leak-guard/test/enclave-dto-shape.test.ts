@@ -26,6 +26,11 @@ function usageWith(model: string) {
 // `body`/`summary`/`text` field to a wire DTO" into a hard test failure that forces ADL review.
 const FROZEN: Record<string, string[]> = {
   processedFact: [
+    // Source-derived author identity: personal data held under org RLS, never content.
+    'authors[].displayName',
+    'authors[].email',
+    'authors[].sourceLogin',
+    'authors[].sourceUserId',
     'bodyHash',
     'bodyS3Key',
     'containerRefs[]',
@@ -41,6 +46,8 @@ const FROZEN: Record<string, string[]> = {
     'sourceFactId',
     'sourceKind',
     'sourceThreadId',
+    'unlinkedAuthors[].displayName',
+    'unlinkedAuthors[].sourceLogin',
   ],
   wikiSynthesisResult: [
     'articles[].audienceId',

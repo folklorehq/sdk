@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import {
+  AUTHOR_DISPLAY_NAME_MAX,
+  AUTHOR_EMAIL_MAX,
+  AUTHOR_SOURCE_USER_ID_MAX,
   DEFAULT_SYNTHESIS_INPUT_TOKEN_BUDGET,
   INFERENCE_TIMELINE_MAX_SPANS,
+  PROCESSED_FACT_MAX_AUTHORS,
   associationJudgementResultSchema,
   knowledgeNeighborhoodSchema,
+  processedFactAuthorSchema,
   processedFactSchema,
+  processedFactUnlinkedAuthorSchema,
   pullCompleteSignalSchema,
   pullDueMessageSchema,
   oauthDisconnectCleanupCommandSchema,
@@ -375,6 +381,212 @@ describe('processedFactSchema', () => {
         containerSeeds: [{ ...valid.containerSeeds[0], plaintext: 'customer prose' }],
       }).success,
     ).toBe(false);
+  });
+
+  describe('authors', () => {
+    const author = {
+      sourceUserId: '42',
+      role: 'author',
+      email: 'alice@example.com',
+      emailVerified: true,
+      displayName: 'Alice',
+    } as const;
+    const emailOfLength = (length: number): string => `${'a'.repeat(length - 12)}@example.com`;
+    const authorsOf = (count: number) =>
+      Array.from({ length: count }, (_, index) => ({ sourceUserId: `u${index}`, role: 'author' }));
+
+    it('leaves authors absent when an older enclave omits it', () => {
+      const parsed = processedFactSchema.parse(valid);
+      expect('authors' in parsed).toBe(false);
+      expect(parsed).toEqual({ ...valid, sensitivityLevel: 'team_scoped', metrics: [] });
+    });
+
+    it('round-trips a bounded author', () => {
+      expect(processedFactSchema.parse({ ...valid, authors: [author] }).authors).toEqual([author]);
+    });
+
+    it('rejects an unknown author field', () => {
+      expect(
+        processedFactSchema.safeParse({ ...valid, authors: [{ ...author, plaintext: 'x' }] })
+          .success,
+      ).toBe(false);
+    });
+
+    it('rejects a role outside author/co_author', () => {
+      expect(
+        processedFactSchema.safeParse({ ...valid, authors: [{ ...author, role: 'reviewer' }] })
+          .success,
+      ).toBe(false);
+    });
+
+    it('rejects more than 50 authors', () => {
+      expect(
+        processedFactSchema.safeParse({
+          ...valid,
+          authors: authorsOf(PROCESSED_FACT_MAX_AUTHORS + 1),
+        }).success,
+      ).toBe(false);
+    });
+
+    it('rejects an empty sourceUserId', () => {
+      expect(processedFactAuthorSchema.safeParse({ ...author, sourceUserId: '' }).success).toBe(
+        false,
+      );
+    });
+
+    it('rejects an email of 2 chars and accepts one of 3', () => {
+      expect(processedFactAuthorSchema.safeParse({ ...author, email: 'a@' }).success).toBe(false);
+      expect(processedFactAuthorSchema.parse({ ...author, email: 'a@b' }).email).toBe('a@b');
+    });
+
+    it.each(['ab.example.com', 'a@b@example.com', 'a b@example.com', 'ab@example.com\n'])(
+      'rejects the email %j without exactly one @ or with whitespace',
+      (email) => {
+        expect(processedFactAuthorSchema.safeParse({ ...author, email }).success).toBe(false);
+      },
+    );
+
+    it('accepts a sourceUserId of 256 chars and rejects one of 257', () => {
+      const atMax = 'u'.repeat(AUTHOR_SOURCE_USER_ID_MAX);
+      expect(processedFactAuthorSchema.parse({ ...author, sourceUserId: atMax }).sourceUserId).toBe(
+        atMax,
+      );
+      expect(
+        processedFactAuthorSchema.safeParse({ ...author, sourceUserId: `${atMax}u` }).success,
+      ).toBe(false);
+    });
+
+    it('rejects an empty displayName', () => {
+      expect(processedFactAuthorSchema.safeParse({ ...author, displayName: '' }).success).toBe(
+        false,
+      );
+    });
+
+    it('rejects an email over 320 chars', () => {
+      expect(
+        processedFactAuthorSchema.safeParse({
+          ...author,
+          email: emailOfLength(AUTHOR_EMAIL_MAX + 1),
+        }).success,
+      ).toBe(false);
+    });
+
+    it('rejects emailVerified without email', () => {
+      const { email: _omit, ...withoutEmail } = author;
+      expect(processedFactAuthorSchema.safeParse(withoutEmail).success).toBe(false);
+    });
+
+    it('rejects emailVerified: false', () => {
+      expect(processedFactAuthorSchema.safeParse({ ...author, emailVerified: false }).success).toBe(
+        false,
+      );
+    });
+
+    it('accepts exactly 50 authors', () => {
+      expect(
+        processedFactSchema.parse({ ...valid, authors: authorsOf(PROCESSED_FACT_MAX_AUTHORS) })
+          .authors,
+      ).toHaveLength(PROCESSED_FACT_MAX_AUTHORS);
+    });
+
+    it('accepts an email of exactly 320 chars', () => {
+      const email = emailOfLength(AUTHOR_EMAIL_MAX);
+      expect(processedFactAuthorSchema.parse({ ...author, email }).email).toBe(email);
+    });
+
+    it('accepts a display name of exactly 256 chars', () => {
+      const displayName = 'n'.repeat(AUTHOR_DISPLAY_NAME_MAX);
+      expect(processedFactAuthorSchema.parse({ ...author, displayName }).displayName).toBe(
+        displayName,
+      );
+    });
+
+    it('rejects a display name over 256 chars', () => {
+      expect(
+        processedFactAuthorSchema.safeParse({
+          ...author,
+          displayName: 'n'.repeat(AUTHOR_DISPLAY_NAME_MAX + 1),
+        }).success,
+      ).toBe(false);
+    });
+
+    it('accepts an author without email or displayName', () => {
+      const parsed = processedFactAuthorSchema.parse({ sourceUserId: '42', role: 'co_author' });
+      expect(parsed).toEqual({ sourceUserId: '42', role: 'co_author' });
+      expect('email' in parsed).toBe(false);
+      expect('displayName' in parsed).toBe(false);
+    });
+
+    it('round-trips an author with a GitHub login', () => {
+      const withLogin = { ...author, sourceLogin: 'octo-cat' };
+      expect(processedFactAuthorSchema.parse(withLogin)).toEqual(withLogin);
+    });
+
+    it.each(['Octo', '-x', 'a'.repeat(40)])('rejects the GitHub login %s', (sourceLogin) => {
+      expect(processedFactAuthorSchema.safeParse({ ...author, sourceLogin }).success).toBe(false);
+    });
+
+    it('accepts a bot login', () => {
+      expect(
+        processedFactAuthorSchema.parse({ ...author, sourceLogin: 'dependabot[bot]' }).sourceLogin,
+      ).toBe('dependabot[bot]');
+    });
+  });
+
+  describe('unlinkedAuthors', () => {
+    it.each([
+      { role: 'author', displayName: 'Ada' },
+      { role: 'author', sourceLogin: 'ada' },
+      { role: 'co_author', sourceLogin: 'ada', displayName: 'Ada' },
+    ] as const)('round-trips an unlinked author %o', (unlinked) => {
+      expect(
+        processedFactSchema.parse({ ...valid, unlinkedAuthors: [unlinked] }).unlinkedAuthors,
+      ).toEqual([unlinked]);
+    });
+
+    it('rejects an unlinked author with neither a login nor a name', () => {
+      expect(processedFactUnlinkedAuthorSchema.safeParse({ role: 'author' }).success).toBe(false);
+    });
+
+    it('rejects an unlinked author with an extra key', () => {
+      expect(
+        processedFactUnlinkedAuthorSchema.safeParse({
+          role: 'author',
+          displayName: 'Ada',
+          email: 'ada@example.com',
+        }).success,
+      ).toBe(false);
+    });
+
+    it('rejects more than 50 unlinked authors', () => {
+      const unlinked = Array.from({ length: PROCESSED_FACT_MAX_AUTHORS + 1 }, (_, index) => ({
+        role: 'author',
+        displayName: `Author ${index}`,
+      }));
+      expect(processedFactSchema.safeParse({ ...valid, unlinkedAuthors: unlinked }).success).toBe(
+        false,
+      );
+    });
+
+    it('rejects an unlinked author with an invalid login', () => {
+      expect(
+        processedFactUnlinkedAuthorSchema.safeParse({ role: 'author', sourceLogin: 'Octo' })
+          .success,
+      ).toBe(false);
+    });
+
+    it('rejects an unlinked author with a name over 256 chars', () => {
+      expect(
+        processedFactUnlinkedAuthorSchema.safeParse({
+          role: 'author',
+          displayName: 'n'.repeat(AUTHOR_DISPLAY_NAME_MAX + 1),
+        }).success,
+      ).toBe(false);
+    });
+
+    it('leaves unlinkedAuthors absent when an older enclave omits it', () => {
+      expect('unlinkedAuthors' in processedFactSchema.parse(valid)).toBe(false);
+    });
   });
 });
 
