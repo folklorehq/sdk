@@ -11,6 +11,7 @@ import {
   claudeInferencePurposeSchema,
   claudeQualityScoresSchema,
   inferenceUsageOutcomeSchema,
+  REBUILD_REASONS,
   usageCostMicros,
 } from '../src/claude-inference.js';
 import {
@@ -128,6 +129,21 @@ describe('claudeQualityScoresSchema', () => {
       ).toBe(false);
     }
     expect(claudeQualityScoresSchema.safeParse(scores).success).toBe(true);
+  });
+
+  it('accepts each rebuild reason and an absent one, and sets no default key', () => {
+    for (const rebuildReason of ['incremental', ...REBUILD_REASONS]) {
+      expect(claudeQualityScoresSchema.parse({ ...scores, rebuildReason }).rebuildReason).toBe(
+        rebuildReason,
+      );
+    }
+    expect('rebuildReason' in claudeQualityScoresSchema.parse(scores)).toBe(false);
+  });
+
+  it('refuses a rebuild reason outside the closed set, including the reused flag value', () => {
+    for (const rebuildReason of ['other', 'reused', '']) {
+      expect(claudeQualityScoresSchema.safeParse({ ...scores, rebuildReason }).success).toBe(false);
+    }
   });
 });
 
@@ -431,6 +447,10 @@ describe('usageCostMicros', () => {
     expect(CLAUDE_PRICE_MICROS_PER_MTOK['claude-sonnet-5-5'].output).toBe(11_000_000);
   });
 
+  it('prices Sonnet cache reads at 0.05x base input with the US uplift', () => {
+    expect(CLAUDE_PRICE_MICROS_PER_MTOK['claude-sonnet-5-5'].cacheRead).toBe(110_000);
+  });
+
   it('sums the classes at their own prices and rounds the total up', () => {
     expect(
       usageCostMicros({
@@ -440,7 +460,7 @@ describe('usageCostMicros', () => {
         cacheReadTokens: 10_000,
         cacheWriteTokens: 2_000,
       }),
-    ).toBe(2_200 + 5_500 + 2_200 + 5_500);
+    ).toBe(2_200 + 5_500 + 1_100 + 5_500);
     expect(
       usageCostMicros({
         model: 'claude-haiku-5-5',

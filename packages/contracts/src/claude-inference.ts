@@ -49,6 +49,19 @@ export const SHADOW_FACT_IDS_MAX = 400;
 const MAX_BASIS_POINTS = 10_000;
 const basisPointsSchema = z.number().int().min(0).max(MAX_BASIS_POINTS);
 
+// A new value needs a two-phase rollout: the worker accepts it before the enclave emits it.
+export const REBUILD_REASONS = [
+  'no_state',
+  'state_unreadable',
+  'fact_removed',
+  'periodic_count',
+  'periodic_age',
+  'new_fact_fraction',
+  'low_cosine_fraction',
+] as const;
+export type RebuildReason = (typeof REBUILD_REASONS)[number];
+const claudeRebuildReasonSchema = z.enum([...REBUILD_REASONS, 'incremental']);
+
 export const claudeQualityScoresSchema = z
   .object({
     arm: claudeArmSchema,
@@ -59,6 +72,7 @@ export const claudeQualityScoresSchema = z
     revisionRateBp: basisPointsSchema,
     reviewFlagRateBp: basisPointsSchema,
     reused: z.boolean().optional(),
+    rebuildReason: claudeRebuildReasonSchema.optional(),
   })
   .strict();
 export type ClaudeQualityScores = z.infer<typeof claudeQualityScoresSchema>;
@@ -77,7 +91,7 @@ export const CLAUDE_PRICE_MICROS_PER_MTOK = {
     input: 2_200_000,
     output: 11_000_000,
     cacheWrite: 2_750_000,
-    cacheRead: 220_000,
+    cacheRead: 110_000,
   },
   'claude-haiku-5-5': { input: 110_000, output: 550_000, cacheWrite: 137_500, cacheRead: 11_000 },
 } as const satisfies Record<

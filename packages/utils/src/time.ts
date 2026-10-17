@@ -72,3 +72,9 @@ export function formatRelativeTime(
 export function utcDayStart(at: Date): Date {
   return new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
 }
+
+const UTC_DAY_KEY_LENGTH = 10;
+
+export function utcDayKey(at: Date): string {
+  return at.toISOString().slice(0, UTC_DAY_KEY_LENGTH);
+}

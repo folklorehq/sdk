@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { formatAbsoluteTime, formatRelativeTime, utcDayStart } from '../src/time.js';
+import { formatAbsoluteTime, formatRelativeTime, utcDayKey, utcDayStart } from '../src/time.js';
 
 const NOW = Date.parse('2026-10-02T12:00:00.000Z');
 const SECOND = 1000;
@@ -249,5 +249,15 @@ describe('utcDayStart', () => {
     expect(utcDayStart(new Date('2026-10-15T09:30:00+14:00')).toISOString()).toBe(
       '2026-10-14T00:00:00.000Z',
     );
+  });
+});
+
+describe('utcDayKey', () => {
+  it('formats the UTC calendar day of the instant', () => {
+    expect(utcDayKey(new Date('2026-10-14T23:59:59.999Z'))).toBe('2026-10-14');
+  });
+
+  it('ignores the offset the instant was written in', () => {
+    expect(utcDayKey(new Date('2026-10-15T09:30:00+14:00'))).toBe('2026-10-14');
   });
 });
