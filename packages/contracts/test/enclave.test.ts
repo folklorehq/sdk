@@ -1396,7 +1396,7 @@ type EnclaveSynthesisRequest = {
   inputTokenBudget: number;
   knowledgeSkeleton?: EnclaveKnowledgeSkeleton;
   generation?: 'article' | 'sectioned';
-  // The enclave's SynthesisConsumer.ts:164 interface gains these two fields in CL-6.
+  // Mirrors the enclave's SynthesisConsumer request shape.
   previousPageStates?: WikiPageStateEnvelope[];
   shadowArms?: ('R' | 'B')[];
 };
@@ -1431,7 +1431,7 @@ type EnclaveWikiSynthesisResult = {
   critique?: CritiqueOutcome;
   tokenUsage: TokenUsage[];
   timeline?: InferenceTimeline | undefined;
-  // The enclave's SynthesisConsumer.ts:164 interface gains pageStates through untaggedCalls in CL-6.
+  // Mirrors the enclave's SynthesisConsumer result shape.
   pageStates?: WikiPageStateEnvelope[];
   shadowArticles?: WikiShadowArticle[];
   qualityScores?: ClaudeQualityScores[];

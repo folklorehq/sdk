@@ -33,13 +33,15 @@ export const CLAUDE_ZDR_MODEL_IDS = [
 ] as const;
 export type ClaudeModelId = (typeof CLAUDE_ZDR_MODEL_IDS)[number];
 
-// UNWIRED: no caller reads the effort level yet.
 export const claudeEffortSchema = z.enum(['low', 'medium', 'high']);
+export type ClaudeEffort = z.infer<typeof claudeEffortSchema>;
 export const claudeArmSchema = z.enum(['D', 'R', 'B']);
+export type ClaudeArmId = z.infer<typeof claudeArmSchema>;
 export const inferenceUsageOutcomeSchema = z.enum(['ok', 'discarded', 'shadow']);
 export type InferenceUsageOutcome = z.infer<typeof inferenceUsageOutcomeSchema>;
 
 export const CLAUDE_DEFERRAL_REASONS = ['provider_outage', 'provider_slow'] as const;
+export type ClaudeDeferralReason = (typeof CLAUDE_DEFERRAL_REASONS)[number];
 
 // visible facts are a subset of the candidate cap, so every visible id fits
 export const SHADOW_FACT_IDS_MAX = 400;
@@ -50,19 +52,19 @@ const basisPointsSchema = z.number().int().min(0).max(MAX_BASIS_POINTS);
 export const claudeQualityScoresSchema = z
   .object({
     arm: claudeArmSchema,
-    audienceId: z.string().nullable(),
+    audienceId: z.string().uuid().nullable(),
     citationSupportBp: basisPointsSchema,
     uncitedCutBp: basisPointsSchema,
     importantCoverageBp: basisPointsSchema,
     revisionRateBp: basisPointsSchema,
     reviewFlagRateBp: basisPointsSchema,
+    reused: z.boolean().optional(),
   })
   .strict();
 export type ClaudeQualityScores = z.infer<typeof claudeQualityScoresSchema>;
 
 const MICROS_PER_MTOK_DIVISOR = 1_000_000n;
 
-// UNWIRED: no caller prices usage yet.
 // US prices in micros per MTok; promptTokens are uncached input
 export const CLAUDE_PRICE_MICROS_PER_MTOK = {
   'claude-opus-5-5': {
@@ -103,7 +105,6 @@ function assertTokenCounts(usage: PricedUsage): void {
   }
 }
 
-// UNWIRED: no caller yet.
 export function usageCostMicros(usage: PricedUsage): number {
   assertTokenCounts(usage);
   if (!Object.hasOwn(CLAUDE_PRICE_MICROS_PER_MTOK, usage.model)) return 0;

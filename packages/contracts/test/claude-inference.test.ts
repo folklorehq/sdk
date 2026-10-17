@@ -25,6 +25,13 @@ import {
 const ORG_ID = '11111111-1111-4111-8111-111111111111';
 const OBJECT_ID = '22222222-2222-4222-8222-222222222222';
 const TOKENS_PER_MTOK = 1_000_000;
+const FACT_A = '33333333-3333-4333-8333-333333333331';
+const FACT_B = '33333333-3333-4333-8333-333333333332';
+const AUDIENCE_ID = '44444444-4444-4444-8444-444444444444';
+
+function factIdAt(index: number): string {
+  return `33333333-3333-4333-8333-${index.toString(16).padStart(12, '0')}`;
+}
 
 function envelope(purpose: string) {
   return {
@@ -55,7 +62,7 @@ function okShadow(overrides: Record<string, unknown> = {}) {
     audienceId: null,
     factCount: 3,
     sensitivityFloor: 'team_scoped',
-    factIds: ['f1', 'f2'],
+    factIds: [FACT_A, FACT_B],
     outcome: 'ok',
     variant: envelope('wiki-shadow'),
     production: envelope('wiki-shadow'),
@@ -212,6 +219,20 @@ describe('page states on a synthesis result', () => {
     );
   });
 
+  it('reads an optional boolean reused flag on a score and drops the scores when it is not a boolean', () => {
+    const reused = wikiSynthesisResultSchema.parse({
+      ...resultBase,
+      qualityScores: [{ ...scores, reused: true }],
+    });
+    expect(reused.qualityScores).toEqual([{ ...scores, reused: true }]);
+    const unreadable = wikiSynthesisResultSchema.safeParse({
+      ...resultBase,
+      qualityScores: [{ ...scores, reused: 'yes' }],
+    });
+    expect(unreadable.success).toBe(true);
+    expect(unreadable.data?.qualityScores).toBeUndefined();
+  });
+
   it('keeps the production page when a shadow extra is unreadable, and keeps a readable one', () => {
     const unreadable = wikiSynthesisResultSchema.safeParse({
       ...resultBase,
@@ -247,12 +268,36 @@ describe('shadow articles', () => {
     const { factIds: _ids, ...noIds } = okShadow();
     expect(wikiShadowArticleSchema.safeParse(noFloor).success).toBe(false);
     expect(wikiShadowArticleSchema.safeParse(noIds).success).toBe(false);
-    const atCap = Array.from({ length: SHADOW_FACT_IDS_MAX }, (_v, i) => `f${i}`);
+    const atCap = Array.from({ length: SHADOW_FACT_IDS_MAX }, (_v, i) => factIdAt(i));
     expect(wikiShadowArticleSchema.safeParse(okShadow({ factIds: atCap })).success).toBe(true);
     expect(SHADOW_FACT_IDS_MAX).toBe(400);
     expect(
-      wikiShadowArticleSchema.safeParse(okShadow({ factIds: [...atCap, 'f400'] })).success,
+      wikiShadowArticleSchema.safeParse(
+        okShadow({ factIds: [...atCap, factIdAt(SHADOW_FACT_IDS_MAX)] }),
+      ).success,
     ).toBe(false);
+  });
+
+  it('refuses a non-UUID fact id or audience id, so a malformed arm cannot reach the database', () => {
+    expect(wikiShadowArticleSchema.safeParse(okShadow({ factIds: ['not-a-uuid'] })).success).toBe(
+      false,
+    );
+    expect(wikiShadowArticleSchema.safeParse(okShadow({ audienceId: 'not-a-uuid' })).success).toBe(
+      false,
+    );
+    expect(wikiShadowArticleSchema.safeParse(okShadow({ audienceId: AUDIENCE_ID })).success).toBe(
+      true,
+    );
+  });
+
+  it('refuses a non-UUID audience on the quality scores of an arm', () => {
+    const arm = { ...scores, arm: 'R' };
+    expect(claudeQualityScoresSchema.safeParse({ ...arm, audienceId: 'not-a-uuid' }).success).toBe(
+      false,
+    );
+    expect(claudeQualityScoresSchema.safeParse({ ...arm, audienceId: AUDIENCE_ID }).success).toBe(
+      true,
+    );
   });
 
   it('parses a failed arm with no envelopes, and refuses one that carries any', () => {
@@ -261,7 +306,7 @@ describe('shadow articles', () => {
       audienceId: null,
       factCount: 3,
       sensitivityFloor: 'team_scoped',
-      factIds: ['f1'],
+      factIds: [FACT_A],
       outcome: 'failed',
     };
     expect(wikiShadowArticleSchema.safeParse(failed).success).toBe(true);

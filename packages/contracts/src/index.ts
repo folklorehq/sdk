@@ -41,6 +41,7 @@ export * from './rollout.js';
 export * from './sealed-content.js';
 export * from './search.js';
 export * from './session-delivery.js';
+export * from './shadow-review.js';
 export * from './shared.js';
 export * from './sources.js';
 export * from './themes.js';

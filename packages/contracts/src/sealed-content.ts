@@ -24,7 +24,6 @@ export const sealedContentEnvelopeV1Schema = z
       'wiki-snapshot',
       'wiki-publication',
       'wiki-edit',
-      // UNWIRED: no enclave seals these purposes until CL-6.
       'wiki-page-state',
       'wiki-shadow',
       'hnsw',

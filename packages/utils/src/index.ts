@@ -53,7 +53,7 @@ export {
 } from './link-keys.js';
 export { groupBy, chunk } from './collection.js';
 export { abortAfter, mapWithConcurrency, primaryRejection, timeLimited, sleep } from './async.js';
-export { parseJsonFence, extractJsonObject } from './json.js';
+export { parseJsonFence, extractJsonObject, isRecord } from './json.js';
 export { ingestWebhookUrl } from './ingest.js';
 export { isAllowedRecallMeetingUrl } from './recall/meeting-host.js';
 export { mulberry32, seedFromString } from './random.js';

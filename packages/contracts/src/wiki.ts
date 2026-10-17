@@ -5,6 +5,7 @@ import { documentTypeSchema } from './document-types.js';
 import { canonicalBase64BytesSchema } from './shared.js';
 
 export const WIKI_PUBLICATION_TITLE_MAX_LENGTH = 240;
+export const WIKI_SYNTHESIS_OVERDUE_AFTER_MINUTES = 30;
 
 // Rich wiki content blocks. Shared, frozen shape: synthesis (@folklore/wiki
 // + enclave) emits these and the box renders them from this single definition — never a
@@ -494,6 +495,7 @@ export const wikiPageResponseSchema = z
     title: z.string().max(240),
     blocks: z.array(wikiPageBlockSchema),
     meta: wikiPageMetaSchema.nullable(),
+    updatesQueued: z.boolean().default(false),
   })
   .strict()
   .superRefine((page, context) => {

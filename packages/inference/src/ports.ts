@@ -85,7 +85,6 @@ export interface InferenceUsageEvent {
   completionTokens: number;
   /** True when a cache layer served the call, so it cost the upstream nothing. */
   cached: boolean;
-  // Not yet wired: no backend sets these four fields yet.
   purpose?: ClaudeInferencePurpose | 'untagged';
   outcome?: InferenceUsageOutcome;
   cacheReadTokens?: number;

@@ -68,6 +68,7 @@ describe('checkSafeLogContext', () => {
         importantCoverageBp: 8_000,
         revisionRateBp: 0,
         reviewFlagRateBp: 0,
+        reused: true,
       }),
     ).toBeNull();
     expect(checkSafeLogContext({ citationSupportBp: 'customer text' })).toBe(
@@ -99,6 +100,11 @@ describe('checkSafeLogContext', () => {
       'invalid_context_value',
     );
     expect(checkSafeLogContext({ deferrals: 'one' })).toBe('invalid_context_value');
+  });
+
+  it('accepts a budget percent as a number and nothing else', () => {
+    expect(checkSafeLogContext({ percent: 75 })).toBeNull();
+    expect(checkSafeLogContext({ percent: '75%' })).toBe('invalid_context_value');
   });
 });
 

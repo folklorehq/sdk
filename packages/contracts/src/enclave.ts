@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { factMetricSchema } from './metrics.js';
 import { sealedContentEnvelopeV1Schema } from './sealed-content.js';
+import { shadowArmSchema } from './shadow-review.js';
 import { richBlockKindSchema } from './wiki.js';
 import { inferenceModelRoleSchema } from './inference-trust.js';
 import {
@@ -142,7 +143,7 @@ export const processedFactSchema = z
     // diff. Defaults to [] so an older enclave that omits it still parses.
     metrics: z.array(factMetricSchema).default([]),
     ownerAccountId: z.string().uuid().optional(),
-    // UNWIRED: no enclave emits these and no worker reads them until identity-linking WS1b and WS3.
+    // Not yet wired: no enclave emits these and no worker reads them yet.
     // No .default(): an enclave would then sign `authors: []`, which an older worker's .strict() parse rejects.
     authors: z.array(processedFactAuthorSchema).max(PROCESSED_FACT_MAX_AUTHORS).optional(),
     unlinkedAuthors: z
@@ -377,11 +378,11 @@ const wikiShadowEnvelopeSchema = sealedContentEnvelopeV1Schema.refine(
 );
 
 const wikiShadowCommonFields = {
-  arm: z.enum(['R', 'B']),
-  audienceId: z.string().nullable(),
+  arm: shadowArmSchema,
+  audienceId: z.string().uuid().nullable(),
   factCount: z.number().int().nonnegative(),
   sensitivityFloor: sensitivityLevelSchema,
-  factIds: z.array(z.string()).max(SHADOW_FACT_IDS_MAX),
+  factIds: z.array(z.string().uuid()).max(SHADOW_FACT_IDS_MAX),
 };
 
 // A failed arm is still an attempt, so it is a row with no envelopes and no scores.
@@ -415,14 +416,10 @@ export const wikiSynthesisResultSchema = z
     critique: critiqueOutcomeSchema.optional(),
     tokenUsage: tokenUsageArray,
     timeline: inferenceTimelineField,
-    // UNWIRED: no enclave emits pageStates yet.
     pageStates: z.array(wikiPageStateEnvelopeSchema).optional(),
-    // UNWIRED: no enclave emits shadowArticles yet.
     // A shadow extra the worker cannot read costs the extra, never the production page.
     shadowArticles: z.array(wikiShadowArticleSchema).optional().catch(undefined),
-    // UNWIRED: no enclave emits qualityScores yet.
     qualityScores: z.array(claudeQualityScoresSchema).optional().catch(undefined),
-    // UNWIRED: no enclave emits untaggedCalls yet.
     untaggedCalls: z.number().int().nonnegative().optional(),
   })
   .strict();
@@ -681,9 +678,9 @@ export const synthesisRequestSchema = z.object({
   // the enclave hydrates it into a KnowledgeNeighborhood for the cross-wiki prompt block.
   knowledgeSkeleton: knowledgeSkeletonSchema.optional(),
   generation: wikiSynthesisGenerationSchema.optional(),
-  // UNWIRED: the worker sends no previousPageStates yet.
+  // not yet wired: the worker sends no previousPageStates yet.
   previousPageStates: z.array(wikiPageStateEnvelopeSchema).max(PREVIOUS_PAGE_STATES_MAX).optional(),
-  // UNWIRED: the worker sends no shadowArms yet.
+  // not yet wired: the worker sends no shadowArms yet.
   shadowArms: z
     .array(claudeArmSchema.exclude(['D']))
     .max(SHADOW_ARMS_MAX)

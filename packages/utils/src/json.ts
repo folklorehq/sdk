@@ -11,3 +11,7 @@ export function extractJsonObject(raw: string): string {
   const end = raw.lastIndexOf('}');
   return start === -1 || end <= start ? '{}' : raw.slice(start, end + 1);
 }
+
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
