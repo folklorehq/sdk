@@ -12,6 +12,9 @@ export type {
   InferenceOperation,
   InferenceUsageEvent,
   InferenceUsageSink,
+  InferenceCallPhase,
+  InferenceCallLabel,
+  InferenceTimer,
   InferenceExchangeEvidence,
   InferenceModelRole,
   AciEvidencePolicyAnchors,
@@ -94,7 +97,7 @@ export type {
   ForwardReplayJournalPort,
   ForwardCommitmentAuthenticatorPort,
 } from './ports.js';
-export { FORWARD_COMMITMENT_PROTOCOL } from './ports.js';
+export { FORWARD_COMMITMENT_PROTOCOL, INFERENCE_OPERATION_BY_ROLE } from './ports.js';
 export { TeeEndpointBackend, type TeeEndpointConfig } from './TeeEndpointBackend.js';
 export {
   OpenAICompatBackend,

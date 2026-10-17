@@ -7,8 +7,10 @@ import type {
   EmbedOptions,
   GenerateOptions,
   InferenceBackend,
+  InferenceCallPhase,
   InferenceOperation,
   InferenceResponseVerifier,
+  InferenceTimer,
   InferenceUsageSink,
   InferenceModelRole,
   StructuredOptions,
@@ -43,6 +45,8 @@ export interface OpenAICompatConfig {
   responseVerifier?: InferenceResponseVerifier;
   /** Receives the content-free token counts of every successful call. */
   usageSink?: InferenceUsageSink;
+  /** Times each awaited step of a call; receives only the model id and closed names. */
+  timer?: InferenceTimer;
   telemetry?: TelemetryClient;
   /** Fetch bound to the endpoint's verified transport; required for a TEE backend. */
   fetchImpl?: typeof fetch;
@@ -121,6 +125,7 @@ export class OpenAICompatBackend implements InferenceBackend {
   protected readonly modelAllowlist: readonly string[] | undefined;
   protected readonly responseVerifier: InferenceResponseVerifier | undefined;
   protected readonly usageSink: InferenceUsageSink | undefined;
+  protected readonly timer: InferenceTimer | undefined;
   protected readonly telemetry: TelemetryClient | undefined;
   protected readonly fetchImpl: typeof fetch;
   protected readonly publicAciRequired: boolean;
@@ -140,6 +145,7 @@ export class OpenAICompatBackend implements InferenceBackend {
     this.modelAllowlist = config.modelAllowlist;
     this.responseVerifier = config.responseVerifier;
     this.usageSink = config.usageSink;
+    this.timer = config.timer;
     this.telemetry = config.telemetry;
     this.fetchImpl = config.fetchImpl ?? fetch;
     this.publicAciRequired = config.publicAciRequired ?? false;
@@ -152,9 +158,7 @@ export class OpenAICompatBackend implements InferenceBackend {
     const selection = this.resolveEmbedSelection(options);
     const { model } = selection;
     this.assertModelAllowed(model);
-    await this.responseVerifier?.ensureAttested(
-      this.attestationContext(selection, '/v1/embeddings'),
-    );
+    await this.attest(selection, 'embed', '/v1/embeddings');
     const controller = new AbortController();
     const timer = abortAfter(controller, this.timeoutMs);
     const start = Date.now();
@@ -172,20 +176,24 @@ export class OpenAICompatBackend implements InferenceBackend {
       const requestText = JSON.stringify(body);
       const nonce = this.nonce();
 
-      const res = await this.fetchImpl(`${this.baseUrl}/v1/embeddings`, {
-        method: 'POST',
-        headers: this.headers(nonce, selection.revision),
-        body: requestText,
-        redirect: 'error',
-        signal: controller.signal,
-      });
+      const res = await this.timed('request', selection, 'embed', () =>
+        this.fetchImpl(`${this.baseUrl}/v1/embeddings`, {
+          method: 'POST',
+          headers: this.headers(nonce, selection.revision),
+          body: requestText,
+          redirect: 'error',
+          signal: controller.signal,
+        }),
+      );
 
       if (!this.isOk(res)) {
         throw this.refused('embed', res);
       }
 
-      const rawResponse = await this.readResponse(res);
-      await this.verifyResponse(res, requestText, rawResponse, selection, nonce);
+      const rawResponse = await this.timed('response', selection, 'embed', () =>
+        this.readResponse(res),
+      );
+      await this.verifyResponse(res, requestText, rawResponse, selection, nonce, 'embed');
       const data = this.parseResponse(rawResponse, embeddingResponseSchema, 'embedding');
       const embedding = data.data[0]?.embedding;
       if (!embedding) throw new Error(`${this.label} returned no embedding`);
@@ -209,9 +217,7 @@ export class OpenAICompatBackend implements InferenceBackend {
     const selection = this.resolveGenerateSelection(options);
     const { model } = selection;
     this.assertModelAllowed(model);
-    await this.responseVerifier?.ensureAttested(
-      this.attestationContext(selection, '/v1/chat/completions'),
-    );
+    await this.attest(selection, 'generate', '/v1/chat/completions');
     const controller = new AbortController();
     const timer = abortAfter(controller, this.timeoutMs);
     const start = Date.now();
@@ -228,20 +234,24 @@ export class OpenAICompatBackend implements InferenceBackend {
         ...(this.publicAciRequired ? { provider: { aci_verified: true } } : {}),
       });
       const nonce = this.nonce();
-      const res = await this.fetchImpl(`${this.baseUrl}/v1/chat/completions`, {
-        method: 'POST',
-        headers: this.headers(nonce, selection.revision),
-        body: requestText,
-        redirect: 'error',
-        signal: controller.signal,
-      });
+      const res = await this.timed('request', selection, 'generate', () =>
+        this.fetchImpl(`${this.baseUrl}/v1/chat/completions`, {
+          method: 'POST',
+          headers: this.headers(nonce, selection.revision),
+          body: requestText,
+          redirect: 'error',
+          signal: controller.signal,
+        }),
+      );
 
       if (!this.isOk(res)) {
         throw this.refused('generate', res);
       }
 
-      const rawResponse = await this.readResponse(res);
-      await this.verifyResponse(res, requestText, rawResponse, selection, nonce);
+      const rawResponse = await this.timed('response', selection, 'generate', () =>
+        this.readResponse(res),
+      );
+      await this.verifyResponse(res, requestText, rawResponse, selection, nonce, 'generate');
       const data = this.parseResponse(rawResponse, chatResponseSchema, 'chat');
       const content = this.choiceContent(data.choices[0]);
       this.recordUsage(model, 'generate', data.usage);
@@ -262,9 +272,7 @@ export class OpenAICompatBackend implements InferenceBackend {
     const selection = this.resolveStructuredSelection(options);
     const { model } = selection;
     this.assertModelAllowed(model);
-    await this.responseVerifier?.ensureAttested(
-      this.attestationContext(selection, '/v1/chat/completions'),
-    );
+    await this.attest(selection, 'structured', '/v1/chat/completions');
     const controller = new AbortController();
     const timer = abortAfter(controller, this.timeoutMs);
     const start = Date.now();
@@ -272,20 +280,24 @@ export class OpenAICompatBackend implements InferenceBackend {
     try {
       const requestText = JSON.stringify(this.toolRequestBody(selection, prompt, options));
       const nonce = this.nonce();
-      const res = await this.fetchImpl(`${this.baseUrl}/v1/chat/completions`, {
-        method: 'POST',
-        headers: this.headers(nonce, selection.revision),
-        body: requestText,
-        redirect: 'error',
-        signal: controller.signal,
-      });
+      const res = await this.timed('request', selection, 'structured', () =>
+        this.fetchImpl(`${this.baseUrl}/v1/chat/completions`, {
+          method: 'POST',
+          headers: this.headers(nonce, selection.revision),
+          body: requestText,
+          redirect: 'error',
+          signal: controller.signal,
+        }),
+      );
 
       if (!this.isOk(res)) {
         throw this.refused('tool call', res);
       }
 
-      const rawResponse = await this.readResponse(res);
-      await this.verifyResponse(res, requestText, rawResponse, selection, nonce);
+      const rawResponse = await this.timed('response', selection, 'structured', () =>
+        this.readResponse(res),
+      );
+      await this.verifyResponse(res, requestText, rawResponse, selection, nonce, 'structured');
       const data = this.parseResponse(rawResponse, chatResponseSchema, 'chat');
       const parsed =
         this.structuredOutputMode === 'json_schema'
@@ -351,7 +363,7 @@ export class OpenAICompatBackend implements InferenceBackend {
         reader.releaseLock();
       }
       const responseBytes = this.joinChunks(responseChunks, responseLength);
-      await this.verifyResponse(res, requestText, responseBytes, selection, nonce);
+      await this.verifyResponse(res, requestText, responseBytes, selection, nonce, 'generate');
       const responseText = new TextDecoder().decode(responseBytes);
       for (const line of responseText.split('\n')) {
         const trimmed = line.trim();
@@ -596,15 +608,47 @@ export class OpenAICompatBackend implements InferenceBackend {
     responseBytes: Uint8Array,
     selection: InferenceModelSelection,
     nonce: string,
+    operation: InferenceOperation,
   ): Promise<void> {
-    await this.responseVerifier?.verifyReceipt(this.receiptId(res), {
-      requestSha256: this.sha256(new TextEncoder().encode(requestText)),
-      responseSha256: this.sha256(responseBytes),
+    const verifier = this.responseVerifier;
+    if (!verifier) return;
+    await this.timed('verify_receipt', selection, operation, () =>
+      verifier.verifyReceipt(this.receiptId(res), {
+        requestSha256: this.sha256(new TextEncoder().encode(requestText)),
+        responseSha256: this.sha256(responseBytes),
+        model: selection.model,
+        modelRevision: selection.revision,
+        modelRole: selection.role,
+        nonce,
+      }),
+    );
+  }
+
+  private async attest(
+    selection: InferenceModelSelection,
+    operation: InferenceOperation,
+    endpoint: string,
+  ): Promise<void> {
+    const verifier = this.responseVerifier;
+    if (!verifier) return;
+    await this.timed('attest', selection, operation, () =>
+      verifier.ensureAttested(this.attestationContext(selection, endpoint)),
+    );
+  }
+
+  private timed<T>(
+    phase: InferenceCallPhase,
+    selection: InferenceModelSelection,
+    operation: InferenceOperation,
+    step: () => Promise<T>,
+  ): Promise<T> {
+    if (!this.timer) return step();
+    const label = {
       model: selection.model,
-      modelRevision: selection.revision,
-      modelRole: selection.role,
-      nonce,
-    });
+      operation,
+      ...(selection.role ? { role: selection.role } : {}),
+    };
+    return this.timer(phase, label, step);
   }
 
   private nonce(): string {

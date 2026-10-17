@@ -37,11 +37,12 @@ export const REASONING_EFFORT_BY_MODEL: ReadonlyMap<
   Readonly<Partial<Record<ReasoningEffortCall, ReasoningEffort>>>
 > = new Map([
   ['z-ai/glm-5.3', { generate: 'low' }],
+  ['z-ai/glm-5.2', { generate: 'low', structured: 'low' }],
   ['moonshotai/kimi-k3', { generate: 'low', structured: 'low' }],
 ]);
 
 // Matched by prefix so a renamed variant of a reasoning model cannot silently run at default effort.
-const REASONING_MODEL_FAMILIES = ['z-ai/glm-5.3', 'moonshotai/kimi-k3'] as const;
+const REASONING_MODEL_FAMILIES = ['z-ai/glm-5.3', 'z-ai/glm-5.2', 'moonshotai/kimi-k3'] as const;
 
 export function reasoningEffortFor(
   model: string,

@@ -98,6 +98,39 @@ export interface InferenceUsageEvent {
 
 export type InferenceUsageSink = (event: InferenceUsageEvent) => void;
 
+export type InferenceCallPhase =
+  | 'gate_wait'
+  | 'trusted_time'
+  | 'bind'
+  | 'attest'
+  | 'request'
+  | 'response'
+  | 'verify_receipt'
+  | 'verify_session'
+  | 'retry_backoff';
+
+/** Names the call a timed step belongs to: a config-sourced model id and closed names only. */
+export interface InferenceCallLabel {
+  model?: string;
+  role?: InferenceModelRole;
+  operation?: InferenceOperation;
+}
+
+/** Runs `step` exactly once and settles as it does; timing a step must never change or fail it. */
+export type InferenceTimer = <T>(
+  phase: InferenceCallPhase,
+  label: InferenceCallLabel,
+  step: () => Promise<T>,
+) => Promise<T>;
+
+export const INFERENCE_OPERATION_BY_ROLE: Readonly<Record<InferenceModelRole, InferenceOperation>> =
+  Object.freeze({
+    embed: 'embed',
+    generate: 'generate',
+    critique: 'generate',
+    judge: 'structured',
+  });
+
 export interface AttestationReport {
   /** Hex-encoded TDX attestation quote issued by the Phala dstack daemon. */
   quote: string;

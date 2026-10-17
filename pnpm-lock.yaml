@@ -64,7 +64,7 @@ importers:
         version: 87.0.0(graphql@17.0.2)
       '@notionhq/client':
         specifier: ^5.22.0
-        version: 5.27.0
+        version: 5.27.1
       '@octokit/plugin-retry':
         specifier: ^7.2.1
         version: 7.2.1(@octokit/core@6.1.6)
@@ -328,7 +328,7 @@ importers:
         version: link:../errors
       posthog-node:
         specifier: ^5.39.1
-        version: 5.56.1
+        version: 5.56.2
     devDependencies:
       '@folklore/tsconfig':
         specifier: workspace:*
@@ -754,8 +754,8 @@ packages:
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
 
-  '@notionhq/client@5.27.0':
-    resolution: {integrity: sha512-JnkLtAzSDrEnvtZ8dQ5L4KO+xyL5g01xK5qmKTmhJ5KFY8LWsMyFG033vHCj0mFcsz9thAMjfcAQz/SWxiexag==}
+  '@notionhq/client@5.27.1':
+    resolution: {integrity: sha512-WedYyPNMpQbE4Dz5h7zHTsh03veUGqBzxWyztbIh0tNbgHU+XbDi/jc1KgL3j1p8y06nHLEmGYygntwICxJUNw==}
     engines: {node: '>=18'}
 
   '@octokit/auth-token@5.1.2':
@@ -1620,8 +1620,8 @@ packages:
     resolution: {integrity: sha512-zkd+e9S1AQHhmaBKye9zlFHWjOwVgqXl1q3ECYy8561K7qxR2cREf/STLskulBFd78k6AOFeA+ff1TtEzk9bAA==}
     engines: {node: ^10 || ^12 || >=14}
 
-  posthog-node@5.56.1:
-    resolution: {integrity: sha512-TlEeE5OHNbsIje/htLwvmxN45/X0FcMSsln15cHdQqybUGj9Ebd0yyziWec0Fi5YQwMHYCfJPcNdgol/s1lIFA==}
+  posthog-node@5.56.2:
+    resolution: {integrity: sha512-1/qYFNuHkDJJuDHjAvozN/fH/+XdqzlIZ0WCsCYrhUgGNxDBw5M3kZaJaRX0YSPi9tn7PnZFD5eTXg2Z7m5LeQ==}
     engines: {node: ^20.20.0 || >=22.22.0}
     peerDependencies:
       '@opentelemetry/api': ^1.2.0
@@ -2146,7 +2146,7 @@ snapshots:
 
   '@noble/hashes@1.8.0': {}
 
-  '@notionhq/client@5.27.0': {}
+  '@notionhq/client@5.27.1': {}
 
   '@octokit/auth-token@5.1.2': {}
 
@@ -3058,7 +3058,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.2
 
-  posthog-node@5.56.1:
+  posthog-node@5.56.2:
     dependencies:
       '@posthog/core': 1.59.1
 

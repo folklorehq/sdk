@@ -5,8 +5,9 @@ import { REASONING_EFFORT_BY_MODEL, reasoningModelsMissingEffort } from '../src/
 
 const BASE_URL = 'http://vllm:8000';
 const GLM_5_3 = 'z-ai/glm-5.3';
+const GLM_5_2 = 'z-ai/glm-5.2';
 const KIMI_K3 = 'moonshotai/kimi-k3';
-const UNMAPPED_MODELS = ['z-ai/glm-5.2', 'qwen/qwen3-32b'];
+const UNMAPPED_MODELS = ['qwen/qwen3-32b'];
 const REVISION = 'revision-1';
 const MAX_TOKENS = 8192;
 const TEMPERATURE = 0.2;
@@ -111,24 +112,28 @@ function expectedStructuredBody(model: string, path: Path, effort: object = {}):
 }
 
 describe('per-model reasoning effort', () => {
-  it('declares low effort for glm-5.3 generate and for kimi-k3 generate and structured', () => {
+  it('declares low effort for glm-5.3 generate and for glm-5.2 and kimi-k3 generate and structured', () => {
     expect([...REASONING_EFFORT_BY_MODEL]).toEqual([
       [GLM_5_3, { generate: 'low' }],
+      [GLM_5_2, { generate: 'low', structured: 'low' }],
       [KIMI_K3, { generate: 'low', structured: 'low' }],
     ]);
   });
 
   describe.each(PATHS)('on the %s path', (path) => {
-    it.each([GLM_5_3, KIMI_K3])(
+    it.each([GLM_5_3, GLM_5_2, KIMI_K3])(
       'sends reasoning_effort low on a %s generate request',
       async (model) => {
         expect(await generateBody(model, path)).toBe(expectedGenerateBody(model, path, LOW));
       },
     );
 
-    it('sends reasoning_effort low on a kimi-k3 structured request', async () => {
-      expect(await structuredBody(KIMI_K3, path)).toBe(expectedStructuredBody(KIMI_K3, path, LOW));
-    });
+    it.each([GLM_5_2, KIMI_K3])(
+      'sends reasoning_effort low on a %s structured request',
+      async (model) => {
+        expect(await structuredBody(model, path)).toBe(expectedStructuredBody(model, path, LOW));
+      },
+    );
 
     it('leaves the glm-5.3 structured body byte-identical', async () => {
       const body = await structuredBody(GLM_5_3, path);
@@ -148,15 +153,18 @@ describe('per-model reasoning effort', () => {
       expect(body).not.toContain('reasoning');
     });
 
-    it.each([GLM_5_3, KIMI_K3])('never sends reasoning_effort on a %s stream', async (model) => {
-      const fetchMock = vi.fn().mockResolvedValue(new Response('data: [DONE]\n\n'));
-      const tokens = backendFor(path, fetchMock).stream('prompt', {
-        model,
-        modelRevision: REVISION,
-      });
-      for await (const token of tokens) expect(token).toBeUndefined();
-      expect(sentBody(fetchMock)).not.toContain('reasoning');
-    });
+    it.each([GLM_5_3, GLM_5_2, KIMI_K3])(
+      'never sends reasoning_effort on a %s stream',
+      async (model) => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response('data: [DONE]\n\n'));
+        const tokens = backendFor(path, fetchMock).stream('prompt', {
+          model,
+          modelRevision: REVISION,
+        });
+        for await (const token of tokens) expect(token).toBeUndefined();
+        expect(sentBody(fetchMock)).not.toContain('reasoning');
+      },
+    );
   });
 
   it('sends reasoning_effort on a kimi-k3 json_schema structured request', async () => {
@@ -194,11 +202,13 @@ describe('per-model reasoning effort', () => {
 
 describe('reasoningModelsMissingEffort', () => {
   it('accepts the mapped reasoning models and models outside a reasoning family', () => {
-    expect(reasoningModelsMissingEffort([GLM_5_3, KIMI_K3, ...UNMAPPED_MODELS])).toEqual([]);
+    expect(reasoningModelsMissingEffort([GLM_5_3, GLM_5_2, KIMI_K3, ...UNMAPPED_MODELS])).toEqual(
+      [],
+    );
   });
 
   it('names a renamed reasoning variant that has no entry', () => {
-    const variants = ['z-ai/glm-5.3-flash', 'moonshotai/kimi-k3-thinking'];
+    const variants = ['z-ai/glm-5.3-flash', 'z-ai/glm-5.2-thinking', 'moonshotai/kimi-k3-thinking'];
     expect(reasoningModelsMissingEffort([GLM_5_3, ...variants])).toEqual(variants);
   });
 });
