@@ -477,6 +477,8 @@ describe('PublicAciSessionVerifier', () => {
     ['moonshotai/kimi-k3', 'moonshotai/Kimi-K3-TEE'],
     ['z-ai/glm-5.3', 'glm-5-3'],
     ['z-ai/glm-5.2', 'zai-org/GLM-5.2-TEE'],
+    ['z-ai/glm-5.1', 'zai-org/GLM-5.1-TEE'],
+    ['moonshotai/kimi-k2.6', 'moonshotai/Kimi-K2.6-TEE'],
     ['qwen/qwen3-32b', 'Qwen/Qwen3-32B-TEE'],
     ['qwen/qwen3-embedding-8b', 'Qwen/Qwen3-Embedding-8B-TEE'],
   ])('accepts %s only by its exact attested upstream id %s', async (model, upstreamId) => {

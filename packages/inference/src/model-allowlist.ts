@@ -6,8 +6,10 @@
 // fail-closed default; override only after live-verifying a model's attestation.
 export const DEFAULT_VERIFIED_MODELS = [
   'moonshotai/kimi-k3',
+  'moonshotai/kimi-k2.6',
   'z-ai/glm-5.3',
   'z-ai/glm-5.2',
+  'z-ai/glm-5.1',
   'qwen/qwen3-32b',
   'qwen/qwen3-embedding-8b',
 ] as const;
@@ -38,11 +40,13 @@ export const REASONING_EFFORT_BY_MODEL: ReadonlyMap<
 > = new Map([
   ['z-ai/glm-5.3', { generate: 'low' }],
   ['z-ai/glm-5.2', { generate: 'low', structured: 'low' }],
+  ['z-ai/glm-5.1', { generate: 'low', structured: 'low' }],
   ['moonshotai/kimi-k3', { generate: 'low', structured: 'low' }],
+  ['moonshotai/kimi-k2.6', { generate: 'low', structured: 'low' }],
 ]);
 
 // Matched by prefix so a renamed variant of a reasoning model cannot silently run at default effort.
-const REASONING_MODEL_FAMILIES = ['z-ai/glm-5.3', 'z-ai/glm-5.2', 'moonshotai/kimi-k3'] as const;
+const REASONING_MODEL_FAMILIES: readonly string[] = [...REASONING_EFFORT_BY_MODEL.keys()];
 
 export function reasoningEffortFor(
   model: string,
@@ -70,6 +74,8 @@ const ATTESTED_UPSTREAM_MODEL_IDS: ReadonlyMap<string, string> = new Map([
   ['moonshotai/kimi-k3', KIMI_K3_ATTESTED_UPSTREAM_MODEL_ID],
   ['z-ai/glm-5.3', GLM_5_3_ATTESTED_UPSTREAM_MODEL_ID],
   ['z-ai/glm-5.2', 'zai-org/GLM-5.2-TEE'],
+  ['z-ai/glm-5.1', 'zai-org/GLM-5.1-TEE'],
+  ['moonshotai/kimi-k2.6', 'moonshotai/Kimi-K2.6-TEE'],
   ['qwen/qwen3-32b', 'Qwen/Qwen3-32B-TEE'],
   ['qwen/qwen3-embedding-8b', 'Qwen/Qwen3-Embedding-8B-TEE'],
 ]);

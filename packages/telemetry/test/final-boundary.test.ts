@@ -305,6 +305,17 @@ describe('PostHogTelemetryClient final boundary', () => {
     expect(captured).toHaveLength(1);
   });
 
+  it.each(['z-ai/glm-5.1', 'moonshotai/kimi-k2.6'])(
+    'accepts the capacity-tier model %s on an inference error',
+    (model) => {
+      const { client, captured } = recordingClient();
+
+      client.track('inference.error', 'system', { model, errorType: 'generate_failed' });
+
+      expect(captured).toHaveLength(1);
+    },
+  );
+
   it('rejects an ACI session identifier that could carry prose', () => {
     const { client, captured } = recordingClient();
 
