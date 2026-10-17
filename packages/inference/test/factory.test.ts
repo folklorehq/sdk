@@ -83,10 +83,13 @@ describe('createInferenceBackend()', () => {
     expect(() => createInferenceBackend({ mode: 'phala-endpoint' })).toThrow(/teeEndpointUrl/);
   });
 
-  it('does not allow task routing to override signed TEE role models', () => {
-    expect(() =>
-      createInferenceBackend({ ...secureTeeConfig(), taskModels: { synthesis: 'provider/other' } }),
-    ).toThrow(/signed roleModels policy/);
+  it('exports no task router and ignores a taskModels config key', async () => {
+    const exported = await import('../src/index.js');
+    expect(exported).not.toHaveProperty('RoutingInferenceBackend');
+    expect(exported).not.toHaveProperty('tieredTaskModels');
+
+    const config = { ...secureTeeConfig(), taskModels: { synthesis: 'provider/other' } };
+    expect(createInferenceBackend(config)).toBeInstanceOf(TeeEndpointBackend);
   });
 
   it('all backends expose close()', async () => {

@@ -23,25 +23,8 @@ export function pullRequestContainerId(repo: GitHubRepo, pullNumber: number): st
   return githubItemKey(repo.full_name, pullNumber);
 }
 
-/** Diff/comment scalars for a PR-opened Fact. Counts only — no filename ever enters. */
-export interface PullRequestMetricsInput {
-  additions: number;
-  deletions: number;
-  changedFiles: number;
-  commentCount: number;
-}
-
 function metric(key: FactMetricKey, value: number): NormalizedMetric {
   return { key, value, unit: FACT_METRIC_UNITS[key] };
-}
-
-function pullRequestMetrics(input: PullRequestMetricsInput): NormalizedMetric[] {
-  return [
-    metric(FACT_METRIC_KEYS.prAdditions, input.additions),
-    metric(FACT_METRIC_KEYS.prDeletions, input.deletions),
-    metric(FACT_METRIC_KEYS.prChangedFiles, input.changedFiles),
-    metric(FACT_METRIC_KEYS.prCommentCount, input.commentCount),
-  ];
 }
 
 /** Known-real structured ids for a github fact. `head.ref`/branch names are excluded on purpose (#68). */
@@ -63,6 +46,10 @@ export function userToActor(
   };
 }
 
+function loginActor(user: GitHubUser): NormalizedActor {
+  return userToActor({ id: user.id, login: user.login });
+}
+
 export function repoToResource(repo: GitHubRepo): NormalizedResource {
   return { externalId: String(repo.id), resourceType: 'repository', isPublic: !repo.private };
 }
@@ -73,7 +60,6 @@ export function repoToResource(repo: GitHubRepo): NormalizedResource {
 export function normalizePullRequest(
   repo: GitHubRepo,
   pr: GitHubPullRequest,
-  metricsInput?: PullRequestMetricsInput,
 ): { container: NormalizedRecords['containers'][number]; fact: NormalizedFact } {
   const sourceContainerId = pullRequestContainerId(repo, pr.number);
   const resourceExternalId = String(repo.id);
@@ -84,7 +70,7 @@ export function normalizePullRequest(
       kind: 'content',
       occurredAt: new Date(pr.created_at),
       resourceExternalId,
-      authors: [userToActor(pr.user)],
+      authors: [loginActor(pr.user)],
       containerRefs: [sourceContainerId],
       sourceThreadId: sourceContainerId,
       entities: githubEntities(repo, pr.number),
@@ -92,8 +78,7 @@ export function normalizePullRequest(
         body: [pr.title, pr.body ?? ''].filter(Boolean).join('\n\n'),
         explicitLinks: extractExplicitLinks(pr.body ?? '', repo.full_name),
       },
-      metrics: metricsInput ? pullRequestMetrics(metricsInput) : undefined,
-      raw: pr,
+      raw: { id: pr.id, number: pr.number },
     },
   };
 }
@@ -116,18 +101,24 @@ export function normalizePullRequestTransition(
           ),
         ]
       : undefined;
+  const keyAt = action === 'reopened' ? pr.updated_at : (pr.closed_at ?? pr.updated_at);
   return {
-    sourceFactId: `github:pr_${transitionType}:${pr.id}:${pr.updated_at}`,
+    sourceFactId: `github:pr_${transitionType}:${pr.id}:${keyAt}`,
     kind: 'transition',
     occurredAt: new Date(pr.closed_at ?? pr.updated_at),
     resourceExternalId: String(repo.id),
-    authors: [userToActor(pr.user)],
+    authors: [loginActor(pr.user)],
     containerRefs: [pullRequestContainerId(repo, pr.number)],
     sourceThreadId: pullRequestContainerId(repo, pr.number),
     entities: githubEntities(repo, pr.number),
     transition: { transitionType, detail: { field: 'state', from, to } },
     metrics: mergeMetrics,
-    raw: pr,
+    raw: {
+      id: pr.id,
+      number: pr.number,
+      closed_at: pr.closed_at ?? null,
+      merged: pr.merged === true,
+    },
   };
 }
 
@@ -144,12 +135,15 @@ export function normalizeIssueComment(
   pullNumber: number,
   comment: GitHubIssueComment,
 ): NormalizedFact {
+  const editedAt = editedTimestamp(comment);
   return {
-    sourceFactId: `github:comment:${comment.id}`,
+    sourceFactId: editedAt
+      ? `github:comment:edited:${comment.id}:${editedAt}`
+      : `github:comment:${comment.id}`,
     kind: 'content',
-    occurredAt: new Date(comment.created_at),
+    occurredAt: new Date(editedAt ?? comment.created_at),
     resourceExternalId: String(repo.id),
-    authors: [userToActor(comment.user)],
+    authors: [loginActor(comment.user)],
     containerRefs: [pullRequestContainerId(repo, pullNumber)],
     sourceThreadId: pullRequestContainerId(repo, pullNumber),
     entities: githubEntities(repo, pullNumber),
@@ -157,8 +151,13 @@ export function normalizeIssueComment(
       body: comment.body,
       explicitLinks: extractExplicitLinks(comment.body, repo.full_name),
     },
-    raw: comment,
+    raw: { id: comment.id },
   };
+}
+
+function editedTimestamp(comment: GitHubIssueComment): string | undefined {
+  const { updated_at: updatedAt, created_at: createdAt } = comment;
+  return updatedAt !== undefined && updatedAt !== createdAt ? updatedAt : undefined;
 }
 
 export function normalizeCommit(repo: GitHubRepo, commit: GitHubCommit): NormalizedFact {
@@ -186,12 +185,17 @@ export function normalizeCommit(repo: GitHubRepo, commit: GitHubCommit): Normali
   };
 }
 
+function isTransitionAction(action: string): action is 'closed' | 'reopened' {
+  return action === 'closed' || action === 'reopened';
+}
+
 export function normalizePullRequestEvent(event: PullRequestEvent): NormalizedRecords {
   const { repository, pull_request, action } = event;
   if (action === 'opened') {
     const { container, fact } = normalizePullRequest(repository, pull_request);
     return { containers: [container], facts: [fact] };
   }
+  if (!isTransitionAction(action)) return { containers: [], facts: [] };
   return {
     containers: [],
     facts: [normalizePullRequestTransition(repository, pull_request, action)],

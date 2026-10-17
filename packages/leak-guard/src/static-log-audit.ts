@@ -15,7 +15,8 @@ const DYNAMIC_VALUE = Symbol('dynamic_log_value');
 // content-free. The pool runner writes either a bare code from the fixed failure vocabulary or a
 // derived `aws_<sdk-error-name>[_<http-status>]`, lowercased and re-validated by
 // failureCodeSchema, so what reaches the log is `[a-z][a-z0-9_]*` in both cases — never an SDK
-// message, which carries ARNs and principals.
+// message, which carries ARNs and principals. Its Lambda entry (lambda.ts) writes only its fixed
+// runtime-load failure code and a numeric phase line, before the runner graph (and main.ts) loads.
 //
 // The pre-apply composition preflight is the same shape: a deploy-runner entrypoint whose whole
 // contract is the process's exit code and one line per problem on stdio, and it runs before the
@@ -28,6 +29,7 @@ const DYNAMIC_VALUE = Symbol('dynamic_log_value');
 const CONSOLE_EXEMPT_FILES = new Set([
   'apps/api/src/main.ts',
   'apps/pool-provisioning-runner/src/main.ts',
+  'apps/pool-provisioning-runner/src/lambda.ts',
   'apps/control-plane-server/src/ops/cli.ts',
   'apps/control-plane-server/src/ops/setup-stripe-products.ts',
   'apps/control-plane-server/src/composition-root/cli/preflight-composition.ts',

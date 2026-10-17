@@ -8,7 +8,6 @@ export type {
   AttestationReport,
   InferenceResponseVerifier,
   InferenceAttestationContext,
-  InferenceTask,
   InferenceOperation,
   InferenceUsageEvent,
   InferenceUsageSink,
@@ -106,7 +105,6 @@ export {
 } from './OpenAICompatBackend.js';
 export { MAX_RETRY_AFTER_MS, ProviderHttpError } from './ProviderHttpError.js';
 export { StubInferenceBackend } from './StubInferenceBackend.js';
-export { RoutingInferenceBackend, tieredTaskModels, type TaskModelMap } from './model-router.js';
 export {
   createInferenceBackend,
   TEE_COMMISSIONING_PREREQUISITE,

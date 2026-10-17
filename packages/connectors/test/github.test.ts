@@ -35,7 +35,7 @@ describe('Fact vs. Container classification', () => {
     expect(fact.kind).toBe('content');
     expect(fact.sourceFactId).toBe('github:pr_opened:1001');
     expect(fact.containerRefs).toEqual(['acme/widget#7']);
-    expect(fact.authors[0]).toMatchObject({ sourceUserId: '5', displayName: 'Nate A' });
+    expect(fact.authors[0]).toMatchObject({ sourceUserId: '5', displayName: 'nate' });
     expect(fact.content?.explicitLinks).toContain('acme/widget#3');
   });
 
@@ -151,22 +151,7 @@ describe('transition Facts', () => {
 });
 
 describe('fact_metrics (method 6, content-free numeric signals)', () => {
-  it('attaches exact PR-opened diff + comment metrics', () => {
-    const { fact } = normalizePullRequest(repo, pr, {
-      additions: 128,
-      deletions: 12,
-      changedFiles: 9,
-      commentCount: 4,
-    });
-    expect(fact.metrics).toEqual([
-      { key: 'github.pr.additions', value: 128, unit: 'lines' },
-      { key: 'github.pr.deletions', value: 12, unit: 'lines' },
-      { key: 'github.pr.changed_files', value: 9, unit: 'files' },
-      { key: 'github.pr.comment_count', value: 4, unit: 'count' },
-    ]);
-  });
-
-  it('omits metrics on the PR-opened fact when no diff counts are provided', () => {
+  it('carries no metrics on the PR-opened fact', () => {
     const { fact } = normalizePullRequest(repo, pr);
     expect(fact.metrics).toBeUndefined();
   });
@@ -212,15 +197,10 @@ describe('fact_metrics (method 6, content-free numeric signals)', () => {
       timestamp: '2026-06-02T08:00:00Z',
       modified: [secretFilename],
     });
-    const { fact: prFact } = normalizePullRequest(repo, pr, {
-      additions: 1,
-      deletions: 1,
-      changedFiles: 1,
-      commentCount: 0,
-    });
+    const { fact: prFact } = normalizePullRequest(repo, pr);
 
     for (const metrics of [commitFact.metrics, prFact.metrics]) {
-      const serialized = JSON.stringify(metrics);
+      const serialized = JSON.stringify(metrics ?? []);
       expect(serialized).not.toContain(secretFilename);
       expect(serialized).not.toContain('secret-auth');
       expect(serialized).not.toContain(secretPatch);
@@ -230,6 +210,48 @@ describe('fact_metrics (method 6, content-free numeric signals)', () => {
         expect(m.key.startsWith('github.')).toBe(true);
       }
     }
+  });
+});
+
+describe('pull_request actions', () => {
+  const closedAt = '2026-06-03T12:00:00Z';
+  const updatedAt = '2026-06-05T00:00:00Z';
+  const event = (action: string, overrides: Partial<GitHubPullRequest> = {}): PullRequestEvent => ({
+    action,
+    repository: repo,
+    pull_request: { ...pr, ...overrides },
+  });
+  const closed = { state: 'closed', closed_at: closedAt, updated_at: updatedAt } as const;
+
+  it.each(['synchronize', 'edited', 'labeled', 'converted_to_draft'])(
+    'emits nothing for %s',
+    (action) => {
+      expect(normalizePullRequestEvent(event(action))).toEqual({ containers: [], facts: [] });
+    },
+  );
+
+  it('keys a closed unmerged PR on closed_at', () => {
+    const { facts } = normalizePullRequestEvent(event('closed', closed));
+    expect(facts[0]?.sourceFactId).toBe(`github:pr_closed:1001:${closedAt}`);
+  });
+
+  it('keys a merged PR on closed_at', () => {
+    const { facts } = normalizePullRequestEvent(event('closed', { ...closed, merged: true }));
+    expect(facts[0]?.sourceFactId).toBe(`github:pr_merged:1001:${closedAt}`);
+  });
+
+  it('keys a reopened PR on updated_at', () => {
+    const { facts } = normalizePullRequestEvent(
+      event('reopened', { closed_at: closedAt, updated_at: updatedAt }),
+    );
+    expect(facts[0]?.sourceFactId).toBe(`github:pr_reopened:1001:${updatedAt}`);
+  });
+
+  it('falls back to updated_at when a closed PR has no closed_at', () => {
+    const { facts } = normalizePullRequestEvent(
+      event('closed', { state: 'closed', closed_at: null, updated_at: updatedAt }),
+    );
+    expect(facts[0]?.sourceFactId).toBe(`github:pr_closed:1001:${updatedAt}`);
   });
 });
 
@@ -287,14 +309,6 @@ describe('GitHubConnector.pull', () => {
       'github:comment:900',
     ]);
     expect(result.cursor.value).toBe('2026-06-01T10:00:00Z');
-
-    const opened = result.facts.find((f) => f.sourceFactId === 'github:pr_opened:1001');
-    expect(opened?.metrics).toEqual([
-      { key: 'github.pr.additions', value: 10, unit: 'lines' },
-      { key: 'github.pr.deletions', value: 3, unit: 'lines' },
-      { key: 'github.pr.changed_files', value: 2, unit: 'files' },
-      { key: 'github.pr.comment_count', value: 1, unit: 'count' },
-    ]);
   });
 
   it('maps transport rate limits to RateLimitError', async () => {

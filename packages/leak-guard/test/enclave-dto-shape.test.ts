@@ -11,6 +11,7 @@ import {
   pullDueMessageSchema,
   tokenUsageSchema,
   inferenceSpanSchema,
+  wikiSynthesisDeferredSchema,
   TOKEN_USAGE_MODEL_MAX_LENGTH,
 } from '@folklore/contracts/enclave';
 import { stringLeafPaths } from '../src/zod-introspect.js';
@@ -57,16 +58,33 @@ const FROZEN: Record<string, string[]> = {
     'blocks[].body.objectId',
     'blocks[].body.orgId',
     'blocks[].factIds[]',
+    'blocks[].promptHash',
     'blocks[].type',
     'citedFactIds[]',
     'leaseToken',
     'orgId',
+    'pageStates[].audienceId',
+    'pageStates[].envelope.ciphertext',
+    'pageStates[].envelope.objectId',
+    'pageStates[].envelope.orgId',
+    'qualityScores[].audienceId',
     'requestId',
+    'shadowArticles[].audienceId',
+    'shadowArticles[].factIds[]',
+    'shadowArticles[].production.ciphertext',
+    'shadowArticles[].production.objectId',
+    'shadowArticles[].production.orgId',
+    'shadowArticles[].scores.production.audienceId',
+    'shadowArticles[].scores.variant.audienceId',
+    'shadowArticles[].variant.ciphertext',
+    'shadowArticles[].variant.objectId',
+    'shadowArticles[].variant.orgId',
     'themeId',
     'timeline.spans[].errorCode',
     'timeline.spans[].model',
     'tokenUsage[].model',
   ],
+  wikiSynthesisDeferred: ['leaseToken', 'orgId', 'requestId', 'themeId', 'tokenUsage[].model'],
   themeSynthesisResult: [
     'aggregates[].aggregateThemeId',
     'aggregates[].children[].childThemeId',
@@ -99,6 +117,7 @@ const FROZEN: Record<string, string[]> = {
     'blocks[].body.objectId',
     'blocks[].body.orgId',
     'blocks[].factIds[]',
+    'blocks[].promptHash',
     'blocks[].type',
     'citedFactIds[]',
     'orgId',
@@ -126,6 +145,10 @@ const FROZEN: Record<string, string[]> = {
     'leaseToken',
     'newlyAssociatedFactIds[]',
     'orgId',
+    'previousPageStates[].audienceId',
+    'previousPageStates[].envelope.ciphertext',
+    'previousPageStates[].envelope.objectId',
+    'previousPageStates[].envelope.orgId',
     'relatedThemes[].name',
     'relatedThemes[].themeId',
     'requestId',
@@ -160,6 +183,7 @@ const FROZEN: Record<string, string[]> = {
 const SCHEMAS = {
   processedFact: processedFactSchema,
   wikiSynthesisResult: wikiSynthesisResultSchema,
+  wikiSynthesisDeferred: wikiSynthesisDeferredSchema,
   themeSynthesisResult: themeSynthesisResultSchema,
   teamOnboardingSynthesisResult: teamOnboardingSynthesisResultSchema,
   synthesisRequest: synthesisRequestSchema,
@@ -170,7 +194,14 @@ const SCHEMAS = {
 
 // A new free string whose name reads like prose is the classic silent plaintext channel.
 const PROSE_LEAF_NAMES = ['body', 'message', 'summary', 'text', 'description', 'prompt', 'snippet'];
-const ACCEPTED_CONTENT_FIELDS = ['articles[].content', 'blocks[].body.ciphertext'];
+const ACCEPTED_CONTENT_FIELDS = [
+  'articles[].content',
+  'blocks[].body.ciphertext',
+  'pageStates[].envelope.ciphertext',
+  'previousPageStates[].envelope.ciphertext',
+  'shadowArticles[].production.ciphertext',
+  'shadowArticles[].variant.ciphertext',
+];
 
 describe('enclave→worker DTO shapes are content-free by construction', () => {
   for (const [name, schema] of Object.entries(SCHEMAS)) {
@@ -242,10 +273,20 @@ describe('enclave→worker DTO shapes are content-free by construction', () => {
     ).toBe(false);
   });
 
-  it('the only accepted content-carrying fields are the two documented ones', () => {
-    const contentish = stringLeafPaths(wikiSynthesisResultSchema).filter(
-      (p) => p.endsWith('content') || p.endsWith('ciphertext'),
+  it('the only accepted content-carrying fields are the six documented ones', () => {
+    const isContentish = (path: string): boolean =>
+      path.endsWith('content') || path.endsWith('ciphertext');
+    for (const [name, schema] of Object.entries(SCHEMAS)) {
+      for (const path of stringLeafPaths(schema).filter(isContentish)) {
+        expect(
+          ACCEPTED_CONTENT_FIELDS,
+          `${name}.${path} is an undocumented content field`,
+        ).toContain(path);
+      }
+    }
+    const documented = Object.values(SCHEMAS).flatMap((schema) =>
+      stringLeafPaths(schema).filter(isContentish),
     );
-    expect(contentish.sort()).toEqual([...ACCEPTED_CONTENT_FIELDS].sort());
+    expect([...new Set(documented)].sort()).toEqual([...ACCEPTED_CONTENT_FIELDS].sort());
   });
 });

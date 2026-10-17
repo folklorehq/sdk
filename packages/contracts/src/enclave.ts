@@ -4,6 +4,14 @@ import { factMetricSchema } from './metrics.js';
 import { sealedContentEnvelopeV1Schema } from './sealed-content.js';
 import { richBlockKindSchema } from './wiki.js';
 import { inferenceModelRoleSchema } from './inference-trust.js';
+import {
+  CLAUDE_DEFERRAL_REASONS,
+  SHADOW_FACT_IDS_MAX,
+  claudeArmSchema,
+  claudeInferencePurposeSchema,
+  claudeQualityScoresSchema,
+  inferenceUsageOutcomeSchema,
+} from './claude-inference.js';
 
 export {
   sealedContentEnvelopeV1Schema,
@@ -169,6 +177,10 @@ export const encryptedBlockSchema = z
     audienceId: z.string().nullable(),
     factIds: z.array(z.string()),
     body: encryptedBodySchema,
+    promptHash: z
+      .string()
+      .regex(/^[0-9a-f]{64}$/)
+      .optional(),
   })
   .strict();
 export type EncryptedBlock = z.infer<typeof encryptedBlockSchema>;
@@ -282,6 +294,10 @@ export const tokenUsageSchema = z
     promptTokens: z.number().int().nonnegative(),
     completionTokens: z.number().int().nonnegative(),
     timing: inferenceTimingSchema.optional(),
+    purpose: claudeInferencePurposeSchema.or(z.literal('untagged')).optional(),
+    outcome: inferenceUsageOutcomeSchema.optional(),
+    cacheReadTokens: z.number().int().nonnegative().optional(),
+    cacheWriteTokens: z.number().int().nonnegative().optional(),
   })
   .strict();
 export type TokenUsage = z.infer<typeof tokenUsageSchema>;
@@ -350,6 +366,41 @@ export type InferenceTimeline = z.infer<typeof inferenceTimelineSchema>;
 // timeline this worker cannot read costs the timeline, never the article.
 const inferenceTimelineField = inferenceTimelineSchema.optional().catch(undefined);
 
+export const wikiPageStateEnvelopeSchema = z
+  .object({ audienceId: z.string().nullable(), envelope: sealedContentEnvelopeV1Schema })
+  .strict()
+  .refine((state) => state.envelope.purpose === 'wiki-page-state');
+export type WikiPageStateEnvelope = z.infer<typeof wikiPageStateEnvelopeSchema>;
+
+const wikiShadowEnvelopeSchema = sealedContentEnvelopeV1Schema.refine(
+  (envelope) => envelope.purpose === 'wiki-shadow',
+);
+
+const wikiShadowCommonFields = {
+  arm: z.enum(['R', 'B']),
+  audienceId: z.string().nullable(),
+  factCount: z.number().int().nonnegative(),
+  sensitivityFloor: sensitivityLevelSchema,
+  factIds: z.array(z.string()).max(SHADOW_FACT_IDS_MAX),
+};
+
+// A failed arm is still an attempt, so it is a row with no envelopes and no scores.
+export const wikiShadowArticleSchema = z.discriminatedUnion('outcome', [
+  z
+    .object({
+      ...wikiShadowCommonFields,
+      outcome: z.literal('ok'),
+      variant: wikiShadowEnvelopeSchema,
+      production: wikiShadowEnvelopeSchema,
+      scores: z
+        .object({ variant: claudeQualityScoresSchema, production: claudeQualityScoresSchema })
+        .strict(),
+    })
+    .strict(),
+  z.object({ ...wikiShadowCommonFields, outcome: z.literal('failed') }).strict(),
+]);
+export type WikiShadowArticle = z.infer<typeof wikiShadowArticleSchema>;
+
 export const wikiSynthesisResultSchema = z
   .object({
     type: z.literal('wiki_synthesis'),
@@ -364,9 +415,32 @@ export const wikiSynthesisResultSchema = z
     critique: critiqueOutcomeSchema.optional(),
     tokenUsage: tokenUsageArray,
     timeline: inferenceTimelineField,
+    // UNWIRED: no enclave emits pageStates yet.
+    pageStates: z.array(wikiPageStateEnvelopeSchema).optional(),
+    // UNWIRED: no enclave emits shadowArticles yet.
+    // A shadow extra the worker cannot read costs the extra, never the production page.
+    shadowArticles: z.array(wikiShadowArticleSchema).optional().catch(undefined),
+    // UNWIRED: no enclave emits qualityScores yet.
+    qualityScores: z.array(claudeQualityScoresSchema).optional().catch(undefined),
+    // UNWIRED: no enclave emits untaggedCalls yet.
+    untaggedCalls: z.number().int().nonnegative().optional(),
   })
   .strict();
 export type WikiSynthesisResult = z.infer<typeof wikiSynthesisResultSchema>;
+
+// Not tokenUsageArray: its .catch([]) would turn malformed usage into an empty array, and so into a refund.
+export const wikiSynthesisDeferredSchema = z
+  .object({
+    type: z.literal('wiki_synthesis_deferred'),
+    requestId: z.string(),
+    themeId: z.string(),
+    orgId: z.string(),
+    leaseToken: z.string().min(1),
+    reason: z.enum(CLAUDE_DEFERRAL_REASONS),
+    tokenUsage: z.array(tokenUsageSchema),
+  })
+  .strict();
+export type WikiSynthesisDeferred = z.infer<typeof wikiSynthesisDeferredSchema>;
 
 // Per-fact relevance to the theme (container-cosine to the cluster centroid) — the
 // SCORED_FOR edge weight. Lets read-time fact ordering (wiki synthesis packing) rank by real
@@ -577,6 +651,9 @@ export const synthesisAudienceSchema = z.object({
 });
 export type SynthesisAudience = z.infer<typeof synthesisAudienceSchema>;
 
+export const PREVIOUS_PAGE_STATES_MAX = 8;
+export const SHADOW_ARMS_MAX = 2;
+
 export const WIKI_SYNTHESIS_GENERATIONS = ['article', 'sectioned'] as const;
 export const wikiSynthesisGenerationSchema = z.enum(WIKI_SYNTHESIS_GENERATIONS);
 export type WikiSynthesisGeneration = z.infer<typeof wikiSynthesisGenerationSchema>;
@@ -604,6 +681,14 @@ export const synthesisRequestSchema = z.object({
   // the enclave hydrates it into a KnowledgeNeighborhood for the cross-wiki prompt block.
   knowledgeSkeleton: knowledgeSkeletonSchema.optional(),
   generation: wikiSynthesisGenerationSchema.optional(),
+  // UNWIRED: the worker sends no previousPageStates yet.
+  previousPageStates: z.array(wikiPageStateEnvelopeSchema).max(PREVIOUS_PAGE_STATES_MAX).optional(),
+  // UNWIRED: the worker sends no shadowArms yet.
+  shadowArms: z
+    .array(claudeArmSchema.exclude(['D']))
+    .max(SHADOW_ARMS_MAX)
+    .refine((arms) => new Set(arms).size === arms.length)
+    .optional(),
 });
 export type SynthesisRequest = z.infer<typeof synthesisRequestSchema>;
 

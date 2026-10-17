@@ -40,8 +40,11 @@ import {
   type ThemeSynthesisRequest,
   type InferenceTimeline,
   type TokenUsage,
+  type WikiPageStateEnvelope,
+  type WikiShadowArticle,
   type WikiSynthesisResult,
 } from '../src/enclave.js';
+import type { ClaudeQualityScores } from '../src/claude-inference.js';
 
 const RUNTIME_DEPLOYMENT_ID = '11111111-1111-4111-8111-111111111111';
 const TENANT_DEPLOYMENT_ID = '22222222-2222-4222-8222-222222222222';
@@ -1393,6 +1396,9 @@ type EnclaveSynthesisRequest = {
   inputTokenBudget: number;
   knowledgeSkeleton?: EnclaveKnowledgeSkeleton;
   generation?: 'article' | 'sectioned';
+  // The enclave's SynthesisConsumer.ts:164 interface gains these two fields in CL-6.
+  previousPageStates?: WikiPageStateEnvelope[];
+  shadowArms?: ('R' | 'B')[];
 };
 
 type _KnowledgeSkeletonPinned = Expect<Equal<KnowledgeSkeleton, EnclaveKnowledgeSkeleton>>;
@@ -1413,6 +1419,7 @@ type EnclaveWikiSynthesisResult = {
     audienceId: string | null;
     factIds: string[];
     body: EncryptedBodyRead;
+    promptHash?: string;
   }[];
   citedFactIds: string[];
   richBlockCounts: {
@@ -1424,6 +1431,11 @@ type EnclaveWikiSynthesisResult = {
   critique?: CritiqueOutcome;
   tokenUsage: TokenUsage[];
   timeline?: InferenceTimeline | undefined;
+  // The enclave's SynthesisConsumer.ts:164 interface gains pageStates through untaggedCalls in CL-6.
+  pageStates?: WikiPageStateEnvelope[];
+  shadowArticles?: WikiShadowArticle[];
+  qualityScores?: ClaudeQualityScores[];
+  untaggedCalls?: number;
 };
 
 type _WikiSynthesisResultPinned = Expect<Equal<WikiSynthesisResult, EnclaveWikiSynthesisResult>>;

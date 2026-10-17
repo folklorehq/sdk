@@ -2,11 +2,13 @@
 import type {
   AciSession,
   AciDstackRawEvidenceV1,
+  ClaudeInferencePurpose,
   Digest64,
   DurableGenerationHighWaterCheckpointV1,
   GenerationContextV1,
   InferenceModelRole,
   InferenceTrustPolicyV2,
+  InferenceUsageOutcome,
   ModelExecutionModeV1,
   ModelProvenanceSourceV1,
   PolicySignedModelProvenanceTupleV1,
@@ -34,7 +36,7 @@ export interface DurableGenerationHighWaterClientPort {
   read(context: GenerationContextV1): Promise<DurableGenerationHighWaterCheckpointV1>;
 }
 
-/** InferenceBackend port — all inference MUST happen inside the customer's box; sending fact content to an external API is structurally prohibited. */
+/** InferenceBackend port — fact content leaves the box only to the attested Phala route or the ZDR Claude route. */
 
 export interface EmbedOptions {
   /** Override the default embedding model for this call. */
@@ -58,18 +60,7 @@ export interface GenerateOptions {
   maxTokens?: number;
   /** Sampling temperature (0 = deterministic, higher = more creative). */
   temperature?: number;
-  /** Coarse task class for tiered model routing (picks a small/large model); ignored by non-routing backends. */
-  task?: InferenceTask;
 }
-
-/** Coarse task classes for tiered routing — the first group is cheap/structured, the last two need a frontier model. */
-export type InferenceTask =
-  | 'labeling'
-  | 'noise-filter'
-  | 'classification'
-  | 'extraction'
-  | 'synthesis'
-  | 'query';
 
 /** One forced function the model must call, returning a single JSON object argument. */
 export interface ToolSpec {
@@ -94,6 +85,11 @@ export interface InferenceUsageEvent {
   completionTokens: number;
   /** True when a cache layer served the call, so it cost the upstream nothing. */
   cached: boolean;
+  // Not yet wired: no backend sets these four fields yet.
+  purpose?: ClaudeInferencePurpose | 'untagged';
+  outcome?: InferenceUsageOutcome;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
 }
 
 export type InferenceUsageSink = (event: InferenceUsageEvent) => void;

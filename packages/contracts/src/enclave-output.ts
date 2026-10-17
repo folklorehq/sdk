@@ -13,6 +13,7 @@ export const enclaveOutputTypeSchema = z.enum([
   'pull_complete',
   'pull_failed',
   'wiki_synthesis',
+  'wiki_synthesis_deferred',
   'theme_synthesis',
   'team_onboarding_synthesis',
   'association_judgement',
@@ -118,6 +119,15 @@ export function enclaveOutputBindingForPayload(
         requiredString(payload, 'themeId'),
         ...requiredStringArray(payload, 'citedFactIds'),
       ],
+      payload,
+      identity,
+    });
+  }
+  if (type === 'wiki_synthesis_deferred') {
+    return outputBinding({
+      outputType: 'wiki_synthesis_deferred',
+      outputId: `${requiredString(payload, 'requestId')}:deferred`,
+      resourceIds: [requiredString(payload, 'themeId')],
       payload,
       identity,
     });

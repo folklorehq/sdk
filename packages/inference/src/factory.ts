@@ -4,7 +4,6 @@ import type { InferenceBackend, InferenceResponseVerifier } from './ports.js';
 import { TeeEndpointBackend } from './TeeEndpointBackend.js';
 import { OpenAICompatBackend } from './OpenAICompatBackend.js';
 import { StubInferenceBackend } from './StubInferenceBackend.js';
-import { RoutingInferenceBackend, type TaskModelMap } from './model-router.js';
 import { AciReceiptVerifier } from './aci-verifier.js';
 import type { InferenceTrustPolicyV1 } from '@folklore/contracts';
 
@@ -44,27 +43,9 @@ export interface InferenceConfig {
 
   /** Additional allowlist for non-TEE config consumers; TEE models come from the signed policy. */
   modelAllowlist?: readonly string[];
-
-  /** Optional task→model routing — tagged `generate`/`stream` calls use the model configured for that task. See {@link tieredTaskModels}. */
-  taskModels?: TaskModelMap;
 }
 
 export function createInferenceBackend(config: InferenceConfig): InferenceBackend {
-  if (
-    (config.mode === 'phala-endpoint' || config.mode === 'folklore-tee') &&
-    config.taskModels !== undefined &&
-    Object.keys(config.taskModels).length > 0
-  ) {
-    throw new Error('TEE model selection must come from the signed roleModels policy');
-  }
-  const base = createBaseBackend(config);
-  if (config.taskModels && Object.keys(config.taskModels).length > 0) {
-    return new RoutingInferenceBackend(base, config.taskModels);
-  }
-  return base;
-}
-
-function createBaseBackend(config: InferenceConfig): InferenceBackend {
   const mode = config.mode;
   if (mode === undefined) {
     throw new Error(

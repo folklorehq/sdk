@@ -23,7 +23,6 @@ import {
 import type {
   GitHubIssueComment,
   GitHubPullRequest,
-  GitHubPullRequestDetail,
   GitHubPullRequestWithDetail,
   GitHubRepo,
   IssueCommentEvent,
@@ -38,7 +37,6 @@ const PULL_FACT_BUDGET_INVALID = 'pull_fact_budget_invalid';
 interface ListedPullRequest {
   repo: GitHubRepo;
   pullRequest: GitHubPullRequest;
-  detail: GitHubPullRequestDetail;
   comments: GitHubIssueComment[];
 }
 
@@ -72,8 +70,8 @@ export class GitHubConnector extends BaseConnector {
         : this.oldestWithinBudget(listed, position.updatedAt, options.maxFacts);
     const records: NormalizedRecords = { facts: [], containers: [] };
     let maxUpdatedAt = position.updatedAt;
-    for (const { repo, pullRequest, detail, comments } of chunk.pullRequests) {
-      this.appendPullRequest(records, repo, pullRequest, detail, comments);
+    for (const { repo, pullRequest, comments } of chunk.pullRequests) {
+      this.appendPullRequest(records, repo, pullRequest, comments);
       if (maxUpdatedAt === null || pullRequest.updated_at > maxUpdatedAt) {
         maxUpdatedAt = pullRequest.updated_at;
       }
@@ -134,9 +132,9 @@ export class GitHubConnector extends BaseConnector {
       );
       if (pullRequests.length === 0) continue;
       const commentsByPull = await this.commentsByPullRequest(repo, pullRequests, commentsSince);
-      for (const { pullRequest, detail } of pullRequests) {
+      for (const { pullRequest } of pullRequests) {
         const comments = commentsByPull.get(pullRequest.number) ?? [];
-        listed.push({ repo, pullRequest, detail, comments });
+        listed.push({ repo, pullRequest, comments });
       }
     }
     return listed;
@@ -193,15 +191,9 @@ export class GitHubConnector extends BaseConnector {
     records: NormalizedRecords,
     repo: GitHubRepo,
     pr: GitHubPullRequest,
-    detail: GitHubPullRequestDetail,
     comments: GitHubIssueComment[],
   ): void {
-    const { container, fact } = normalizePullRequest(repo, pr, {
-      additions: detail.additions,
-      deletions: detail.deletions,
-      changedFiles: detail.changed_files,
-      commentCount: comments.length,
-    });
+    const { container, fact } = normalizePullRequest(repo, pr);
     records.containers.push(container);
     records.facts.push(fact);
     if (pr.state === 'closed') {

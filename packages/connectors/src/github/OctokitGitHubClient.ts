@@ -156,6 +156,7 @@ export class OctokitGitHubClient implements GitHubClient {
         body: c.body ?? '',
         user: { id: c.user?.id ?? 0, login: c.user?.login ?? '' },
         created_at: c.created_at,
+        updated_at: c.updated_at,
       };
       return [{ issueNumber, comment }];
     });

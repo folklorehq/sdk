@@ -47,6 +47,59 @@ describe('checkSafeLogContext', () => {
   it('accepts bounded operational generation signals', () => {
     expect(checkSafeLogContext({ generation: 3 })).toBeNull();
   });
+
+  it('accepts the per-purpose Claude usage fields', () => {
+    expect(
+      checkSafeLogContext({
+        purpose: 'wiki_section',
+        outcome: 'shadow',
+        cacheReadTokens: 10,
+        cacheWriteTokens: 2,
+        untaggedCalls: 1,
+      }),
+    ).toBeNull();
+  });
+
+  it('accepts the production quality score fields as numbers only', () => {
+    expect(
+      checkSafeLogContext({
+        citationSupportBp: 9_000,
+        uncitedCutBp: 100,
+        importantCoverageBp: 8_000,
+        revisionRateBp: 0,
+        reviewFlagRateBp: 0,
+      }),
+    ).toBeNull();
+    expect(checkSafeLogContext({ citationSupportBp: 'customer text' })).toBe(
+      'invalid_context_value',
+    );
+  });
+
+  it('accepts only a closed set of purposes, including untagged', () => {
+    for (const purpose of ['wiki_section', 'answer', 'untagged']) {
+      expect(checkSafeLogContext({ purpose }), purpose).toBeNull();
+    }
+    for (const purpose of [
+      'Customer prose goes here',
+      'customer_prose_here',
+      'wiki_section_v2',
+      'Wiki_Section',
+      '',
+    ]) {
+      expect(checkSafeLogContext({ purpose }), purpose).toBe('invalid_context_value');
+    }
+    expect(checkSafeLogContext({ purpose: null })).toBeNull();
+  });
+
+  it('accepts the deferral fields and a bare reason code only', () => {
+    expect(
+      checkSafeLogContext({ deferrals: 1, reason: 'provider_outage', usageEntries: 2 }),
+    ).toBeNull();
+    expect(checkSafeLogContext({ reason: 'The provider said something private' })).toBe(
+      'invalid_context_value',
+    );
+    expect(checkSafeLogContext({ deferrals: 'one' })).toBe('invalid_context_value');
+  });
 });
 
 describe('account id fields are distinct ids, not free text', () => {

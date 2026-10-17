@@ -115,7 +115,7 @@ describe('GitHub backfill over the real Octokit transport', () => {
     const result = await backfill(api, transport);
 
     const opened = result.facts.find((f) => f.sourceFactId === 'github:pr_opened:2400000340');
-    expect(opened?.raw).toMatchObject({ user: { id: 77, login: 'acme' } });
+    expect(opened?.authors[0]).toMatchObject({ sourceUserId: '77', displayName: 'acme' });
   });
 
   it('maps a GraphQL RATE_LIMITED response (HTTP 200, no status) to a rate-limit error', async () => {

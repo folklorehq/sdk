@@ -102,3 +102,40 @@ describe('association judgement binding', () => {
     );
   });
 });
+
+describe('wiki synthesis deferral binding', () => {
+  const identity = {
+    deploymentId: 'deployment-1',
+    assignmentGeneration: 3,
+    nonce: '33'.repeat(32),
+  };
+  const payload = {
+    type: 'wiki_synthesis_deferred',
+    requestId: 'c'.repeat(64),
+    themeId: 'theme-1',
+    orgId: 'org-1',
+    leaseToken: 'lease-1',
+    reason: 'provider_outage',
+    tokenUsage: [],
+  };
+
+  it('binds a distinct output id and the theme id', () => {
+    const binding = enclaveOutputBindingForPayload(payload, identity);
+
+    expect(binding.outputType).toBe('wiki_synthesis_deferred');
+    expect(binding.outputId).toBe(`${'c'.repeat(64)}:deferred`);
+    expect(binding.resourceIds).toEqual(['theme-1']);
+  });
+
+  it('accepts the output type on a signed envelope', () => {
+    expect(enclaveOutputTypeSchema.safeParse('wiki_synthesis_deferred').success).toBe(true);
+  });
+
+  it('rejects a deferral without a theme id', () => {
+    const { themeId: _themeId, ...missing } = payload;
+
+    expect(() => enclaveOutputBindingForPayload(missing, identity)).toThrow(
+      'enclave_output_field_invalid',
+    );
+  });
+});

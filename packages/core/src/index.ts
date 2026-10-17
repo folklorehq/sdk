@@ -23,6 +23,7 @@ export {
   contentFreeErrorType,
   contentFreeLogCode,
   ContentFreeViolationError,
+  SAFE_LOG_PURPOSES,
   isFailureCodeSlug,
   type SafeLogRejectionReason,
   type SafeLogContextSnapshot,

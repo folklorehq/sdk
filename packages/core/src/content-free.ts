@@ -39,7 +39,37 @@ const SAFE_LOG_SOURCE_SHA_PATTERN = /^[0-9a-f]{40}$/;
 const SAFE_LOG_FIELD_SET = new Set<string>(SAFE_LOG_FIELDS);
 // The inference roles of the signed policy; a role is one of these names or it is not logged.
 const SAFE_LOG_ROLES: ReadonlySet<string> = new Set(['embed', 'generate', 'critique', 'judge']);
-const EXPLICIT_CONTENT_FREE_FIELDS = new Set(['messageid', 'prompttokens', 'completiontokens']);
+// Mirrors CLAUDE_INFERENCE_PURPOSES plus 'untagged' (core cannot import contracts; a contracts test pins equality).
+export const SAFE_LOG_PURPOSES: ReadonlySet<string> = new Set([
+  'wiki_outline',
+  'wiki_section',
+  'wiki_revise',
+  'wiki_visual_warrant',
+  'wiki_visual_draw',
+  'wiki_article',
+  'team_onboarding',
+  'wiki_review',
+  'wiki_critique',
+  'citation_check',
+  'theme_merge',
+  'wiki_relevance',
+  'wiki_recovery',
+  'wiki_repair',
+  'theme_tagging',
+  'theme_topic_naming',
+  'theme_aggregate_naming',
+  'theme_doctype',
+  'association_judge',
+  'answer',
+  'untagged',
+]);
+const EXPLICIT_CONTENT_FREE_FIELDS = new Set([
+  'messageid',
+  'prompttokens',
+  'completiontokens',
+  'cachereadtokens',
+  'cachewritetokens',
+]);
 const CODE_VALUE_FIELDS = new Set([
   'component',
   'errorCode',
@@ -48,6 +78,7 @@ const CODE_VALUE_FIELDS = new Set([
   'outcome',
   'operation',
   'phase',
+  'reason',
   'route',
   'status',
 ]);
@@ -210,6 +241,7 @@ function isSafeLogValue(key: string, value: unknown): boolean {
   if (typeof value !== 'string' || value.length > MAX_VALUE_LENGTH) return false;
   if (CODE_VALUE_FIELDS.has(key)) return SAFE_LOG_EVENT_PATTERN.test(value);
   if (key === 'role') return SAFE_LOG_ROLES.has(value);
+  if (key === 'purpose') return SAFE_LOG_PURPOSES.has(value);
   if (key === 'requestId') return SAFE_LOG_REQUEST_ID_PATTERN.test(value);
   if (
     key === 'orgId' ||

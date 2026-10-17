@@ -45,6 +45,7 @@ export interface GitHubIssueComment {
   body: string;
   user: GitHubUser;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface GitHubRepositoryIssueComment {
@@ -72,8 +73,10 @@ export interface GitHubCommit {
 }
 
 // Webhook envelopes
+export type GitHubPullRequestAction = 'opened' | 'closed' | 'reopened' | (string & {});
+
 export interface PullRequestEvent {
-  action: 'opened' | 'closed' | 'reopened';
+  action: GitHubPullRequestAction;
   repository: GitHubRepo;
   pull_request: GitHubPullRequest;
 }
