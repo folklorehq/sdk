@@ -26,12 +26,12 @@ export const CLAUDE_INFERENCE_PURPOSES = [
 export type ClaudeInferencePurpose = (typeof CLAUDE_INFERENCE_PURPOSES)[number];
 export const claudeInferencePurposeSchema = z.enum(CLAUDE_INFERENCE_PURPOSES);
 
-export const CLAUDE_ZDR_MODEL_IDS = [
+export const CLAUDE_ROUTE_MODEL_IDS = [
   'claude-haiku-5-5',
   'claude-opus-5-5',
   'claude-sonnet-5-5',
 ] as const;
-export type ClaudeModelId = (typeof CLAUDE_ZDR_MODEL_IDS)[number];
+export type ClaudeModelId = (typeof CLAUDE_ROUTE_MODEL_IDS)[number];
 
 export const claudeEffortSchema = z.enum(['low', 'medium', 'high']);
 export type ClaudeEffort = z.infer<typeof claudeEffortSchema>;

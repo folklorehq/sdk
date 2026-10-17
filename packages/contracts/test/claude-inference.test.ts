@@ -4,7 +4,7 @@ import {
   CLAUDE_DEFERRAL_REASONS,
   CLAUDE_INFERENCE_PURPOSES,
   CLAUDE_PRICE_MICROS_PER_MTOK,
-  CLAUDE_ZDR_MODEL_IDS,
+  CLAUDE_ROUTE_MODEL_IDS,
   SHADOW_FACT_IDS_MAX,
   claudeArmSchema,
   claudeEffortSchema,
@@ -102,15 +102,15 @@ const deferredBase = {
 };
 
 describe('claude inference enums', () => {
-  it('lists the ZDR model ids and refuses an excluded model', () => {
-    expect([...CLAUDE_ZDR_MODEL_IDS]).toEqual([
+  it('lists the route model ids and refuses an excluded model', () => {
+    expect([...CLAUDE_ROUTE_MODEL_IDS]).toEqual([
       'claude-haiku-5-5',
       'claude-opus-5-5',
       'claude-sonnet-5-5',
     ]);
     expect(claudeInferencePurposeSchema.safeParse('wiki_section').success).toBe(true);
     expect(CLAUDE_INFERENCE_PURPOSES).toHaveLength(20);
-    expect((CLAUDE_ZDR_MODEL_IDS as readonly string[]).includes('claude-fable-5-1')).toBe(false);
+    expect((CLAUDE_ROUTE_MODEL_IDS as readonly string[]).includes('claude-fable-5-1')).toBe(false);
   });
 
   it('keeps efforts, arms, outcomes and deferral reasons closed', () => {

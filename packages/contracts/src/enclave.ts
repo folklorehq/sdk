@@ -678,9 +678,7 @@ export const synthesisRequestSchema = z.object({
   // the enclave hydrates it into a KnowledgeNeighborhood for the cross-wiki prompt block.
   knowledgeSkeleton: knowledgeSkeletonSchema.optional(),
   generation: wikiSynthesisGenerationSchema.optional(),
-  // not yet wired: the worker sends no previousPageStates yet.
   previousPageStates: z.array(wikiPageStateEnvelopeSchema).max(PREVIOUS_PAGE_STATES_MAX).optional(),
-  // not yet wired: the worker sends no shadowArms yet.
   shadowArms: z
     .array(claudeArmSchema.exclude(['D']))
     .max(SHADOW_ARMS_MAX)

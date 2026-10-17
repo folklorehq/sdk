@@ -36,7 +36,7 @@ export interface DurableGenerationHighWaterClientPort {
   read(context: GenerationContextV1): Promise<DurableGenerationHighWaterCheckpointV1>;
 }
 
-/** InferenceBackend port — fact content leaves the box only to the attested Phala route or the ZDR Claude route. */
+/** InferenceBackend port — fact content leaves the box only to the attested Phala route or the Claude route. */
 
 export interface EmbedOptions {
   /** Override the default embedding model for this call. */
