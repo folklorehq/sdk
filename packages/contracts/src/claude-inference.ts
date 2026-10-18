@@ -22,6 +22,10 @@ export const CLAUDE_INFERENCE_PURPOSES = [
   'theme_doctype',
   'association_judge',
   'answer',
+  'wiki_delta',
+  'wiki_section_add',
+  'wiki_section_long',
+  'wiki_outline_long',
 ] as const;
 export type ClaudeInferencePurpose = (typeof CLAUDE_INFERENCE_PURPOSES)[number];
 export const claudeInferencePurposeSchema = z.enum(CLAUDE_INFERENCE_PURPOSES);
@@ -58,9 +62,16 @@ export const REBUILD_REASONS = [
   'periodic_age',
   'new_fact_fraction',
   'low_cosine_fraction',
+  'coverage_miss',
+  'audience_changed',
 ] as const;
 export type RebuildReason = (typeof REBUILD_REASONS)[number];
-const claudeRebuildReasonSchema = z.enum([...REBUILD_REASONS, 'incremental']);
+const claudeRebuildReasonSchema = z.enum([
+  ...REBUILD_REASONS,
+  'incremental',
+  'delta',
+  'section_add',
+]);
 
 export const claudeQualityScoresSchema = z
   .object({

@@ -61,6 +61,10 @@ export const SAFE_LOG_PURPOSES: ReadonlySet<string> = new Set([
   'theme_doctype',
   'association_judge',
   'answer',
+  'wiki_delta',
+  'wiki_section_add',
+  'wiki_section_long',
+  'wiki_outline_long',
   'untagged',
 ]);
 const EXPLICIT_CONTENT_FREE_FIELDS = new Set([
@@ -81,6 +85,7 @@ const CODE_VALUE_FIELDS = new Set([
   'reason',
   'route',
   'status',
+  'themeKind',
 ]);
 
 export type SafeLogRejectionReason =

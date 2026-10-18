@@ -109,7 +109,11 @@ describe('claude inference enums', () => {
       'claude-sonnet-5-5',
     ]);
     expect(claudeInferencePurposeSchema.safeParse('wiki_section').success).toBe(true);
-    expect(CLAUDE_INFERENCE_PURPOSES).toHaveLength(20);
+    expect(CLAUDE_INFERENCE_PURPOSES).toHaveLength(24);
+    expect(claudeInferencePurposeSchema.safeParse('wiki_delta').success).toBe(true);
+    expect(claudeInferencePurposeSchema.safeParse('wiki_section_add').success).toBe(true);
+    expect(claudeInferencePurposeSchema.safeParse('wiki_section_long').success).toBe(true);
+    expect(claudeInferencePurposeSchema.safeParse('wiki_outline_long').success).toBe(true);
     expect((CLAUDE_ROUTE_MODEL_IDS as readonly string[]).includes('claude-fable-5-1')).toBe(false);
   });
 
@@ -138,6 +142,26 @@ describe('claudeQualityScoresSchema', () => {
       );
     }
     expect('rebuildReason' in claudeQualityScoresSchema.parse(scores)).toBe(false);
+  });
+
+  it('accepts the delta, section-add, coverage and audience reasons an updating page reports', () => {
+    for (const rebuildReason of ['delta', 'section_add', 'coverage_miss', 'audience_changed']) {
+      expect(claudeQualityScoresSchema.parse({ ...scores, rebuildReason }).rebuildReason).toBe(
+        rebuildReason,
+      );
+    }
+    expect(REBUILD_REASONS).toContain('coverage_miss');
+    expect(REBUILD_REASONS).toContain('audience_changed');
+    expect(REBUILD_REASONS).not.toContain('delta');
+    expect(REBUILD_REASONS).not.toContain('section_add');
+  });
+
+  it('still parses a payload written before the delta reasons existed', () => {
+    expect(claudeQualityScoresSchema.safeParse(scores).success).toBe(true);
+    expect(
+      claudeQualityScoresSchema.safeParse({ ...scores, rebuildReason: 'low_cosine_fraction' })
+        .success,
+    ).toBe(true);
   });
 
   it('refuses a rebuild reason outside the closed set, including the reused flag value', () => {

@@ -76,6 +76,10 @@ describe('checkSafeLogContext', () => {
     );
   });
 
+  it('accepts the review shadow fields as a flag and a bitmask', () => {
+    expect(checkSafeLogContext({ wouldSkip: true, reviewTriggers: 24 })).toBeNull();
+  });
+
   it('accepts only a closed set of purposes, including untagged', () => {
     for (const purpose of ['wiki_section', 'answer', 'untagged']) {
       expect(checkSafeLogContext({ purpose }), purpose).toBeNull();
@@ -100,6 +104,15 @@ describe('checkSafeLogContext', () => {
       'invalid_context_value',
     );
     expect(checkSafeLogContext({ deferrals: 'one' })).toBe('invalid_context_value');
+  });
+
+  it('accepts the outline reuse fields as numbers and nothing else', () => {
+    expect(checkSafeLogContext({ signals: 33, outlineBytes: 1_200, outlineReused: 1 })).toBeNull();
+    for (const field of ['signals', 'outlineBytes', 'outlineReused']) {
+      expect(checkSafeLogContext({ [field]: 'customer text' }), field).toBe(
+        'invalid_context_value',
+      );
+    }
   });
 
   it('accepts a budget percent as a number and nothing else', () => {
