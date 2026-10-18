@@ -9,6 +9,15 @@ export interface GitHubUser {
   name?: string | null;
 }
 
+/** A push webhook's commit author: name and email always, username sometimes, never an account id. */
+export interface GitHubCommitAuthor {
+  id?: number;
+  login?: string;
+  username?: string;
+  email?: string | null;
+  name?: string | null;
+}
+
 export interface GitHubRepo {
   id: number;
   full_name: string;
@@ -64,8 +73,8 @@ export interface GitHubPullRequestFile {
 export interface GitHubCommit {
   sha: string;
   message: string;
-  author?: GitHubUser | null;
-  committer?: GitHubUser | null;
+  author?: GitHubUser | GitHubCommitAuthor | null;
+  committer?: GitHubUser | GitHubCommitAuthor | null;
   timestamp: string;
   added?: string[];
   modified?: string[];

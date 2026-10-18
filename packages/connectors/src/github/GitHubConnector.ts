@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { AppError } from '@folklore/errors';
 import { BaseConnector } from '../BaseConnector.js';
+import { takeOldestWithinBudget } from '../budgeted-pull.js';
 import type {
   ConnectorContext,
   PullOptions,
@@ -67,7 +68,7 @@ export class GitHubConnector extends BaseConnector {
     const chunk =
       options?.maxFacts === undefined
         ? { pullRequests: listed, hasMore: false }
-        : this.oldestWithinBudget(listed, position.updatedAt, options.maxFacts);
+        : await this.budgetedChunk(listed, position.updatedAt, options.maxFacts);
     const records: NormalizedRecords = { facts: [], containers: [] };
     let maxUpdatedAt = position.updatedAt;
     for (const { repo, pullRequest, comments } of chunk.pullRequests) {
@@ -142,30 +143,25 @@ export class GitHubConnector extends BaseConnector {
 
   // Boundary ties stay together and updates at the resume cursor are free, so a cursor at the last
   // update taken never skips a PR, and any chunk with a newer update moves the cursor forward.
-  private oldestWithinBudget(
+  private async budgetedChunk(
     listed: readonly ListedPullRequest[],
     resumeAt: string | null,
     maxFacts: number,
-  ): { pullRequests: ListedPullRequest[]; hasMore: boolean } {
+  ): Promise<{ pullRequests: ListedPullRequest[]; hasMore: boolean }> {
     if (!Number.isSafeInteger(maxFacts) || maxFacts < 1) {
       throw new Error(PULL_FACT_BUDGET_INVALID);
     }
     const oldestFirst = [...listed].sort((a, b) =>
       a.pullRequest.updated_at.localeCompare(b.pullRequest.updated_at),
     );
-    const taken: ListedPullRequest[] = [];
-    let remaining = maxFacts;
-    let boundary: string | undefined;
-    for (const item of oldestFirst) {
-      const updatedAt = item.pullRequest.updated_at;
-      if (boundary !== undefined && updatedAt !== boundary) {
-        return { pullRequests: taken, hasMore: true };
-      }
-      taken.push(item);
-      if (resumeAt === null || updatedAt > resumeAt) remaining -= this.factCount(item);
-      if (remaining <= 0) boundary ??= updatedAt;
-    }
-    return { pullRequests: taken, hasMore: false };
+    const take = await takeOldestWithinBudget([oldestFirst], {
+      resumeAtMs: resumeAt === null ? null : Date.parse(resumeAt),
+      beforeResume: 'free',
+      budget: maxFacts,
+      atMs: (item) => Date.parse(item.pullRequest.updated_at),
+      cost: (item) => this.factCount(item),
+    });
+    return { pullRequests: [...take.taken], hasMore: !take.exhausted };
   }
 
   private factCount({ pullRequest, comments }: ListedPullRequest): number {

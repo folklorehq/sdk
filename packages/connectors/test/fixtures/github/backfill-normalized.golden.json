@@ -9,7 +9,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#340"],
@@ -33,7 +34,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#340"],
@@ -70,7 +72,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#339"],
@@ -94,7 +97,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#339"],
@@ -117,7 +121,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#339"],
@@ -140,7 +145,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#338"],
@@ -164,7 +170,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#337"],
@@ -188,7 +195,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#336"],
@@ -212,7 +220,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#336"],
@@ -242,7 +251,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#336"],
@@ -265,7 +275,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#336"],
@@ -288,7 +299,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#335"],
@@ -312,7 +324,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#335"],
@@ -349,7 +362,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#334"],
@@ -373,7 +387,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#333"],
@@ -397,7 +412,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#333"],
@@ -420,7 +436,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#333"],
@@ -443,7 +460,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#332"],
@@ -467,7 +485,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#331"],
@@ -487,13 +506,7 @@
       "kind": "content",
       "occurredAt": "2025-10-20T02:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#330"],
       "sourceThreadId": "acme/widget#330",
       "entities": ["acme/widget", "PR#330"],
@@ -511,13 +524,7 @@
       "kind": "transition",
       "occurredAt": "2025-10-20T02:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#330"],
       "sourceThreadId": "acme/widget#330",
       "entities": ["acme/widget", "PR#330"],
@@ -552,7 +559,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#330"],
@@ -575,7 +583,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#330"],
@@ -598,7 +607,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#329"],
@@ -622,7 +632,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#329"],
@@ -652,7 +663,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#328"],
@@ -676,7 +688,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#327"],
@@ -700,7 +713,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#327"],
@@ -723,7 +737,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#327"],
@@ -746,7 +761,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#326"],
@@ -770,7 +786,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#325"],
@@ -794,7 +811,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#325"],
@@ -831,7 +849,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#324"],
@@ -851,13 +870,7 @@
       "kind": "content",
       "occurredAt": "2025-10-19T20:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#324"],
       "sourceThreadId": "acme/widget#324",
       "entities": ["acme/widget", "PR#324"],
@@ -878,7 +891,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#324"],
@@ -901,7 +915,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#323"],
@@ -925,7 +940,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#322"],
@@ -949,7 +965,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#322"],
@@ -979,7 +996,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#321"],
@@ -1003,7 +1021,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#321"],
@@ -1026,7 +1045,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#321"],
@@ -1049,7 +1069,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#320"],
@@ -1073,7 +1094,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#320"],
@@ -1106,13 +1128,7 @@
       "kind": "content",
       "occurredAt": "2025-10-18T15:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#319"],
       "sourceThreadId": "acme/widget#319",
       "entities": ["acme/widget", "PR#319"],
@@ -1134,7 +1150,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#318"],
@@ -1158,7 +1175,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#318"],
@@ -1181,7 +1199,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#318"],
@@ -1204,7 +1223,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#317"],
@@ -1228,7 +1248,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#316"],
@@ -1252,7 +1273,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#315"],
@@ -1276,7 +1298,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#315"],
@@ -1313,7 +1336,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#315"],
@@ -1336,7 +1360,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#315"],
@@ -1359,7 +1384,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#314"],
@@ -1383,7 +1409,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#313"],
@@ -1407,7 +1434,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#312"],
@@ -1431,7 +1459,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#312"],
@@ -1454,7 +1483,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#312"],
@@ -1477,7 +1507,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#311"],
@@ -1501,7 +1532,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#310"],
@@ -1525,7 +1557,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#310"],
@@ -1562,7 +1595,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#309"],
@@ -1586,7 +1620,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#309"],
@@ -1605,13 +1640,7 @@
       "kind": "content",
       "occurredAt": "2025-10-19T04:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#309"],
       "sourceThreadId": "acme/widget#309",
       "entities": ["acme/widget", "PR#309"],
@@ -1628,13 +1657,7 @@
       "kind": "content",
       "occurredAt": "2025-10-17T04:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#308"],
       "sourceThreadId": "acme/widget#308",
       "entities": ["acme/widget", "PR#308"],
@@ -1652,13 +1675,7 @@
       "kind": "transition",
       "occurredAt": "2025-10-19T04:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#308"],
       "sourceThreadId": "acme/widget#308",
       "entities": ["acme/widget", "PR#308"],
@@ -1686,7 +1703,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#307"],
@@ -1710,7 +1728,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#306"],
@@ -1734,7 +1753,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#306"],
@@ -1757,7 +1777,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#306"],
@@ -1780,7 +1801,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#305"],
@@ -1804,7 +1826,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#305"],
@@ -1841,7 +1864,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#304"],
@@ -1865,7 +1889,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#303"],
@@ -1889,7 +1914,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#303"],
@@ -1912,7 +1938,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#303"],
@@ -1935,7 +1962,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#302"],
@@ -1959,7 +1987,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#301"],
@@ -1983,7 +2012,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#301"],
@@ -2013,7 +2043,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#300"],
@@ -2037,7 +2068,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#300"],
@@ -2074,7 +2106,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#300"],
@@ -2097,7 +2130,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#300"],
@@ -2120,7 +2154,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#299"],
@@ -2144,7 +2179,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#298"],
@@ -2164,13 +2200,7 @@
       "kind": "content",
       "occurredAt": "2025-10-15T17:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#297"],
       "sourceThreadId": "acme/widget#297",
       "entities": ["acme/widget", "PR#297"],
@@ -2192,7 +2222,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#297"],
@@ -2215,7 +2246,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#297"],
@@ -2238,7 +2270,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#296"],
@@ -2262,7 +2295,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#295"],
@@ -2286,7 +2320,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#295"],
@@ -2323,7 +2358,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#294"],
@@ -2347,7 +2383,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#294"],
@@ -2377,7 +2414,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#294"],
@@ -2400,7 +2438,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#294"],
@@ -2423,7 +2462,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#293"],
@@ -2447,7 +2487,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#292"],
@@ -2471,7 +2512,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#291"],
@@ -2491,13 +2533,7 @@
       "kind": "content",
       "occurredAt": "2025-10-18T11:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#291"],
       "sourceThreadId": "acme/widget#291",
       "entities": ["acme/widget", "PR#291"],
@@ -2518,7 +2554,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#291"],
@@ -2541,7 +2578,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#290"],
@@ -2565,7 +2603,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#290"],
@@ -2602,7 +2641,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#289"],
@@ -2626,7 +2666,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#288"],
@@ -2650,7 +2691,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#288"],
@@ -2673,7 +2715,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#288"],
@@ -2696,7 +2739,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#287"],
@@ -2720,7 +2764,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#287"],
@@ -2746,13 +2791,7 @@
       "kind": "content",
       "occurredAt": "2025-10-14T06:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#286"],
       "sourceThreadId": "acme/widget#286",
       "entities": ["acme/widget", "PR#286"],
@@ -2774,7 +2813,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#285"],
@@ -2798,7 +2838,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#285"],
@@ -2835,7 +2876,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#285"],
@@ -2858,7 +2900,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#285"],
@@ -2881,7 +2924,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#284"],
@@ -2905,7 +2949,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#283"],
@@ -2929,7 +2974,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#282"],
@@ -2953,7 +2999,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#282"],
@@ -2976,7 +3023,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#282"],
@@ -2999,7 +3047,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#281"],
@@ -3023,7 +3072,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#280"],
@@ -3047,7 +3097,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#280"],
@@ -3084,7 +3135,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#279"],
@@ -3108,7 +3160,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#279"],
@@ -3131,7 +3184,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#279"],
@@ -3154,7 +3208,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#278"],
@@ -3178,7 +3233,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#277"],
@@ -3202,7 +3258,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#276"],
@@ -3226,7 +3283,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#276"],
@@ -3245,13 +3303,7 @@
       "kind": "content",
       "occurredAt": "2025-10-17T19:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#276"],
       "sourceThreadId": "acme/widget#276",
       "entities": ["acme/widget", "PR#276"],
@@ -3268,13 +3320,7 @@
       "kind": "content",
       "occurredAt": "2025-10-12T19:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#275"],
       "sourceThreadId": "acme/widget#275",
       "entities": ["acme/widget", "PR#275"],
@@ -3292,13 +3338,7 @@
       "kind": "transition",
       "occurredAt": "2025-10-17T19:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#275"],
       "sourceThreadId": "acme/widget#275",
       "entities": ["acme/widget", "PR#275"],
@@ -3333,7 +3373,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#274"],
@@ -3357,7 +3398,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#273"],
@@ -3381,7 +3423,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#273"],
@@ -3411,7 +3454,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#273"],
@@ -3434,7 +3478,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#273"],
@@ -3457,7 +3502,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#272"],
@@ -3481,7 +3527,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#271"],
@@ -3505,7 +3552,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#270"],
@@ -3529,7 +3577,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#270"],
@@ -3566,7 +3615,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#270"],
@@ -3589,7 +3639,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#270"],
@@ -3612,7 +3663,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#269"],
@@ -3636,7 +3688,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#268"],
@@ -3660,7 +3713,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#267"],
@@ -3684,7 +3738,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#267"],
@@ -3707,7 +3762,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#267"],
@@ -3730,7 +3786,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#266"],
@@ -3754,7 +3811,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#266"],
@@ -3784,7 +3842,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#265"],
@@ -3808,7 +3867,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#265"],
@@ -3841,13 +3901,7 @@
       "kind": "content",
       "occurredAt": "2025-10-17T08:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#264"],
       "sourceThreadId": "acme/widget#264",
       "entities": ["acme/widget", "PR#264"],
@@ -3869,7 +3923,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#264"],
@@ -3892,7 +3947,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#264"],
@@ -3915,7 +3971,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#263"],
@@ -3939,7 +3996,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#262"],
@@ -3963,7 +4021,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#261"],
@@ -3987,7 +4046,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#261"],
@@ -4010,7 +4070,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#261"],
@@ -4033,7 +4094,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#260"],
@@ -4057,7 +4119,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#260"],
@@ -4094,7 +4157,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#259"],
@@ -4118,7 +4182,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#259"],
@@ -4148,7 +4213,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#258"],
@@ -4168,13 +4234,7 @@
       "kind": "content",
       "occurredAt": "2025-10-17T02:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#258"],
       "sourceThreadId": "acme/widget#258",
       "entities": ["acme/widget", "PR#258"],
@@ -4195,7 +4255,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#258"],
@@ -4218,7 +4279,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#257"],
@@ -4242,7 +4304,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#256"],
@@ -4266,7 +4329,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#255"],
@@ -4290,7 +4354,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#255"],
@@ -4327,7 +4392,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#255"],
@@ -4350,7 +4416,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#255"],
@@ -4373,7 +4440,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#254"],
@@ -4393,13 +4461,7 @@
       "kind": "content",
       "occurredAt": "2025-10-15T21:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#253"],
       "sourceThreadId": "acme/widget#253",
       "entities": ["acme/widget", "PR#253"],
@@ -4421,7 +4483,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#252"],
@@ -4445,7 +4508,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#252"],
@@ -4475,7 +4539,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#252"],
@@ -4498,7 +4563,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#252"],
@@ -4521,7 +4587,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#251"],
@@ -4545,7 +4612,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#250"],
@@ -4569,7 +4637,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#250"],
@@ -4606,7 +4675,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#249"],
@@ -4630,7 +4700,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#249"],
@@ -4653,7 +4724,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#249"],
@@ -4676,7 +4748,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#248"],
@@ -4700,7 +4773,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#247"],
@@ -4724,7 +4798,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#246"],
@@ -4748,7 +4823,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#246"],
@@ -4771,7 +4847,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#246"],
@@ -4794,7 +4871,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#245"],
@@ -4818,7 +4896,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#245"],
@@ -4855,7 +4934,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#244"],
@@ -4879,7 +4959,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#243"],
@@ -4903,7 +4984,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#243"],
@@ -4922,13 +5004,7 @@
       "kind": "content",
       "occurredAt": "2025-10-16T10:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#243"],
       "sourceThreadId": "acme/widget#243",
       "entities": ["acme/widget", "PR#243"],
@@ -4945,13 +5021,7 @@
       "kind": "content",
       "occurredAt": "2025-10-14T10:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#242"],
       "sourceThreadId": "acme/widget#242",
       "entities": ["acme/widget", "PR#242"],
@@ -4973,7 +5043,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#241"],
@@ -4997,7 +5068,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#240"],
@@ -5021,7 +5093,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#240"],
@@ -5058,7 +5131,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#240"],
@@ -5081,7 +5155,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#240"],
@@ -5104,7 +5179,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#239"],
@@ -5128,7 +5204,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#238"],
@@ -5152,7 +5229,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#238"],
@@ -5182,7 +5260,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#237"],
@@ -5206,7 +5285,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#237"],
@@ -5229,7 +5309,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#237"],
@@ -5252,7 +5333,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#236"],
@@ -5276,7 +5358,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#235"],
@@ -5300,7 +5383,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#235"],
@@ -5337,7 +5421,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#234"],
@@ -5361,7 +5446,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#234"],
@@ -5384,7 +5470,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#234"],
@@ -5407,7 +5494,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#233"],
@@ -5431,7 +5519,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#232"],
@@ -5451,13 +5540,7 @@
       "kind": "content",
       "occurredAt": "2025-10-12T23:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#231"],
       "sourceThreadId": "acme/widget#231",
       "entities": ["acme/widget", "PR#231"],
@@ -5475,13 +5558,7 @@
       "kind": "transition",
       "occurredAt": "2025-10-15T23:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#231"],
       "sourceThreadId": "acme/widget#231",
       "entities": ["acme/widget", "PR#231"],
@@ -5509,7 +5586,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#231"],
@@ -5532,7 +5610,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#231"],
@@ -5555,7 +5634,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#230"],
@@ -5579,7 +5659,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#230"],
@@ -5616,7 +5697,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#229"],
@@ -5640,7 +5722,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#228"],
@@ -5664,7 +5747,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#228"],
@@ -5687,7 +5771,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#228"],
@@ -5710,7 +5795,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#227"],
@@ -5734,7 +5820,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#226"],
@@ -5758,7 +5845,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#225"],
@@ -5782,7 +5870,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#225"],
@@ -5815,13 +5904,7 @@
       "kind": "content",
       "occurredAt": "2025-10-15T17:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#225"],
       "sourceThreadId": "acme/widget#225",
       "entities": ["acme/widget", "PR#225"],
@@ -5842,7 +5925,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#225"],
@@ -5865,7 +5949,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#224"],
@@ -5889,7 +5974,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#224"],
@@ -5919,7 +6005,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#223"],
@@ -5943,7 +6030,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#222"],
@@ -5967,7 +6055,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#222"],
@@ -5990,7 +6079,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#222"],
@@ -6013,7 +6103,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#221"],
@@ -6033,13 +6124,7 @@
       "kind": "content",
       "occurredAt": "2025-10-11T12:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#220"],
       "sourceThreadId": "acme/widget#220",
       "entities": ["acme/widget", "PR#220"],
@@ -6057,13 +6142,7 @@
       "kind": "transition",
       "occurredAt": "2025-10-15T12:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#220"],
       "sourceThreadId": "acme/widget#220",
       "entities": ["acme/widget", "PR#220"],
@@ -6098,7 +6177,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#219"],
@@ -6122,7 +6202,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#219"],
@@ -6145,7 +6226,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#219"],
@@ -6168,7 +6250,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#218"],
@@ -6192,7 +6275,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#217"],
@@ -6216,7 +6300,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#217"],
@@ -6246,7 +6331,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#216"],
@@ -6270,7 +6356,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#216"],
@@ -6293,7 +6380,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#216"],
@@ -6316,7 +6404,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#215"],
@@ -6340,7 +6429,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#215"],
@@ -6377,7 +6467,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#214"],
@@ -6401,7 +6492,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#213"],
@@ -6425,7 +6517,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#213"],
@@ -6448,7 +6541,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#213"],
@@ -6471,7 +6565,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#212"],
@@ -6495,7 +6590,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#211"],
@@ -6519,7 +6615,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#210"],
@@ -6543,7 +6640,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#210"],
@@ -6580,7 +6678,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#210"],
@@ -6599,13 +6698,7 @@
       "kind": "content",
       "occurredAt": "2025-10-15T01:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#210"],
       "sourceThreadId": "acme/widget#210",
       "entities": ["acme/widget", "PR#210"],
@@ -6622,13 +6715,7 @@
       "kind": "content",
       "occurredAt": "2025-10-10T01:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#209"],
       "sourceThreadId": "acme/widget#209",
       "entities": ["acme/widget", "PR#209"],
@@ -6650,7 +6737,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#208"],
@@ -6674,7 +6762,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#207"],
@@ -6698,7 +6787,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#207"],
@@ -6721,7 +6811,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#207"],
@@ -6744,7 +6835,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#206"],
@@ -6768,7 +6860,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#205"],
@@ -6792,7 +6885,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#205"],
@@ -6829,7 +6923,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#204"],
@@ -6853,7 +6948,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#204"],
@@ -6876,7 +6972,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#204"],
@@ -6899,7 +6996,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#203"],
@@ -6923,7 +7021,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#203"],
@@ -6953,7 +7052,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#202"],
@@ -6977,7 +7077,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#201"],
@@ -7001,7 +7102,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#201"],
@@ -7024,7 +7126,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#201"],
@@ -7047,7 +7150,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#200"],
@@ -7071,7 +7175,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#200"],
@@ -7108,7 +7213,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#199"],
@@ -7128,13 +7234,7 @@
       "kind": "content",
       "occurredAt": "2025-10-14T14:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#198"],
       "sourceThreadId": "acme/widget#198",
       "entities": ["acme/widget", "PR#198"],
@@ -7156,7 +7256,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#198"],
@@ -7179,7 +7280,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#198"],
@@ -7202,7 +7304,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#197"],
@@ -7226,7 +7329,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#196"],
@@ -7250,7 +7354,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#196"],
@@ -7280,7 +7385,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#195"],
@@ -7304,7 +7410,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#195"],
@@ -7341,7 +7448,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#195"],
@@ -7364,7 +7472,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#195"],
@@ -7387,7 +7496,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#194"],
@@ -7411,7 +7521,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#193"],
@@ -7435,7 +7546,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#192"],
@@ -7455,13 +7567,7 @@
       "kind": "content",
       "occurredAt": "2025-10-14T08:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#192"],
       "sourceThreadId": "acme/widget#192",
       "entities": ["acme/widget", "PR#192"],
@@ -7482,7 +7588,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#192"],
@@ -7505,7 +7612,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#191"],
@@ -7529,7 +7637,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#190"],
@@ -7553,7 +7662,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#190"],
@@ -7590,7 +7700,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#189"],
@@ -7614,7 +7725,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#189"],
@@ -7644,7 +7756,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#189"],
@@ -7667,7 +7780,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#189"],
@@ -7690,7 +7804,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#188"],
@@ -7710,13 +7825,7 @@
       "kind": "content",
       "occurredAt": "2025-10-13T03:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#187"],
       "sourceThreadId": "acme/widget#187",
       "entities": ["acme/widget", "PR#187"],
@@ -7738,7 +7847,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#186"],
@@ -7762,7 +7872,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#186"],
@@ -7785,7 +7896,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#186"],
@@ -7808,7 +7920,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#185"],
@@ -7832,7 +7945,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#185"],
@@ -7869,7 +7983,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#184"],
@@ -7893,7 +8008,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#183"],
@@ -7917,7 +8033,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#183"],
@@ -7940,7 +8057,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#183"],
@@ -7963,7 +8081,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#182"],
@@ -7987,7 +8106,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#182"],
@@ -8017,7 +8137,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#181"],
@@ -8041,7 +8162,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#180"],
@@ -8065,7 +8187,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#180"],
@@ -8102,7 +8225,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#180"],
@@ -8125,7 +8249,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#180"],
@@ -8148,7 +8273,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#179"],
@@ -8172,7 +8298,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#178"],
@@ -8196,7 +8323,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#177"],
@@ -8220,7 +8348,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#177"],
@@ -8239,13 +8368,7 @@
       "kind": "content",
       "occurredAt": "2025-10-13T16:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#177"],
       "sourceThreadId": "acme/widget#177",
       "entities": ["acme/widget", "PR#177"],
@@ -8262,13 +8385,7 @@
       "kind": "content",
       "occurredAt": "2025-10-11T16:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#176"],
       "sourceThreadId": "acme/widget#176",
       "entities": ["acme/widget", "PR#176"],
@@ -8290,7 +8407,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#175"],
@@ -8314,7 +8432,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#175"],
@@ -8351,7 +8470,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#174"],
@@ -8375,7 +8495,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#174"],
@@ -8398,7 +8519,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#174"],
@@ -8421,7 +8543,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#173"],
@@ -8445,7 +8568,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#172"],
@@ -8469,7 +8593,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#171"],
@@ -8493,7 +8618,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#171"],
@@ -8516,7 +8642,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#171"],
@@ -8539,7 +8666,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#170"],
@@ -8563,7 +8691,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#170"],
@@ -8600,7 +8729,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#169"],
@@ -8624,7 +8754,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#168"],
@@ -8648,7 +8779,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#168"],
@@ -8678,7 +8810,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#168"],
@@ -8701,7 +8834,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#168"],
@@ -8724,7 +8858,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#167"],
@@ -8748,7 +8883,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#166"],
@@ -8768,13 +8904,7 @@
       "kind": "content",
       "occurredAt": "2025-10-10T05:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#165"],
       "sourceThreadId": "acme/widget#165",
       "entities": ["acme/widget", "PR#165"],
@@ -8792,13 +8922,7 @@
       "kind": "transition",
       "occurredAt": "2025-10-13T05:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#165"],
       "sourceThreadId": "acme/widget#165",
       "entities": ["acme/widget", "PR#165"],
@@ -8833,7 +8957,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#165"],
@@ -8856,7 +8981,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#165"],
@@ -8879,7 +9005,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#164"],
@@ -8903,7 +9030,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#163"],
@@ -8927,7 +9055,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#162"],
@@ -8951,7 +9080,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#162"],
@@ -8974,7 +9104,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#162"],
@@ -8997,7 +9128,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#161"],
@@ -9021,7 +9153,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#161"],
@@ -9051,7 +9184,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#160"],
@@ -9075,7 +9209,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#160"],
@@ -9112,7 +9247,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#159"],
@@ -9132,13 +9268,7 @@
       "kind": "content",
       "occurredAt": "2025-10-12T23:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#159"],
       "sourceThreadId": "acme/widget#159",
       "entities": ["acme/widget", "PR#159"],
@@ -9159,7 +9289,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#159"],
@@ -9182,7 +9313,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#158"],
@@ -9206,7 +9338,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#157"],
@@ -9230,7 +9363,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#156"],
@@ -9254,7 +9388,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#156"],
@@ -9277,7 +9412,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#156"],
@@ -9300,7 +9436,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#155"],
@@ -9324,7 +9461,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#155"],
@@ -9357,13 +9495,7 @@
       "kind": "content",
       "occurredAt": "2025-10-08T18:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#154"],
       "sourceThreadId": "acme/widget#154",
       "entities": ["acme/widget", "PR#154"],
@@ -9381,13 +9513,7 @@
       "kind": "transition",
       "occurredAt": "2025-10-12T18:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#154"],
       "sourceThreadId": "acme/widget#154",
       "entities": ["acme/widget", "PR#154"],
@@ -9415,7 +9541,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#153"],
@@ -9439,7 +9566,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#153"],
@@ -9462,7 +9590,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#153"],
@@ -9485,7 +9614,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#152"],
@@ -9509,7 +9639,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#151"],
@@ -9533,7 +9664,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#150"],
@@ -9557,7 +9689,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#150"],
@@ -9594,7 +9727,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#150"],
@@ -9617,7 +9751,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#150"],
@@ -9640,7 +9775,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#149"],
@@ -9664,7 +9800,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#148"],
@@ -9688,7 +9825,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#147"],
@@ -9712,7 +9850,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#147"],
@@ -9742,7 +9881,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#147"],
@@ -9765,7 +9905,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#147"],
@@ -9788,7 +9929,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#146"],
@@ -9812,7 +9954,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#145"],
@@ -9836,7 +9979,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#145"],
@@ -9873,7 +10017,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#144"],
@@ -9897,7 +10042,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#144"],
@@ -9916,13 +10062,7 @@
       "kind": "content",
       "occurredAt": "2025-10-12T07:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#144"],
       "sourceThreadId": "acme/widget#144",
       "entities": ["acme/widget", "PR#144"],
@@ -9939,13 +10079,7 @@
       "kind": "content",
       "occurredAt": "2025-10-07T07:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#143"],
       "sourceThreadId": "acme/widget#143",
       "entities": ["acme/widget", "PR#143"],
@@ -9967,7 +10101,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#142"],
@@ -9991,7 +10126,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#141"],
@@ -10015,7 +10151,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#141"],
@@ -10038,7 +10175,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#141"],
@@ -10061,7 +10199,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#140"],
@@ -10085,7 +10224,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#140"],
@@ -10122,7 +10262,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#139"],
@@ -10146,7 +10287,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#138"],
@@ -10170,7 +10312,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#138"],
@@ -10193,7 +10336,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#138"],
@@ -10216,7 +10360,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#137"],
@@ -10240,7 +10385,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#136"],
@@ -10264,7 +10410,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#135"],
@@ -10288,7 +10435,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#135"],
@@ -10325,7 +10473,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#135"],
@@ -10348,7 +10497,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#135"],
@@ -10371,7 +10521,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#134"],
@@ -10395,7 +10546,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#133"],
@@ -10419,7 +10571,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#133"],
@@ -10445,13 +10598,7 @@
       "kind": "content",
       "occurredAt": "2025-10-11T20:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#132"],
       "sourceThreadId": "acme/widget#132",
       "entities": ["acme/widget", "PR#132"],
@@ -10473,7 +10620,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#132"],
@@ -10496,7 +10644,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#132"],
@@ -10519,7 +10668,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#131"],
@@ -10543,7 +10693,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#130"],
@@ -10567,7 +10718,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#130"],
@@ -10604,7 +10756,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#129"],
@@ -10628,7 +10781,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#129"],
@@ -10651,7 +10805,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#129"],
@@ -10674,7 +10829,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#128"],
@@ -10698,7 +10854,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#127"],
@@ -10722,7 +10879,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#126"],
@@ -10746,7 +10904,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#126"],
@@ -10772,13 +10931,7 @@
       "kind": "content",
       "occurredAt": "2025-10-11T14:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#126"],
       "sourceThreadId": "acme/widget#126",
       "entities": ["acme/widget", "PR#126"],
@@ -10799,7 +10952,8 @@
         {
           "sourceUserId": "1000",
           "displayName": "dev0",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev0"
         }
       ],
       "containerRefs": ["acme/widget#126"],
@@ -10822,7 +10976,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#125"],
@@ -10846,7 +11001,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#125"],
@@ -10883,7 +11039,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#124"],
@@ -10907,7 +11064,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#123"],
@@ -10931,7 +11089,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#123"],
@@ -10954,7 +11113,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#123"],
@@ -10977,7 +11137,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#122"],
@@ -10997,13 +11158,7 @@
       "kind": "content",
       "occurredAt": "2025-10-10T09:30:00.000Z",
       "resourceExternalId": "42",
-      "authors": [
-        {
-          "sourceUserId": "0",
-          "displayName": "",
-          "role": "author"
-        }
-      ],
+      "authors": [],
       "containerRefs": ["acme/widget#121"],
       "sourceThreadId": "acme/widget#121",
       "entities": ["acme/widget", "PR#121"],
@@ -11025,7 +11180,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#120"],
@@ -11049,7 +11205,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#120"],
@@ -11086,7 +11243,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#120"],
@@ -11109,7 +11267,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#120"],
@@ -11132,7 +11291,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#119"],
@@ -11156,7 +11316,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#119"],
@@ -11186,7 +11347,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#118"],
@@ -11210,7 +11372,8 @@
         {
           "sourceUserId": "49699333",
           "displayName": "dependabot[bot]",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dependabot[bot]"
         }
       ],
       "containerRefs": ["acme/widget#117"],
@@ -11234,7 +11397,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#117"],
@@ -11257,7 +11421,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#117"],
@@ -11280,7 +11445,8 @@
         {
           "sourceUserId": "1008",
           "displayName": "dev8",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev8"
         }
       ],
       "containerRefs": ["acme/widget#116"],
@@ -11304,7 +11470,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#115"],
@@ -11328,7 +11495,8 @@
         {
           "sourceUserId": "1007",
           "displayName": "dev7",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev7"
         }
       ],
       "containerRefs": ["acme/widget#115"],
@@ -11365,7 +11533,8 @@
         {
           "sourceUserId": "1006",
           "displayName": "dev6",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev6"
         }
       ],
       "containerRefs": ["acme/widget#114"],
@@ -11389,7 +11558,8 @@
         {
           "sourceUserId": "1002",
           "displayName": "dev2",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev2"
         }
       ],
       "containerRefs": ["acme/widget#114"],
@@ -11412,7 +11582,8 @@
         {
           "sourceUserId": "1001",
           "displayName": "dev1",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev1"
         }
       ],
       "containerRefs": ["acme/widget#114"],
@@ -11435,7 +11606,8 @@
         {
           "sourceUserId": "1005",
           "displayName": "dev5",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev5"
         }
       ],
       "containerRefs": ["acme/widget#113"],
@@ -11459,7 +11631,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#112"],
@@ -11483,7 +11656,8 @@
         {
           "sourceUserId": "1004",
           "displayName": "dev4",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev4"
         }
       ],
       "containerRefs": ["acme/widget#112"],
@@ -11513,7 +11687,8 @@
         {
           "sourceUserId": "1003",
           "displayName": "dev3",
-          "role": "author"
+          "role": "author",
+          "sourceLogin": "dev3"
         }
       ],
       "containerRefs": ["acme/widget#111"],

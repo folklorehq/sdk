@@ -109,11 +109,20 @@ describe('claude inference enums', () => {
       'claude-sonnet-5-5',
     ]);
     expect(claudeInferencePurposeSchema.safeParse('wiki_section').success).toBe(true);
-    expect(CLAUDE_INFERENCE_PURPOSES).toHaveLength(24);
+    expect(CLAUDE_INFERENCE_PURPOSES).toHaveLength(29);
     expect(claudeInferencePurposeSchema.safeParse('wiki_delta').success).toBe(true);
     expect(claudeInferencePurposeSchema.safeParse('wiki_section_add').success).toBe(true);
     expect(claudeInferencePurposeSchema.safeParse('wiki_section_long').success).toBe(true);
     expect(claudeInferencePurposeSchema.safeParse('wiki_outline_long').success).toBe(true);
+    for (const purpose of [
+      'wiki_page_check',
+      'wiki_page_revise',
+      'wiki_article_check',
+      'wiki_article_long',
+      'team_onboarding_long',
+    ]) {
+      expect(claudeInferencePurposeSchema.safeParse(purpose).success, purpose).toBe(true);
+    }
     expect((CLAUDE_ROUTE_MODEL_IDS as readonly string[]).includes('claude-fable-5-1')).toBe(false);
   });
 

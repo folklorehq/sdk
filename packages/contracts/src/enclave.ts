@@ -52,7 +52,9 @@ export const containerLabelSchema = z.enum([
   'google_doc',
   'intercom_conversation',
   'jira_issue',
+  'linear_cycle',
   'linear_issue',
+  'linear_project',
   'meeting_transcript',
   'microsoft365_doc',
   'notion_page',
@@ -162,7 +164,7 @@ export const processedFactSchema = z
     // diff. Defaults to [] so an older enclave that omits it still parses.
     metrics: z.array(factMetricSchema).default([]),
     ownerAccountId: z.string().uuid().optional(),
-    // not yet wired: no enclave emits these yet; the worker records them only when it connects as folklore_pool_worker.
+    // Shared-pool enclaves emit these; the worker records them only when it connects as folklore_pool_worker.
     // No .default(): an enclave would then sign `authors: []`, which an older worker's .strict() parse rejects.
     authors: z.array(processedFactAuthorSchema).max(PROCESSED_FACT_MAX_AUTHORS).optional(),
     unlinkedAuthors: z
@@ -862,15 +864,6 @@ export const associationJudgementRequestSchema = z
   .strict();
 export type AssociationJudgementRequest = z.infer<typeof associationJudgementRequestSchema>;
 
-// The judgement request joins the union only alongside the enclave dispatch branch that handles it.
-export const synthesisQueueRequestSchema = z.discriminatedUnion('type', [
-  synthesisRequestSchema,
-  themeSynthesisRequestSchema,
-  teamOnboardingSynthesisRequestSchema,
-  associationJudgementRequestSchema,
-]);
-export type SynthesisQueueRequest = z.infer<typeof synthesisQueueRequestSchema>;
-
 export const FACT_AUTHOR_REEXTRACT_MAX_FACTS = 100;
 export const FACT_AUTHOR_REEXTRACT_SOURCE_KIND_MAX = 64;
 // Serialized result bytes; the signed envelope adds under 6 KiB, well inside OUTPUT_QUEUE_MAX_MESSAGE_BYTES (1 MiB).
@@ -885,7 +878,6 @@ export const factAuthorReextractRefSchema = z
   .strict();
 export type FactAuthorReextractRef = z.infer<typeof factAuthorReextractRefSchema>;
 
-// Not yet in the synthesis queue union: it joins only beside the enclave dispatch branch that handles it.
 export const factAuthorReextractRequestSchema = z
   .object({
     type: z.literal('fact_author_reextract'),
@@ -895,6 +887,16 @@ export const factAuthorReextractRequestSchema = z
   })
   .strict();
 export type FactAuthorReextractRequest = z.infer<typeof factAuthorReextractRequestSchema>;
+
+// A request type joins the union only alongside the enclave dispatch branch that handles it.
+export const synthesisQueueRequestSchema = z.discriminatedUnion('type', [
+  synthesisRequestSchema,
+  themeSynthesisRequestSchema,
+  teamOnboardingSynthesisRequestSchema,
+  associationJudgementRequestSchema,
+  factAuthorReextractRequestSchema,
+]);
+export type SynthesisQueueRequest = z.infer<typeof synthesisQueueRequestSchema>;
 
 // Ids and bounded source-derived author fields only; never a body.
 export const factAuthorsResultSchema = z

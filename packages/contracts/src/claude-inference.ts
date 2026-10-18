@@ -26,6 +26,11 @@ export const CLAUDE_INFERENCE_PURPOSES = [
   'wiki_section_add',
   'wiki_section_long',
   'wiki_outline_long',
+  'wiki_page_check',
+  'wiki_page_revise',
+  'wiki_article_check',
+  'wiki_article_long',
+  'team_onboarding_long',
 ] as const;
 export type ClaudeInferencePurpose = (typeof CLAUDE_INFERENCE_PURPOSES)[number];
 export const claudeInferencePurposeSchema = z.enum(CLAUDE_INFERENCE_PURPOSES);

@@ -240,9 +240,9 @@ class FakeJiraClient implements JiraApiClient {
     return [{ id: 'p-1', key: 'PROJ', name: 'Project', isPrivate: false }];
   }
 
-  async listIssues(updatedSince?: string) {
+  async *pageIssuesUpdatedSince(updatedSince?: string): AsyncIterable<readonly JiraIssue[]> {
     this.issueSinceArgs.push(updatedSince);
-    return this.issues;
+    yield this.issues;
   }
 
   async listComments(_issueKey: string, updatedSince?: string) {
@@ -273,7 +273,8 @@ describe('JiraConnector.pull', () => {
   it('does not report success when the Jira provider fails', async () => {
     const providerFailure = new Error('jira_provider_failed');
     const client = new FakeJiraClient([]);
-    client.listIssues = async () => {
+    client.pageIssuesUpdatedSince = async function* () {
+      yield* [];
       throw providerFailure;
     };
     const connector = new JiraConnector({ logger: new PinoLogger({ level: 'silent' }) }, client);
@@ -321,10 +322,40 @@ describe('JiraConnector.pull', () => {
 
     const result = await connector.pull({ value: '2026-01-01T12:00:00.000Z' });
 
-    expect(client.issueSinceArgs[0]).toBe('2026-01-01T12:00:00.000Z');
+    expect(client.issueSinceArgs[0]).toBe('2025-12-31T22:00:00.000Z');
     expect(client.commentSinceArgs[0]).toBe('2026-01-01T12:00:00.000Z');
     expect(result.facts.some((f) => f.kind === 'transition')).toBe(false);
     expect(result.facts.some((f) => f.sourceFactId.startsWith('jira:issue:edited:'))).toBe(true);
     expect(result.containers).toHaveLength(0);
+  });
+});
+
+describe('Jira author email verification', () => {
+  const withReporter = (reporter: Record<string, unknown>) =>
+    normalizeJiraIssueEvent(
+      issueEvent('jira:issue_created', makeIssue({ reporter: reporter as never })),
+    ).facts[0]!.authors[0]!;
+  const account = { accountId: 'acc-1', displayName: 'Alice', emailAddress: 'a@example.com' };
+
+  it('vouches for the email of an atlassian account', () => {
+    expect(withReporter({ ...account, accountType: 'atlassian' })).toMatchObject({
+      email: 'a@example.com',
+      providerVerifiedEmail: true,
+    });
+  });
+
+  it.each(['customer', 'app', 'unknown', undefined])(
+    'keeps the email but never vouches for a %s account',
+    (accountType) => {
+      const actor = withReporter({ ...account, accountType });
+      expect(actor.email).toBe('a@example.com');
+      expect('providerVerifiedEmail' in actor).toBe(false);
+    },
+  );
+
+  it('sets no flag for an atlassian account without an email', () => {
+    const actor = withReporter({ accountId: 'acc-1', accountType: 'atlassian' });
+    expect(actor.email).toBeUndefined();
+    expect('providerVerifiedEmail' in actor).toBe(false);
   });
 });

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import * as linkKeys from '../src/link-keys.js';
 import {
   CANONICAL_LINK_KEY_PATTERN,
+  canonicalLinkKeys,
   canonicalNotionPageId,
   canonicalizeStoredLinks,
   githubItemRepo,
@@ -116,6 +117,7 @@ describe('module surface', () => {
         'ISSUE_KEY_PATTERN',
         'NOTION_PAGE_KEY_PATTERN',
         'SLACK_THREAD_KEY_PATTERN',
+        'canonicalLinkKeys',
         'canonicalNotionPageId',
         'canonicalizeStoredLinks',
         'githubItemKey',
@@ -226,6 +228,36 @@ describe('canonicalizeStoredLinks', () => {
     expect(
       canonicalizeStoredLinks(['o/r#9', 'https://github.com/o/r/pull/9', 'o/r#1'], {}),
     ).toEqual(['o/r#9', 'o/r#1']);
+  });
+});
+
+describe('canonicalLinkKeys', () => {
+  it('reduces URLs to keys and drops bare #N and unreducible URLs', () => {
+    expect(
+      canonicalLinkKeys([
+        'https://github.com/a/b/pull/3',
+        'https://linear.app/acme/issue/ENG-4/fix-login-title',
+        'https://example.com/x',
+        '#5',
+        'ENG-9',
+        'a/b#7',
+      ]),
+    ).toEqual(['a/b#3', 'ENG-4', 'ENG-9', 'a/b#7']);
+  });
+
+  it('gives [] for a non-array value', () => {
+    expect(canonicalLinkKeys('a/b#7')).toEqual([]);
+    expect(canonicalLinkKeys(undefined)).toEqual([]);
+  });
+
+  it('collapses duplicates', () => {
+    expect(canonicalLinkKeys(['a/b#3', 'https://github.com/a/b/pull/3', 'a/b#3'])).toEqual([
+      'a/b#3',
+    ]);
+  });
+
+  it('drops free text that is not already canonical', () => {
+    expect(canonicalLinkKeys(['see the thread', 'a/b#', 'mailto:x@y.z'])).toEqual([]);
   });
 });
 

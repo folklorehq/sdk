@@ -16,6 +16,17 @@ export interface NormalizedActor {
   email?: string;
   displayName?: string;
   role?: 'author' | 'co_author';
+  /** Set by a connector only when the provider vouches for the address. */
+  providerVerifiedEmail?: true;
+  /** The provider's handle for an actor with a real account id. */
+  sourceLogin?: string;
+}
+
+/** A source author with no account id: only a handle and a name, matched by hint and never by id. */
+export interface NormalizedUnlinkedActor {
+  sourceLogin?: string;
+  displayName?: string;
+  role?: 'author' | 'co_author';
 }
 
 /** A unit access is checked against (channel, repository, project, ...). */
@@ -52,6 +63,7 @@ export interface NormalizedFact {
   /** `external_id` of the source resource this Fact belongs to. */
   resourceExternalId?: string;
   authors: NormalizedActor[];
+  unlinkedAuthors?: NormalizedUnlinkedActor[];
   /** `sourceContainerId`s this Fact belongs to (N:M — e.g. stacked PRs). */
   containerRefs: string[];
   /** Platform-native thread identifier for deterministic association scoring. */

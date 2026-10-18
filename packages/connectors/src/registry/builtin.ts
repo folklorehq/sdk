@@ -4,8 +4,9 @@ import { GitHubConnector } from '../github/GitHubConnector.js';
 import { OctokitGitHubClient } from '../github/OctokitGitHubClient.js';
 import { SlackConnector } from '../slack/SlackConnector.js';
 import { HttpSlackClient } from '../slack/HttpSlackClient.js';
+import { LinearClient } from '@linear/sdk';
 import { LinearConnector } from '../linear/LinearConnector.js';
-import { LinearSdkClient } from '../linear/LinearSdkClient.js';
+import { LinearGraphqlClient } from '../linear/LinearGraphqlClient.js';
 import { JiraConnector } from '../jira/JiraConnector.js';
 import { JiraHttpClient } from '../jira/JiraHttpClient.js';
 import { NotionConnector } from '../notion/NotionConnector.js';
@@ -48,7 +49,10 @@ export function registerBuiltinConnectors(registry: ConnectorRegistry): void {
     kind: 'linear',
     createForWebhook: webhookOnly(LinearConnector),
     createForPull: (deps) =>
-      new LinearConnector({ logger: deps.logger }, new LinearSdkClient(deps.token)),
+      new LinearConnector(
+        { logger: deps.logger },
+        new LinearGraphqlClient(new LinearClient({ accessToken: deps.token }).client),
+      ),
   });
 
   registry.register({

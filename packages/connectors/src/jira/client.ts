@@ -3,6 +3,6 @@ import type { JiraComment, JiraIssue, JiraProject } from './types.js';
 
 export interface JiraApiClient {
   listProjects(): Promise<JiraProject[]>;
-  listIssues(updatedSince?: string): Promise<JiraIssue[]>;
+  pageIssuesUpdatedSince(updatedSince?: string): AsyncIterable<readonly JiraIssue[]>;
   listComments(issueKey: string, updatedSince?: string): Promise<JiraComment[]>;
 }

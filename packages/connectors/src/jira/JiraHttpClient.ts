@@ -50,16 +50,14 @@ export class JiraHttpClient extends BaseApiClient implements JiraApiClient {
     return projects;
   }
 
-  async listIssues(updatedSince?: string): Promise<JiraIssue[]> {
-    const issues: JiraIssue[] = [];
+  async *pageIssuesUpdatedSince(updatedSince?: string): AsyncIterable<readonly JiraIssue[]> {
     let nextPageToken: string | undefined;
     for (;;) {
       const page = await this.get<JqlSearchResponse>(this.searchPath(updatedSince, nextPageToken));
-      issues.push(...page.issues);
-      if (page.isLast || !page.nextPageToken) break;
+      yield page.issues;
+      if (page.isLast || !page.nextPageToken) return;
       nextPageToken = page.nextPageToken;
     }
-    return issues;
   }
 
   async listComments(issueKey: string, updatedSince?: string): Promise<JiraComment[]> {

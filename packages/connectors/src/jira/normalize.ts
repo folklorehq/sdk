@@ -16,14 +16,19 @@ export function jiraIssueContainerId(issue: JiraIssue): string {
   return issue.key;
 }
 
+const PROVIDER_VERIFIED_JIRA_ACCOUNT_TYPE = 'atlassian';
+
 function userToActor(user: JiraUser | null | undefined): NormalizedActor[] {
   if (!user) return [];
+  const vouched =
+    user.accountType === PROVIDER_VERIFIED_JIRA_ACCOUNT_TYPE && user.emailAddress !== undefined;
   return [
     {
       sourceUserId: user.accountId,
       email: user.emailAddress,
       displayName: user.displayName,
       role: 'author',
+      ...(vouched ? { providerVerifiedEmail: true as const } : {}),
     },
   ];
 }

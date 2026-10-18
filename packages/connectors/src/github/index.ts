@@ -5,6 +5,7 @@ export { OctokitGitHubClient, type OctokitGitHubClientOptions } from './OctokitG
 export type { GitHubAppCredentials } from './github-app-credentials.js';
 export { GitHubConnector } from './GitHubConnector.js';
 export {
+  githubCommitUnlinkedActors,
   normalizeCommit,
   normalizeIssueComment,
   normalizeIssueCommentEvent,

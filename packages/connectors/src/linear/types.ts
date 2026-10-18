@@ -1,61 +1,98 @@
 // SPDX-License-Identifier: Apache-2.0
-export interface LinearUser {
-  id: string;
-  name: string;
-  email?: string;
+export interface LinearRef {
+  readonly id: string;
 }
 
-export interface LinearState {
-  name: string;
-  type: 'backlog' | 'unstarted' | 'started' | 'completed' | 'cancelled';
+export interface LinearPageInfo {
+  readonly hasNextPage: boolean;
+  readonly endCursor: string | null;
 }
 
-export interface LinearTeam {
-  id: string;
-  name: string;
-  key: string;
+export interface LinearPage<T> {
+  readonly nodes: readonly T[];
+  readonly pageInfo: LinearPageInfo;
 }
 
-export interface LinearLabel {
-  id: string;
-  name: string;
-  color: string;
+export interface LinearHistoryNode {
+  readonly id: string;
+  readonly createdAt: string;
+  readonly actorId: string | null;
+  readonly fromStateId: string | null;
+  readonly toStateId: string | null;
+  readonly toState: { readonly type: string } | null;
+  readonly fromAssigneeId: string | null;
+  readonly toAssigneeId: string | null;
+  readonly fromPriority: number | null;
+  readonly toPriority: number | null;
+  readonly fromProjectId: string | null;
+  readonly toProjectId: string | null;
+  readonly fromCycleId: string | null;
+  readonly toCycleId: string | null;
+  readonly fromParentId: string | null;
+  readonly toParentId: string | null;
+  readonly fromEstimate: number | null;
+  readonly toEstimate: number | null;
+  readonly fromDueDate: string | null;
+  readonly toDueDate: string | null;
+  readonly addedLabelIds: readonly string[] | null;
+  readonly removedLabelIds: readonly string[] | null;
+  readonly fromTeamId: string | null;
+  readonly toTeamId: string | null;
+  readonly fromTitle: string | null;
+  readonly toTitle: string | null;
+  readonly updatedDescription: boolean | null;
 }
 
-export interface LinearIssue {
-  id: string;
-  number: number;
-  title: string;
-  description?: string;
-  priority: number;
-  state: LinearState;
-  assignee?: LinearUser;
-  team: LinearTeam;
-  labels?: LinearLabel[];
-  createdAt: string;
-  updatedAt: string;
+export interface LinearIssueNode {
+  readonly id: string;
+  readonly identifier: string;
+  readonly title: string;
+  readonly description: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly archivedAt: string | null;
+  readonly team: LinearRef;
+  readonly creator: LinearRef | null;
+  readonly project: LinearRef | null;
+  readonly cycle: LinearRef | null;
+  readonly history: LinearPage<LinearHistoryNode>;
 }
 
-export interface LinearComment {
-  id: string;
-  body: string;
-  issue: { id: string; number: number; team: LinearTeam };
-  user: LinearUser;
-  createdAt: string;
+export interface LinearCommentNode {
+  readonly id: string;
+  readonly body: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly editedAt: string | null;
+  readonly resolvedAt: string | null;
+  readonly user: LinearRef | null;
+  readonly botActor: { readonly type: string } | null;
+  readonly issue: {
+    readonly id: string;
+    readonly identifier: string;
+    readonly team: LinearRef;
+  } | null;
 }
 
-export interface LinearIssueEvent {
-  action: 'create' | 'update';
-  data: LinearIssue;
-  type: 'Issue';
-  createdAt: string;
-  organizationId: string;
+export interface LinearProjectNode {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly content: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly completedAt: string | null;
+  readonly canceledAt: string | null;
+  readonly creator: LinearRef | null;
 }
 
-export interface LinearCommentEvent {
-  action: 'create';
-  data: LinearComment;
-  type: 'Comment';
-  createdAt: string;
-  organizationId: string;
+export interface LinearCycleNode {
+  readonly id: string;
+  readonly number: number;
+  readonly name: string | null;
+  readonly description: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly completedAt: string | null;
+  readonly team: LinearRef;
 }

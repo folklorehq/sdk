@@ -139,6 +139,11 @@ export function canonicalizeStoredLinks(links: unknown, ctx: StoredLinkContext):
   return [...keys];
 }
 
+/** Canonical link keys only: URLs reduce to container keys or drop, bare `#N` drops, anything else must already be canonical. */
+export function canonicalLinkKeys(links: unknown): string[] {
+  return canonicalizeStoredLinks(links, {}).filter(isCanonicalLinkKey);
+}
+
 function canonicalizeStoredLink(link: string, ctx: StoredLinkContext): string | null {
   if (parseWebUrl(link)) return linkKeyFromUrl(link);
   const bareRef = BARE_ITEM_REF_RE.exec(link);

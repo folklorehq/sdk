@@ -17,9 +17,7 @@ export const enclaveOutputTypeSchema = z.enum([
   'theme_synthesis',
   'team_onboarding_synthesis',
   'association_judgement',
-  // not yet wired: no enclave emits member_identity_link yet.
   'member_identity_link',
-  // not yet wired: no enclave emits fact_authors yet.
   'fact_authors',
 ]);
 export type EnclaveOutputType = z.infer<typeof enclaveOutputTypeSchema>;

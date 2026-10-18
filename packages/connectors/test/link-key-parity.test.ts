@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { isCanonicalLinkKey } from '@folklore/utils';
 import { jiraIssueContainerId } from '../src/jira/index.js';
 import { linearIssueContainerId } from '../src/linear/index.js';
-import type { LinearTeam } from '../src/linear/types.js';
 import type { JiraIssue } from '../src/jira/types.js';
 import {
   normalizeNotionPageEvent,
@@ -16,9 +15,7 @@ import { normalizeSlackMessage, slackThreadId } from '../src/slack/index.js';
 import type { SlackMessage } from '../src/slack/types.js';
 
 const NOTION_FIXTURE_PAGE_IDS = ['a1b2c3d4-e5f6-7890-abcd-ef1234567890'];
-const LINEAR_FIXTURES: Array<{ team: LinearTeam; issueNumber: number }> = [
-  { team: { id: 'team-uuid', name: 'Engineering', key: 'ENG' }, issueNumber: 42 },
-];
+const LINEAR_FIXTURE_IDENTIFIERS = ['ENG-42'];
 const SLACK_FIXTURES = [
   { channel: 'C12345', ts: '1700000000.000001' },
   { channel: 'C12345', ts: '1700000001.000001', thread_ts: '1700000000.000001' },
@@ -63,9 +60,9 @@ describe('connector container keys and the link allowlist', () => {
   });
 
   it('keeps Linear keys byte-identical and admitted', () => {
-    for (const { team, issueNumber } of LINEAR_FIXTURES) {
-      const key = linearIssueContainerId(team, issueNumber);
-      expect(key).toBe(`${team.key}-${issueNumber}`);
+    for (const identifier of LINEAR_FIXTURE_IDENTIFIERS) {
+      const key = linearIssueContainerId(identifier);
+      expect(key).toBe(identifier);
       expect(isCanonicalLinkKey(key)).toBe(true);
     }
   });

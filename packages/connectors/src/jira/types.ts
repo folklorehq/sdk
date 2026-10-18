@@ -3,6 +3,7 @@ export interface JiraUser {
   accountId: string;
   displayName?: string;
   emailAddress?: string;
+  accountType?: 'atlassian' | 'app' | 'customer' | 'unknown' | (string & {});
 }
 
 /** Jira collapses each org's custom statuses into a fixed lifecycle via status categories. */

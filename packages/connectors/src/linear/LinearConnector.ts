@@ -1,29 +1,50 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { AppError } from '@folklore/errors';
 import { BaseConnector } from '../BaseConnector.js';
+import type { ConnectorContext, PullOptions, PullResult, SyncCursor } from '../connector.js';
 import type {
-  ConnectorContext,
-  PullOptions,
-  PullResult,
-  SyncCursor,
-  WebhookEvent,
-} from '../connector.js';
-import type { NormalizedFact, NormalizedRecords, NormalizedResource } from '../normalized.js';
-import { isCreateEvent } from '../pull-classification.js';
-import type { LinearApiClient } from './client.js';
-import { normalizeLinearCommentEvent, normalizeLinearIssueEvent } from './normalize.js';
-import type { LinearCommentEvent, LinearIssueEvent } from './types.js';
+  NormalizedContainer,
+  NormalizedFact,
+  NormalizedRecords,
+  NormalizedResource,
+} from '../normalized.js';
+import { LinearRateLimitedError, LinearRequestError, type LinearApiClient } from './client.js';
+import {
+  normalizeLinearPulledComment,
+  normalizeLinearPulledCycle,
+  normalizeLinearPulledIssue,
+  normalizeLinearPulledProject,
+} from './normalize.js';
+import {
+  LINEAR_PULL_STREAMS,
+  readLinearPullCursor,
+  writeLinearPullCursor,
+  type LinearPullPosition,
+  type LinearPullStream,
+  type LinearStreamPosition,
+} from './pull-cursor.js';
+import { readLinearStream, type LinearStreamResult } from './stream-reader.js';
+import type { LinearHistoryNode, LinearIssueNode } from './types.js';
 
-// @linear/sdk inspects extensions.type, but Linear actually sends extensions.code —
-// so the SDK never surfaces this as a rate-limit error on its own.
-const LINEAR_RATE_LIMIT_CODE = 'RATELIMITED';
+const LINEAR_MAX_REQUESTS_PER_PULL = 200;
+const LINEAR_COMPLEXITY_HEADROOM = 20_000;
+const LINEAR_REQUEST_HEADROOM = 100;
+export const LINEAR_DEFAULT_LOOKBACK_MS = 365 * 86_400_000;
 
-interface LinearErrorLike {
-  raw?: {
-    response?: {
-      errors?: Array<{ extensions?: { code?: string } }>;
-    };
-  };
+interface PullCollector {
+  readonly facts: NormalizedFact[];
+  readonly containers: Map<string, NormalizedContainer>;
+}
+
+interface CollectorMark {
+  readonly factCount: number;
+  readonly containerKeys: ReadonlySet<string>;
+}
+
+interface PullRun {
+  readonly position: LinearPullPosition;
+  readonly floorMs: number;
+  readonly startedAtMs: number;
+  readonly collector: PullCollector;
 }
 
 export class LinearConnector extends BaseConnector {
@@ -32,6 +53,7 @@ export class LinearConnector extends BaseConnector {
   constructor(
     context: ConnectorContext,
     private readonly client: LinearApiClient,
+    private readonly now: () => Date = () => new Date(),
   ) {
     super(context);
   }
@@ -41,70 +63,168 @@ export class LinearConnector extends BaseConnector {
   }
 
   async pull(cursor: SyncCursor, options?: PullOptions): Promise<PullResult> {
-    const since = cursor.value ?? options?.since?.toISOString();
-    const facts: NormalizedFact[] = [];
-    const containers: NormalizedRecords['containers'] = [];
-    let maxUpdatedAt = cursor.value;
+    const startedAtMs = this.now().getTime();
+    let remaining = options?.maxFacts ?? Number.POSITIVE_INFINITY;
+    const run: PullRun = {
+      position: readLinearPullCursor(cursor.value),
+      floorMs: options?.since?.getTime() ?? startedAtMs - LINEAR_DEFAULT_LOOKBACK_MS,
+      startedAtMs,
+      collector: { facts: [], containers: new Map() },
+    };
+    const next: Record<LinearPullStream, LinearStreamPosition> = { ...run.position };
+    let hasMore = false;
+    let firstFailure: unknown = null;
+    let succeeded = 0;
+    let guardStopped = false;
 
-    const issues = await this.call('listIssues', () => this.client.listIssues(since));
-
-    for (const issue of issues) {
-      const event: LinearIssueEvent = {
-        action: isCreateEvent(issue.createdAt, since) ? 'create' : 'update',
-        data: issue,
-        type: 'Issue',
-        createdAt: issue.createdAt,
-        organizationId: issue.team.id,
-      };
-      const normalized = normalizeLinearIssueEvent(event);
-      facts.push(...normalized.facts);
-      containers.push(...normalized.containers);
-
-      const comments = await this.call('listComments', () =>
-        this.client.listComments(issue.id, since),
-      );
-      for (const comment of comments) {
-        const commentEvent: LinearCommentEvent = {
-          action: 'create',
-          data: comment,
-          type: 'Comment',
-          createdAt: comment.createdAt,
-          organizationId: issue.team.id,
-        };
-        facts.push(...normalizeLinearCommentEvent(commentEvent).facts);
+    for (const stream of LINEAR_PULL_STREAMS) {
+      if (remaining <= 0) {
+        hasMore = true;
+        break;
       }
-
-      if (maxUpdatedAt === null || issue.updatedAt > maxUpdatedAt) {
-        maxUpdatedAt = issue.updatedAt;
+      const outcome = await this.pullStream(stream, run, remaining);
+      if ('failure' in outcome) {
+        firstFailure ??= outcome.failure;
+        continue;
       }
+      succeeded += 1;
+      next[stream] = outcome.position;
+      remaining -= outcome.spent;
+      if (outcome.stop !== 'caught_up') hasMore = true;
+      if (outcome.stop === 'guard') guardStopped = true;
+      if (outcome.stop === 'guard' || outcome.stop === 'rate_limited') break;
     }
 
+    if (succeeded === 0 && firstFailure !== null) throw this.mapError('pull', firstFailure);
+    if (guardStopped && run.collector.facts.length === 0) {
+      throw this.mapError('pull', new LinearRateLimitedError());
+    }
     this.logger.debug('linear_pull_complete');
-    return { facts, containers, cursor: { value: maxUpdatedAt }, hasMore: false };
+    return {
+      facts: run.collector.facts,
+      containers: [...run.collector.containers.values()],
+      cursor: { value: writeLinearPullCursor(next) },
+      hasMore,
+    };
   }
 
-  normalizeWebhook(event: WebhookEvent): NormalizedRecords {
-    const payload = event.payload as { type?: string };
-    if (payload.type === 'Issue') {
-      return normalizeLinearIssueEvent(payload as LinearIssueEvent);
+  // Not yet wired: Linear is pull-only, so a webhook delivery produces no records.
+  normalizeWebhook(): NormalizedRecords {
+    return { facts: [], containers: [] };
+  }
+
+  private async pullStream(
+    stream: LinearPullStream,
+    run: PullRun,
+    budget: number,
+  ): Promise<LinearStreamResult | { readonly failure: LinearRequestError }> {
+    const mark = this.markCollector(run.collector);
+    try {
+      return await this.call(`pull_${stream}`, () => this.readStream(stream, run, budget, mark));
+    } catch (error) {
+      const failure = (error as { cause?: unknown }).cause;
+      if (!(failure instanceof LinearRequestError) || failure.code === 'linear_unauthorized') {
+        throw error;
+      }
+      this.rollBack(run.collector, mark);
+      this.logger.warn('linear_stream_failed', {
+        operation: `pull_${stream}`,
+        errorCode: failure.code,
+      });
+      return { failure };
     }
-    if (payload.type === 'Comment') {
-      return normalizeLinearCommentEvent(payload as LinearCommentEvent);
+  }
+
+  private readStream(
+    stream: LinearPullStream,
+    run: PullRun,
+    budget: number,
+    mark: CollectorMark,
+  ): Promise<LinearStreamResult> {
+    const common = {
+      position: run.position[stream],
+      floorMs: run.floorMs,
+      startedAtMs: run.startedAtMs,
+      budget,
+      guard: () => this.isGuardTripped(),
+      collectedBefore: mark.factCount,
+      discardCollected: () => this.rollBack(run.collector, mark),
+    };
+    const collector = run.collector;
+    switch (stream) {
+      case 'projects':
+        return readLinearStream({
+          ...common,
+          fetchPage: (window, after) => this.client.projects(window, after),
+          emit: async (node, bounds) =>
+            this.collect(collector, normalizeLinearPulledProject(node, bounds)),
+        });
+      case 'cycles':
+        return readLinearStream({
+          ...common,
+          fetchPage: (window, after) => this.client.cycles(window, after),
+          emit: async (node, bounds) =>
+            this.collect(collector, normalizeLinearPulledCycle(node, bounds)),
+        });
+      case 'issues':
+        return readLinearStream({
+          ...common,
+          fetchPage: (window, after) => this.client.issues(window, after),
+          emit: async (node, bounds) =>
+            this.collect(
+              collector,
+              normalizeLinearPulledIssue(node, await this.fullHistory(node), bounds),
+            ),
+        });
+      case 'comments':
+        return readLinearStream({
+          ...common,
+          fetchPage: (window, after) => this.client.comments(window, after),
+          emit: async (node, bounds) =>
+            this.collect(collector, normalizeLinearPulledComment(node, bounds)),
+        });
     }
-    return { containers: [], facts: [] };
   }
 
-  protected override mapError(operation: string, err: unknown): AppError {
-    return this.isLinearRateLimited(err)
-      ? this.rateLimitError(operation, err)
-      : super.mapError(operation, err);
+  private markCollector(collector: PullCollector): CollectorMark {
+    return {
+      factCount: collector.facts.length,
+      containerKeys: new Set(collector.containers.keys()),
+    };
   }
 
-  private isLinearRateLimited(err: unknown): boolean {
-    const errors = (err as LinearErrorLike | null)?.raw?.response?.errors;
+  private rollBack(collector: PullCollector, mark: CollectorMark): void {
+    collector.facts.length = mark.factCount;
+    for (const key of [...collector.containers.keys()]) {
+      if (!mark.containerKeys.has(key)) collector.containers.delete(key);
+    }
+  }
+
+  private collect(collector: PullCollector, records: NormalizedRecords): number {
+    collector.facts.push(...records.facts);
+    for (const container of records.containers) {
+      collector.containers.set(container.sourceContainerId, container);
+    }
+    return records.facts.length;
+  }
+
+  private async fullHistory(issue: LinearIssueNode): Promise<LinearHistoryNode[]> {
+    const nodes = [...issue.history.nodes];
+    let pageInfo = issue.history.pageInfo;
+    while (pageInfo.hasNextPage && pageInfo.endCursor !== null) {
+      const page = await this.client.issueHistory(issue.id, pageInfo.endCursor);
+      nodes.push(...page.nodes);
+      pageInfo = page.pageInfo;
+    }
+    return nodes;
+  }
+
+  private isGuardTripped(): boolean {
+    const state = this.client.rateState();
     return (
-      Array.isArray(errors) &&
-      errors.some((error) => error.extensions?.code === LINEAR_RATE_LIMIT_CODE)
+      state.requestsMade >= LINEAR_MAX_REQUESTS_PER_PULL ||
+      (state.complexityRemaining ?? Number.POSITIVE_INFINITY) < LINEAR_COMPLEXITY_HEADROOM ||
+      (state.requestsRemaining ?? Number.POSITIVE_INFINITY) < LINEAR_REQUEST_HEADROOM
     );
   }
 }

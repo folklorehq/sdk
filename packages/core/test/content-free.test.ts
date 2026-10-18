@@ -80,6 +80,32 @@ describe('checkSafeLogContext', () => {
     expect(checkSafeLogContext({ wouldSkip: true, reviewTriggers: 24 })).toBeNull();
   });
 
+  it('accepts the page check and cross-check counts as numbers only', () => {
+    const counts = {
+      checkItems: 12,
+      itemsDropped: 1,
+      quoteMismatches: 0,
+      candidates: 20,
+      unanswered: 0,
+      conflicts: 1,
+      overclaims: 2,
+      unsupportedItems: 3,
+      coverageMissing: 1,
+      misattributionCandidates: 2,
+      opusFlagged: 4,
+      checkFlagged: 3,
+      bothFlagged: 3,
+      opusOnly: 1,
+      checkOnly: 0,
+      faithfulnessOpusFlagged: 3,
+      faithfulnessOpusOnly: 1,
+    };
+    expect(checkSafeLogContext(counts)).toBeNull();
+    for (const key of Object.keys(counts)) {
+      expect(checkSafeLogContext({ [key]: 'customer text' }), key).toBe('invalid_context_value');
+    }
+  });
+
   it('accepts only a closed set of purposes, including untagged', () => {
     for (const purpose of ['wiki_section', 'answer', 'untagged']) {
       expect(checkSafeLogContext({ purpose }), purpose).toBeNull();

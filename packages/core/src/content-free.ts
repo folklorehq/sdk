@@ -65,6 +65,11 @@ export const SAFE_LOG_PURPOSES: ReadonlySet<string> = new Set([
   'wiki_section_add',
   'wiki_section_long',
   'wiki_outline_long',
+  'wiki_page_check',
+  'wiki_page_revise',
+  'wiki_article_check',
+  'wiki_article_long',
+  'team_onboarding_long',
   'untagged',
 ]);
 const EXPLICIT_CONTENT_FREE_FIELDS = new Set([

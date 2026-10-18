@@ -7,9 +7,11 @@ import type {
   NormalizedMetric,
   NormalizedRecords,
   NormalizedResource,
+  NormalizedUnlinkedActor,
 } from '../normalized.js';
 import type {
   GitHubCommit,
+  GitHubCommitAuthor,
   GitHubIssueComment,
   GitHubPullRequest,
   GitHubRepo,
@@ -34,20 +36,44 @@ function githubEntities(repo: GitHubRepo, pullNumber?: number): string[] {
   return entities;
 }
 
+/** One actor for a GitHub account with a real numeric id; none otherwise. */
 export function userToActor(
-  user: GitHubUser,
+  user: GitHubUser | GitHubCommitAuthor,
   role: 'author' | 'co_author' = 'author',
-): NormalizedActor {
-  return {
-    sourceUserId: String(user.id),
-    email: user.email ?? undefined,
-    displayName: user.name ?? user.login,
-    role,
-  };
+): NormalizedActor[] {
+  const { id } = user;
+  if (id === undefined || !Number.isSafeInteger(id) || id <= 0) return [];
+  const login = user.login ?? '';
+  const displayName = user.name ?? login;
+  return [
+    {
+      sourceUserId: String(id),
+      ...(user.email ? { email: user.email } : {}),
+      ...(displayName ? { displayName } : {}),
+      role,
+      ...(login ? { sourceLogin: login } : {}),
+    },
+  ];
 }
 
-function loginActor(user: GitHubUser): NormalizedActor {
+function loginActor(user: GitHubUser): NormalizedActor[] {
   return userToActor({ id: user.id, login: user.login });
+}
+
+/** A push commit's author when it has no account id; none when userToActor covers it. */
+export function githubCommitUnlinkedActors(commit: GitHubCommit): NormalizedUnlinkedActor[] {
+  const author = commit.author ?? commit.committer ?? null;
+  if (!author || userToActor(author).length > 0) return [];
+  const sourceLogin = 'username' in author ? author.username : undefined;
+  const displayName = author.name ?? undefined;
+  if (!sourceLogin && !displayName) return [];
+  return [
+    {
+      ...(sourceLogin ? { sourceLogin } : {}),
+      ...(displayName ? { displayName } : {}),
+      role: 'author',
+    },
+  ];
 }
 
 export function repoToResource(repo: GitHubRepo): NormalizedResource {
@@ -70,7 +96,7 @@ export function normalizePullRequest(
       kind: 'content',
       occurredAt: new Date(pr.created_at),
       resourceExternalId,
-      authors: [loginActor(pr.user)],
+      authors: loginActor(pr.user),
       containerRefs: [sourceContainerId],
       sourceThreadId: sourceContainerId,
       entities: githubEntities(repo, pr.number),
@@ -107,7 +133,7 @@ export function normalizePullRequestTransition(
     kind: 'transition',
     occurredAt: new Date(pr.closed_at ?? pr.updated_at),
     resourceExternalId: String(repo.id),
-    authors: [loginActor(pr.user)],
+    authors: loginActor(pr.user),
     containerRefs: [pullRequestContainerId(repo, pr.number)],
     sourceThreadId: pullRequestContainerId(repo, pr.number),
     entities: githubEntities(repo, pr.number),
@@ -143,7 +169,7 @@ export function normalizeIssueComment(
     kind: 'content',
     occurredAt: new Date(editedAt ?? comment.created_at),
     resourceExternalId: String(repo.id),
-    authors: [loginActor(comment.user)],
+    authors: loginActor(comment.user),
     containerRefs: [pullRequestContainerId(repo, pullNumber)],
     sourceThreadId: pullRequestContainerId(repo, pullNumber),
     entities: githubEntities(repo, pullNumber),
@@ -172,7 +198,8 @@ export function normalizeCommit(repo: GitHubRepo, commit: GitHubCommit): Normali
     kind: 'content',
     occurredAt: new Date(commit.timestamp),
     resourceExternalId: String(repo.id),
-    authors: author ? [userToActor(author)] : [],
+    authors: author ? userToActor(author) : [],
+    unlinkedAuthors: githubCommitUnlinkedActors(commit),
     // Commit↔PR membership is N:M and resolved during ingestion (stacked PRs).
     containerRefs: [],
     entities: [...githubEntities(repo), ...changedFiles],

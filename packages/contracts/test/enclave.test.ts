@@ -1656,8 +1656,11 @@ describe('fact author re-extract request', () => {
     expect(factAuthorReextractRequestSchema.safeParse(value).success).toBe(false);
   });
 
-  it('is not yet accepted by the synthesis queue union', () => {
-    expect(synthesisQueueRequestSchema.safeParse(request(1)).success).toBe(false);
+  it('is accepted by the synthesis queue union', () => {
+    expect(synthesisQueueRequestSchema.safeParse(request(1)).success).toBe(true);
+    expect(
+      synthesisQueueRequestSchema.safeParse({ ...request(1), type: 'fact_author_unknown' }).success,
+    ).toBe(false);
   });
 });
 

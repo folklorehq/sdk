@@ -37,6 +37,7 @@ export {
   ISSUE_KEY_PATTERN,
   NOTION_PAGE_KEY_PATTERN,
   SLACK_THREAD_KEY_PATTERN,
+  canonicalLinkKeys,
   canonicalNotionPageId,
   canonicalizeStoredLinks,
   githubItemKey,
@@ -54,6 +55,11 @@ export {
   type StoredLinkContext,
 } from './link-keys.js';
 export { groupBy, chunk } from './collection.js';
+export {
+  partitionSourceIdentityClaims,
+  type PartitionedClaims,
+  type SourceIdentityClaim,
+} from './identity-claims.js';
 export { abortAfter, mapWithConcurrency, primaryRejection, timeLimited, sleep } from './async.js';
 export { parseJsonFence, extractJsonObject, isRecord } from './json.js';
 export { ingestWebhookUrl } from './ingest.js';

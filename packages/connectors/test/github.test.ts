@@ -5,14 +5,17 @@ import type { ConnectorContext } from '../src/index.js';
 import { GitHubConnector } from '../src/github/GitHubConnector.js';
 import type { GitHubClient } from '../src/github/client.js';
 import {
+  githubCommitUnlinkedActors,
   normalizeCommit,
   normalizeIssueComment,
   normalizePullRequest,
   normalizePullRequestEvent,
   normalizePullRequestTransition,
   pullRequestContainerId,
+  userToActor,
 } from '../src/github/normalize.js';
 import type {
+  GitHubCommit,
   GitHubIssueComment,
   GitHubPullRequest,
   GitHubRepo,
@@ -340,5 +343,114 @@ describe('GitHubConnector construction', () => {
     const connector = new GitHubConnector(context, client);
     expect(connector).toBeInstanceOf(GitHubConnector);
     expect(connector.kind).toBe('github');
+  });
+});
+
+describe('userToActor', () => {
+  it('keeps a real account id and its login', () => {
+    expect(userToActor({ id: 42, login: 'octo' })).toEqual([
+      { sourceUserId: '42', displayName: 'octo', role: 'author', sourceLogin: 'octo' },
+    ]);
+  });
+
+  it.each([
+    { id: 0, login: '' },
+    { id: 1.5, login: 'x' },
+    { id: -3, login: 'x' },
+  ])('returns no actor for the account id in %j', (user) => {
+    expect(userToActor(user)).toEqual([]);
+  });
+
+  it('returns no actor for a push author without an id', () => {
+    expect(
+      userToActor({ name: 'Jane Doe', email: 'jane@example.com', username: 'janedoe' }),
+    ).toEqual([]);
+  });
+
+  it('omits sourceLogin when the login is empty', () => {
+    const [actor] = userToActor({ id: 9, login: '' });
+    expect(actor).toBeDefined();
+    expect('sourceLogin' in (actor ?? {})).toBe(false);
+  });
+});
+
+describe('push commit authors', () => {
+  const pushCommit: GitHubCommit = {
+    sha: 'abc',
+    message: 'fix',
+    author: {
+      name: 'Jane Doe',
+      email: 'jane@example.com',
+      username: 'janedoe',
+    },
+    timestamp: '2026-10-01T00:00:00Z',
+  };
+
+  it('turns an id-less push author into an unlinked hint, not an author', () => {
+    const fact = normalizeCommit(repo, pushCommit);
+    expect(fact.authors).toEqual([]);
+    expect(fact.unlinkedAuthors).toEqual([
+      { sourceLogin: 'janedoe', displayName: 'Jane Doe', role: 'author' },
+    ]);
+    expect(JSON.stringify(fact)).not.toContain('undefined');
+  });
+
+  it('keeps the name when the push author has no username', () => {
+    const fact = normalizeCommit(repo, {
+      ...pushCommit,
+      author: { name: 'Jane Doe', email: 'jane@example.com' },
+    });
+    expect(fact.unlinkedAuthors).toEqual([{ displayName: 'Jane Doe', role: 'author' }]);
+  });
+
+  it('emits no hint when the push author has neither username nor name', () => {
+    const fact = normalizeCommit(repo, { ...pushCommit, author: { email: 'jane@example.com' } });
+    expect(fact.authors).toEqual([]);
+    expect(fact.unlinkedAuthors).toEqual([]);
+  });
+
+  it('falls back to the committer when there is no author', () => {
+    const fact = normalizeCommit(repo, {
+      ...pushCommit,
+      author: null,
+      committer: { name: 'Sam', username: 'sam' },
+    });
+    expect(fact.unlinkedAuthors).toEqual([
+      { sourceLogin: 'sam', displayName: 'Sam', role: 'author' },
+    ]);
+  });
+
+  it('keeps a commit author that has an account id and adds no hint', () => {
+    const fact = normalizeCommit(repo, { ...pushCommit, author: { id: 5, login: 'nate' } });
+    expect(fact.authors).toMatchObject([{ sourceUserId: '5', sourceLogin: 'nate' }]);
+    expect(fact.unlinkedAuthors).toEqual([]);
+    expect(githubCommitUnlinkedActors({ ...pushCommit, author: { id: 5, login: 'nate' } })).toEqual(
+      [],
+    );
+  });
+
+  it('emits no author for a commit with no author or committer', () => {
+    const fact = normalizeCommit(repo, { ...pushCommit, author: null });
+    expect(fact.authors).toEqual([]);
+    expect(fact.unlinkedAuthors).toEqual([]);
+  });
+
+  it('orders the fact keys with unlinkedAuthors right after authors', () => {
+    const keys = Object.keys(normalizeCommit(repo, pushCommit));
+    expect(keys.slice(keys.indexOf('authors'), keys.indexOf('authors') + 2)).toEqual([
+      'authors',
+      'unlinkedAuthors',
+    ]);
+  });
+
+  it('gives PR and comment authors a login and no unlinkedAuthors key', () => {
+    const { fact } = normalizePullRequest(repo, pr);
+    expect(fact.authors[0]).toMatchObject({ sourceUserId: '5', sourceLogin: 'nate' });
+    expect('unlinkedAuthors' in fact).toBe(false);
+  });
+
+  it('gives a PR opened by a deleted account no author', () => {
+    const { fact } = normalizePullRequest(repo, { ...pr, user: { id: 0, login: '' } });
+    expect(fact.authors).toEqual([]);
   });
 });
