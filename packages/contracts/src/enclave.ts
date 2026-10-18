@@ -22,6 +22,22 @@ export {
 
 const WIKI_CONTENT_FORMAT = 'esdk-v1';
 
+export const PAGE_TITLE_MAX_LENGTH = 80;
+const PAGE_TITLE_MARKDOWN = /[#*_`[\]<>|~\\]/;
+const NON_SPACE_WHITESPACE = /[^\S ]/;
+
+export function isValidPageTitle(value: string): boolean {
+  return (
+    value.length > 0 &&
+    value.length <= PAGE_TITLE_MAX_LENGTH &&
+    value === value.trim() &&
+    !PAGE_TITLE_MARKDOWN.test(value) &&
+    !NON_SPACE_WHITESPACE.test(value)
+  );
+}
+
+const pageTitleSchema = z.string().refine(isValidPageTitle);
+
 export const factKindSchema = z.enum(['content', 'transition']);
 export type FactKind = z.infer<typeof factKindSchema>;
 
@@ -65,6 +81,9 @@ export const AUTHOR_EMAIL_PATTERN = /^[^\s@]*@[^\s@]*$/;
 
 // Lowercased GitHub login; a bot login keeps its "[bot]" suffix (OctokitGitHubClient.ts:238-242).
 export const GITHUB_LOGIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,38})(?:\[bot\])?$/;
+
+// A GitHub numeric account id; "undefined" and "0" come from bodies sealed before the id was read correctly.
+export const GITHUB_ACCOUNT_ID_PATTERN = /^[1-9][0-9]{0,15}$/;
 
 const authorRoleSchema = z.enum(['author', 'co_author']);
 
@@ -143,7 +162,7 @@ export const processedFactSchema = z
     // diff. Defaults to [] so an older enclave that omits it still parses.
     metrics: z.array(factMetricSchema).default([]),
     ownerAccountId: z.string().uuid().optional(),
-    // Not yet wired: no enclave emits these and no worker reads them yet.
+    // not yet wired: no enclave emits these yet; the worker records them only when it connects as folklore_pool_worker.
     // No .default(): an enclave would then sign `authors: []`, which an older worker's .strict() parse rejects.
     authors: z.array(processedFactAuthorSchema).max(PROCESSED_FACT_MAX_AUTHORS).optional(),
     unlinkedAuthors: z
@@ -194,25 +213,38 @@ export const encryptedBlockReadSchema = encryptedBlockSchema
   .strict();
 export type EncryptedBlockRead = z.infer<typeof encryptedBlockReadSchema>;
 
+const encryptedWikiArticleSchema = z
+  .object({
+    audienceId: z.string().nullable(),
+    content: z.string().min(1).regex(CANONICAL_BASE64_PATTERN),
+    contentFormat: z.literal(WIKI_CONTENT_FORMAT),
+    factCount: z.number(),
+  })
+  .strict();
+const plaintextWikiArticleSchema = z
+  .object({
+    audienceId: z.string().nullable(),
+    content: z.literal(''),
+    contentFormat: z.literal('plaintext'),
+    factCount: z.number(),
+  })
+  .strict();
+
 export const wikiArticleSchema = z.discriminatedUnion('contentFormat', [
-  z
-    .object({
-      audienceId: z.string().nullable(),
-      content: z.string().min(1).regex(CANONICAL_BASE64_PATTERN),
-      contentFormat: z.literal(WIKI_CONTENT_FORMAT),
-      factCount: z.number(),
-    })
-    .strict(),
-  z
-    .object({
-      audienceId: z.string().nullable(),
-      content: z.literal(''),
-      contentFormat: z.literal('plaintext'),
-      factCount: z.number(),
-    })
-    .strict(),
+  encryptedWikiArticleSchema,
+  plaintextWikiArticleSchema,
 ]);
 export type WikiArticle = z.infer<typeof wikiArticleSchema>;
+
+// The title is an audience-gated descriptor like a theme name, not synthesized prose. A malformed one is dropped, never
+// grounds to reject the page: the worker then keeps the theme name.
+const optionalPageTitleSchema = pageTitleSchema.optional().catch(undefined);
+
+export const wikiSynthesisArticleSchema = z.discriminatedUnion('contentFormat', [
+  encryptedWikiArticleSchema.extend({ title: optionalPageTitleSchema }),
+  plaintextWikiArticleSchema.extend({ title: optionalPageTitleSchema }),
+]);
+export type WikiSynthesisArticle = z.infer<typeof wikiSynthesisArticleSchema>;
 
 // Content-free rich-block emit-vs-drop tally per kind: how many fenced diagram/graph/
 // chart/code/embed candidates the synthesizer parsed vs. dropped on failed validation, and how
@@ -409,7 +441,7 @@ export const wikiSynthesisResultSchema = z
     themeId: z.string(),
     orgId: z.string(),
     leaseToken: z.string().min(1),
-    articles: z.array(wikiArticleSchema),
+    articles: z.array(wikiSynthesisArticleSchema),
     blocks: z.array(encryptedBlockReadSchema),
     citedFactIds: z.array(z.string()),
     richBlockCounts: z.array(richBlockKindCountSchema).default([]),
@@ -531,6 +563,7 @@ export const aggregateThemeSchema = z
     tags: z.array(z.string()),
     importance: z.number(),
     children: z.array(aggregateThemeChildSchema),
+    namedByFallback: z.boolean().optional(),
   })
   .strict();
 export type AggregateTheme = z.infer<typeof aggregateThemeSchema>;
@@ -837,6 +870,61 @@ export const synthesisQueueRequestSchema = z.discriminatedUnion('type', [
   associationJudgementRequestSchema,
 ]);
 export type SynthesisQueueRequest = z.infer<typeof synthesisQueueRequestSchema>;
+
+export const FACT_AUTHOR_REEXTRACT_MAX_FACTS = 100;
+export const FACT_AUTHOR_REEXTRACT_SOURCE_KIND_MAX = 64;
+// Serialized result bytes; the signed envelope adds under 6 KiB, well inside OUTPUT_QUEUE_MAX_MESSAGE_BYTES (1 MiB).
+export const FACT_AUTHORS_RESULT_MAX_BYTES = 200 * 1024;
+
+export const factAuthorReextractRefSchema = z
+  .object({
+    factId: z.string().uuid(),
+    sourceKind: z.string().min(1).max(FACT_AUTHOR_REEXTRACT_SOURCE_KIND_MAX),
+    s3Key: z.string().min(1).max(ASSOCIATION_JUDGEMENT_S3_KEY_MAX),
+  })
+  .strict();
+export type FactAuthorReextractRef = z.infer<typeof factAuthorReextractRefSchema>;
+
+// Not yet in the synthesis queue union: it joins only beside the enclave dispatch branch that handles it.
+export const factAuthorReextractRequestSchema = z
+  .object({
+    type: z.literal('fact_author_reextract'),
+    requestId: z.string().regex(JUDGEMENT_REQUEST_ID_PATTERN),
+    orgId: z.string().uuid(),
+    facts: z.array(factAuthorReextractRefSchema).min(1).max(FACT_AUTHOR_REEXTRACT_MAX_FACTS),
+  })
+  .strict();
+export type FactAuthorReextractRequest = z.infer<typeof factAuthorReextractRequestSchema>;
+
+// Ids and bounded source-derived author fields only; never a body.
+export const factAuthorsResultSchema = z
+  .object({
+    type: z.literal('fact_authors'),
+    requestId: z.string().regex(JUDGEMENT_REQUEST_ID_PATTERN),
+    orgId: z.string().uuid(),
+    facts: z
+      .array(
+        z
+          .object({
+            factId: z.string().uuid(),
+            authors: z.array(processedFactAuthorSchema).max(PROCESSED_FACT_MAX_AUTHORS),
+            unlinkedAuthors: z
+              .array(processedFactUnlinkedAuthorSchema)
+              .max(PROCESSED_FACT_MAX_AUTHORS)
+              .optional(),
+          })
+          .strict(),
+      )
+      .max(FACT_AUTHOR_REEXTRACT_MAX_FACTS),
+    skipped: z.number().int().nonnegative().max(FACT_AUTHOR_REEXTRACT_MAX_FACTS),
+  })
+  .strict()
+  .refine(
+    (result) =>
+      new TextEncoder().encode(JSON.stringify(result)).byteLength <= FACT_AUTHORS_RESULT_MAX_BYTES,
+    { message: 'fact_authors result exceeds its byte cap' },
+  );
+export type FactAuthorsResult = z.infer<typeof factAuthorsResultSchema>;
 
 export const associationVerdictSchema = z.enum(['assign', 'remove', 'abstain']);
 export type AssociationVerdict = z.infer<typeof associationVerdictSchema>;

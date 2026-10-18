@@ -5,9 +5,15 @@ import {
   AUTHOR_EMAIL_MAX,
   AUTHOR_SOURCE_USER_ID_MAX,
   DEFAULT_SYNTHESIS_INPUT_TOKEN_BUDGET,
+  FACT_AUTHORS_RESULT_MAX_BYTES,
+  FACT_AUTHOR_REEXTRACT_MAX_FACTS,
+  FACT_AUTHOR_REEXTRACT_SOURCE_KIND_MAX,
+  GITHUB_ACCOUNT_ID_PATTERN,
   INFERENCE_TIMELINE_MAX_SPANS,
   PROCESSED_FACT_MAX_AUTHORS,
   associationJudgementResultSchema,
+  factAuthorReextractRequestSchema,
+  factAuthorsResultSchema,
   knowledgeNeighborhoodSchema,
   processedFactAuthorSchema,
   processedFactSchema,
@@ -23,7 +29,11 @@ import {
   teamOnboardingSynthesisResultSchema,
   themeSynthesisRequestSchema,
   themeSynthesisResultSchema,
+  PAGE_TITLE_MAX_LENGTH,
+  aggregateThemeSchema,
+  isValidPageTitle,
   wikiArticleSchema,
+  wikiSynthesisArticleSchema,
   webhookLifecycleClaimSchema,
   webhookLifecycleCleanupClearSchema,
   webhookLifecycleDeliverySchema,
@@ -332,6 +342,84 @@ describe('wikiArticleSchema', () => {
   });
 });
 
+describe('the page title on a synthesized article', () => {
+  const article = { audienceId: null, content: 'Zg==', contentFormat: 'esdk-v1', factCount: 1 };
+
+  it('is not part of the team onboarding article, which stays closed', () => {
+    expect(() => wikiArticleSchema.parse({ ...article, title: 'Billing Accuracy' })).toThrow();
+  });
+
+  it('is optional, so an article from an enclave that omits it still parses', () => {
+    expect(wikiSynthesisArticleSchema.parse(article)).not.toHaveProperty('title');
+    expect(
+      wikiSynthesisArticleSchema.parse({ ...article, title: 'Billing Accuracy' }),
+    ).toMatchObject({
+      title: 'Billing Accuracy',
+    });
+  });
+
+  it('rides the empty plaintext sentinel too', () => {
+    expect(
+      wikiSynthesisArticleSchema.parse({
+        audienceId: null,
+        content: '',
+        contentFormat: 'plaintext',
+        factCount: 0,
+        title: 'Billing Accuracy',
+      }),
+    ).toMatchObject({ title: 'Billing Accuracy' });
+  });
+
+  it.each([
+    ['empty', ''],
+    ['padded', ' Billing'],
+    ['markdown emphasis', '**Billing**'],
+    ['a heading marker', '# Billing'],
+    ['a link', '[Billing](x)'],
+    ['a line break', 'Billing\nAccuracy'],
+    ['too long', 'B'.repeat(PAGE_TITLE_MAX_LENGTH + 1)],
+  ])('drops a title that is %s and keeps the article', (_label, title) => {
+    expect(isValidPageTitle(title)).toBe(false);
+    const parsed = wikiSynthesisArticleSchema.parse({ ...article, title });
+    expect(parsed.title).toBeUndefined();
+    expect(parsed).toMatchObject({ content: 'Zg==', factCount: 1 });
+  });
+
+  it('drops a non-string title the same way', () => {
+    expect(wikiSynthesisArticleSchema.parse({ ...article, title: 42 }).title).toBeUndefined();
+  });
+
+  it('still rejects an unknown field beside the title', () => {
+    expect(() =>
+      wikiSynthesisArticleSchema.parse({ ...article, title: 'Billing', plaintext: 'x' }),
+    ).toThrow();
+  });
+
+  it('accepts a title at the length cap', () => {
+    expect(isValidPageTitle('B'.repeat(PAGE_TITLE_MAX_LENGTH))).toBe(true);
+  });
+});
+
+describe('aggregateThemeSchema', () => {
+  const aggregate = {
+    aggregateThemeId: 'agg-1',
+    name: 'Initiative: Activity',
+    tags: ['initiative'],
+    importance: 0.5,
+    children: [{ childThemeId: 't1', weight: 1 }],
+  };
+
+  it('carries an optional fallback-name flag and omits it by default', () => {
+    expect(aggregateThemeSchema.parse(aggregate)).not.toHaveProperty('namedByFallback');
+    expect(aggregateThemeSchema.parse({ ...aggregate, namedByFallback: true })).toMatchObject({
+      namedByFallback: true,
+    });
+    expect(aggregateThemeSchema.safeParse({ ...aggregate, namedByFallback: 'yes' }).success).toBe(
+      false,
+    );
+  });
+});
+
 describe('processedFactSchema', () => {
   const valid = {
     factId: 'f1',
@@ -594,6 +682,29 @@ describe('processedFactSchema', () => {
 });
 
 describe('wikiSynthesisResultSchema', () => {
+  it('keeps the page result when an article carries a malformed title', () => {
+    const parsed = wikiSynthesisResultSchema.parse({
+      type: 'wiki_synthesis',
+      requestId: 'req-1',
+      themeId: 'theme-1',
+      orgId: 'org-1',
+      leaseToken: 'lease-1',
+      articles: [
+        {
+          audienceId: null,
+          content: 'ZW5j',
+          contentFormat: 'esdk-v1',
+          factCount: 3,
+          title: '**bold** title',
+        },
+      ],
+      blocks: [],
+      citedFactIds: [],
+    });
+    expect(parsed.articles).toHaveLength(1);
+    expect(parsed.articles[0]?.title).toBeUndefined();
+  });
+
   it('accepts an enclave wiki_synthesis payload with encrypted blocks', () => {
     const parsed = wikiSynthesisResultSchema.parse({
       type: 'wiki_synthesis',
@@ -1410,8 +1521,20 @@ type EnclaveWikiSynthesisResult = {
   orgId: string;
   leaseToken: string;
   articles: (
-    | { audienceId: string | null; content: string; contentFormat: 'esdk-v1'; factCount: number }
-    | { audienceId: string | null; content: ''; contentFormat: 'plaintext'; factCount: number }
+    | {
+        audienceId: string | null;
+        content: string;
+        contentFormat: 'esdk-v1';
+        factCount: number;
+        title?: string;
+      }
+    | {
+        audienceId: string | null;
+        content: '';
+        contentFormat: 'plaintext';
+        factCount: number;
+        title?: string;
+      }
   )[];
   blocks: {
     type: string;
@@ -1492,3 +1615,166 @@ type _ThemeSynthesisRequestPinned = Expect<
 >;
 type _PullDueMessagePinned = Expect<Equal<PullDueMessage, EnclavePullDueMessage>>;
 type _PullCompleteSignalPinned = Expect<Equal<PullCompleteSignal, EnclavePullCompleteSignal>>;
+
+describe('fact author re-extract request', () => {
+  const ref = (index: number) => ({
+    factId: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+    sourceKind: 'github',
+    s3Key: `facts/org/${index}`,
+  });
+  const request = (count: number) => ({
+    type: 'fact_author_reextract' as const,
+    requestId: 'a'.repeat(64),
+    orgId: '123e4567-e89b-42d3-a456-426614174000',
+    facts: Array.from({ length: count }, (_, index) => ref(index + 1)),
+  });
+
+  it.each([1, FACT_AUTHOR_REEXTRACT_MAX_FACTS])('accepts %i facts', (count) => {
+    expect(factAuthorReextractRequestSchema.safeParse(request(count)).success).toBe(true);
+  });
+
+  it.each([0, FACT_AUTHOR_REEXTRACT_MAX_FACTS + 1])('rejects %i facts', (count) => {
+    expect(factAuthorReextractRequestSchema.safeParse(request(count)).success).toBe(false);
+  });
+
+  it.each([
+    ['an extra key', { ...request(1), extra: 1 }],
+    ['a non-UUID org id', { ...request(1), orgId: 'org-1' }],
+    ['a non-UUID fact id', { ...request(1), facts: [{ ...ref(1), factId: 'fact-1' }] }],
+    ['a non-hex request id', { ...request(1), requestId: 'z'.repeat(64) }],
+    ['a short request id', { ...request(1), requestId: 'a'.repeat(63) }],
+    ['an empty storage key', { ...request(1), facts: [{ ...ref(1), s3Key: '' }] }],
+    [
+      'an over-long source kind',
+      {
+        ...request(1),
+        facts: [{ ...ref(1), sourceKind: 'k'.repeat(FACT_AUTHOR_REEXTRACT_SOURCE_KIND_MAX + 1) }],
+      },
+    ],
+    ['an extra fact key', { ...request(1), facts: [{ ...ref(1), body: 'text' }] }],
+  ])('rejects %s', (_label, value) => {
+    expect(factAuthorReextractRequestSchema.safeParse(value).success).toBe(false);
+  });
+
+  it('is not yet accepted by the synthesis queue union', () => {
+    expect(synthesisQueueRequestSchema.safeParse(request(1)).success).toBe(false);
+  });
+});
+
+describe('fact authors result', () => {
+  const FACT = '00000000-0000-4000-8000-000000000001';
+  const result = (overrides: Record<string, unknown> = {}) => ({
+    type: 'fact_authors' as const,
+    requestId: 'b'.repeat(64),
+    orgId: '123e4567-e89b-42d3-a456-426614174000',
+    facts: [
+      {
+        factId: FACT,
+        authors: [{ sourceUserId: '4242', role: 'author' as const, sourceLogin: 'octo-cat' }],
+        unlinkedAuthors: [{ role: 'co_author' as const, displayName: 'Commit Author' }],
+      },
+    ],
+    skipped: 0,
+    ...overrides,
+  });
+
+  it('round-trips a canonical result', () => {
+    expect(factAuthorsResultSchema.parse(result())).toEqual(result());
+  });
+
+  it('accepts a fact with no unlinked authors', () => {
+    const value = result({ facts: [{ factId: FACT, authors: [] }] });
+    expect(factAuthorsResultSchema.safeParse(value).success).toBe(true);
+  });
+
+  it.each([
+    [
+      'an unknown author key',
+      { facts: [{ factId: FACT, authors: [{ sourceUserId: '1', role: 'author', body: 'x' }] }] },
+    ],
+    ['an unknown fact key', { facts: [{ factId: FACT, authors: [], body: 'text' }] }],
+    ['a non-UUID fact id', { facts: [{ factId: 'fact-1', authors: [] }] }],
+    ['skipped over the cap', { skipped: FACT_AUTHOR_REEXTRACT_MAX_FACTS + 1 }],
+    ['a negative skipped count', { skipped: -1 }],
+    ['a fractional skipped count', { skipped: 1.5 }],
+    ['a non-hex request id', { requestId: 'z'.repeat(64) }],
+    [
+      'more facts than a request can carry',
+      {
+        facts: Array.from({ length: FACT_AUTHOR_REEXTRACT_MAX_FACTS + 1 }, () => ({
+          factId: FACT,
+          authors: [],
+        })),
+      },
+    ],
+    [
+      'more authors than a fact can carry',
+      {
+        facts: [
+          {
+            factId: FACT,
+            authors: Array.from({ length: PROCESSED_FACT_MAX_AUTHORS + 1 }, (_, index) => ({
+              sourceUserId: String(index + 1),
+              role: 'author',
+            })),
+          },
+        ],
+      },
+    ],
+  ])('rejects %s', (_label, overrides) => {
+    expect(factAuthorsResultSchema.safeParse(result(overrides)).success).toBe(false);
+  });
+
+  it('accepts a result of exactly the byte cap and refuses one byte more, counted in UTF-8', () => {
+    const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).byteLength;
+    const nameOfBytes = (size: number) =>
+      '\u00e9'.repeat(Math.floor(size / 2)) + 'a'.repeat(size % 2);
+    const author = (size: number, index: number) => ({
+      sourceUserId: String(index + 1),
+      role: 'author' as const,
+      displayName: nameOfBytes(size),
+    });
+    const MAX_NAME_BYTES = AUTHOR_DISPLAY_NAME_MAX * 2;
+    const factId = (index: number) =>
+      `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`;
+    const build = (sizes: number[]) => {
+      const facts: Array<{ factId: string; authors: ReturnType<typeof author>[] }> = [];
+      sizes.forEach((size, index) => {
+        let fact = facts.at(-1);
+        if (!fact || fact.authors.length >= PROCESSED_FACT_MAX_AUTHORS) {
+          fact = { factId: factId(facts.length), authors: [] };
+          facts.push(fact);
+        }
+        fact.authors.push(author(size, index));
+      });
+      return result({ facts });
+    };
+
+    const sizes: number[] = [];
+    const remaining = () => FACT_AUTHORS_RESULT_MAX_BYTES - bytes(build([...sizes, 1, 1]));
+    while (remaining() > MAX_NAME_BYTES * 2) sizes.push(MAX_NAME_BYTES);
+    const room = remaining() + 2;
+    const first = Math.min(MAX_NAME_BYTES, Math.floor(room / 2));
+    const atCap = build([...sizes, first, room - first]);
+
+    expect(bytes(atCap)).toBe(FACT_AUTHORS_RESULT_MAX_BYTES);
+    expect(factAuthorsResultSchema.safeParse(atCap).success).toBe(true);
+    const over = build([...sizes, first, room - first + 1]);
+    expect(bytes(over)).toBe(FACT_AUTHORS_RESULT_MAX_BYTES + 1);
+    expect(factAuthorsResultSchema.safeParse(over).success).toBe(false);
+    expect(JSON.stringify(atCap).length).toBeLessThan(FACT_AUTHORS_RESULT_MAX_BYTES);
+  });
+});
+
+describe('GITHUB_ACCOUNT_ID_PATTERN', () => {
+  it.each(['1', '42', '4242424242', '9'.repeat(16)])('accepts the numeric account id %s', (id) => {
+    expect(GITHUB_ACCOUNT_ID_PATTERN.test(id)).toBe(true);
+  });
+
+  it.each(['', '0', '01', 'undefined', 'NaN', '-1', '1.5', '9'.repeat(17), ' 42', '4 2'])(
+    'refuses %j',
+    (id) => {
+      expect(GITHUB_ACCOUNT_ID_PATTERN.test(id)).toBe(false);
+    },
+  );
+});

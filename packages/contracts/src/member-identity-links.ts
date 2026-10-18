@@ -15,6 +15,20 @@ export const pendingMemberIdentityLinkSchema = z
 
 export type PendingMemberIdentityLink = z.infer<typeof pendingMemberIdentityLinkSchema>;
 
+// The signed output a pool enclave sends once it has fetched a confirmed link; the worker applies it.
+export const memberIdentityLinkOutputSchema = z
+  .object({
+    type: z.literal('member_identity_link'),
+    orgId: z.string().uuid(),
+    linkId: z.string().min(1).max(128),
+    kind: z.string().min(1).max(64),
+    sourceUserId: z.string().min(1).max(256),
+    memberEmail: z.string().email().max(320),
+  })
+  .strict();
+
+export type MemberIdentityLinkOutput = z.infer<typeof memberIdentityLinkOutputSchema>;
+
 export const memberIdentityLinksResponseSchema = z
   .object({ links: z.array(pendingMemberIdentityLinkSchema) })
   .strict();

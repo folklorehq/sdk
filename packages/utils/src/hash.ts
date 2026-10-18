@@ -22,6 +22,11 @@ export function deriveSourceId(orgId: string, kind: string): string {
   return uuidShapedSha256(`${orgId}/${kind}`);
 }
 
+/** UUID-shaped id for a key within one org; the enclave that mints theme ids and the scheduler that recognizes them must agree. */
+export function deriveOrgScopedId(orgId: string, key: string): string {
+  return uuidShapedSha256(`${orgId}:${key}`);
+}
+
 export type KeyedSourceFactId = string & { readonly __brand: 'KeyedSourceFactId' };
 
 const KEYED_SOURCE_FACT_ID_PATTERN = /^[0-9a-f]{64}$/;

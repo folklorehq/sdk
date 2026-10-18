@@ -17,6 +17,10 @@ export const enclaveOutputTypeSchema = z.enum([
   'theme_synthesis',
   'team_onboarding_synthesis',
   'association_judgement',
+  // not yet wired: no enclave emits member_identity_link yet.
+  'member_identity_link',
+  // not yet wired: no enclave emits fact_authors yet.
+  'fact_authors',
 ]);
 export type EnclaveOutputType = z.infer<typeof enclaveOutputTypeSchema>;
 
@@ -150,6 +154,27 @@ export function enclaveOutputBindingForPayload(
       outputId: requiredString(payload, 'requestId'),
       resourceIds: requiredRecordArray(payload, 'verdicts').map((verdict) =>
         requiredString(verdict, 'factId'),
+      ),
+      payload,
+      identity,
+    });
+  }
+  if (type === 'member_identity_link') {
+    const linkId = requiredString(payload, 'linkId');
+    return outputBinding({
+      outputType: 'member_identity_link',
+      outputId: linkId,
+      resourceIds: [linkId],
+      payload,
+      identity,
+    });
+  }
+  if (type === 'fact_authors') {
+    return outputBinding({
+      outputType: 'fact_authors',
+      outputId: requiredString(payload, 'requestId'),
+      resourceIds: requiredRecordArray(payload, 'facts').map((fact) =>
+        requiredString(fact, 'factId'),
       ),
       payload,
       identity,

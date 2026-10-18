@@ -3,6 +3,7 @@ export {
   sha256Hex,
   deterministicUuid,
   deriveSourceId,
+  deriveOrgScopedId,
   deriveMemberSourceId,
   memberFactKey,
   isKeyedSourceFactId,
@@ -11,6 +12,7 @@ export {
 } from './hash.js';
 export { canonicalJson, canonicalJsonHash } from './canonical-json.js';
 export { toVectorLiteral } from './vector.js';
+export { normalizePersonName } from './person-name.js';
 export {
   collapseWhitespace,
   truncate,

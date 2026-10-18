@@ -23,7 +23,7 @@ function usageWith(model: string) {
 // The enclave→worker DTOs are content-free BY SHAPE: the only fields that may carry synthesized
 // prose are wikiArticle.content (gated by contentFormat) and encryptedBody.ciphertext (ESDK).
 // Every other free string is an id, hash, timestamp, source-kind, or an audience-gated descriptor
-// (theme/team name, tag, extracted entity). Freezing the string-leaf set turns "someone added a
+// (theme/team name, page title, tag, extracted entity). Freezing the string-leaf set turns "someone added a
 // `body`/`summary`/`text` field to a wire DTO" into a hard test failure that forces ADL review.
 const FROZEN: Record<string, string[]> = {
   processedFact: [
@@ -53,6 +53,7 @@ const FROZEN: Record<string, string[]> = {
   wikiSynthesisResult: [
     'articles[].audienceId',
     'articles[].content',
+    'articles[].title',
     'blocks[].audienceId',
     'blocks[].body.ciphertext',
     'blocks[].body.objectId',
