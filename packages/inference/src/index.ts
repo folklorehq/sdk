@@ -104,6 +104,11 @@ export {
   type OpenAICompatConfig,
 } from './OpenAICompatBackend.js';
 export { MAX_RETRY_AFTER_MS, ProviderHttpError } from './ProviderHttpError.js';
+export {
+  ProviderRouteError,
+  type ProviderDeferralClass,
+  type ProviderRouteErrorInit,
+} from './ProviderRouteError.js';
 export { StubInferenceBackend } from './StubInferenceBackend.js';
 export {
   createInferenceBackend,

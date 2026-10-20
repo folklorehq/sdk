@@ -5,14 +5,13 @@ import { sealedContentEnvelopeV1Schema } from './sealed-content.js';
 import { shadowArmSchema } from './shadow-review.js';
 import { richBlockKindSchema } from './wiki.js';
 import { inferenceModelRoleSchema } from './inference-trust.js';
+import { SHADOW_FACT_IDS_MAX, claudeQualityScoresSchema } from './claude-inference.js';
 import {
-  CLAUDE_DEFERRAL_REASONS,
-  SHADOW_FACT_IDS_MAX,
-  claudeArmSchema,
-  claudeInferencePurposeSchema,
-  claudeQualityScoresSchema,
+  INFERENCE_DEFERRAL_REASONS,
+  inferenceArmSchema,
+  inferencePurposeSchema,
   inferenceUsageOutcomeSchema,
-} from './claude-inference.js';
+} from './inference-routing.js';
 
 export {
   sealedContentEnvelopeV1Schema,
@@ -329,7 +328,7 @@ export const tokenUsageSchema = z
     promptTokens: z.number().int().nonnegative(),
     completionTokens: z.number().int().nonnegative(),
     timing: inferenceTimingSchema.optional(),
-    purpose: claudeInferencePurposeSchema.or(z.literal('untagged')).optional(),
+    purpose: inferencePurposeSchema.or(z.literal('untagged')).optional(),
     outcome: inferenceUsageOutcomeSchema.optional(),
     cacheReadTokens: z.number().int().nonnegative().optional(),
     cacheWriteTokens: z.number().int().nonnegative().optional(),
@@ -467,7 +466,7 @@ export const wikiSynthesisDeferredSchema = z
     themeId: z.string(),
     orgId: z.string(),
     leaseToken: z.string().min(1),
-    reason: z.enum(CLAUDE_DEFERRAL_REASONS),
+    reason: z.enum(INFERENCE_DEFERRAL_REASONS),
     tokenUsage: z.array(tokenUsageSchema),
   })
   .strict();
@@ -715,7 +714,7 @@ export const synthesisRequestSchema = z.object({
   generation: wikiSynthesisGenerationSchema.optional(),
   previousPageStates: z.array(wikiPageStateEnvelopeSchema).max(PREVIOUS_PAGE_STATES_MAX).optional(),
   shadowArms: z
-    .array(claudeArmSchema.exclude(['D']))
+    .array(inferenceArmSchema.exclude(['D']))
     .max(SHADOW_ARMS_MAX)
     .refine((arms) => new Set(arms).size === arms.length)
     .optional(),

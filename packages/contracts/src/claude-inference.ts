@@ -1,39 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
-
-export const CLAUDE_INFERENCE_PURPOSES = [
-  'wiki_outline',
-  'wiki_section',
-  'wiki_revise',
-  'wiki_visual_warrant',
-  'wiki_visual_draw',
-  'wiki_article',
-  'team_onboarding',
-  'wiki_review',
-  'wiki_critique',
-  'citation_check',
-  'theme_merge',
-  'wiki_relevance',
-  'wiki_recovery',
-  'wiki_repair',
-  'theme_tagging',
-  'theme_topic_naming',
-  'theme_aggregate_naming',
-  'theme_doctype',
-  'association_judge',
-  'answer',
-  'wiki_delta',
-  'wiki_section_add',
-  'wiki_section_long',
-  'wiki_outline_long',
-  'wiki_page_check',
-  'wiki_page_revise',
-  'wiki_article_check',
-  'wiki_article_long',
-  'team_onboarding_long',
-] as const;
-export type ClaudeInferencePurpose = (typeof CLAUDE_INFERENCE_PURPOSES)[number];
-export const claudeInferencePurposeSchema = z.enum(CLAUDE_INFERENCE_PURPOSES);
+import {
+  INFERENCE_DEFERRAL_REASONS,
+  INFERENCE_PURPOSES,
+  inferenceArmSchema,
+  inferenceEffortSchema,
+  inferencePurposeSchema,
+  type InferenceArmId,
+  type InferenceDeferralReason,
+  type InferenceEffort,
+  type InferencePurpose,
+} from './inference-routing.js';
 
 export const CLAUDE_ROUTE_MODEL_IDS = [
   'claude-haiku-5-5',
@@ -42,15 +19,24 @@ export const CLAUDE_ROUTE_MODEL_IDS = [
 ] as const;
 export type ClaudeModelId = (typeof CLAUDE_ROUTE_MODEL_IDS)[number];
 
-export const claudeEffortSchema = z.enum(['low', 'medium', 'high']);
-export type ClaudeEffort = z.infer<typeof claudeEffortSchema>;
-export const claudeArmSchema = z.enum(['D', 'R', 'B']);
-export type ClaudeArmId = z.infer<typeof claudeArmSchema>;
-export const inferenceUsageOutcomeSchema = z.enum(['ok', 'discarded', 'shadow']);
-export type InferenceUsageOutcome = z.infer<typeof inferenceUsageOutcomeSchema>;
-
-export const CLAUDE_DEFERRAL_REASONS = ['provider_outage', 'provider_slow'] as const;
-export type ClaudeDeferralReason = (typeof CLAUDE_DEFERRAL_REASONS)[number];
+/** Temporary alias of INFERENCE_PURPOSES until the apps and packages move to the provider-neutral names. */
+export const CLAUDE_INFERENCE_PURPOSES = INFERENCE_PURPOSES;
+/** Temporary alias of InferencePurpose. */
+export type ClaudeInferencePurpose = InferencePurpose;
+/** Temporary alias of inferencePurposeSchema. */
+export const claudeInferencePurposeSchema = inferencePurposeSchema;
+/** Temporary alias of inferenceEffortSchema. */
+export const claudeEffortSchema = inferenceEffortSchema;
+/** Temporary alias of InferenceEffort. */
+export type ClaudeEffort = InferenceEffort;
+/** Temporary alias of inferenceArmSchema. */
+export const claudeArmSchema = inferenceArmSchema;
+/** Temporary alias of InferenceArmId. */
+export type ClaudeArmId = InferenceArmId;
+/** Temporary alias of INFERENCE_DEFERRAL_REASONS. */
+export const CLAUDE_DEFERRAL_REASONS = INFERENCE_DEFERRAL_REASONS;
+/** Temporary alias of InferenceDeferralReason. */
+export type ClaudeDeferralReason = InferenceDeferralReason;
 
 // visible facts are a subset of the candidate cap, so every visible id fits
 export const SHADOW_FACT_IDS_MAX = 400;
@@ -80,7 +66,7 @@ const claudeRebuildReasonSchema = z.enum([
 
 export const claudeQualityScoresSchema = z
   .object({
-    arm: claudeArmSchema,
+    arm: inferenceArmSchema,
     audienceId: z.string().uuid().nullable(),
     citationSupportBp: basisPointsSchema,
     uncitedCutBp: basisPointsSchema,
@@ -92,58 +78,3 @@ export const claudeQualityScoresSchema = z
   })
   .strict();
 export type ClaudeQualityScores = z.infer<typeof claudeQualityScoresSchema>;
-
-const MICROS_PER_MTOK_DIVISOR = 1_000_000n;
-
-// US prices in micros per MTok; promptTokens are uncached input
-export const CLAUDE_PRICE_MICROS_PER_MTOK = {
-  'claude-opus-5-5': {
-    input: 4_400_000,
-    output: 22_000_000,
-    cacheWrite: 5_500_000,
-    cacheRead: 220_000,
-  },
-  'claude-sonnet-5-5': {
-    input: 2_200_000,
-    output: 11_000_000,
-    cacheWrite: 2_750_000,
-    cacheRead: 110_000,
-  },
-  'claude-haiku-5-5': { input: 110_000, output: 550_000, cacheWrite: 137_500, cacheRead: 11_000 },
-} as const satisfies Record<
-  ClaudeModelId,
-  Record<'input' | 'output' | 'cacheWrite' | 'cacheRead', number>
->;
-
-export interface PricedUsage {
-  readonly model: string;
-  readonly promptTokens: number;
-  readonly completionTokens: number;
-  readonly cacheReadTokens?: number;
-  readonly cacheWriteTokens?: number;
-}
-
-function assertTokenCounts(usage: PricedUsage): void {
-  const counts = [
-    usage.promptTokens,
-    usage.completionTokens,
-    usage.cacheReadTokens ?? 0,
-    usage.cacheWriteTokens ?? 0,
-  ];
-  if (!counts.every((count) => Number.isSafeInteger(count) && count >= 0)) {
-    throw new Error('claude_usage_tokens_invalid');
-  }
-}
-
-export function usageCostMicros(usage: PricedUsage): number {
-  assertTokenCounts(usage);
-  if (!Object.hasOwn(CLAUDE_PRICE_MICROS_PER_MTOK, usage.model)) return 0;
-  const price = CLAUDE_PRICE_MICROS_PER_MTOK[usage.model as ClaudeModelId];
-  const scaledMicros =
-    BigInt(usage.promptTokens) * BigInt(price.input) +
-    BigInt(usage.completionTokens) * BigInt(price.output) +
-    BigInt(usage.cacheReadTokens ?? 0) * BigInt(price.cacheRead) +
-    BigInt(usage.cacheWriteTokens ?? 0) * BigInt(price.cacheWrite);
-  const wholeMicros = (scaledMicros + MICROS_PER_MTOK_DIVISOR - 1n) / MICROS_PER_MTOK_DIVISOR;
-  return Number(wholeMicros);
-}

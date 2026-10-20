@@ -3,17 +3,15 @@ import { describe, expect, it } from 'vitest';
 import {
   CLAUDE_DEFERRAL_REASONS,
   CLAUDE_INFERENCE_PURPOSES,
-  CLAUDE_PRICE_MICROS_PER_MTOK,
   CLAUDE_ROUTE_MODEL_IDS,
   SHADOW_FACT_IDS_MAX,
   claudeArmSchema,
   claudeEffortSchema,
   claudeInferencePurposeSchema,
   claudeQualityScoresSchema,
-  inferenceUsageOutcomeSchema,
   REBUILD_REASONS,
-  usageCostMicros,
 } from '../src/claude-inference.js';
+import { inferenceUsageOutcomeSchema } from '../src/inference-routing.js';
 import {
   synthesisRequestSchema,
   tokenUsageSchema,
@@ -25,7 +23,6 @@ import {
 
 const ORG_ID = '11111111-1111-4111-8111-111111111111';
 const OBJECT_ID = '22222222-2222-4222-8222-222222222222';
-const TOKENS_PER_MTOK = 1_000_000;
 const FACT_A = '33333333-3333-4333-8333-333333333331';
 const FACT_B = '33333333-3333-4333-8333-333333333332';
 const AUDIENCE_ID = '44444444-4444-4444-8444-444444444444';
@@ -463,92 +460,5 @@ describe('synthesisRequestSchema previous page states and shadow arms', () => {
     expect(synthesisRequestSchema.safeParse({ ...request, shadowArms: ['R', 'B'] }).success).toBe(
       true,
     );
-  });
-});
-
-describe('usageCostMicros', () => {
-  it('prices each Claude model exactly, per token class', () => {
-    for (const [model, prices] of Object.entries(CLAUDE_PRICE_MICROS_PER_MTOK)) {
-      const base = { model, promptTokens: 0, completionTokens: 0 };
-      expect(usageCostMicros({ ...base, promptTokens: TOKENS_PER_MTOK })).toBe(prices.input);
-      expect(usageCostMicros({ ...base, completionTokens: TOKENS_PER_MTOK })).toBe(prices.output);
-      expect(usageCostMicros({ ...base, cacheReadTokens: TOKENS_PER_MTOK })).toBe(prices.cacheRead);
-      expect(usageCostMicros({ ...base, cacheWriteTokens: TOKENS_PER_MTOK })).toBe(
-        prices.cacheWrite,
-      );
-    }
-    expect(CLAUDE_PRICE_MICROS_PER_MTOK['claude-sonnet-5-5'].output).toBe(11_000_000);
-  });
-
-  it('prices Sonnet cache reads at 0.05x base input with the US uplift', () => {
-    expect(CLAUDE_PRICE_MICROS_PER_MTOK['claude-sonnet-5-5'].cacheRead).toBe(110_000);
-  });
-
-  it('sums the classes at their own prices and rounds the total up', () => {
-    expect(
-      usageCostMicros({
-        model: 'claude-sonnet-5-5',
-        promptTokens: 1_000,
-        completionTokens: 500,
-        cacheReadTokens: 10_000,
-        cacheWriteTokens: 2_000,
-      }),
-    ).toBe(2_200 + 5_500 + 1_100 + 5_500);
-    expect(
-      usageCostMicros({
-        model: 'claude-haiku-5-5',
-        promptTokens: 0,
-        completionTokens: 0,
-        cacheReadTokens: 1,
-      }),
-    ).toBe(1);
-  });
-
-  it('is exact where float arithmetic would round a whole total up', () => {
-    expect(
-      usageCostMicros({ model: 'claude-opus-5-5', promptTokens: 5, completionTokens: 0 }),
-    ).toBe(22);
-  });
-
-  it('is 0 for a model that is not a Claude model', () => {
-    for (const model of ['phala/glm-5.3', 'z-ai/glm-5.2', 'toString', 'unknown']) {
-      expect(
-        usageCostMicros({
-          model,
-          promptTokens: TOKENS_PER_MTOK,
-          completionTokens: TOKENS_PER_MTOK,
-        }),
-      ).toBe(0);
-    }
-  });
-  it.each([
-    ['a negative prompt count', { promptTokens: -1, completionTokens: 0 }],
-    ['a negative completion count', { promptTokens: 0, completionTokens: -1 }],
-    ['a fractional count', { promptTokens: 1.5, completionTokens: 0 }],
-    ['NaN', { promptTokens: Number.NaN, completionTokens: 0 }],
-    ['Infinity', { promptTokens: Number.POSITIVE_INFINITY, completionTokens: 0 }],
-    ['an unsafe integer', { promptTokens: Number.MAX_SAFE_INTEGER + 1, completionTokens: 0 }],
-    ['a negative cache read', { promptTokens: 0, completionTokens: 0, cacheReadTokens: -1 }],
-    ['a fractional cache write', { promptTokens: 0, completionTokens: 0, cacheWriteTokens: 0.5 }],
-  ])('throws claude_usage_tokens_invalid for %s', (_name, counts) => {
-    expect(() => usageCostMicros({ model: 'claude-sonnet-5-5', ...counts })).toThrow(
-      'claude_usage_tokens_invalid',
-    );
-    expect(() => usageCostMicros({ model: 'phala/glm-5.3', ...counts })).toThrow(
-      'claude_usage_tokens_invalid',
-    );
-  });
-
-  it('accepts zero counts and the largest safe integer', () => {
-    expect(
-      usageCostMicros({ model: 'claude-haiku-5-5', promptTokens: 0, completionTokens: 0 }),
-    ).toBe(0);
-    expect(
-      usageCostMicros({
-        model: 'claude-haiku-5-5',
-        promptTokens: Number.MAX_SAFE_INTEGER,
-        completionTokens: 0,
-      }),
-    ).toBeGreaterThan(0);
   });
 });

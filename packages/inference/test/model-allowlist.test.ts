@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { INFERENCE_MODEL_CATALOG } from '@folklore/contracts';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_VERIFIED_MODELS, parseModelAllowlist } from '../src/model-allowlist.js';
 
@@ -30,5 +31,14 @@ describe('parseModelAllowlist', () => {
       'qwen/qwen3-32b',
       'qwen/qwen3-embedding-8b',
     ]);
+  });
+});
+
+describe('DEFAULT_VERIFIED_MODELS', () => {
+  it('is priced in the inference catalog under provider phala', () => {
+    for (const model of DEFAULT_VERIFIED_MODELS) {
+      expect(Object.hasOwn(INFERENCE_MODEL_CATALOG, model), model).toBe(true);
+      expect(INFERENCE_MODEL_CATALOG[model].provider).toBe('phala');
+    }
   });
 });

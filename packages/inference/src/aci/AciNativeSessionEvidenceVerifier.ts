@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
+import { deepFreeze } from '@folklore/utils/deep-freeze';
 import {
   aciSessionChannelBindingsSchema,
   aciSessionClaimsSchema,
@@ -199,18 +200,4 @@ function isStableDataDescriptor(
   descriptor: PropertyDescriptor,
 ): descriptor is PropertyDescriptor & { readonly value: unknown } {
   return 'value' in descriptor && descriptor.get === undefined && descriptor.set === undefined;
-}
-
-function deepFreeze<T>(value: T): T {
-  const stack: object[] = [];
-  if (value !== null && typeof value === 'object') stack.push(value);
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (current === undefined || Object.isFrozen(current)) continue;
-    for (const nested of Object.values(current)) {
-      if (nested !== null && typeof nested === 'object') stack.push(nested);
-    }
-    Object.freeze(current);
-  }
-  return value;
 }
