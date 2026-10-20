@@ -29,6 +29,11 @@ export function postgresErrorType(error: unknown): string | null {
     : null;
 }
 
+/** The bare SQLSTATE of a driver error or its Drizzle wrapper, or null; unlike postgresErrorType it never carries the server routine. */
+export function postgresSqlState(error: unknown): string | null {
+  return postgresDetail(error).sqlState ?? null;
+}
+
 const RETRYABLE_SQLSTATES: ReadonlySet<string> = new Set([
   '40001', // serialization_failure
   '40P01', // deadlock_detected

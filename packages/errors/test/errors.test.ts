@@ -12,6 +12,7 @@ import {
   HostInstanceMissingError,
   HostLocationUnknownError,
   InternalError,
+  InvalidBillingBasisError,
   LastSuperAdminError,
   NotFoundError,
   PERSONAL_SOURCE_FACT_DENIALS,
@@ -62,6 +63,18 @@ describe('AppError subclasses', () => {
     expect(err.category).toBe('conflict');
     expect(err.httpStatus).toBe(409);
     expect(err.toTelemetry()).toEqual({ error_type: code, component: 'unknown' });
+    expect(JSON.stringify(err.toTelemetry())).not.toContain(err.message);
+  });
+
+  it('reports an invalid billing basis under its stable operational code, with no message in telemetry', () => {
+    const err = new InvalidBillingBasisError();
+    expect(err).toBeInstanceOf(AppError);
+    expect(err.code).toBe('invalid_billing_basis');
+    expect(err.isOperational).toBe(true);
+    expect(err.toTelemetry()).toEqual({
+      error_type: 'invalid_billing_basis',
+      component: 'unknown',
+    });
     expect(JSON.stringify(err.toTelemetry())).not.toContain(err.message);
   });
 

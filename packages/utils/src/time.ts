@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 const MS_PER_MINUTE = 60_000;
-const MS_PER_HOUR = 60 * MS_PER_MINUTE;
+export const MS_PER_HOUR = 60 * MS_PER_MINUTE;
 export const MS_PER_DAY = 24 * MS_PER_HOUR;
 const DAYS_PER_WEEK = 7;
 const DEFAULT_JUST_NOW = 'just now';

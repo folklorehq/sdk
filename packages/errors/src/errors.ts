@@ -164,6 +164,17 @@ export class ConfigurationError extends AppError {
   }
 }
 
+/** An org's billing basis (plan, interval or counts) is not one the entitlement contract accepts. */
+export class InvalidBillingBasisError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('The billing basis is invalid', {
+      ...options,
+      code: 'invalid_billing_basis',
+      category: 'internal',
+    });
+  }
+}
+
 /** Unexpected internal failure — the default for anything unclassified. */
 export class InternalError extends AppError {
   constructor(message: string, options: AppErrorOptions = {}) {

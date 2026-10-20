@@ -86,11 +86,13 @@ const CODE_VALUE_FIELDS = new Set([
   'lastFailure',
   'outcome',
   'operation',
+  'pace',
   'phase',
   'reason',
   'route',
   'status',
   'themeKind',
+  'trigger',
 ]);
 
 export type SafeLogRejectionReason =

@@ -12,6 +12,36 @@ export function truncate(value: string, max: number): string {
   return collapsed.length > max ? `${collapsed.slice(0, max)}…` : collapsed;
 }
 
+const IMAGE = /!\[[^\]]*\]\([^)]*\)/g;
+const LINK = /\[([^\]]*)\]\([^)]*\)/g;
+const CODE_SPAN = /`([^`]+)`/g;
+// Only a delimiter pair hugging non-space text at word edges, so `snake_case` and `2*3` survive.
+const EMPHASIS = /(^|[^\w*~])(\*\*|__|\*|_|~~)(?=\S)(.+?)(?<=\S)\2(?![\w*~])/g;
+const MAX_EMPHASIS_DEPTH = 3;
+
+/** Plain text of inline markdown: links reduced to their text, images, emphasis and code delimiters dropped. */
+export function stripInlineMarkdown(text: string): string {
+  let current = text.replace(IMAGE, '').replace(LINK, '$1').replace(CODE_SPAN, '$1');
+  for (let depth = 0; depth < MAX_EMPHASIS_DEPTH; depth++) {
+    const next = current.replace(EMPHASIS, '$1$3');
+    if (next === current) break;
+    current = next;
+  }
+  return collapseWhitespace(current);
+}
+
+const HIGH_SURROGATE_MIN = 0xd800;
+const HIGH_SURROGATE_MAX = 0xdbff;
+
+/** At most `max` UTF-16 units including `suffix`, never leaving half a surrogate pair. */
+export function clipText(value: string, max: number, suffix = ''): string {
+  if (value.length <= max) return value;
+  const room = max - suffix.length;
+  const last = value.charCodeAt(room - 1);
+  const isHighSurrogate = last >= HIGH_SURROGATE_MIN && last <= HIGH_SURROGATE_MAX;
+  return `${value.slice(0, isHighSurrogate ? room - 1 : room)}${suffix}`;
+}
+
 /** Up to two leading letters of the space-separated words in a name. */
 export function initials(name: string): string {
   return name

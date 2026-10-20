@@ -17,6 +17,8 @@ export { normalizePersonName } from './person-name.js';
 export {
   collapseWhitespace,
   truncate,
+  clipText,
+  stripInlineMarkdown,
   initials,
   escapeRegExp,
   escapeSqlLikePattern,
@@ -106,5 +108,9 @@ export {
   verifyEd25519Signature,
   type Ed25519SignatureInput,
 } from './signing/ed25519.js';
-export { isRetryablePostgresError, postgresErrorType } from './postgres-error-type.js';
+export {
+  isRetryablePostgresError,
+  postgresErrorType,
+  postgresSqlState,
+} from './postgres-error-type.js';
 export { parseRetryAfterMs } from './retry-after.js';

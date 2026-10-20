@@ -136,6 +136,37 @@ export const sensitivityLevelSchema = z.enum([
 ]);
 export type SensitivityLevel = z.infer<typeof sensitivityLevelSchema>;
 
+// Content-free class of a fact, derived inside the enclave by fixed rules; a bare enum, never a reason or snippet.
+export const factSalienceSchema = z.enum([
+  'decision',
+  'incident',
+  'merge',
+  'issue_transition',
+  'deletion',
+  'human',
+  'agent',
+  'ci',
+  'routine',
+]);
+export type FactSalience = z.infer<typeof factSalienceSchema>;
+
+export const SALIENT_FACT_SALIENCE: ReadonlySet<FactSalience> = new Set<FactSalience>([
+  'decision',
+  'incident',
+  'merge',
+  'issue_transition',
+  'deletion',
+  'human',
+]);
+
+export const FEED_FACT_SALIENCE: ReadonlySet<FactSalience> = new Set<FactSalience>([
+  'decision',
+  'incident',
+  'merge',
+  'issue_transition',
+  'human',
+]);
+
 // The outbound destination kinds. Lives here so both the enclave↔worker `export-due`
 // signal and the `WikiExportTarget` port share one definition instead of an inline re-declaration.
 export const wikiExportTargetKindSchema = z.enum(['notion', 'clickup']);
@@ -163,6 +194,8 @@ export const processedFactSchema = z
     // diff. Defaults to [] so an older enclave that omits it still parses.
     metrics: z.array(factMetricSchema).default([]),
     ownerAccountId: z.string().uuid().optional(),
+    // No .default(): an older enclave omits it, and the column stays NULL.
+    salience: factSalienceSchema.optional(),
     // Shared-pool enclaves emit these; the worker records them only when it connects as folklore_pool_worker.
     // No .default(): an enclave would then sign `authors: []`, which an older worker's .strict() parse rejects.
     authors: z.array(processedFactAuthorSchema).max(PROCESSED_FACT_MAX_AUTHORS).optional(),

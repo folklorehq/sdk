@@ -4,6 +4,8 @@ import {
   AUTHOR_DISPLAY_NAME_MAX,
   AUTHOR_EMAIL_MAX,
   AUTHOR_SOURCE_USER_ID_MAX,
+  FEED_FACT_SALIENCE,
+  SALIENT_FACT_SALIENCE,
   DEFAULT_SYNTHESIS_INPUT_TOKEN_BUDGET,
   FACT_AUTHORS_RESULT_MAX_BYTES,
   FACT_AUTHOR_REEXTRACT_MAX_FACTS,
@@ -14,6 +16,7 @@ import {
   associationJudgementResultSchema,
   factAuthorReextractRequestSchema,
   factAuthorsResultSchema,
+  factSalienceSchema,
   knowledgeNeighborhoodSchema,
   processedFactAuthorSchema,
   processedFactSchema,
@@ -472,6 +475,56 @@ describe('processedFactSchema', () => {
         containerSeeds: [{ ...valid.containerSeeds[0], plaintext: 'customer prose' }],
       }).success,
     ).toBe(false);
+  });
+
+  describe('salience', () => {
+    const SALIENCE_VALUES = [
+      'decision',
+      'incident',
+      'merge',
+      'issue_transition',
+      'deletion',
+      'human',
+      'agent',
+      'ci',
+      'routine',
+    ] as const;
+
+    it.each(SALIENCE_VALUES)('accepts %s', (salience) => {
+      expect(processedFactSchema.parse({ ...valid, salience }).salience).toBe(salience);
+    });
+
+    it('leaves salience absent, with no default, when an older enclave omits it', () => {
+      const parsed = processedFactSchema.parse(valid);
+      expect(parsed.salience).toBeUndefined();
+      expect('salience' in parsed).toBe(false);
+    });
+
+    it.each(['other', '', 'DECISION', null, 1])('rejects %j', (salience) => {
+      expect(processedFactSchema.safeParse({ ...valid, salience }).success).toBe(false);
+    });
+
+    it('keeps the strict parse rejecting an unknown key beside salience', () => {
+      expect(
+        processedFactSchema.safeParse({ ...valid, salience: 'human', reason: 'because' }).success,
+      ).toBe(false);
+    });
+
+    it('lists the nine values once in the schema and splits layer B from layer A by deletion alone', () => {
+      expect([...factSalienceSchema.options].sort()).toEqual([...SALIENCE_VALUES].sort());
+      expect([...SALIENT_FACT_SALIENCE].sort()).toEqual(
+        ['decision', 'deletion', 'human', 'incident', 'issue_transition', 'merge'].sort(),
+      );
+      expect([...FEED_FACT_SALIENCE].sort()).toEqual(
+        ['decision', 'human', 'incident', 'issue_transition', 'merge'].sort(),
+      );
+      expect(FEED_FACT_SALIENCE.has('deletion')).toBe(false);
+      for (const value of FEED_FACT_SALIENCE) expect(SALIENT_FACT_SALIENCE.has(value)).toBe(true);
+      for (const quiet of ['agent', 'ci', 'routine'] as const) {
+        expect(SALIENT_FACT_SALIENCE.has(quiet)).toBe(false);
+        expect(FEED_FACT_SALIENCE.has(quiet)).toBe(false);
+      }
+    });
   });
 
   describe('authors', () => {

@@ -496,6 +496,7 @@ export const wikiPageResponseSchema = z
     blocks: z.array(wikiPageBlockSchema),
     meta: wikiPageMetaSchema.nullable(),
     updatesQueued: z.boolean().default(false),
+    renderedAt: z.string().datetime().nullable().optional(),
   })
   .strict()
   .superRefine((page, context) => {
@@ -507,6 +508,79 @@ export const wikiPageResponseSchema = z
     }
   });
 export type WikiPageResponse = z.infer<typeof wikiPageResponseSchema>;
+
+export const WIKI_STATUS_VERSION_MAX_CHARS = 64;
+
+// Content-free: a revision, an opaque version token and one boolean. Never any page text.
+export const wikiPageStatusResponseSchema = z
+  .object({
+    revision: z.number().int().positive().nullable(),
+    version: z.string().max(WIKI_STATUS_VERSION_MAX_CHARS),
+    updatesQueued: z.boolean(),
+  })
+  .strict();
+export type WikiPageStatusResponse = z.infer<typeof wikiPageStatusResponseSchema>;
+
+export const WIKI_STUB_TITLE_MAX_CHARS = 300;
+
+export const wikiStubStateSchema = z.enum(['page', 'building', 'deferred', 'unavailable']);
+export type WikiStubState = z.infer<typeof wikiStubStateSchema>;
+
+// A theme with no page yet: its name and one content-free build state, nothing else.
+export const wikiStubResponseSchema = z
+  .object({
+    themeId: z.string().uuid(),
+    title: z.string().max(WIKI_STUB_TITLE_MAX_CHARS),
+    state: wikiStubStateSchema,
+  })
+  .strict();
+export type WikiStubResponse = z.infer<typeof wikiStubResponseSchema>;
+
+export const wikiStubListEntrySchema = z
+  .object({
+    themeId: z.string().uuid(),
+    title: z.string().max(WIKI_STUB_TITLE_MAX_CHARS),
+    kind: z.literal('stub'),
+  })
+  .strict();
+export type WikiStubListEntry = z.infer<typeof wikiStubListEntrySchema>;
+
+export const FEED_LINE_MAX_CHARS = 280;
+export const WIKI_FEED_MAX_ENTRIES = 20;
+export const WIKI_FEED_ACTIVITY_WINDOW_HOURS = 24;
+
+export const wikiFeedTagSchema = z.enum(['decision', 'incident', 'merged', 'closed', 'update']);
+export type WikiFeedTag = z.infer<typeof wikiFeedTagSchema>;
+
+// A page's latest salient facts as one-line excerpts, and a count of agent and CI activity.
+export const wikiFeedResponseSchema = z
+  .object({
+    entries: z
+      .array(
+        z
+          .object({
+            factId: z.string().uuid(),
+            tag: wikiFeedTagSchema,
+            sourceKind: z.string().max(40),
+            occurredAt: z.string().datetime(),
+            text: z.string().max(FEED_LINE_MAX_CHARS),
+          })
+          .strict(),
+      )
+      .max(WIKI_FEED_MAX_ENTRIES),
+    activity: z
+      .object({
+        agent: z.number().int().nonnegative(),
+        ci: z.number().int().nonnegative(),
+        routine: z.number().int().nonnegative(),
+        other: z.number().int().nonnegative(),
+        windowHours: z.literal(WIKI_FEED_ACTIVITY_WINDOW_HOURS),
+      })
+      .strict()
+      .nullable(),
+  })
+  .strict();
+export type WikiFeedResponse = z.infer<typeof wikiFeedResponseSchema>;
 
 // The wiki quality-feedback aggregate (apps/api `GET /api/v1/wiki/quality` flywheel).
 // COUNTS + content-free sha256 hashes ONLY — never the sealed correction ciphertext or any

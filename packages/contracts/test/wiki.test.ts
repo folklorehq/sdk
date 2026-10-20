@@ -8,8 +8,14 @@ import {
   diagramBlockSchema,
   embedBlockSchema,
   graphBlockSchema,
+  FEED_LINE_MAX_CHARS,
+  WIKI_FEED_MAX_ENTRIES,
   richBlockBodySchema,
+  wikiFeedResponseSchema,
   wikiPageResponseSchema,
+  wikiPageStatusResponseSchema,
+  wikiStubListEntrySchema,
+  wikiStubResponseSchema,
   wikiPublishRequestSchema,
   wikiPublishResponseSchema,
 } from '../src/wiki.js';
@@ -651,5 +657,169 @@ describe('wiki publication wire contracts', () => {
         revision: null,
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('wikiFeedResponseSchema', () => {
+  const entry = {
+    factId: '11111111-1111-4111-8111-111111111111',
+    tag: 'decision',
+    sourceKind: 'github',
+    occurredAt: '2026-10-18T09:00:00.000Z',
+    text: 'Ship the brake first',
+  };
+  const activity = { agent: 1, ci: 2, routine: 3, other: 4, windowHours: 24 };
+
+  it('accepts a feed with entries and an activity line, and an empty feed with none', () => {
+    expect(wikiFeedResponseSchema.safeParse({ entries: [entry], activity }).success).toBe(true);
+    expect(wikiFeedResponseSchema.safeParse({ entries: [], activity: null }).success).toBe(true);
+  });
+
+  it('pins the line at 280 characters and the list at 20 entries', () => {
+    expect(FEED_LINE_MAX_CHARS).toBe(280);
+    expect(WIKI_FEED_MAX_ENTRIES).toBe(20);
+    expect(
+      wikiFeedResponseSchema.safeParse({
+        entries: [{ ...entry, text: 'x'.repeat(FEED_LINE_MAX_CHARS) }],
+        activity: null,
+      }).success,
+    ).toBe(true);
+    expect(
+      wikiFeedResponseSchema.safeParse({
+        entries: [{ ...entry, text: 'x'.repeat(FEED_LINE_MAX_CHARS + 1) }],
+        activity: null,
+      }).success,
+    ).toBe(false);
+    expect(
+      wikiFeedResponseSchema.safeParse({
+        entries: Array.from({ length: WIKI_FEED_MAX_ENTRIES + 1 }, () => entry),
+        activity: null,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('refuses unknown keys at every level, so no field can smuggle content', () => {
+    expect(
+      wikiFeedResponseSchema.safeParse({ entries: [], activity: null, body: 'x' }).success,
+    ).toBe(false);
+    expect(
+      wikiFeedResponseSchema.safeParse({ entries: [{ ...entry, body: 'x' }], activity: null })
+        .success,
+    ).toBe(false);
+    expect(
+      wikiFeedResponseSchema.safeParse({ entries: [], activity: { ...activity, who: 'x' } })
+        .success,
+    ).toBe(false);
+  });
+
+  it('requires the closed tag set, a uuid fact id, an ISO time and a 24 hour window', () => {
+    for (const bad of [
+      { ...entry, tag: 'deletion' },
+      { ...entry, factId: 'not-a-uuid' },
+      { ...entry, occurredAt: 'yesterday' },
+    ]) {
+      expect(wikiFeedResponseSchema.safeParse({ entries: [bad], activity: null }).success).toBe(
+        false,
+      );
+    }
+    expect(
+      wikiFeedResponseSchema.safeParse({ entries: [], activity: { ...activity, windowHours: 12 } })
+        .success,
+    ).toBe(false);
+    for (const tag of ['decision', 'incident', 'merged', 'closed', 'update']) {
+      expect(
+        wikiFeedResponseSchema.safeParse({ entries: [{ ...entry, tag }], activity: null }).success,
+      ).toBe(true);
+    }
+  });
+
+  it('refuses a negative or fractional count', () => {
+    for (const agent of [-1, 1.5]) {
+      expect(
+        wikiFeedResponseSchema.safeParse({ entries: [], activity: { ...activity, agent } }).success,
+      ).toBe(false);
+    }
+  });
+});
+
+describe('wikiPageStatusResponseSchema', () => {
+  const status = { revision: null, version: 's:1', updatesQueued: true };
+
+  it('accepts a null or positive revision', () => {
+    expect(wikiPageStatusResponseSchema.safeParse(status).success).toBe(true);
+    expect(wikiPageStatusResponseSchema.safeParse({ ...status, revision: 3 }).success).toBe(true);
+  });
+
+  it.each([0, -1, 1.5])('rejects revision %s', (revision) => {
+    expect(wikiPageStatusResponseSchema.safeParse({ ...status, revision }).success).toBe(false);
+  });
+
+  it('rejects an unknown key, a long version and a missing flag', () => {
+    expect(wikiPageStatusResponseSchema.safeParse({ ...status, title: 'x' }).success).toBe(false);
+    expect(
+      wikiPageStatusResponseSchema.safeParse({ ...status, version: 'v'.repeat(65) }).success,
+    ).toBe(false);
+    expect(
+      wikiPageStatusResponseSchema.safeParse({ revision: null, version: 'none' }).success,
+    ).toBe(false);
+  });
+});
+
+describe('wikiPageResponseSchema renderedAt', () => {
+  const page = {
+    themeId: 't',
+    pageId: 'p',
+    publicationId: null,
+    revision: null,
+    title: 'T',
+    blocks: [],
+    meta: null,
+  };
+
+  it('is optional, nullable or a datetime', () => {
+    expect(wikiPageResponseSchema.parse(page).renderedAt).toBeUndefined();
+    expect(wikiPageResponseSchema.parse({ ...page, renderedAt: null }).renderedAt).toBeNull();
+    const at = '2026-10-18T12:00:00.000Z';
+    expect(wikiPageResponseSchema.parse({ ...page, renderedAt: at }).renderedAt).toBe(at);
+    expect(wikiPageResponseSchema.safeParse({ ...page, renderedAt: 'yesterday' }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe('wikiStubResponseSchema', () => {
+  const stub = {
+    themeId: '11111111-1111-4111-8111-111111111111',
+    title: 'Billing',
+    state: 'building',
+  };
+
+  it.each(['page', 'building', 'deferred', 'unavailable'])('accepts state %s', (state) => {
+    expect(wikiStubResponseSchema.safeParse({ ...stub, state }).success).toBe(true);
+  });
+
+  it('rejects an unknown state, an unknown key and a non-uuid theme', () => {
+    expect(wikiStubResponseSchema.safeParse({ ...stub, state: 'ready' }).success).toBe(false);
+    expect(wikiStubResponseSchema.safeParse({ ...stub, body: 'x' }).success).toBe(false);
+    expect(wikiStubResponseSchema.safeParse({ ...stub, themeId: 'billing' }).success).toBe(false);
+  });
+
+  it('allows a title of exactly 300 characters and no more', () => {
+    expect(wikiStubResponseSchema.safeParse({ ...stub, title: 'x'.repeat(300) }).success).toBe(
+      true,
+    );
+    expect(wikiStubResponseSchema.safeParse({ ...stub, title: 'x'.repeat(301) }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe('wikiStubListEntrySchema', () => {
+  const entry = { themeId: '11111111-1111-4111-8111-111111111111', title: 'Billing', kind: 'stub' };
+
+  it('accepts only the stub kind and the three keys', () => {
+    expect(wikiStubListEntrySchema.safeParse(entry).success).toBe(true);
+    expect(wikiStubListEntrySchema.safeParse({ ...entry, kind: 'page' }).success).toBe(false);
+    expect(wikiStubListEntrySchema.safeParse({ ...entry, state: 'building' }).success).toBe(false);
   });
 });

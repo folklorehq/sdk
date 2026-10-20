@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { isRetryablePostgresError, postgresErrorType } from '../src/postgres-error-type.js';
+import {
+  isRetryablePostgresError,
+  postgresErrorType,
+  postgresSqlState,
+} from '../src/postgres-error-type.js';
 
 describe('postgresErrorType', () => {
   it('reads the SQLSTATE from the cause of a wrapped driver error', () => {
@@ -55,4 +59,21 @@ describe('isRetryablePostgresError', () => {
       expect(isRetryablePostgresError(error)).toBe(false);
     },
   );
+});
+
+describe('postgresSqlState', () => {
+  it('returns the bare SQLSTATE even when the server adds a routine, which postgresErrorType appends', () => {
+    const wrapped = Object.assign(new Error('query failed'), {
+      cause: { code: '55P03', routine: 'ProcessInterrupts' },
+    });
+    expect(postgresSqlState(wrapped)).toBe('55P03');
+    expect(postgresSqlState({ code: '55P03', routine: 'ProcessInterrupts' })).toBe('55P03');
+    expect(postgresErrorType(wrapped)).toBe('sqlstate_55p03_processinterrupts');
+  });
+
+  it('is null for an error without a SQLSTATE or with a Node errno code', () => {
+    expect(postgresSqlState(new Error('boom'))).toBeNull();
+    expect(postgresSqlState({ code: 'EPIPE' })).toBeNull();
+    expect(postgresSqlState('boom')).toBeNull();
+  });
 });

@@ -25,6 +25,7 @@ export {
   EncryptionContextMismatchError,
   ConfigurationError,
   InternalError,
+  InvalidBillingBasisError,
   PERSONAL_SOURCE_FACT_DENIALS,
   PersonalSourceFactRejectedError,
   PersonalSourceAccountConflictError,
