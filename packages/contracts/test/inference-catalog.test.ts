@@ -30,6 +30,8 @@ const PHALA_MODEL_IDS = [
   'qwen/qwen3-embedding-8b',
 ] as const;
 
+const OPENAI_MODEL_IDS = ['text-embedding-3-large'] as const;
+
 const POLICY_PSEUDO_IDS = [PHALA_POLICY_GENERATE_MODEL_ID, PHALA_POLICY_CHECK_MODEL_ID] as const;
 
 const PER_PAIR_CLAUDE_TIMEOUT_MS: Readonly<Record<string, Readonly<Record<string, number>>>> = {
@@ -108,17 +110,39 @@ describe('INFERENCE_MODEL_CATALOG', () => {
     }
   });
 
-  it('has exactly the Claude and Phala models and no others', () => {
+  it('has exactly the Claude, Phala and OpenAI models and no others', () => {
     expect([...INFERENCE_MODEL_IDS].sort()).toEqual(
-      [...CLAUDE_ROUTE_MODEL_IDS, ...PHALA_MODEL_IDS, ...POLICY_PSEUDO_IDS].sort(),
+      [
+        ...CLAUDE_ROUTE_MODEL_IDS,
+        ...PHALA_MODEL_IDS,
+        ...OPENAI_MODEL_IDS,
+        ...POLICY_PSEUDO_IDS,
+      ].sort(),
     );
+  });
+
+  it('keeps the OpenAI embedding row contractual, never routable and priced per the public list', () => {
+    const row = INFERENCE_MODEL_CATALOG['text-embedding-3-large'];
+    expect(row.provider).toBe('openai');
+    expect(row.trustClass).toBe('contractual');
+    expect(row.routable).toBe(false);
+    expect(row.processingRegion).toBe('unverified');
+    expect(row.caching).toBe('none');
+    expect(row.wireModel).toBe('text-embedding-3-large');
+    expect(row.contextWindowTokens).toBe(8_192);
+    expect(row.prices).toEqual({
+      input: 130_000,
+      output: 0,
+      cacheWrite: 130_000,
+      cacheRead: 130_000,
+    });
   });
 
   it('keeps every provider id in the provider enum', () => {
     for (const entry of Object.values(INFERENCE_MODEL_CATALOG)) {
       expect(inferenceProviderIdSchema.safeParse(entry.provider).success).toBe(true);
     }
-    expect(INFERENCE_PROVIDER_IDS).toEqual(['anthropic', 'phala']);
+    expect(INFERENCE_PROVIDER_IDS).toEqual(['anthropic', 'phala', 'openai']);
   });
 
   it('prices every class as a non-negative safe integer and keeps thresholds inside the window', () => {

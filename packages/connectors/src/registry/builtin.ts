@@ -69,7 +69,11 @@ export function registerBuiltinConnectors(registry: ConnectorRegistry): void {
     kind: 'notion',
     createForWebhook: webhookOnly(NotionConnector),
     createForPull: (deps) =>
-      new NotionConnector({ logger: deps.logger }, new NotionClient(deps.token)),
+      new NotionConnector(
+        { logger: deps.logger },
+        new NotionClient(deps.token),
+        deps.exportedPageIds ? { exportedPageIds: deps.exportedPageIds } : {},
+      ),
   });
 
   registry.register({

@@ -65,7 +65,7 @@ export function createInferenceBackend(config: InferenceConfig): InferenceBacken
       if (!config.openaiBaseUrl) {
         throw new Error(
           `inference mode "local-openai" requires openaiBaseUrl to be set. ` +
-            `Set OPENAI_BASE_URL (e.g. http://vllm:8000/v1) in the environment or inference config.`,
+            `Set DEV_THEME_OPENAI_COMPAT_BASE_URL (e.g. http://vllm:8000/v1) in the environment or inference config.`,
         );
       }
       // In-box-trust path: no allowlist / ACI receipt verifier — those pin Phala model names + attestation a local vLLM can't satisfy.

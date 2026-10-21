@@ -74,6 +74,9 @@ export interface NormalizedFact {
   transition?: NormalizedTransition;
   /** Content-free numeric attributes of the source event — never a path or label. */
   metrics?: NormalizedMetric[];
+  // UNWIRED: no connector sets this yet.
+  /** Identity of the revision; the enclave keys it into every `{rev}` placeholder, then strips it. */
+  revisionTagInput?: string;
   raw: unknown;
 }
 

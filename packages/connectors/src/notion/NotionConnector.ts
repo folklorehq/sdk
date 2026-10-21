@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { notionPageKey } from '@folklore/utils';
 import { BaseConnector } from '../BaseConnector.js';
 import { notionWebhookEventSchema } from '@folklore/contracts';
 import type {
@@ -14,14 +15,22 @@ import type { NotionApiClient } from './client.js';
 import { normalizeNotionPageEvent, normalizeNotionPageSeed } from './normalize.js';
 import type { NotionPageEvent } from './types.js';
 
+export interface NotionConnectorOptions {
+  /** Pages the product created in this workspace; they are never read back as source material. */
+  exportedPageIds?: ReadonlySet<string>;
+}
+
 export class NotionConnector extends BaseConnector {
   readonly kind = 'notion';
+  private readonly exportedPageKeys: ReadonlySet<string>;
 
   constructor(
     context: ConnectorContext,
     private readonly client: NotionApiClient,
+    options: NotionConnectorOptions = {},
   ) {
     super(context);
+    this.exportedPageKeys = this.pageKeys(options.exportedPageIds ?? new Set());
   }
 
   async listResources(): Promise<NormalizedResource[]> {
@@ -35,21 +44,47 @@ export class NotionConnector extends BaseConnector {
 
     const pages = await this.call('listPages', () => this.client.listPages(since));
     let maxEditedAt = cursor.value;
+    let exported = 0;
 
     for (const page of pages) {
+      if (maxEditedAt === null || page.last_edited_time > maxEditedAt) {
+        maxEditedAt = page.last_edited_time;
+      }
+      if (this.isExported(page.id)) {
+        exported += 1;
+        continue;
+      }
       const type: NotionPageEvent['type'] = isCreateEvent(page.created_time, since)
         ? 'page.created'
         : 'page.updated';
       const normalized = normalizeNotionPageEvent({ type, page, workspace_id: '' });
       facts.push(...normalized.facts);
       containers.push(...normalized.containers);
-      if (maxEditedAt === null || page.last_edited_time > maxEditedAt) {
-        maxEditedAt = page.last_edited_time;
-      }
     }
 
     this.logger.debug('notion_pull_complete');
-    return { facts, containers, cursor: { value: maxEditedAt }, hasMore: false };
+    return {
+      facts,
+      containers,
+      cursor: { value: maxEditedAt },
+      hasMore: false,
+      ...(exported > 0 ? { skipped: { exported } } : {}),
+    };
+  }
+
+  private isExported(pageId: string): boolean {
+    const key = notionPageKey(pageId);
+    return key !== null && this.exportedPageKeys.has(key);
+  }
+
+  // An id that is not a Notion page id is left out, so it can never match a page.
+  private pageKeys(ids: ReadonlySet<string>): ReadonlySet<string> {
+    const keys = new Set<string>();
+    for (const id of ids) {
+      const key = notionPageKey(id);
+      if (key !== null) keys.add(key);
+    }
+    return keys;
   }
 
   normalizeWebhook(event: WebhookEvent): NormalizedRecords {

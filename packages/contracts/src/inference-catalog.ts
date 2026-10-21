@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { deepFreeze } from '@folklore/utils/deep-freeze';
 import type { InferenceEffort, InferencePurpose } from './inference-routing.js';
 
-export const INFERENCE_PROVIDER_IDS = ['anthropic', 'phala'] as const;
+export const INFERENCE_PROVIDER_IDS = ['anthropic', 'phala', 'openai'] as const;
 export type InferenceProviderId = (typeof INFERENCE_PROVIDER_IDS)[number];
 export const inferenceProviderIdSchema = z.enum(INFERENCE_PROVIDER_IDS);
 
@@ -89,6 +89,15 @@ const PHALA_ROW = {
   timeoutsMs: {},
   processingRegion: 'unverified',
   longPurposeCapped: false,
+} as const;
+
+const OPENAI_ROW = {
+  ...PHALA_ROW,
+  provider: 'openai',
+  trustClass: 'contractual',
+  routable: false,
+  processingRegion: 'unverified',
+  caching: 'none',
 } as const;
 
 const OPUS_TIMEOUTS_MS = { interactive: 40_000, small: 120_000, medium: 300_000, large: 480_000 };
@@ -209,6 +218,14 @@ const CATALOG_ROWS = {
     wireModel: 'qwen/qwen3-embedding-8b',
     contextWindowTokens: 32_768,
     prices: { input: 10_000, output: 0, cacheWrite: 10_000, cacheRead: 10_000 },
+    longContext: null,
+  },
+  'text-embedding-3-large': {
+    ...OPENAI_ROW,
+    weights: 'openai/text-embedding-3-large',
+    wireModel: 'text-embedding-3-large',
+    contextWindowTokens: 8_192,
+    prices: { input: 130_000, output: 0, cacheWrite: 130_000, cacheRead: 130_000 },
     longContext: null,
   },
   [PHALA_POLICY_GENERATE_MODEL_ID]: { ...PHALA_POLICY_ROW, weights: 'phala-role:generate' },

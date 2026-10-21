@@ -3,6 +3,7 @@ import type { Logger } from '@folklore/core';
 import type { Connector, ConnectorContext, WebhookEvent } from '../connector.js';
 import type { NormalizedRecords } from '../normalized.js';
 import type { CodebaseRepositorySelection } from '../code-selection.js';
+import type { DocumentBodyMode } from '../document-body.js';
 
 /** Enclave/runtime deps for constructing a pull-capable connector instance. */
 export interface PullConnectorDeps {
@@ -13,6 +14,9 @@ export interface PullConnectorDeps {
   gmailLabelAllowlist?: string[];
   m365FolderAllowlist?: string[];
   codebaseSelection?: CodebaseRepositorySelection;
+  exportedPageIds?: ReadonlySet<string>;
+  // UNWIRED: no connector reads the body mode yet.
+  documentBodies?: DocumentBodyMode;
 }
 
 export type WebhookConnectorFactory = (ctx: ConnectorContext) => Connector;

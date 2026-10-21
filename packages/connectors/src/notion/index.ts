@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-export { NotionConnector } from './NotionConnector.js';
+export { NotionConnector, type NotionConnectorOptions } from './NotionConnector.js';
 export { NotionClient } from './NotionClient.js';
 export type { NotionApiClient } from './client.js';
 export {

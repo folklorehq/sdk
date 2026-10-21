@@ -8,6 +8,7 @@ import {
   notionPageContainerId,
 } from '../src/notion/index.js';
 import type { NotionApiClient, NotionPage } from '../src/notion/index.js';
+import { createPullConnector } from '../src/index.js';
 import { PAGE_UUID, makePage, makePageEvent } from './fixtures/notion.js';
 
 describe('notionPageContainerId', () => {
@@ -151,6 +152,75 @@ describe('NotionConnector.pull', () => {
     expect(result.containers).toHaveLength(0);
     expect(result.facts).toHaveLength(1);
     expect(result.facts[0]!.sourceFactId).toContain('notion:page:updated:');
+  });
+});
+
+describe('NotionConnector.pull — exported page identity drop', () => {
+  const PAGE_B_UUID = 'b1b2c3d4-e5f6-7890-abcd-ef1234567891';
+  const pull = (pages: NotionPage[], exportedPageIds?: ReadonlySet<string>) => {
+    const connector = new NotionConnector(
+      { logger: new PinoLogger({ level: 'silent' }) },
+      new FakeNotionClient(pages),
+      exportedPageIds === undefined ? undefined : { exportedPageIds },
+    );
+    return connector.pull({ value: null }, { since: new Date('2025-06-01T00:00:00Z') });
+  };
+
+  it('emits only the page that Folklore did not export and counts the drop', async () => {
+    const result = await pull([makePage(), makePage({ id: PAGE_B_UUID })], new Set([PAGE_B_UUID]));
+
+    expect(result.facts.every((f) => f.resourceExternalId === PAGE_UUID)).toBe(true);
+    expect(result.facts.length).toBeGreaterThan(0);
+    expect(result.containers.map((c) => c.sourceContainerId)).toEqual([`notion:page:${PAGE_UUID}`]);
+    expect(result.skipped).toEqual({ exported: 1 });
+  });
+
+  it('matches an exported id that differs by hyphenation or case', async () => {
+    const compact = PAGE_B_UUID.replaceAll('-', '').toUpperCase();
+    const result = await pull([makePage({ id: PAGE_B_UUID })], new Set([compact]));
+
+    expect(result.facts).toHaveLength(0);
+    expect(result.containers).toHaveLength(0);
+    expect(result.skipped).toEqual({ exported: 1 });
+  });
+
+  it('still advances the cursor past a dropped page', async () => {
+    const result = await pull(
+      [makePage({ id: PAGE_B_UUID, last_edited_time: '2026-03-01T00:00:00Z' })],
+      new Set([PAGE_B_UUID]),
+    );
+
+    expect(result.cursor.value).toBe('2026-03-01T00:00:00Z');
+  });
+
+  it('ignores an id that is not a Notion page id instead of matching everything', async () => {
+    const result = await pull([makePage()], new Set(['not-a-page-id']));
+
+    expect(result.facts.length).toBeGreaterThan(0);
+    expect(result.skipped).toBeUndefined();
+  });
+
+  it('changes nothing for an empty set or no set', async () => {
+    const baseline = await pull([makePage(), makePage({ id: PAGE_B_UUID })]);
+    const empty = await pull([makePage(), makePage({ id: PAGE_B_UUID })], new Set());
+
+    expect(empty).toEqual(baseline);
+    expect(baseline.skipped).toBeUndefined();
+  });
+});
+
+describe('notion pull connector registration', () => {
+  it('hands the exported page ids from the pull deps to the connector', () => {
+    const connector = createPullConnector('notion', {
+      logger: new PinoLogger({ level: 'silent' }),
+      token: 'token',
+      exportedPageIds: new Set([PAGE_UUID]),
+    });
+
+    expect(connector).toBeInstanceOf(NotionConnector);
+    expect(
+      (connector as unknown as { exportedPageKeys: ReadonlySet<string> }).exportedPageKeys,
+    ).toEqual(new Set([`notion:page:${PAGE_UUID}`]));
   });
 });
 

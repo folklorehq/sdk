@@ -62,6 +62,8 @@ For a third-party connector, see `examples/custom-connector/`.
 GitHub, Slack, Linear, Jira, Notion, Intercom, and meeting upload ship in this repository.
 Additional sources may be added over time.
 
+A connector that reads pages from a workspace the product also exports wiki pages into (Notion, ClickUp) must skip those exported pages: drop a page whose id is in the exported set, and a page whose last top-level block is the export footer (`isExportProvenanceFooter`).
+
 ## Running locally
 
 Use the Docker stack in `deploy/docker/` for Postgres and Redis while developing a connector.

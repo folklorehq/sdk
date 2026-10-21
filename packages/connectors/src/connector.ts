@@ -27,6 +27,9 @@ export interface PullResult extends NormalizedRecords {
   hasMore: boolean;
   /** Connector-internal early-return marker (rate-limited/enumeration-failed): the runner keeps the cursor and advances its tick exactly once. */
   earlyReturn?: true;
+  // UNWIRED: no pull runner reads this count yet.
+  /** Items the connector dropped on purpose, by closed reason; absent when it dropped none. */
+  skipped?: { exported?: number };
 }
 
 /** Dependencies injected into every connector at construction. */

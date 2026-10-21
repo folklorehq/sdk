@@ -52,7 +52,7 @@ export type InferenceUsageOutcome = z.infer<typeof inferenceUsageOutcomeSchema>;
 export const INFERENCE_DEFERRAL_REASONS = ['provider_outage', 'provider_slow'] as const;
 export type InferenceDeferralReason = (typeof INFERENCE_DEFERRAL_REASONS)[number];
 
-export type RoutedProviderId = Exclude<InferenceProviderId, 'phala'>;
+export type RoutedProviderId = Exclude<InferenceProviderId, 'phala' | 'openai'>;
 
 export const INFERENCE_PURPOSE_CLASS: Readonly<Record<InferencePurpose, InferencePurposeClass>> = {
   answer: 'interactive',

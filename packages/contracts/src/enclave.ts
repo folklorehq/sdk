@@ -171,6 +171,7 @@ export const FEED_FACT_SALIENCE: ReadonlySet<FactSalience> = new Set<FactSalienc
 // signal and the `WikiExportTarget` port share one definition instead of an inline re-declaration.
 export const wikiExportTargetKindSchema = z.enum(['notion', 'clickup']);
 export type WikiExportTargetKind = z.infer<typeof wikiExportTargetKindSchema>;
+export const NOTION_KIND = wikiExportTargetKindSchema.enum.notion;
 
 export const processedFactSchema = z
   .object({
