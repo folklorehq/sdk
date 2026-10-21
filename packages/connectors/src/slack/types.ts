@@ -20,6 +20,7 @@ export interface SlackEditMarker {
 export interface SlackMessage {
   type?: string;
   channel: string;
+  channel_type?: string;
   user?: string;
   text?: string;
   ts: string;

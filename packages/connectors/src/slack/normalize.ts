@@ -1,9 +1,35 @@
 // SPDX-License-Identifier: Apache-2.0
 import { extractExplicitLinks, slackThreadKey } from '@folklore/utils';
-import type { NormalizedFact, NormalizedRecords } from '../normalized.js';
+import type { NormalizedFact, NormalizedRecords, SensitivityHints } from '../normalized.js';
 import type { SlackMessage, SlackReactionEvent } from './types.js';
 
 const EMPTY: NormalizedRecords = { containers: [], facts: [] };
+
+export interface SlackChannelContext {
+  name: string;
+  isPrivate: boolean | undefined;
+}
+
+// Fail closed: only an explicit `is_private: false` leaves the floor off.
+export function slackChannelHints(channel: SlackChannelContext): SensitivityHints {
+  return { names: [channel.name], restrictedScope: channel.isPrivate !== false };
+}
+
+// Events carry no channel name; only an explicit public `channel` type leaves the floor off.
+export function slackEventHints(channelType: string | undefined): SensitivityHints {
+  return { names: [], restrictedScope: channelType !== 'channel' };
+}
+
+function withHints(
+  records: NormalizedRecords,
+  hints: SensitivityHints | undefined,
+): NormalizedRecords {
+  if (!hints) return records;
+  return {
+    containers: records.containers,
+    facts: records.facts.map((fact) => ({ ...fact, sensitivityHints: hints })),
+  };
+}
 
 export function slackThreadId(channelId: string, threadTs: string): string {
   return slackThreadKey(channelId, threadTs);
@@ -79,7 +105,22 @@ export function normalizeSlackReaction(event: SlackReactionEvent): NormalizedRec
 // Slack edits/deletes arrive as `message` subtypes; an edit is a new content Fact (its new text is
 // embedded + encrypted, like Jira), a delete is its own `deleted` transition. Never mutate
 // the original.
-export function normalizeSlackMessage(msg: SlackMessage): NormalizedRecords {
+export function normalizeSlackMessage(
+  msg: SlackMessage,
+  channel?: SlackChannelContext,
+): NormalizedRecords {
+  return withHints(normalizeMessageRecords(msg), channel && slackChannelHints(channel));
+}
+
+export function normalizeSlackMessageEvent(msg: SlackMessage): NormalizedRecords {
+  return withHints(normalizeMessageRecords(msg), slackEventHints(msg.channel_type));
+}
+
+export function normalizeSlackReactionEvent(event: SlackReactionEvent): NormalizedRecords {
+  return withHints(normalizeSlackReaction(event), slackEventHints(undefined));
+}
+
+function normalizeMessageRecords(msg: SlackMessage): NormalizedRecords {
   if (msg.subtype === 'message_changed') return normalizeEdit(msg);
   if (msg.subtype === 'message_deleted') return normalizeDeletion(msg);
   if (msg.subtype && msg.subtype !== 'bot_message') return EMPTY;

@@ -327,3 +327,145 @@ describe('SlackConnector.normalizeWebhook routing', () => {
     expect(result.facts[0]!.sourceFactId).toContain('slack:msg:edited:');
   });
 });
+
+describe('Slack sensitivity hints', () => {
+  const noop = () => {};
+  const logger: Logger = {
+    trace: noop,
+    debug: noop,
+    info: noop,
+    warn: noop,
+    error: noop,
+    fatal: noop,
+    child: () => logger,
+  };
+
+  function pullFrom(channel: {
+    id: string;
+    name: string;
+    is_member: boolean;
+    is_private?: boolean;
+  }) {
+    const client: SlackClient = {
+      listConversations: async () => [channel],
+      listMessages: async () => ({
+        messages: [makeMessage({ channel: channel.id })],
+        nextCursor: null,
+      }),
+    };
+    return new SlackConnector({ logger }, client).pull({ value: null });
+  }
+
+  it('pull hints a private channel by name and floors it', async () => {
+    const result = await pullFrom({
+      id: 'C1',
+      name: 'hr-private',
+      is_member: true,
+      is_private: true,
+    });
+    expect(result.facts).toHaveLength(1);
+    for (const fact of result.facts) {
+      expect(fact.sensitivityHints).toEqual({ names: ['hr-private'], restrictedScope: true });
+    }
+  });
+
+  it('pull does not floor a public channel', async () => {
+    const result = await pullFrom({
+      id: 'C1',
+      name: 'general',
+      is_member: true,
+      is_private: false,
+    });
+    expect(result.facts[0]!.sensitivityHints).toEqual({
+      names: ['general'],
+      restrictedScope: false,
+    });
+  });
+
+  it('pull floors a channel with no is_private (fail closed)', async () => {
+    const result = await pullFrom({ id: 'C1', name: 'general', is_member: true });
+    expect(result.facts[0]!.sensitivityHints?.restrictedScope).toBe(true);
+  });
+
+  it('normalizeSlackMessage without a channel context sets no hints', () => {
+    expect(normalizeSlackMessage(makeMessage()).facts[0]!.sensitivityHints).toBeUndefined();
+  });
+
+  const connector = new SlackConnector({ logger }, null as unknown as SlackClient);
+
+  function webhookMessage(channelType: string | undefined) {
+    return connector.normalizeWebhook({
+      type: 'event_callback',
+      payload: {
+        event: makeMessage(channelType === undefined ? {} : { channel_type: channelType }),
+      },
+    });
+  }
+
+  it.each([
+    ['group', true],
+    ['im', true],
+    ['mpim', true],
+    ['channel', false],
+    [undefined, true],
+  ])('webhook channel_type %s gives restrictedScope %s and no names', (channelType, floored) => {
+    expect(webhookMessage(channelType).facts[0]!.sensitivityHints).toEqual({
+      names: [],
+      restrictedScope: floored,
+    });
+  });
+
+  it('webhook edits and deletions carry the channel_type floor', () => {
+    const edit = connector.normalizeWebhook({
+      type: 'event_callback',
+      payload: {
+        event: {
+          type: 'message',
+          subtype: 'message_changed',
+          channel: 'C12345',
+          channel_type: 'group',
+          ts: '1700000100.000000',
+          message: {
+            type: 'message',
+            channel: 'C12345',
+            user: 'U99999',
+            text: 'edited',
+            ts: '1700000000.000001',
+            edited: { user: 'U99999', ts: '1700000100.000000' },
+          },
+        },
+      },
+    });
+    const deletion = connector.normalizeWebhook({
+      type: 'event_callback',
+      payload: {
+        event: {
+          type: 'message',
+          subtype: 'message_deleted',
+          channel: 'C12345',
+          channel_type: 'channel',
+          ts: '1700000100.000000',
+          deleted_ts: '1700000000.000001',
+        },
+      },
+    });
+    expect(edit.facts[0]!.sensitivityHints?.restrictedScope).toBe(true);
+    expect(deletion.facts[0]!.sensitivityHints?.restrictedScope).toBe(false);
+  });
+
+  it('webhook reactions carry no channel_type and take the floor', () => {
+    const result = connector.normalizeWebhook({
+      type: 'event_callback',
+      payload: {
+        event: {
+          type: 'reaction_added',
+          user: 'U55555',
+          reaction: 'eyes',
+          item: { type: 'message', channel: 'C12345', ts: '1700000000.000001' },
+          event_ts: '1700000300.000000',
+        },
+      },
+    });
+    expect(result.facts[0]!.sensitivityHints).toEqual({ names: [], restrictedScope: true });
+  });
+});

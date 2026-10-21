@@ -370,3 +370,15 @@ describe('NotionConnector.normalizeWebhook — real payload routing', () => {
     }
   });
 });
+
+describe('normalizeNotionPageEvent — sensitivity hints', () => {
+  const legal = makePage({ properties: { title: { title: [{ plain_text: 'Legal hold' }] } } });
+
+  it.each(['page.created', 'page.updated'] as const)(
+    '%s hints the title and never the scope',
+    (type) => {
+      const fact = normalizeNotionPageEvent({ type, page: legal, workspace_id: 'ws-1' }).facts[0]!;
+      expect(fact.sensitivityHints).toEqual({ names: ['Legal hold'], restrictedScope: false });
+    },
+  );
+});

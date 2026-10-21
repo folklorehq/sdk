@@ -55,6 +55,12 @@ export interface NormalizedTransition {
   detail?: { field?: string; from?: unknown; to?: unknown };
 }
 
+/** Enclave-only classifier input: names only raise the tier, and the enclave strips it before sealing. */
+export interface SensitivityHints {
+  readonly names: readonly string[];
+  readonly restrictedScope: boolean;
+}
+
 /** One indivisible Fact: `content`/`transition` are mutually exclusive per `kind`; `raw` is the original payload kept only for the short rolling buffer. */
 export interface NormalizedFact {
   sourceFactId: string;
@@ -77,6 +83,7 @@ export interface NormalizedFact {
   // UNWIRED: no connector sets this yet.
   /** Identity of the revision; the enclave keys it into every `{rev}` placeholder, then strips it. */
   revisionTagInput?: string;
+  sensitivityHints?: SensitivityHints;
   raw: unknown;
 }
 

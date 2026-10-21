@@ -9,7 +9,11 @@ import type {
 } from '../connector.js';
 import type { NormalizedFact, NormalizedRecords, NormalizedResource } from '../normalized.js';
 import type { SlackClient } from './client.js';
-import { normalizeSlackMessage, normalizeSlackReaction } from './normalize.js';
+import {
+  normalizeSlackMessage,
+  normalizeSlackMessageEvent,
+  normalizeSlackReactionEvent,
+} from './normalize.js';
 import type { SlackMessage, SlackReactionEvent } from './types.js';
 
 export class SlackConnector extends BaseConnector {
@@ -48,7 +52,10 @@ export class SlackConnector extends BaseConnector {
           this.client.listMessages(channel.id, oldest, pageCursor),
         );
         for (const msg of result.messages) {
-          const normalized = normalizeSlackMessage(msg as SlackMessage);
+          const normalized = normalizeSlackMessage(msg as SlackMessage, {
+            name: channel.name,
+            isPrivate: channel.is_private,
+          });
           facts.push(...normalized.facts);
           containers.push(...normalized.containers);
           if (maxTs === null || msg.ts > maxTs) maxTs = msg.ts;
@@ -65,8 +72,8 @@ export class SlackConnector extends BaseConnector {
     const payload = event.payload as { event?: { type?: string } };
     const inner = payload.event ?? (payload as { type?: string });
     if (inner.type === 'reaction_added' || inner.type === 'reaction_removed') {
-      return normalizeSlackReaction(inner as SlackReactionEvent);
+      return normalizeSlackReactionEvent(inner as SlackReactionEvent);
     }
-    return normalizeSlackMessage(inner as SlackMessage);
+    return normalizeSlackMessageEvent(inner as SlackMessage);
   }
 }
