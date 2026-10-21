@@ -130,6 +130,7 @@ const FROZEN: Record<string, string[]> = {
     'tokenUsage[].model',
   ],
   synthesisRequest: [
+    'audiences[].allowedSourceKinds[]',
     'audiences[].id',
     'audiences[].name',
     'factRefs[].factId',

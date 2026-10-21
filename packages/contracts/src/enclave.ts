@@ -707,12 +707,20 @@ export type KnowledgeNeighborhood = z.infer<typeof knowledgeNeighborhoodSchema>;
 // the real limit. The enclave packs decrypted facts up to this budget (env/Pulumi-configurable).
 export const DEFAULT_SYNTHESIS_INPUT_TOKEN_BUDGET = 50_000;
 
+export const SYNTHESIS_AUDIENCE_SOURCE_KINDS_MAX = 64;
+export const SYNTHESIS_SOURCE_KIND_MAX_LENGTH = 64;
+
 export const synthesisAudienceSchema = z.object({
   id: z.string().nullable(),
   name: z.string(),
   publicEligible: z.boolean(),
   // highest fact sensitivity to pack into this audience's body. Fail-closed default.
   maxSensitivity: sensitivityLevelSchema.default('team_scoped'),
+  // Optional so an older worker still parses; the enclave ignores it until the source-kind filter lands.
+  allowedSourceKinds: z
+    .array(z.string().max(SYNTHESIS_SOURCE_KIND_MAX_LENGTH))
+    .max(SYNTHESIS_AUDIENCE_SOURCE_KINDS_MAX)
+    .optional(),
 });
 export type SynthesisAudience = z.infer<typeof synthesisAudienceSchema>;
 

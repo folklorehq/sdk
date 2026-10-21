@@ -1230,6 +1230,28 @@ describe('synthesisRequestSchema', () => {
     expect(() => synthesisRequestSchema.parse(withoutType)).toThrow();
   });
 
+  it('carries each audience source-kind scope and leaves it undefined for an older producer', () => {
+    const [legacy] = synthesisRequestSchema.parse(valid).audiences;
+    expect(legacy?.allowedSourceKinds).toBeUndefined();
+    const [scoped] = synthesisRequestSchema.parse({
+      ...valid,
+      audiences: [{ ...valid.audiences[0], allowedSourceKinds: ['slack', 'github'] }],
+    }).audiences;
+    expect(scoped?.allowedSourceKinds).toEqual(['slack', 'github']);
+  });
+
+  it('bounds the audience source-kind scope', () => {
+    const audience = (allowedSourceKinds: string[]) => ({
+      ...valid.audiences[0],
+      allowedSourceKinds,
+    });
+    const parse = (kinds: string[]) =>
+      synthesisRequestSchema.parse({ ...valid, audiences: [audience(kinds)] });
+    expect(() => parse(Array.from({ length: 65 }, (_, i) => `k${i}`))).toThrow();
+    expect(() => parse(['x'.repeat(65)])).toThrow();
+    expect(parse([])).toBeTruthy();
+  });
+
   it('defaults the adaptive-selection fields when a legacy producer omits them', () => {
     const parsed = synthesisRequestSchema.parse(valid);
     expect(parsed.newlyAssociatedFactIds).toEqual([]);
@@ -1608,6 +1630,7 @@ type EnclaveSynthesisRequest = {
     name: string;
     publicEligible: boolean;
     maxSensitivity: SensitivityLevel;
+    allowedSourceKinds?: string[];
   }[];
   newlyAssociatedFactIds: string[];
   inputTokenBudget: number;
