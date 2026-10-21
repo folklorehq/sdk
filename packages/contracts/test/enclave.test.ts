@@ -31,6 +31,8 @@ import {
   teamOnboardingSynthesisRequestSchema,
   teamOnboardingSynthesisResultSchema,
   themeSynthesisRequestSchema,
+  themeContainerFactRefSchema,
+  THEME_SURFACE_CEILING,
   themeSynthesisResultSchema,
   PAGE_TITLE_MAX_LENGTH,
   aggregateThemeSchema,
@@ -1362,6 +1364,28 @@ describe('themeSynthesisRequestSchema', () => {
   });
 });
 
+describe('themeContainerFactRefSchema sensitivity tier', () => {
+  const ref = { factId: 'f1', s3Key: 'facts/org-1/f1', occurredAt: '2026-01-01T00:00:00.000Z' };
+
+  it('parses a ref with and without a tier', () => {
+    expect(themeContainerFactRefSchema.parse(ref).sensitivityLevel).toBeUndefined();
+    expect(
+      themeContainerFactRefSchema.parse({ ...ref, sensitivityLevel: 'confidential' })
+        .sensitivityLevel,
+    ).toBe('confidential');
+  });
+
+  it('rejects an unknown tier', () => {
+    expect(() =>
+      themeContainerFactRefSchema.parse({ ...ref, sensitivityLevel: 'top_secret' }),
+    ).toThrow();
+  });
+
+  it('pins the theme surface ceiling to the All-members tier', () => {
+    expect(THEME_SURFACE_CEILING).toBe('team_scoped');
+  });
+});
+
 describe('teamOnboardingSynthesisRequestSchema', () => {
   const valid = {
     type: 'team_onboarding_synthesis',
@@ -1703,7 +1727,13 @@ type EnclaveThemeSynthesisRequest = {
     containerId: string;
     label: string;
     team: string;
-    factRefs: { factId: string; s3Key: string; occurredAt: string; entities: string[] }[];
+    factRefs: {
+      factId: string;
+      s3Key: string;
+      occurredAt: string;
+      entities: string[];
+      sensitivityLevel?: 'public' | 'team_scoped' | 'restricted' | 'confidential' | undefined;
+    }[];
   }[];
 };
 

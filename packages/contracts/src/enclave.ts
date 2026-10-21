@@ -136,6 +136,9 @@ export const sensitivityLevelSchema = z.enum([
 ]);
 export type SensitivityLevel = z.infer<typeof sensitivityLevelSchema>;
 
+// Theme names, tags and embeddings show to every member, so only facts the All-members audience may read feed them.
+export const THEME_SURFACE_CEILING: SensitivityLevel = 'team_scoped';
+
 // Content-free class of a fact, derived inside the enclave by fixed rules; a bare enum, never a reason or snippet.
 export const factSalienceSchema = z.enum([
   'decision',
@@ -770,6 +773,8 @@ export const themeContainerFactRefSchema = z.object({
   // Already-extracted content-free structured ids (fact_content.extracted_entities) —
   // fed into merge-detection's entity-Jaccard signal. Enters the enclave; never leaves.
   entities: z.array(z.string()).default([]),
+  // Absent from a worker that predates the tier; the enclave reads absence as `confidential`.
+  sensitivityLevel: sensitivityLevelSchema.optional(),
 });
 export type ThemeContainerFactRef = z.infer<typeof themeContainerFactRefSchema>;
 
