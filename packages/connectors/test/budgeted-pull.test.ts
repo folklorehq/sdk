@@ -106,4 +106,83 @@ describe('takeOldestWithinBudget', () => {
     expect(ids(result.taken)).toEqual(['a']);
     expect(result.exhausted).toBe(false);
   });
+
+  describe('with a tie key', () => {
+    const keyed = (id: string, at: number) => item(id, at);
+    const tieKey = (i: Item) => i.id;
+
+    it('skips items at the resume timestamp whose key is at or before the resume key', async () => {
+      const result = await take([[keyed('a', 5), keyed('b', 5), keyed('c', 5), keyed('d', 6)]], {
+        resumeAtMs: 5,
+        resumeTieKey: 'b',
+        beforeResume: 'skip',
+        tieKey,
+      });
+
+      expect(ids(result.taken)).toEqual(['c', 'd']);
+      expect(result.exhausted).toBe(true);
+    });
+
+    it('skips items before the resume timestamp when beforeResume is skip', async () => {
+      const result = await take([[keyed('a', 4), keyed('b', 5), keyed('c', 5)]], {
+        resumeAtMs: 5,
+        resumeTieKey: 'b',
+        beforeResume: 'skip',
+        tieKey,
+      });
+
+      expect(ids(result.taken)).toEqual(['c']);
+    });
+
+    it('takes every item at the resume timestamp when there is no resume key', async () => {
+      const result = await take([[keyed('a', 5), keyed('b', 5)]], {
+        resumeAtMs: 5,
+        resumeTieKey: null,
+        beforeResume: 'skip',
+        tieKey,
+      });
+
+      expect(ids(result.taken)).toEqual(['a', 'b']);
+    });
+
+    it('stops exactly at the budget inside one timestamp', async () => {
+      const group = ['a', 'b', 'c', 'd', 'e'].map((id) => keyed(id, 7));
+      const result = await take([group], { budget: 2, tieKey });
+
+      expect(ids(result.taken)).toEqual(['a', 'b']);
+      expect(result.exhausted).toBe(false);
+    });
+
+    it('reports exhausted when the budget is spent by the last item', async () => {
+      const result = await take([[keyed('a', 7), keyed('b', 7)]], { budget: 2, tieKey });
+
+      expect(ids(result.taken)).toEqual(['a', 'b']);
+      expect(result.exhausted).toBe(true);
+    });
+
+    it("takes items before the resume timestamp at no cost when 'free'", async () => {
+      const result = await take([[keyed('a', 4), keyed('b', 5), keyed('c', 5)]], {
+        resumeAtMs: 5,
+        resumeTieKey: 'b',
+        beforeResume: 'free',
+        budget: 1,
+        tieKey,
+      });
+
+      expect(ids(result.taken)).toEqual(['a', 'c']);
+    });
+
+    it('charges items at the resume timestamp that are past the resume key', async () => {
+      const result = await take([[keyed('a', 5), keyed('b', 5), keyed('c', 5)]], {
+        resumeAtMs: 5,
+        resumeTieKey: 'a',
+        beforeResume: 'skip',
+        budget: 1,
+        tieKey,
+      });
+
+      expect(ids(result.taken)).toEqual(['b']);
+      expect(result.exhausted).toBe(false);
+    });
+  });
 });

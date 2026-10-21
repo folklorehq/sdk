@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PinoLogger } from '@folklore/logger';
 import type { WebhookEvent } from '../src/connector.js';
 import {
+  NotionClient,
   NotionConnector,
   normalizeNotionPageEvent,
   notionPageContainerId,
+  parseNotionCursor,
+  serializeNotionCursor,
 } from '../src/notion/index.js';
-import type { NotionApiClient, NotionPage } from '../src/notion/index.js';
+import type { NotionPage } from '../src/notion/index.js';
 import { createPullConnector } from '../src/index.js';
+import { FakeNotionApiClient } from './doubles/notion/FakeNotionApiClient.js';
 import { PAGE_UUID, makePage, makePageEvent } from './fixtures/notion.js';
 
 describe('notionPageContainerId', () => {
@@ -107,35 +111,64 @@ describe('normalizeNotionPageEvent — page.updated', () => {
   });
 });
 
-class FakeNotionClient implements NotionApiClient {
-  pageSinceArgs: Array<string | undefined> = [];
+const MINUTE_MS = 60_000;
+const BASE_MS = Date.parse('2026-03-01T00:00:00.000Z');
+const LATER_MS = Date.parse('2026-09-01T00:00:00.000Z');
 
-  constructor(private readonly pages: NotionPage[]) {}
+const isoAt = (ms: number) => new Date(ms).toISOString();
+const uid = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
+const [ID_A, ID_B, ID_C, ID_OLD, ID_NEW, ID_HOT, ID_GONE, ID_TIE_A, ID_TIE_B] = [
+  uid(0xa),
+  uid(0xb),
+  uid(0xc),
+  uid(0x01d),
+  uid(0x4e3),
+  uid(0x407),
+  uid(0x60e),
+  uid(0x7a),
+  uid(0x7b),
+];
+const pageAt = (id: string, ms: number, overrides: Partial<NotionPage> = {}) =>
+  makePage({
+    id,
+    created_time: isoAt(BASE_MS - 1000 * MINUTE_MS),
+    last_edited_time: isoAt(ms),
+    ...overrides,
+  });
+const numbered = (count: number, startMs: number, stepMs = MINUTE_MS) =>
+  Array.from({ length: count }, (_, i) => pageAt(uid(0x1000 + i), startMs + i * stepMs));
+const sourceIds = (result: { facts: Array<{ sourceFactId: string }> }) =>
+  result.facts.map((fact) => fact.sourceFactId);
+const PAGE_ID_SEGMENT = 3;
+const pageIds = (result: { facts: Array<{ sourceFactId: string }> }) =>
+  sourceIds(result).map((id) => id.split(':')[PAGE_ID_SEGMENT]);
+const updatedId = (page: NotionPage) => `notion:page:updated:${page.id}:${page.last_edited_time}`;
 
-  async listPages(updatedSince?: string) {
-    this.pageSinceArgs.push(updatedSince);
-    return this.pages;
-  }
+function connectorFor(
+  pages: NotionPage[],
+  options: { now?: number; listingCallsPerPull?: number; client?: FakeNotionApiClient } = {},
+) {
+  const client = options.client ?? new FakeNotionApiClient(pages);
+  const connector = new NotionConnector({ logger: new PinoLogger({ level: 'silent' }) }, client, {
+    now: () => options.now ?? LATER_MS,
+    ...(options.listingCallsPerPull === undefined
+      ? {}
+      : { listingCallsPerPull: options.listingCallsPerPull }),
+  });
+  return { client, connector };
 }
 
 describe('NotionConnector.pull', () => {
-  function connectorFor(pages: NotionPage[]) {
-    const client = new FakeNotionClient(pages);
-    const connector = new NotionConnector({ logger: new PinoLogger({ level: 'silent' }) }, client);
-    return { client, connector };
-  }
-
   it('seeds a container + content body for a page created inside the enclave 12-month window', async () => {
     // Regression: the enclave ALWAYS sets options.since, so the old `since ? 'page.updated' : ...`
     // dropped the container for every backfilled page. An in-window page is a create.
-    const { client, connector } = connectorFor([makePage()]);
+    const { connector } = connectorFor([makePage()]);
 
     const result = await connector.pull(
       { value: null },
       { since: new Date('2025-06-01T00:00:00Z') },
     );
 
-    expect(client.pageSinceArgs[0]).toBe('2025-06-01T00:00:00.000Z');
     expect(result.containers).toHaveLength(1);
     expect(result.containers[0]!.label).toBe('notion_page');
     const seed = result.facts.find((f) => f.sourceFactId.startsWith('notion:page:created:'));
@@ -147,11 +180,436 @@ describe('NotionConnector.pull', () => {
   it('treats a page only edited within the window as a content edit with no container', async () => {
     const { connector } = connectorFor([makePage()]);
 
-    const result = await connector.pull({ value: '2026-06-01T00:00:00.000Z' });
+    const result = await connector.pull({ value: '2026-01-01T12:00:00.000Z' });
 
     expect(result.containers).toHaveLength(0);
     expect(result.facts).toHaveLength(1);
     expect(result.facts[0]!.sourceFactId).toContain('notion:page:updated:');
+  });
+
+  it('lists oldest first from the start of the window on a first pull', async () => {
+    const { client, connector } = connectorFor(numbered(3, BASE_MS));
+
+    await connector.pull({ value: null }, { since: new Date(BASE_MS - MINUTE_MS) });
+
+    expect(client.inputs[0]).toMatchObject({ direction: 'ascending', startCursor: null });
+  });
+
+  it('drops pages edited before the window and counts them', async () => {
+    const pages = [pageAt(ID_OLD, BASE_MS - 10 * MINUTE_MS), pageAt(ID_NEW, BASE_MS)];
+    const { connector } = connectorFor(pages);
+
+    const result = await connector.pull({ value: null }, { since: new Date(BASE_MS - MINUTE_MS) });
+
+    expect(sourceIds(result)).toEqual([expect.stringContaining(ID_NEW)]);
+    expect(result.stats?.skipped).toEqual({ out_of_window: 1 });
+  });
+
+  describe('completeness', () => {
+    it('emits a page that ties the cursor timestamp but sorts after the cursor page', async () => {
+      const pages = [pageAt(ID_A, BASE_MS), pageAt(ID_B, BASE_MS)];
+      const { connector } = connectorFor(pages);
+
+      const result = await connector.pull({ value: `${isoAt(BASE_MS)}|${ID_A}` });
+
+      expect(sourceIds(result)).toEqual([updatedId(pages[1]!)]);
+    });
+
+    it('re-reads a page edited inside the settle window on the next pull', async () => {
+      const editedAt = LATER_MS - 30_000;
+      const pages = [pageAt(ID_HOT, editedAt)];
+      const before = isoAt(LATER_MS - 60 * MINUTE_MS);
+      const first = await connectorFor(pages, { now: LATER_MS }).connector.pull({ value: before });
+
+      expect(sourceIds(first)).toEqual([updatedId(pages[0]!)]);
+      expect(first.cursor.value).toBe(before);
+
+      const second = await connectorFor(pages, { now: LATER_MS + 10 * MINUTE_MS }).connector.pull(
+        first.cursor,
+      );
+
+      expect(sourceIds(second)).toEqual([updatedId(pages[0]!)]);
+      expect(second.cursor.value).toBe(`${isoAt(editedAt)}|${ID_HOT}`);
+    });
+
+    it('takes the oldest pages within the budget and continues from them', async () => {
+      const pages = numbered(5, BASE_MS);
+      const { connector } = connectorFor(pages);
+      const since = { since: new Date(BASE_MS - MINUTE_MS) };
+
+      const first = await connector.pull({ value: null }, { ...since, maxFacts: 2 });
+      const second = await connector.pull(first.cursor, { ...since, maxFacts: 2 });
+      const third = await connector.pull(second.cursor, { ...since, maxFacts: 2 });
+
+      expect(pageIds(first)).toEqual([uid(0x1000), uid(0x1001)]);
+      expect(first.hasMore).toBe(true);
+      expect(pageIds(second)).toEqual([uid(0x1002), uid(0x1003)]);
+      expect(second.hasMore).toBe(true);
+      expect(pageIds(third)).toEqual([uid(0x1004)]);
+      expect(third.hasMore).toBe(false);
+    });
+
+    it('stops inside one timestamp at the budget and resumes at the next id', async () => {
+      const pages = [ID_A, ID_B, ID_C].map((id) => pageAt(id, BASE_MS));
+      const { connector } = connectorFor(pages);
+      const since = { since: new Date(BASE_MS - MINUTE_MS) };
+
+      const first = await connector.pull({ value: null }, { ...since, maxFacts: 2 });
+      const second = await connector.pull(first.cursor, { ...since, maxFacts: 2 });
+
+      expect(first.facts).toHaveLength(2);
+      expect(first.hasMore).toBe(true);
+      expect(second.facts).toHaveLength(1);
+      expect(second.hasMore).toBe(false);
+    });
+
+    it('costs one listing call in the steady state however large the workspace is', async () => {
+      const pages = numbered(10_000, BASE_MS);
+      const position = pages[9_998]!;
+      const { client, connector } = connectorFor(pages);
+
+      const result = await connector.pull({ value: `${position.last_edited_time}|${position.id}` });
+
+      expect(client.searchCalls).toBe(1);
+      expect(client.inputs[0]!.direction).toBe('descending');
+      expect(result.facts).toHaveLength(1);
+      expect(result.stats?.apiCalls).toBe(1);
+    });
+
+    it('switches to an ascending listing when the descending scan spends its call cap', async () => {
+      const pages = numbered(15_000, BASE_MS);
+      const { client, connector } = connectorFor(pages);
+      const start = isoAt(BASE_MS - 24 * 60 * MINUTE_MS);
+
+      const first = await connector.pull({ value: start }, { maxFacts: 250 });
+
+      expect(client.inputs.map((i) => i.direction)).toContain('ascending');
+      expect(client.inputs[0]!.direction).toBe('descending');
+      expect(pageIds(first)).toEqual(pages.slice(0, 250).map((p) => p.id));
+      expect(first.hasMore).toBe(true);
+      expect(first.cursor.value).toContain('"listing"');
+    });
+
+    it('drops the listing once ascending reaches the end and then lists descending with one call', async () => {
+      const pages = numbered(15_000, BASE_MS);
+      const { client, connector } = connectorFor(pages);
+      let cursor = { value: isoAt(BASE_MS - 24 * 60 * MINUTE_MS) };
+      let emitted = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const result = await connector.pull(cursor, { maxFacts: 250 });
+        emitted += result.facts.length;
+        cursor = result.cursor as { value: string };
+        hasMore = result.hasMore;
+      }
+
+      expect(emitted).toBe(15_000);
+      expect(cursor.value).not.toContain('"listing"');
+      const callsBefore = client.searchCalls;
+      const next = await connector.pull(cursor, { maxFacts: 250 });
+      expect(client.searchCalls - callsBefore).toBe(1);
+      expect(next.facts).toHaveLength(0);
+    });
+
+    it('persists the search cursor when the listing cap is spent before the listing ends', async () => {
+      const pages = numbered(150, BASE_MS);
+      const { connector } = connectorFor(pages, { listingCallsPerPull: 1 });
+      const since = { since: new Date(BASE_MS - MINUTE_MS) };
+
+      const first = await connector.pull({ value: null }, since);
+      const second = await connector.pull(first.cursor, since);
+
+      expect(first.facts).toHaveLength(100);
+      expect(first.hasMore).toBe(true);
+      expect(first.cursor.value).toContain('"searchCursor"');
+      expect(second.facts).toHaveLength(50);
+      expect(second.hasMore).toBe(false);
+    });
+
+    it('does not lose a page that shares a timestamp across a listing batch boundary', async () => {
+      const pages = [
+        ...numbered(99, BASE_MS),
+        pageAt(ID_TIE_B, BASE_MS + 99 * MINUTE_MS),
+        pageAt(ID_TIE_A, BASE_MS + 99 * MINUTE_MS),
+      ];
+      const { connector } = connectorFor(pages, { listingCallsPerPull: 1 });
+      const since = { since: new Date(BASE_MS - MINUTE_MS) };
+
+      const first = await connector.pull({ value: null }, since);
+      const second = await connector.pull(first.cursor, since);
+
+      const emitted = new Set([...pageIds(first), ...pageIds(second)]);
+      expect(emitted.has(ID_TIE_A) && emitted.has(ID_TIE_B)).toBe(true);
+    });
+
+    it('makes progress on the cursor when the cap is spent before any unprocessed page', async () => {
+      const pages = numbered(300, BASE_MS);
+      const position = pages[250]!;
+      const { connector } = connectorFor(pages, { listingCallsPerPull: 1 });
+      const cursor = {
+        value: JSON.stringify({
+          position: `${position.last_edited_time}|${position.id}`,
+          listing: { mode: 'ascending', searchCursor: null },
+        }),
+      };
+
+      const result = await connector.pull(cursor);
+
+      expect(result.facts).toHaveLength(0);
+      expect(result.cursor.value).not.toBe(cursor.value);
+      expect(result.hasMore).toBe(true);
+    });
+
+    it('restarts a listing whose search cursor Notion rejects and counts the restart', async () => {
+      const pages = numbered(150, BASE_MS);
+      const client = new FakeNotionApiClient(pages, { rejectOnce: ['c:100'] });
+      const { connector } = connectorFor(pages, { client });
+      const cursor = {
+        value: JSON.stringify({
+          position: null,
+          listing: { mode: 'ascending', searchCursor: 'c:100' },
+        }),
+      };
+
+      const result = await connector.pull(cursor, { since: new Date(BASE_MS - MINUTE_MS) });
+
+      expect(result.stats?.listingRestarts).toBe(1);
+      expect(result.facts).toHaveLength(150);
+    });
+
+    it('returns an early return with listing_incomplete after three restarts', async () => {
+      const pages = numbered(500, BASE_MS);
+      const client = new FakeNotionApiClient(pages, { rejectAllCursors: true, pageSize: 10 });
+      const { connector } = connectorFor(pages, { client });
+
+      const result = await connector.pull(
+        { value: null },
+        { since: new Date(BASE_MS - MINUTE_MS) },
+      );
+
+      expect(result.earlyReturn).toBe(true);
+      expect(result.facts).toHaveLength(0);
+      expect(result.cursor.value).toBeNull();
+      expect(result.stats?.listingRestarts).toBe(3);
+      expect(result.stats?.skipped.listing_incomplete).toBe(1);
+    });
+
+    it('re-emits every page at a legacy cursor timestamp', async () => {
+      const pages = [pageAt(ID_A, BASE_MS), pageAt(ID_B, BASE_MS)];
+      const { connector } = connectorFor(pages);
+
+      const result = await connector.pull({ value: isoAt(BASE_MS) });
+
+      expect(result.facts).toHaveLength(2);
+    });
+
+    it('skips an archived page, counts it and advances past it', async () => {
+      const pages = [pageAt(ID_GONE, BASE_MS, { archived: true })];
+      const { connector } = connectorFor(pages);
+
+      const result = await connector.pull({ value: isoAt(BASE_MS - 10 * MINUTE_MS) });
+
+      expect(result.facts).toHaveLength(0);
+      expect(result.stats?.skipped.archived).toBe(1);
+      expect(result.cursor.value).toBe(`${isoAt(BASE_MS)}|${ID_GONE}`);
+    });
+
+    it('falls back to the window start for a malformed cursor and never throws', async () => {
+      const pages = numbered(2, BASE_MS);
+      const { client, connector } = connectorFor(pages);
+
+      const result = await connector.pull(
+        { value: '{not json' },
+        { since: new Date(BASE_MS - MINUTE_MS) },
+      );
+
+      expect(result.facts).toHaveLength(2);
+      expect(client.inputs[0]!.direction).toBe('ascending');
+    });
+
+    it('classifies chunked backfill pages against the backfill floor, not the chunk position', async () => {
+      const pages = numbered(5, BASE_MS).map((page) => ({
+        ...page,
+        created_time: isoAt(BASE_MS),
+      }));
+      const { connector } = connectorFor(pages);
+      const since = { since: new Date(BASE_MS - MINUTE_MS) };
+
+      const first = await connector.pull({ value: null }, { ...since, maxFacts: 2 });
+      const second = await connector.pull(first.cursor, { ...since, maxFacts: 2 });
+      const third = await connector.pull(second.cursor, { ...since, maxFacts: 2 });
+
+      for (const result of [first, second, third]) {
+        expect(result.facts.every((f) => f.sourceFactId.startsWith('notion:page:created:'))).toBe(
+          true,
+        );
+        expect(result.containers).toHaveLength(result.facts.length);
+      }
+    });
+
+    it('keeps classifying against the position once a backfill has finished', async () => {
+      const page = { ...pageAt(ID_A, BASE_MS), created_time: isoAt(BASE_MS - 10 * MINUTE_MS) };
+      const { connector } = connectorFor([page]);
+
+      const result = await connector.pull({ value: isoAt(BASE_MS - MINUTE_MS) });
+
+      expect(result.facts[0]!.sourceFactId).toContain('notion:page:updated:');
+    });
+
+    it('marks every chunk of a backfill, not only the first', async () => {
+      const { connector } = connectorFor(numbered(5, BASE_MS));
+      const since = { since: new Date(BASE_MS - MINUTE_MS) };
+
+      const first = await connector.pull(
+        { value: null },
+        { ...since, maxFacts: 2, backfill: true },
+      );
+      const second = await connector.pull(first.cursor, { maxFacts: 2 });
+      const last = await connector.pull(second.cursor, { maxFacts: 2 });
+      const steady = await connector.pull(last.cursor, { maxFacts: 2 });
+
+      expect([first, second, last].map((r) => r.stats?.backfillChunk)).toEqual([true, true, true]);
+      expect(steady.stats?.backfillChunk).toBeFalsy();
+    });
+
+    it('does not call a scheduled first pull on a never-advanced source a backfill', async () => {
+      const { connector } = connectorFor(numbered(5, BASE_MS));
+      const since = { since: new Date(BASE_MS - MINUTE_MS) };
+
+      const first = await connector.pull({ value: null }, { ...since, maxFacts: 2 });
+      const second = await connector.pull(first.cursor, { maxFacts: 2 });
+
+      expect(first.stats?.backfillChunk).toBeUndefined();
+      expect(second.stats?.backfillChunk).toBeUndefined();
+      expect(first.cursor.value).not.toContain('"backfill"');
+    });
+
+    it('treats a rejected descending listing as incomplete, not as an empty success', async () => {
+      const client = new FakeNotionApiClient(numbered(3, BASE_MS), { rejectDescending: true });
+      const { connector } = connectorFor([], { client });
+
+      const result = await connector.pull({ value: isoAt(BASE_MS - MINUTE_MS) });
+
+      expect(result.earlyReturn).toBe(true);
+      expect(result.stats?.skipped.listing_incomplete).toBe(1);
+    });
+
+    it('keeps titles and ids out of the counts', async () => {
+      const page = pageAt(ID_A, BASE_MS, {
+        properties: { title: { title: [{ plain_text: 'SECRET-TITLE' }] } },
+      });
+      const { connector } = connectorFor([page]);
+
+      const result = await connector.pull({ value: isoAt(BASE_MS - MINUTE_MS) });
+
+      const counts = JSON.stringify(result.stats);
+      expect(counts).not.toContain('SECRET-TITLE');
+      expect(counts).not.toContain(ID_A);
+      expect(counts).not.toContain(page.url);
+    });
+
+    it('reports the listing calls the client made', async () => {
+      const { client, connector } = connectorFor(numbered(250, BASE_MS));
+
+      const result = await connector.pull(
+        { value: null },
+        { since: new Date(BASE_MS - MINUTE_MS) },
+      );
+
+      expect(result.stats?.apiCalls).toBe(client.searchCalls);
+      expect(result.stats?.listed).toBe(250);
+      expect(result.stats?.emitted).toBe(250);
+    });
+  });
+});
+
+describe('notion cursor', () => {
+  it('round-trips a position', () => {
+    const cursor = { position: { editedAt: '2026-03-01T00:00:00.000Z', pageId: 'p-1' } };
+
+    expect(parseNotionCursor(serializeNotionCursor(cursor))).toEqual(cursor);
+  });
+
+  it('round-trips a position with a listing', () => {
+    const cursor = {
+      position: { editedAt: '2026-03-01T00:00:00.000Z', pageId: null },
+      listing: { mode: 'ascending' as const, searchCursor: 'abc' },
+    };
+
+    expect(parseNotionCursor(serializeNotionCursor(cursor))).toEqual(cursor);
+  });
+
+  it('reads a legacy ISO cursor as a position with no page id', () => {
+    expect(parseNotionCursor('2026-03-01T00:00:00.000Z')).toEqual({
+      position: { editedAt: '2026-03-01T00:00:00.000Z', pageId: null },
+    });
+  });
+
+  it('reads null and garbage as an empty cursor', () => {
+    expect(parseNotionCursor(null)).toEqual({ position: null });
+    expect(parseNotionCursor('not a date')).toEqual({ position: null });
+    expect(parseNotionCursor('{broken')).toEqual({ position: null });
+  });
+
+  it('keeps the legacy compare correct for an older build reading the new format', () => {
+    const cursor = serializeNotionCursor({
+      position: { editedAt: '2026-03-01T00:00:00.000Z', pageId: 'p-1' },
+    });
+    const stopsAt = (editedAt: string) => editedAt <= cursor;
+
+    expect(stopsAt('2026-02-28T23:59:59.000Z')).toBe(true);
+    expect(stopsAt('2026-03-01T00:00:00.000Z')).toBe(true);
+    expect(stopsAt('2026-03-01T00:00:01.000Z')).toBe(false);
+  });
+});
+
+describe('NotionClient', () => {
+  it('never lets the SDK log a failing response body', async () => {
+    const consoleSpies = (['log', 'info', 'warn', 'error', 'debug'] as const).map((method) =>
+      vi.spyOn(console, method).mockImplementation(() => undefined),
+    );
+    const failing = async () =>
+      new Response(
+        JSON.stringify({ object: 'error', code: 'validation_error', message: 'SECRET-BODY' }),
+        {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        },
+      );
+    const client = new NotionClient('token', failing as typeof globalThis.fetch);
+
+    await expect(
+      client.listPages({ direction: 'ascending', startCursor: null, maxCalls: 1 }),
+    ).rejects.toBeDefined();
+
+    for (const spy of consoleSpies) expect(spy).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
+  it('reports a rejected start cursor instead of throwing', async () => {
+    const failing = async () =>
+      new Response(
+        JSON.stringify({
+          object: 'error',
+          status: 400,
+          code: 'validation_error',
+          message: 'bad cursor',
+        }),
+        {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        },
+      );
+    const client = new NotionClient('token', failing as typeof globalThis.fetch);
+
+    const listing = await client.listPages({
+      direction: 'ascending',
+      startCursor: 'stale',
+      maxCalls: 1,
+    });
+
+    expect(listing).toEqual({ pages: [], nextCursor: null, calls: 1, cursorRejected: true });
   });
 });
 
@@ -160,7 +618,7 @@ describe('NotionConnector.pull — exported page identity drop', () => {
   const pull = (pages: NotionPage[], exportedPageIds?: ReadonlySet<string>) => {
     const connector = new NotionConnector(
       { logger: new PinoLogger({ level: 'silent' }) },
-      new FakeNotionClient(pages),
+      new FakeNotionApiClient(pages),
       exportedPageIds === undefined ? undefined : { exportedPageIds },
     );
     return connector.pull({ value: null }, { since: new Date('2025-06-01T00:00:00Z') });
@@ -172,7 +630,7 @@ describe('NotionConnector.pull — exported page identity drop', () => {
     expect(result.facts.every((f) => f.resourceExternalId === PAGE_UUID)).toBe(true);
     expect(result.facts.length).toBeGreaterThan(0);
     expect(result.containers.map((c) => c.sourceContainerId)).toEqual([`notion:page:${PAGE_UUID}`]);
-    expect(result.skipped).toEqual({ exported: 1 });
+    expect(result.stats?.skipped).toEqual({ exported: 1 });
   });
 
   it('matches an exported id that differs by hyphenation or case', async () => {
@@ -181,7 +639,7 @@ describe('NotionConnector.pull — exported page identity drop', () => {
 
     expect(result.facts).toHaveLength(0);
     expect(result.containers).toHaveLength(0);
-    expect(result.skipped).toEqual({ exported: 1 });
+    expect(result.stats?.skipped).toEqual({ exported: 1 });
   });
 
   it('still advances the cursor past a dropped page', async () => {
@@ -190,14 +648,59 @@ describe('NotionConnector.pull — exported page identity drop', () => {
       new Set([PAGE_B_UUID]),
     );
 
-    expect(result.cursor.value).toBe('2026-03-01T00:00:00Z');
+    expect(result.cursor.value).toBe(`2026-03-01T00:00:00Z|${PAGE_B_UUID}`);
+  });
+
+  it('counts an archived page that is also exported as exported, and emits neither', async () => {
+    const result = await pull(
+      [makePage({ id: PAGE_B_UUID, archived: true })],
+      new Set([PAGE_B_UUID]),
+    );
+
+    expect(result.facts).toHaveLength(0);
+    expect(result.stats?.skipped).toEqual({ exported: 1 });
+  });
+
+  it('drops an exported page in the steady-state listing and keeps it out of the emitted count', async () => {
+    const editedAt = BASE_MS + 5 * MINUTE_MS;
+    const pages = [pageAt(ID_A, editedAt), pageAt(ID_B, editedAt + MINUTE_MS)];
+    const client = new FakeNotionApiClient(pages);
+    const connector = new NotionConnector({ logger: new PinoLogger({ level: 'silent' }) }, client, {
+      exportedPageIds: new Set([ID_B]),
+      now: () => LATER_MS,
+    });
+
+    const result = await connector.pull({ value: isoAt(BASE_MS) });
+
+    expect(client.inputs[0]!.direction).toBe('descending');
+    expect(pageIds(result)).toEqual([ID_A]);
+    expect(result.stats).toMatchObject({ emitted: 1, skipped: { exported: 1 } });
+  });
+
+  it('does not spend the fact budget on exported pages in a capped backfill chunk', async () => {
+    const pages = numbered(5, BASE_MS);
+    const exportedIds = new Set([pages[0]!.id, pages[2]!.id]);
+    const connector = new NotionConnector(
+      { logger: new PinoLogger({ level: 'silent' }) },
+      new FakeNotionApiClient(pages),
+      { exportedPageIds: exportedIds, now: () => LATER_MS },
+    );
+
+    const result = await connector.pull(
+      { value: null },
+      { since: new Date(BASE_MS - MINUTE_MS), maxFacts: 2, backfill: true },
+    );
+
+    expect(pageIds(result)).toEqual([pages[1]!.id, pages[3]!.id]);
+    expect(result.stats).toMatchObject({ emitted: 2, skipped: { exported: 2 } });
+    expect(result.hasMore).toBe(true);
   });
 
   it('ignores an id that is not a Notion page id instead of matching everything', async () => {
     const result = await pull([makePage()], new Set(['not-a-page-id']));
 
     expect(result.facts.length).toBeGreaterThan(0);
-    expect(result.skipped).toBeUndefined();
+    expect(result.stats?.skipped).toEqual({});
   });
 
   it('changes nothing for an empty set or no set', async () => {
@@ -205,7 +708,7 @@ describe('NotionConnector.pull — exported page identity drop', () => {
     const empty = await pull([makePage(), makePage({ id: PAGE_B_UUID })], new Set());
 
     expect(empty).toEqual(baseline);
-    expect(baseline.skipped).toBeUndefined();
+    expect(baseline.stats?.skipped).toEqual({});
   });
 });
 
@@ -226,7 +729,7 @@ describe('notion pull connector registration', () => {
 
 describe('NotionConnector.normalizeWebhook — real payload routing', () => {
   function connector() {
-    const client = new FakeNotionClient([]);
+    const client = new FakeNotionApiClient([]);
     return new NotionConnector({ logger: new PinoLogger({ level: 'silent' }) }, client);
   }
 

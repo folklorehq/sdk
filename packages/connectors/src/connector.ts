@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { Logger } from '@folklore/core';
 import type { NormalizedRecords, NormalizedResource } from './normalized.js';
+import type { PullStats } from './pull-stats.js';
 
 /** Opaque, per-connector incremental sync position. */
 export interface SyncCursor {
@@ -13,6 +14,8 @@ export interface PullOptions {
   since?: Date;
   /** Fact budget for one pull; a connector that honors it returns the oldest updates first, its cursor at the last one taken, and `hasMore` while any remain. */
   maxFacts?: number;
+  /** True when this pull starts a forced or onboarding backfill rather than resuming one. */
+  backfill?: boolean;
 }
 
 /** An inbound webhook delivery, before source-specific decoding. */
@@ -27,9 +30,8 @@ export interface PullResult extends NormalizedRecords {
   hasMore: boolean;
   /** Connector-internal early-return marker (rate-limited/enumeration-failed): the runner keeps the cursor and advances its tick exactly once. */
   earlyReturn?: true;
-  // UNWIRED: no pull runner reads this count yet.
-  /** Items the connector dropped on purpose, by closed reason; absent when it dropped none. */
-  skipped?: { exported?: number };
+  /** Content-free counts for this pull. */
+  stats?: PullStats;
 }
 
 /** Dependencies injected into every connector at construction. */
