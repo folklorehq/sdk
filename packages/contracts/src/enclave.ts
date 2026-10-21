@@ -996,6 +996,44 @@ export const associationJudgementResultSchema = z
   .strict();
 export type AssociationJudgementResult = z.infer<typeof associationJudgementResultSchema>;
 
+const pullStatCount = z.number().int().nonnegative();
+export const PULL_CHARS_BUCKET = 10_000;
+export const PULL_SKIP_REASONS = [
+  'archived',
+  'out_of_window',
+  'budget_deferred',
+  'body_fetch_failed',
+  'exported',
+  'listing_incomplete',
+  'comment_cap',
+  'deletion_unresolved',
+] as const;
+export type PullSkipReason = (typeof PULL_SKIP_REASONS)[number];
+
+const pullSkippedShape = Object.fromEntries(
+  PULL_SKIP_REASONS.map((reason) => [reason, pullStatCount.optional()]),
+) as Record<PullSkipReason, z.ZodOptional<typeof pullStatCount>>;
+
+// Integers, booleans and closed keys only; character totals are bucketed per pull, never per fact.
+export const pullStatsSchema = z
+  .object({
+    facts: pullStatCount,
+    contentFacts: pullStatCount,
+    embedInputCharsBucket: pullStatCount.multipleOf(PULL_CHARS_BUCKET),
+    listed: pullStatCount,
+    emitted: pullStatCount,
+    apiCalls: pullStatCount,
+    listingRestarts: pullStatCount,
+    skipped: z.object(pullSkippedShape).strict(),
+    bodyCharsBucket: pullStatCount.multipleOf(PULL_CHARS_BUCKET).optional(),
+    truncatedBodies: pullStatCount.optional(),
+    durationMs: pullStatCount,
+    hasMore: z.boolean(),
+    backfill: z.boolean(),
+  })
+  .strict();
+export type PullStatsSignal = z.infer<typeof pullStatsSchema>;
+
 // Content-free enclave→worker completion signal: a scheduled pull cycle
 // finished cleanly, so the worker can advance connector_sync_state.last_successful_sync_at
 // (the enclave has no DB access — so the write stays worker-side). Carries only
@@ -1008,6 +1046,7 @@ export const pullCompleteSignalSchema = z
     sourceId: z.string(),
     completedAt: z.string().datetime(),
     backfillLeaseToken: z.string().uuid().optional(),
+    stats: pullStatsSchema.optional(),
   })
   .strict();
 export type PullCompleteSignal = z.infer<typeof pullCompleteSignalSchema>;

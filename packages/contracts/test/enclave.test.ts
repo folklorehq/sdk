@@ -47,6 +47,7 @@ import {
   type EncryptedBodyRead,
   type KnowledgeSkeleton,
   type PullCompleteSignal,
+  type PullStatsSignal,
   type PullDueMessage,
   type SensitivityLevel,
   type SynthesisRequest,
@@ -1510,6 +1511,58 @@ describe('pullCompleteSignalSchema', () => {
       false,
     );
   });
+
+  describe('stats', () => {
+    const stats = {
+      facts: 3,
+      contentFacts: 2,
+      embedInputCharsBucket: 20_000,
+      listed: 5,
+      emitted: 3,
+      apiCalls: 2,
+      listingRestarts: 0,
+      skipped: { archived: 2 },
+      durationMs: 1200,
+      hasMore: true,
+      backfill: false,
+    };
+    const parseWith = (override: Record<string, unknown>) =>
+      pullCompleteSignalSchema.safeParse({ ...valid, stats: { ...stats, ...override } }).success;
+
+    it('parses with and without stats', () => {
+      expect(pullCompleteSignalSchema.safeParse({ ...valid, stats }).success).toBe(true);
+      expect(pullCompleteSignalSchema.safeParse(valid).success).toBe(true);
+    });
+
+    it('accepts the optional body figures', () => {
+      expect(parseWith({ bodyCharsBucket: 30_000, truncatedBodies: 1 })).toBe(true);
+    });
+
+    it('rejects an extra key inside stats', () => {
+      expect(parseWith({ title: 'x' })).toBe(false);
+    });
+
+    it('rejects an extra key inside skipped', () => {
+      expect(parseWith({ skipped: { archived: 1, pageId: 2 } })).toBe(false);
+    });
+
+    it('rejects a negative count', () => {
+      expect(parseWith({ listed: -1 })).toBe(false);
+    });
+
+    it('rejects a fractional count', () => {
+      expect(parseWith({ apiCalls: 1.5 })).toBe(false);
+    });
+
+    it('rejects a bucket that is not a multiple of 10,000', () => {
+      expect(parseWith({ embedInputCharsBucket: 15_000 })).toBe(false);
+      expect(parseWith({ bodyCharsBucket: 1 })).toBe(false);
+    });
+
+    it('rejects a string count', () => {
+      expect(parseWith({ facts: '3' })).toBe(false);
+    });
+  });
 });
 
 // Drift guard: these mirror the enclave's local `interface`s verbatim. A change to either schema
@@ -1660,6 +1713,7 @@ type EnclavePullCompleteSignal = {
   sourceId: string;
   completedAt: string;
   backfillLeaseToken?: string;
+  stats?: PullStatsSignal;
 };
 
 type _SynthesisRequestPinned = Expect<Equal<SynthesisRequest, EnclaveSynthesisRequest>>;
