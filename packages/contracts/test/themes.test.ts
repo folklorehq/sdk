@@ -16,6 +16,7 @@ const VALID_NODE = {
   ownerTeamId: null,
   ownerTeamName: 'Payments',
   ownerName: null,
+  ownerUserId: null,
   audience: 'Engineering',
 };
 
@@ -28,6 +29,15 @@ describe('themeGraphNodeSchema', () => {
   it('parses an empty source list', () => {
     const parsed = themeGraphNodeSchema.parse({ ...VALID_NODE, sources: [] });
     expect(parsed.sources).toEqual([]);
+  });
+
+  it('keeps the owner user id', () => {
+    const parsed = themeGraphNodeSchema.parse({ ...VALID_NODE, ownerUserId: 'user-1' });
+    expect(parsed.ownerUserId).toBe('user-1');
+  });
+
+  it('rejects a node without the owner user id field', () => {
+    expect(() => themeGraphNodeSchema.parse({ ...VALID_NODE, ownerUserId: undefined })).toThrow();
   });
 
   it('rejects a node without the sources field', () => {

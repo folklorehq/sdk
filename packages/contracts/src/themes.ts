@@ -17,6 +17,7 @@ export const themeGraphNodeSchema = z.object({
   ownerTeamId: z.string().nullable(),
   ownerTeamName: z.string().nullable(),
   ownerName: z.string().nullable(),
+  ownerUserId: z.string().nullable(),
   audience: z.string().nullable(),
 });
 export type ThemeGraphNode = z.infer<typeof themeGraphNodeSchema>;
