@@ -431,9 +431,7 @@ export const wikiPageBlockSchema = z
     lockedBy: z.string().nullable(),
     version: z.number(),
     generatedBy: z.string().nullable(),
-    // Content-free sha256 fingerprints: `promptHash` of the prompt that generated
-    // the block, `outputHash` of its output. Null on human-authored blocks. Bind a quality-feedback
-    // correction to the exact generated output it critiques; exposing hashes leaks nothing.
+    // promptHash is a random per-generation id; outputHash is the block's stored contentHash.
     promptHash: z.string().nullable(),
     outputHash: z.string().nullable(),
   })

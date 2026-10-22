@@ -221,6 +221,9 @@ const legacyEncryptedBodySchema = z
   })
   .strict();
 
+// promptHash: random per-generation id, never derived from prompt or content.
+export const SYNTHESIS_PROMPT_HASH_PATTERN = /^[0-9a-f]{64}$/;
+
 export const encryptedBodySchema = sealedContentEnvelopeV1Schema;
 export type EncryptedBody = z.infer<typeof encryptedBodySchema>;
 
