@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
+import { audienceLensIdSchema } from './me.js';
 
-const SEARCH_MAX_LIMIT = 100;
+export const ANSWER_DEFAULT_LIMIT = 8;
+export const ANSWER_MAX_LIMIT = 20;
 // The enclave truncates every preview to this before it leaves the index (enclave EnclaveFactRetriever
 // imports this same constant; answerer CITATION_SNIPPET_LIMIT); the bound is asserted on the wire so an
 // over-long body can't ride the field.
@@ -25,14 +27,22 @@ export const searchResponseSchema = z.object({
 });
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
 
-export const answerRequestSchema = z.object({
-  q: z.string().trim().min(1),
-  limit: z.number().int().min(1).max(SEARCH_MAX_LIMIT).optional(),
-});
+export const answerRequestSchema = z
+  .object({
+    q: z.string().trim().min(1),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .default(ANSWER_DEFAULT_LIMIT)
+      .transform((value) => Math.min(value, ANSWER_MAX_LIMIT)),
+    audience: audienceLensIdSchema.optional(),
+  })
+  .strict();
 export type AnswerRequest = z.infer<typeof answerRequestSchema>;
 
-/** Why an answer abstained: no audience-visible fact matched at all, or facts matched but the model's answer cited none of them. */
-export const abstainReasonSchema = z.enum(['no_context', 'no_citations']);
+/** Why an answer abstained: no audience-visible fact matched, the audience lens held none while something outside it matched, or the model's answer cited none of the facts. */
+export const abstainReasonSchema = z.enum(['no_context', 'no_citations', 'outside_lens']);
 export type AbstainReason = z.infer<typeof abstainReasonSchema>;
 
 const answerBaseSchema = z.object({

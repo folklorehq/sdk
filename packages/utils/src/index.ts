@@ -67,7 +67,7 @@ export { abortAfter, mapWithConcurrency, primaryRejection, timeLimited, sleep } 
 export { parseJsonFence, extractJsonObject, isRecord } from './json.js';
 export { ingestWebhookUrl } from './ingest.js';
 export { isAllowedRecallMeetingUrl } from './recall/meeting-host.js';
-export { mulberry32, seedFromString } from './random.js';
+export { mulberry32, seedFromString, shuffle } from './random.js';
 export { clamp01, cosine, mean, median, jaccard } from './math.js';
 export {
   PUNYCODE_ACE_PREFIX,

@@ -16,3 +16,11 @@ export function seedFromString(s: string): number {
   for (const c of s) a = (a + c.charCodeAt(0)) | 0;
   return a;
 }
+
+/** A new array of `items` in an order drawn from `random`; the input is untouched. */
+export function shuffle<T>(items: readonly T[], random: () => number): T[] {
+  const pool = [...items];
+  const shuffled: T[] = [];
+  while (pool.length > 0) shuffled.push(...pool.splice(Math.floor(random() * pool.length), 1));
+  return shuffled;
+}
