@@ -55,3 +55,51 @@ export const teamOnboardingViewSchema = z
   })
   .strict();
 export type TeamOnboardingView = z.infer<typeof teamOnboardingViewSchema>;
+
+export const IDENTITY_LINK_KINDS = ['github', 'slack', 'linear', 'notion'] as const;
+// UNWIRED: github and linear identity links cannot complete yet.
+export const LIVE_IDENTITY_LINK_KINDS = [
+  'slack',
+  'notion',
+] as const satisfies readonly (typeof IDENTITY_LINK_KINDS)[number][];
+
+export const TEAM_TOOL_KINDS = [
+  'github',
+  'slack',
+  'notion',
+  'linear',
+  'jira',
+  'intercom',
+  'confluence',
+] as const;
+export const teamToolKindSchema = z.enum(TEAM_TOOL_KINDS);
+export type TeamToolKind = z.infer<typeof teamToolKindSchema>;
+
+const isLiveIdentityLinkKind = (kind: string): boolean =>
+  (LIVE_IDENTITY_LINK_KINDS as readonly string[]).includes(kind);
+
+const storedTeamToolSchema = z
+  .object({ sourceKind: teamToolKindSchema, mandatory: z.boolean() })
+  .strict();
+
+// A stored row may predate the live-kind rule, so only writes enforce it.
+export const teamToolSchema = storedTeamToolSchema.refine(
+  (tool) => !tool.mandatory || isLiveIdentityLinkKind(tool.sourceKind),
+  {
+    message: 'mandatory requires a live identity-link kind',
+  },
+);
+export type TeamTool = z.infer<typeof teamToolSchema>;
+
+export const teamToolsInputSchema = z
+  .object({ tools: z.array(teamToolSchema).max(TEAM_TOOL_KINDS.length) })
+  .strict()
+  .refine((input) => new Set(input.tools.map((t) => t.sourceKind)).size === input.tools.length, {
+    message: 'duplicate source kind',
+  });
+export type TeamToolsInput = z.infer<typeof teamToolsInputSchema>;
+
+export const teamToolsSchema = z
+  .object({ teamId: z.string().uuid(), tools: z.array(storedTeamToolSchema), canEdit: z.boolean() })
+  .strict();
+export type TeamTools = z.infer<typeof teamToolsSchema>;
