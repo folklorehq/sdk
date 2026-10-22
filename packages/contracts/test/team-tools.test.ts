@@ -22,13 +22,30 @@ describe('team tools contracts', () => {
   });
 
   it('accepts a stored mandatory row on such a kind in the read response', () => {
-    const view = { teamId: TEAM_ID, tools: [MANDATORY_GITHUB], canEdit: true };
+    const view = {
+      teamId: TEAM_ID,
+      tools: [MANDATORY_GITHUB],
+      canEdit: true,
+      linkableKinds: ['slack'],
+    };
     expect(teamToolsSchema.safeParse(view).success).toBe(true);
   });
 
   it('refuses a read response whose team id is not a uuid', () => {
-    expect(teamToolsSchema.safeParse({ teamId: 'team-1', tools: [], canEdit: false }).success).toBe(
-      false,
-    );
+    expect(
+      teamToolsSchema.safeParse({ teamId: 'team-1', tools: [], canEdit: false, linkableKinds: [] })
+        .success,
+    ).toBe(false);
+  });
+
+  it('requires linkableKinds in the read response', () => {
+    const view = { teamId: TEAM_ID, tools: [], canEdit: true };
+    expect(teamToolsSchema.safeParse(view).success).toBe(false);
+    expect(teamToolsSchema.safeParse({ ...view, linkableKinds: [] }).success).toBe(true);
+  });
+
+  it('refuses a linkable kind that is not a team tool kind', () => {
+    const view = { teamId: TEAM_ID, tools: [], canEdit: true, linkableKinds: ['gmail'] };
+    expect(teamToolsSchema.safeParse(view).success).toBe(false);
   });
 });

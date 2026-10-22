@@ -102,7 +102,12 @@ export const teamToolsInputSchema = z
 export type TeamToolsInput = z.infer<typeof teamToolsInputSchema>;
 
 export const teamToolsSchema = z
-  .object({ teamId: z.string().uuid(), tools: z.array(storedTeamToolSchema), canEdit: z.boolean() })
+  .object({
+    teamId: z.string().uuid(),
+    tools: z.array(storedTeamToolSchema),
+    canEdit: z.boolean(),
+    linkableKinds: z.array(teamToolKindSchema),
+  })
   .strict();
 export type TeamTools = z.infer<typeof teamToolsSchema>;
 
