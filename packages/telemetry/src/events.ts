@@ -56,7 +56,6 @@ export const TelemetryEvent = {
 
 export type InvitePresetLabel = 'admin' | 'member' | 'custom';
 export type InviteRevocationCause =
-  // not yet wired: emitted by WS-3 (member suspension)
   | 'member_suspended'
   | 'invite_permission_removed'
   | 'inviter_no_longer_permitted'

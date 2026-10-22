@@ -102,3 +102,12 @@ export function legacyRoleLabel(grant: WorkspaceGrant): MembershipRole {
 export function permissionsForLegacyRole(role: MembershipRole): WorkspacePermission[] {
   return role === 'member' ? [...WORKSPACE_PRESETS.member] : [...WORKSPACE_PRESETS.admin];
 }
+
+export const setMemberPermissionsInputSchema = z
+  .object({
+    permissions: z.array(workspacePermissionSchema).max(WORKSPACE_PERMISSIONS.length),
+    // The target's set as the caller's page showed it; the write applies only if it is still stored.
+    expectedPermissions: z.array(z.string()).max(WORKSPACE_PERMISSIONS.length),
+  })
+  .strict();
+export type SetMemberPermissionsInput = z.infer<typeof setMemberPermissionsInputSchema>;
