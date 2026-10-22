@@ -105,3 +105,6 @@ export const teamToolsSchema = z
   .object({ teamId: z.string().uuid(), tools: z.array(storedTeamToolSchema), canEdit: z.boolean() })
   .strict();
 export type TeamTools = z.infer<typeof teamToolsSchema>;
+
+export const viewerRequiredLinksSchema = z.object({ requiredLinks: z.array(z.string()) }).strict();
+export type ViewerRequiredLinks = z.infer<typeof viewerRequiredLinksSchema>;
