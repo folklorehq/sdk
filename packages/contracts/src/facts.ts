@@ -66,6 +66,51 @@ export const factListResponseSchema = z
   .strict();
 export type FactListResponse = z.infer<typeof factListResponseSchema>;
 
+export const FACT_VOLUME_MAX_DAYS = 31;
+const FACT_VOLUME_DEFAULT_DAYS = 14;
+const MAX_UTC_OFFSET_MINUTES = 840;
+
+export const factVolumeQuerySchema = z
+  .object({
+    days: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(FACT_VOLUME_MAX_DAYS)
+      .default(FACT_VOLUME_DEFAULT_DAYS),
+    tzOffsetMinutes: z.coerce
+      .number()
+      .int()
+      .min(-MAX_UTC_OFFSET_MINUTES)
+      .max(MAX_UTC_OFFSET_MINUTES)
+      .default(0),
+  })
+  .strict();
+export type FactVolumeQuery = z.infer<typeof factVolumeQuerySchema>;
+
+export const factSourceCountSchema = z
+  .object({ sourceKind: factSourceKindSchema, count: z.number().int().nonnegative() })
+  .strict();
+export type FactSourceCount = z.infer<typeof factSourceCountSchema>;
+
+// total counts every kind, so total >= sum(sources[].count); the remainder is kinds outside factSourceKindSchema.
+export const factVolumeResponseSchema = z
+  .object({
+    days: z.array(
+      z
+        .object({
+          date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          total: z.number().int().nonnegative(),
+          sources: z.array(factSourceCountSchema),
+        })
+        .strict(),
+    ),
+    sources: z.array(factSourceCountSchema),
+    total: z.number().int().nonnegative(),
+  })
+  .strict();
+export type FactVolumeResponse = z.infer<typeof factVolumeResponseSchema>;
+
 export const factExcerptResponseSchema = z
   .object({
     factId: z.string().uuid(),
