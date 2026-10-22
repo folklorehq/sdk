@@ -6,7 +6,7 @@
 // needs no imports and spans files the tests never load.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join, relative } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -30,7 +30,7 @@ function parseArgs(argv) {
 const CONTENT_IDENTS = String.raw`plaintext|decrypted|clearText|cleartext|factBody|wikiText|rawBody|bodyText|messageText`;
 const PROSE_FIELD_NAMES = String.raw`body|content|text|summary|description|prompt|message|snippet|excerpt`;
 
-const RULES = [
+const BASE_RULES = [
   {
     id: 'cache-content-value',
     description: 'cache.set() with a value derived from decrypted content',
@@ -47,7 +47,8 @@ const RULES = [
   },
   {
     id: 'wire-prose-string-field',
-    description: 'prose-named z.string() field in a shared wire contract (potential plaintext channel)',
+    description:
+      'prose-named z.string() field in a shared wire contract (potential plaintext channel)',
     include: /packages\/contracts\/src\/.*\.ts$/,
     pattern: new RegExp(String.raw`^\s*(?:${PROSE_FIELD_NAMES})\s*:\s*z\.string\(`, 'i'),
   },
@@ -68,6 +69,18 @@ const RULES = [
   },
 ];
 
+const PRIVATE_RULES_PATH = join(HERE, 'private-rules.mjs');
+const PUBLIC_MIRROR_SENTINEL_PATH = join(HERE, 'PUBLIC_MIRROR');
+
+async function loadRules() {
+  if (!existsSync(PRIVATE_RULES_PATH)) {
+    if (existsSync(PUBLIC_MIRROR_SENTINEL_PATH)) return BASE_RULES;
+    throw new Error('leak_scan_private_rules_missing');
+  }
+  const { PRIVATE_RULES } = await import(pathToFileURL(PRIVATE_RULES_PATH).href);
+  return [...BASE_RULES, ...PRIVATE_RULES];
+}
+
 function trackedFiles(scanRoot) {
   if (scanRoot === DEFAULT_REPO_ROOT) {
     const out = execFileSync('git', ['ls-files'], { cwd: scanRoot, encoding: 'utf8' });
@@ -87,6 +100,16 @@ function loadAllowlist(allowlistPath) {
   return new Set(entries.map((e) => `${e.rule}::${e.path}::${e.match}`));
 }
 
+function scanMultiline(source, path, rule) {
+  const pattern = new RegExp(rule.pattern.source, 'gm');
+  return [...source.matchAll(pattern)].map((hit) => ({
+    rule: rule.id,
+    path,
+    line: source.slice(0, hit.index).split('\n').length,
+    match: hit[0].split('\n')[0].trim().slice(0, 200),
+  }));
+}
+
 function scanFile(scanRoot, path, rules) {
   const abs = join(scanRoot, path);
   let source;
@@ -99,6 +122,10 @@ function scanFile(scanRoot, path, rules) {
   const lines = source.split('\n');
   for (const rule of rules) {
     if (!rule.include.test(path)) continue;
+    if (rule.multiline) {
+      findings.push(...scanMultiline(source, path, rule));
+      continue;
+    }
     lines.forEach((line, i) => {
       if (rule.pattern.test(line)) {
         findings.push({ rule: rule.id, path, line: i + 1, match: line.trim().slice(0, 200) });
@@ -108,13 +135,14 @@ function scanFile(scanRoot, path, rules) {
   return findings;
 }
 
-function main() {
+async function main() {
+  const rules = await loadRules();
   const { scanRoot, allowlistPath } = parseArgs(process.argv);
   const allowlist = loadAllowlist(allowlistPath);
   const files = trackedFiles(scanRoot).filter((f) => !f.includes('packages/leak-guard/'));
   const findings = [];
   for (const file of files) {
-    for (const finding of scanFile(scanRoot, file, RULES)) {
+    for (const finding of scanFile(scanRoot, file, rules)) {
       const key = `${finding.rule}::${finding.path}::${finding.match}`;
       if (!allowlist.has(key)) findings.push(finding);
     }
@@ -136,4 +164,4 @@ function main() {
   process.exit(1);
 }
 
-main();
+await main();
