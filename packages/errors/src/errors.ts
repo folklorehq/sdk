@@ -106,6 +106,31 @@ export class LastSuperAdminError extends AppError {
   }
 }
 
+/** The action needs a fresh authenticator or recovery code and the one sent did not verify. */
+export class StepUpRequiredError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('A current verification code is required', {
+      ...options,
+      code: 'step_up_required',
+      category: 'forbidden',
+    });
+  }
+}
+
+/** The target is already paused, so a second pause is refused. */
+export class AlreadyPausedError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('Already paused', { ...options, code: 'already_paused', category: 'conflict' });
+  }
+}
+
+/** The target is not paused, so a resume has nothing to undo. */
+export class NotPausedError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('Not paused', { ...options, code: 'not_paused', category: 'conflict' });
+  }
+}
+
 /** A rate limit (ours or an upstream source's) was hit. */
 export class RateLimitError extends AppError {
   constructor(message: string, options: AppErrorOptions = {}) {

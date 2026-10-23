@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import {
+  AlreadyPausedError,
+  NotPausedError,
+  StepUpRequiredError,
   AmbiguousHostError,
   ConcurrencyLimitError,
   AppError,
@@ -50,6 +53,16 @@ describe('AppError subclasses', () => {
     expect(new CannotChangeSelfError().httpStatus).toBe(409);
     expect(new LastSuperAdminError().code).toBe('last_super_admin');
     expect(new LastSuperAdminError().httpStatus).toBe(409);
+  });
+
+  it('uses stable step-up and pause-state codes', () => {
+    expect(new StepUpRequiredError().code).toBe('step_up_required');
+    expect(new StepUpRequiredError().httpStatus).toBe(403);
+    expect(new AlreadyPausedError().code).toBe('already_paused');
+    expect(new AlreadyPausedError().httpStatus).toBe(409);
+    expect(new NotPausedError().code).toBe('not_paused');
+    expect(new NotPausedError().httpStatus).toBe(409);
+    expect(new NotPausedError()).toBeInstanceOf(AppError);
   });
 
   it.each([
