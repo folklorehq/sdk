@@ -2,6 +2,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   AlreadyPausedError,
+  FleetStoppedError,
+  HostAgentOutdatedError,
+  NotOnHostError,
+  PlatformWorkspaceError,
   NotPausedError,
   StepUpRequiredError,
   AmbiguousHostError,
@@ -63,6 +67,17 @@ describe('AppError subclasses', () => {
     expect(new NotPausedError().code).toBe('not_paused');
     expect(new NotPausedError().httpStatus).toBe(409);
     expect(new NotPausedError()).toBeInstanceOf(AppError);
+  });
+
+  it.each([
+    ['fleet_stopped', new FleetStoppedError()],
+    ['platform_workspace', new PlatformWorkspaceError()],
+    ['not_on_a_host', new NotOnHostError()],
+    ['host_agent_outdated', new HostAgentOutdatedError()],
+  ])('uses the stable pause refusal code %s', (code, error) => {
+    expect(error.code).toBe(code);
+    expect(error.httpStatus).toBe(409);
+    expect(error).toBeInstanceOf(AppError);
   });
 
   it.each([

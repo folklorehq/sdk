@@ -131,6 +131,46 @@ export class NotPausedError extends AppError {
   }
 }
 
+/** A fleet-wide stop is in effect, so a host pause or resume is refused. */
+export class FleetStoppedError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('The fleet is stopped', { ...options, code: 'fleet_stopped', category: 'conflict' });
+  }
+}
+
+/** The target is the platform workspace, which cannot be paused. */
+export class PlatformWorkspaceError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('The platform workspace cannot be paused', {
+      ...options,
+      code: 'platform_workspace',
+      category: 'conflict',
+    });
+  }
+}
+
+/** The workspace is not placed on a shared host, so there is nothing to pause it on. */
+export class NotOnHostError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('The workspace is not on a host', {
+      ...options,
+      code: 'not_on_a_host',
+      category: 'conflict',
+    });
+  }
+}
+
+/** The host's agent cannot apply a per-workspace pause yet. */
+export class HostAgentOutdatedError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('The host cannot apply a workspace pause yet', {
+      ...options,
+      code: 'host_agent_outdated',
+      category: 'conflict',
+    });
+  }
+}
+
 /** A rate limit (ours or an upstream source's) was hit. */
 export class RateLimitError extends AppError {
   constructor(message: string, options: AppErrorOptions = {}) {
