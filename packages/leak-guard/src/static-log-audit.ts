@@ -26,7 +26,12 @@ const DYNAMIC_VALUE = Symbol('dynamic_log_value');
 // keys (never their values), and the CLI prints nothing else. It is covered by
 // apps/control-plane-server/test/composition-preflight-cli.test.ts, which includes a guard that a
 // configured value can never reach a line.
+//
+// The theme-merge calibration CLI is an operator script whose stderr carries only fixed messages
+// or a five-character SQLSTATE (CalibrationCliError.describe), covered by
+// apps/worker/test/merge-calibration-report.test.ts.
 const CONSOLE_EXEMPT_FILES = new Set([
+  'apps/worker/src/workers/themes/merge-calibration/calibrate-theme-merges.ts',
   'apps/api/src/main.ts',
   'apps/pool-provisioning-runner/src/main.ts',
   'apps/pool-provisioning-runner/src/lambda.ts',
