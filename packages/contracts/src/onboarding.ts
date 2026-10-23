@@ -77,7 +77,7 @@ export const TEAM_TOOL_KINDS = [
 export const teamToolKindSchema = z.enum(TEAM_TOOL_KINDS);
 export type TeamToolKind = z.infer<typeof teamToolKindSchema>;
 
-const isLiveIdentityLinkKind = (kind: string): boolean =>
+export const isLiveIdentityLinkKind = (kind: string): boolean =>
   (LIVE_IDENTITY_LINK_KINDS as readonly string[]).includes(kind);
 
 const storedTeamToolSchema = z
