@@ -17,6 +17,7 @@ export {
   HostLocationUnknownError,
   HostBusyError,
   LastSuperAdminError,
+  StaffAccessChangedError,
   StepUpRequiredError,
   AlreadyPausedError,
   NotPausedError,

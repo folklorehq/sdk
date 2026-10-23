@@ -21,6 +21,7 @@ import {
   InternalError,
   InvalidBillingBasisError,
   LastSuperAdminError,
+  StaffAccessChangedError,
   NotFoundError,
   PERSONAL_SOURCE_FACT_DENIALS,
   PersonalSourceFactRejectedError,
@@ -57,6 +58,12 @@ describe('AppError subclasses', () => {
     expect(new CannotChangeSelfError().httpStatus).toBe(409);
     expect(new LastSuperAdminError().code).toBe('last_super_admin');
     expect(new LastSuperAdminError().httpStatus).toBe(409);
+  });
+
+  it('uses a stable code when staff access moved since it was read', () => {
+    expect(new StaffAccessChangedError().code).toBe('staff_access_changed');
+    expect(new StaffAccessChangedError().httpStatus).toBe(409);
+    expect(new StaffAccessChangedError()).toBeInstanceOf(AppError);
   });
 
   it('uses stable step-up and pause-state codes', () => {

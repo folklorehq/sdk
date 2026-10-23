@@ -106,6 +106,17 @@ export class LastSuperAdminError extends AppError {
   }
 }
 
+/** A staff member's access changed after the caller read it, so the write is refused. */
+export class StaffAccessChangedError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('Staff access changed since it was read', {
+      ...options,
+      code: 'staff_access_changed',
+      category: 'conflict',
+    });
+  }
+}
+
 /** The action needs a fresh authenticator or recovery code and the one sent did not verify. */
 export class StepUpRequiredError extends AppError {
   constructor(options: AppErrorOptions = {}) {
