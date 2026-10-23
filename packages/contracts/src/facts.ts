@@ -118,3 +118,37 @@ export const factExcerptResponseSchema = z
   })
   .strict();
 export type FactExcerptResponse = z.infer<typeof factExcerptResponseSchema>;
+
+export const FACT_REF_MAX_CHARS = 200;
+export const FACT_REF_URL_MAX_CHARS = 300;
+const FACT_REF_URL_PREFIX = 'https://github.com/';
+const FACT_REF_ID_SEPARATOR = ',';
+
+export const factRefsQuerySchema = z
+  .object({
+    ids: z
+      .string()
+      .transform((raw) => [...new Set(raw.split(FACT_REF_ID_SEPARATOR))])
+      .pipe(z.array(z.string().uuid()).min(1).max(FACT_EXCERPT_BATCH_MAX)),
+  })
+  .strict();
+export type FactRefsQuery = z.infer<typeof factRefsQuerySchema>;
+
+export const factRefSchema = z
+  .object({
+    factId: z.string().uuid(),
+    sourceKind: factSourceKindSchema,
+    ref: z.string().min(1).max(FACT_REF_MAX_CHARS),
+    url: z
+      .string()
+      .max(FACT_REF_URL_MAX_CHARS)
+      .refine((url) => url.startsWith(FACT_REF_URL_PREFIX))
+      .optional(),
+  })
+  .strict();
+export type FactRef = z.infer<typeof factRefSchema>;
+
+export const factRefsResponseSchema = z
+  .object({ refs: z.array(factRefSchema).max(FACT_EXCERPT_BATCH_MAX) })
+  .strict();
+export type FactRefsResponse = z.infer<typeof factRefsResponseSchema>;

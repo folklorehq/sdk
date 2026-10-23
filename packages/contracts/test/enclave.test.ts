@@ -31,6 +31,8 @@ import {
   teamOnboardingSynthesisRequestSchema,
   teamOnboardingSynthesisResultSchema,
   themeSynthesisRequestSchema,
+  themeRequestFactSourceConsistent,
+  THEME_FACT_SOURCE_LEASE_SNAPSHOT,
   themeContainerFactRefSchema,
   THEME_SURFACE_CEILING,
   themeSynthesisResultSchema,
@@ -1362,6 +1364,79 @@ describe('themeSynthesisRequestSchema', () => {
     expect(parsed.leaseToken).toBe('legacy-lease-must-not-cross-the-wire');
     expect(parsed.isAuthoritativeBatch).toBe(true);
   });
+
+  const header = {
+    type: 'theme_synthesis',
+    requestId: 'req-1',
+    inputVersion: 'input-v1',
+    leaseToken: 'lease-1',
+    orgId: 'org-1',
+  };
+  const identity = { containerId: 'c1', label: 'github_pr', team: 'payments' };
+  const inline = { ...identity, factRefs: [] };
+
+  it('parses an inline request identically to its pre-factSource shape', () => {
+    const parsed = themeSynthesisRequestSchema.parse({ ...header, containers: [inline] });
+    expect(parsed).toStrictEqual({ ...header, containers: [inline] });
+    expect(themeRequestFactSourceConsistent(parsed)).toBe(true);
+  });
+
+  it('accepts container identities only under the lease_snapshot fact source', () => {
+    const parsed = themeSynthesisRequestSchema.parse({
+      ...header,
+      factSource: THEME_FACT_SOURCE_LEASE_SNAPSHOT,
+      containers: [identity],
+    });
+    expect(parsed.containers).toStrictEqual([identity]);
+    expect(themeRequestFactSourceConsistent(parsed)).toBe(true);
+  });
+
+  it('parses identities without a fact source but marks them inconsistent', () => {
+    const parsed = themeSynthesisRequestSchema.parse({ ...header, containers: [identity] });
+    expect(themeRequestFactSourceConsistent(parsed)).toBe(false);
+  });
+
+  it('marks inline refs under a fact source inconsistent', () => {
+    const parsed = themeSynthesisRequestSchema.parse({
+      ...header,
+      factSource: THEME_FACT_SOURCE_LEASE_SNAPSHOT,
+      containers: [inline],
+    });
+    expect(themeRequestFactSourceConsistent(parsed)).toBe(false);
+  });
+
+  it('rejects an identity carrying any extra key and an unknown fact source', () => {
+    const base = { ...header, factSource: THEME_FACT_SOURCE_LEASE_SNAPSHOT };
+    expect(
+      themeSynthesisRequestSchema.safeParse({
+        ...base,
+        containers: [{ ...identity, body: 'x' }],
+      }).success,
+    ).toBe(false);
+    expect(
+      themeSynthesisRequestSchema.safeParse({
+        ...header,
+        factSource: 'elsewhere',
+        containers: [identity],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects a container list that mixes identities and inline refs', () => {
+    expect(
+      themeSynthesisRequestSchema.safeParse({ ...header, containers: [identity, inline] }).success,
+    ).toBe(false);
+  });
+
+  it('accepts an empty inline batch but rejects an empty lease_snapshot batch', () => {
+    expect(themeRequestFactSourceConsistent({ containers: [] })).toBe(true);
+    expect(
+      themeRequestFactSourceConsistent({
+        factSource: THEME_FACT_SOURCE_LEASE_SNAPSHOT,
+        containers: [],
+      }),
+    ).toBe(false);
+  });
 });
 
 describe('themeContainerFactRefSchema sensitivity tier', () => {
@@ -1723,18 +1798,25 @@ type EnclaveThemeSynthesisRequest = {
   leaseToken: string;
   orgId: string;
   isAuthoritativeBatch?: boolean;
-  containers: {
-    containerId: string;
-    label: string;
-    team: string;
-    factRefs: {
-      factId: string;
-      s3Key: string;
-      occurredAt: string;
-      entities: string[];
-      sensitivityLevel?: 'public' | 'team_scoped' | 'restricted' | 'confidential' | undefined;
-    }[];
-  }[];
+  factSource?: 'lease_snapshot' | undefined;
+  containers:
+    | {
+        containerId: string;
+        label: string;
+        team: string;
+        factRefs: {
+          factId: string;
+          s3Key: string;
+          occurredAt: string;
+          entities: string[];
+          sensitivityLevel?: 'public' | 'team_scoped' | 'restricted' | 'confidential' | undefined;
+        }[];
+      }[]
+    | {
+        containerId: string;
+        label: string;
+        team: string;
+      }[];
 };
 
 type EnclavePullDueMessage =

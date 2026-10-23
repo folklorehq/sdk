@@ -789,6 +789,17 @@ export const themeContainerRefSchema = z.object({
 });
 export type ThemeContainerRef = z.infer<typeof themeContainerRefSchema>;
 
+export const THEME_FACT_SOURCE_LEASE_SNAPSHOT = 'lease_snapshot';
+
+export const themeContainerIdentitySchema = z
+  .object({
+    containerId: z.string(),
+    label: z.string(),
+    team: z.string(),
+  })
+  .strict();
+export type ThemeContainerIdentity = z.infer<typeof themeContainerIdentitySchema>;
+
 export const themeSynthesisRequestSchema = z.object({
   type: z.literal('theme_synthesis'),
   requestId: z.string(),
@@ -796,9 +807,20 @@ export const themeSynthesisRequestSchema = z.object({
   leaseToken: z.string().min(1),
   orgId: z.string(),
   isAuthoritativeBatch: z.boolean().optional(),
-  containers: z.array(themeContainerRefSchema),
+  factSource: z.literal(THEME_FACT_SOURCE_LEASE_SNAPSHOT).optional(),
+  containers: z.union([z.array(themeContainerRefSchema), z.array(themeContainerIdentitySchema)]),
 });
 export type ThemeSynthesisRequest = z.infer<typeof themeSynthesisRequestSchema>;
+
+export function themeRequestFactSourceConsistent(
+  req: Pick<ThemeSynthesisRequest, 'factSource' | 'containers'>,
+): boolean {
+  const carriesRefs = (container: object): boolean => 'factRefs' in container;
+  if (req.factSource !== undefined && req.containers.length === 0) return false;
+  return req.containers.every((container) =>
+    req.factSource === undefined ? carriesRefs(container) : !carriesRefs(container),
+  );
+}
 
 // Cross-theme team-onboarding synthesis. One team theme on the
 // wire: its id, cleartext label, section-selecting type, and the content-free fact refs (S3 key +

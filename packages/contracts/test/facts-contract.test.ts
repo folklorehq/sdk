@@ -4,6 +4,7 @@ import {
   FACT_EXCERPT_BATCH_MAX,
   FACT_EXCERPT_MAX_CHARS,
   factExcerptResponseSchema,
+  factRefSchema,
   factSummarySchema,
 } from '../src/facts.js';
 import { SNIPPET_MAX_CHARS } from '../src/search.js';
@@ -56,5 +57,25 @@ describe('fact summary snippet', () => {
 
     expect(factSummarySchema.parse({ ...SUMMARY, snippet: atBound }).snippet).toBe(atBound);
     expect(factSummarySchema.safeParse({ ...SUMMARY, snippet: `${atBound}x` }).success).toBe(false);
+  });
+});
+
+describe('fact ref contract', () => {
+  const REF = { factId: FACT_ID, sourceKind: 'github', ref: 'acme/widgets#1' } as const;
+
+  it('accepts a github https url and none', () => {
+    expect(factRefSchema.safeParse(REF).success).toBe(true);
+    expect(
+      factRefSchema.safeParse({ ...REF, url: 'https://github.com/acme/widgets/pull/1' }).success,
+    ).toBe(true);
+  });
+
+  it.each([
+    'javascript:alert(1)',
+    'http://github.com/acme/widgets/pull/1',
+    'https://evil.example/acme/widgets/pull/1',
+    'https://github.com.evil.example/x',
+  ])('rejects %s', (url) => {
+    expect(factRefSchema.safeParse({ ...REF, url }).success).toBe(false);
   });
 });

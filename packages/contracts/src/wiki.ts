@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
-import { documentTypeSchema } from './document-types.js';
+import { documentTypeSchema, KNOWN_DOCUMENT_TYPE_IDS } from './document-types.js';
 
 import { canonicalBase64BytesSchema } from './shared.js';
 
@@ -542,6 +542,53 @@ export const wikiStubListEntrySchema = z
   })
   .strict();
 export type WikiStubListEntry = z.infer<typeof wikiStubListEntrySchema>;
+
+export const WIKI_LIST_DEFAULT_LIMIT = 50;
+export const WIKI_LIST_MAX_LIMIT = 100;
+export const WIKI_LIST_QUERY_MAX_CHARS = 200;
+export const WIKI_LIST_CURSOR_MAX_CHARS = 512;
+
+export const wikiListQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(WIKI_LIST_MAX_LIMIT).default(WIKI_LIST_DEFAULT_LIMIT),
+    cursor: z.string().min(1).max(WIKI_LIST_CURSOR_MAX_CHARS).optional(),
+    q: z.string().trim().min(1).max(WIKI_LIST_QUERY_MAX_CHARS).optional(),
+    docType: z.enum(KNOWN_DOCUMENT_TYPE_IDS).optional(),
+    team: z.string().uuid().optional(),
+    audience: z.string().uuid().optional(),
+  })
+  .strict();
+export type WikiListQuery = z.infer<typeof wikiListQuerySchema>;
+
+export const wikiListKindSchema = z.enum(['theme', 'team_onboarding']);
+export type WikiListKind = z.infer<typeof wikiListKindSchema>;
+
+export const wikiListItemSchema = z
+  .object({
+    id: z.string(),
+    kind: wikiListKindSchema,
+    themeId: z.string().nullable(),
+    onboardingTeamId: z.string().nullable(),
+    title: z.string(),
+    docType: documentTypeSchema,
+    audienceId: z.string().nullable(),
+    team: z.object({ id: z.string(), name: z.string() }).strict().nullable(),
+    owner: z.object({ userId: z.string(), name: z.string().nullable() }).strict().nullable(),
+    updatedAt: z.string(),
+  })
+  .strict();
+export type WikiListItem = z.infer<typeof wikiListItemSchema>;
+
+export const wikiListResponseSchema = z
+  .object({
+    pages: z.array(wikiListItemSchema),
+    limit: z.number().int(),
+    nextCursor: z.string().nullable(),
+    truncated: z.boolean(),
+    stubs: z.array(wikiStubListEntrySchema).optional(),
+  })
+  .strict();
+export type WikiListResponse = z.infer<typeof wikiListResponseSchema>;
 
 export const FEED_LINE_MAX_CHARS = 280;
 export const WIKI_FEED_MAX_ENTRIES = 20;

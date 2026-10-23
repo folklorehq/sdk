@@ -14,6 +14,8 @@ import {
   wikiFeedResponseSchema,
   wikiPageResponseSchema,
   wikiPageStatusResponseSchema,
+  wikiListQuerySchema,
+  wikiListResponseSchema,
   wikiStubListEntrySchema,
   wikiStubResponseSchema,
   wikiPublishRequestSchema,
@@ -821,5 +823,51 @@ describe('wikiStubListEntrySchema', () => {
     expect(wikiStubListEntrySchema.safeParse(entry).success).toBe(true);
     expect(wikiStubListEntrySchema.safeParse({ ...entry, kind: 'page' }).success).toBe(false);
     expect(wikiStubListEntrySchema.safeParse({ ...entry, state: 'building' }).success).toBe(false);
+  });
+});
+
+describe('wiki list contracts', () => {
+  const TEAM = '11111111-1111-4111-8111-111111111111';
+
+  it('defaults the limit and rejects unknown, oversized or malformed query fields', () => {
+    expect(wikiListQuerySchema.parse({})).toEqual({ limit: 50 });
+    expect(wikiListQuerySchema.safeParse({ limit: '101' }).success).toBe(false);
+    expect(wikiListQuerySchema.safeParse({ offset: '5' }).success).toBe(false);
+    expect(wikiListQuerySchema.safeParse({ team: 'not-a-uuid' }).success).toBe(false);
+    expect(wikiListQuerySchema.safeParse({ audience: 'x' }).success).toBe(false);
+    expect(wikiListQuerySchema.safeParse({ docType: 'nonsense' }).success).toBe(false);
+    expect(
+      wikiListQuerySchema.parse({ q: '  auth ', team: TEAM, docType: 'runbook' }),
+    ).toMatchObject({ q: 'auth', team: TEAM, docType: 'runbook' });
+  });
+
+  it('accepts a theme row and a team onboarding row and rejects extra fields', () => {
+    const base = {
+      id: 'p1',
+      themeId: 't1',
+      onboardingTeamId: null,
+      title: 'Auth',
+      docType: 'concept',
+      audienceId: null,
+      team: { id: TEAM, name: 'Platform' },
+      owner: { userId: 'u1', name: 'Ada' },
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const onboarding = { ...base, kind: 'team_onboarding', themeId: null, onboardingTeamId: TEAM };
+    const parsed = wikiListResponseSchema.parse({
+      pages: [{ ...base, kind: 'theme' }, onboarding],
+      limit: 50,
+      nextCursor: null,
+      truncated: false,
+    });
+    expect(parsed.pages).toHaveLength(2);
+    expect(
+      wikiListResponseSchema.safeParse({
+        pages: [{ ...base, kind: 'theme', body: 'x' }],
+        limit: 1,
+        nextCursor: null,
+        truncated: false,
+      }).success,
+    ).toBe(false);
   });
 });
