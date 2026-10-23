@@ -855,6 +855,15 @@ export const JUDGE_CONFIDENCE_STEP = 0.05;
 const JUDGE_CONFIDENCE_STEP_TOLERANCE = 1e-9;
 const JUDGEMENT_REQUEST_ID_PATTERN = /^[0-9a-f]{64}$/;
 
+const judgeConfidenceSchema = z
+  .number()
+  .min(0)
+  .max(1)
+  .refine((confidence) => {
+    const steps = confidence / JUDGE_CONFIDENCE_STEP;
+    return Math.abs(steps - Math.round(steps)) < JUDGE_CONFIDENCE_STEP_TOLERANCE;
+  }, 'confidence must be quantized to 0.05');
+
 export const JUDGE_SENSITIVITY_ORDER = ['public', 'team_scoped'] as const;
 export const judgeSensitivitySchema = z.enum(JUDGE_SENSITIVITY_ORDER);
 export type JudgeSensitivity = z.infer<typeof judgeSensitivitySchema>;
@@ -937,6 +946,53 @@ export const factAuthorReextractRequestSchema = z
   .strict();
 export type FactAuthorReextractRequest = z.infer<typeof factAuthorReextractRequestSchema>;
 
+export const THEME_MERGE_ADJUDICATION_MAX_PAIRS = 10;
+export const THEME_MERGE_NEIGHBOR_MAX = 3;
+// Theme ids are sha256-derived uuid-shaped strings, not RFC uuids (theme-synthesis uuidFrom).
+const THEME_ID_MAX = 64;
+
+export const THEME_MERGE_VERDICTS = ['merge', 'link', 'distinct', 'abstain'] as const;
+export const themeMergeVerdictSchema = z.enum(THEME_MERGE_VERDICTS);
+export type ThemeMergeVerdict = z.infer<typeof themeMergeVerdictSchema>;
+
+export const THEME_MERGE_REASONS = [
+  'same_concept',
+  'renamed',
+  'same_effort_other_source',
+  'subtopic',
+  'overlapping_scope',
+  'shared_entities_only',
+  'different_concept',
+  'insufficient_evidence',
+  'theme_unavailable',
+] as const;
+export const themeMergeReasonSchema = z.enum(THEME_MERGE_REASONS);
+export type ThemeMergeReason = z.infer<typeof themeMergeReasonSchema>;
+
+const themeIdSchema = z.string().min(1).max(THEME_ID_MAX);
+
+export const themeMergePairSchema = z
+  .object({
+    candidateId: z.string().uuid(),
+    themeIdA: themeIdSchema,
+    themeIdB: themeIdSchema,
+    neighborThemeIdsA: z.array(themeIdSchema).max(THEME_MERGE_NEIGHBOR_MAX),
+    neighborThemeIdsB: z.array(themeIdSchema).max(THEME_MERGE_NEIGHBOR_MAX),
+  })
+  .strict()
+  .refine((pair) => pair.themeIdA < pair.themeIdB, { message: 'pair not canonical' });
+export type ThemeMergePair = z.infer<typeof themeMergePairSchema>;
+
+export const themeMergeAdjudicationRequestSchema = z
+  .object({
+    type: z.literal('theme_merge_adjudication'),
+    requestId: z.string().regex(JUDGEMENT_REQUEST_ID_PATTERN),
+    orgId: z.string().uuid(),
+    pairs: z.array(themeMergePairSchema).min(1).max(THEME_MERGE_ADJUDICATION_MAX_PAIRS),
+  })
+  .strict();
+export type ThemeMergeAdjudicationRequest = z.infer<typeof themeMergeAdjudicationRequestSchema>;
+
 // A request type joins the union only alongside the enclave dispatch branch that handles it.
 export const synthesisQueueRequestSchema = z.discriminatedUnion('type', [
   synthesisRequestSchema,
@@ -944,6 +1000,7 @@ export const synthesisQueueRequestSchema = z.discriminatedUnion('type', [
   teamOnboardingSynthesisRequestSchema,
   associationJudgementRequestSchema,
   factAuthorReextractRequestSchema,
+  themeMergeAdjudicationRequestSchema,
 ]);
 export type SynthesisQueueRequest = z.infer<typeof synthesisQueueRequestSchema>;
 
@@ -986,14 +1043,7 @@ export const associationJudgementVerdictSchema = z
     factId: z.string().uuid(),
     containerId: z.string().uuid(),
     verdict: associationVerdictSchema,
-    confidence: z
-      .number()
-      .min(0)
-      .max(1)
-      .refine((confidence) => {
-        const steps = confidence / JUDGE_CONFIDENCE_STEP;
-        return Math.abs(steps - Math.round(steps)) < JUDGE_CONFIDENCE_STEP_TOLERANCE;
-      }, 'confidence must be quantized to 0.05'),
+    confidence: judgeConfidenceSchema,
   })
   .strict();
 export type AssociationJudgementVerdict = z.infer<typeof associationJudgementVerdictSchema>;
@@ -1012,6 +1062,33 @@ export const associationJudgementResultSchema = z
   })
   .strict();
 export type AssociationJudgementResult = z.infer<typeof associationJudgementResultSchema>;
+
+export const themeMergeAdjudicationVerdictSchema = z
+  .object({
+    candidateId: z.string().uuid(),
+    themeIdA: themeIdSchema,
+    themeIdB: themeIdSchema,
+    verdict: themeMergeVerdictSchema,
+    reason: themeMergeReasonSchema,
+    confidence: judgeConfidenceSchema,
+  })
+  .strict();
+export type ThemeMergeAdjudicationVerdict = z.infer<typeof themeMergeAdjudicationVerdictSchema>;
+
+// Ids, two enums and a quantized float only: a verdict never carries text.
+export const themeMergeAdjudicationResultSchema = z
+  .object({
+    type: z.literal('theme_merge_adjudication'),
+    requestId: z.string().regex(JUDGEMENT_REQUEST_ID_PATTERN),
+    orgId: z.string().uuid(),
+    model: z.string().max(128),
+    modelRevision: z.string().max(128),
+    verdicts: z.array(themeMergeAdjudicationVerdictSchema).max(THEME_MERGE_ADJUDICATION_MAX_PAIRS),
+    tokenUsage: tokenUsageArray,
+    timeline: inferenceTimelineField,
+  })
+  .strict();
+export type ThemeMergeAdjudicationResult = z.infer<typeof themeMergeAdjudicationResultSchema>;
 
 const pullStatCount = z.number().int().nonnegative();
 export const PULL_CHARS_BUCKET = 10_000;

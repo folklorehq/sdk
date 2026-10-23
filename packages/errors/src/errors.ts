@@ -349,3 +349,14 @@ export class PersonalSourceFactRejectedError extends AppError {
     });
   }
 }
+
+/** A theme synthesis request body exceeds the synthesis queue's message limit; resending cannot help. */
+export class ThemeRequestTooLargeError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('Theme synthesis request exceeds the queue message limit', {
+      ...options,
+      code: 'theme_request_too_large',
+      category: 'validation',
+    });
+  }
+}

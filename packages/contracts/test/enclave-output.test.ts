@@ -215,6 +215,7 @@ describe('member identity link output', () => {
       'theme_synthesis',
       'team_onboarding_synthesis',
       'association_judgement',
+      'theme_merge_adjudication',
       'member_identity_link',
       'fact_authors',
     ]);

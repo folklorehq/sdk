@@ -29,6 +29,7 @@ export {
   RateLimitError,
   ConcurrencyLimitError,
   ExternalServiceError,
+  ThemeRequestTooLargeError,
   ServiceUnavailableError,
   EncryptionContextMismatchError,
   ConfigurationError,

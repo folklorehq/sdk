@@ -17,6 +17,7 @@ export const enclaveOutputTypeSchema = z.enum([
   'theme_synthesis',
   'team_onboarding_synthesis',
   'association_judgement',
+  'theme_merge_adjudication',
   'member_identity_link',
   'fact_authors',
 ]);
@@ -152,6 +153,17 @@ export function enclaveOutputBindingForPayload(
       outputId: requiredString(payload, 'requestId'),
       resourceIds: requiredRecordArray(payload, 'verdicts').map((verdict) =>
         requiredString(verdict, 'factId'),
+      ),
+      payload,
+      identity,
+    });
+  }
+  if (type === 'theme_merge_adjudication') {
+    return outputBinding({
+      outputType: 'theme_merge_adjudication',
+      outputId: requiredString(payload, 'requestId'),
+      resourceIds: requiredRecordArray(payload, 'verdicts').map((verdict) =>
+        requiredString(verdict, 'candidateId'),
       ),
       payload,
       identity,
