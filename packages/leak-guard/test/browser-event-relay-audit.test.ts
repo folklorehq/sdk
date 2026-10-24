@@ -48,6 +48,31 @@ describe('browser event relay audit', () => {
     expect(auditBrowserEventRelaySource('apps/api/src/x.ts', statement)).toEqual([]);
   });
 
+  it.each([
+    "relay.relayBrowserEvent('page_viewed', 'web', id, props, catalog);",
+    "relay['relayBrowserEvent'](event, surface, id, props, catalog);",
+    'relay.relayBrowserEvent.call(relay, event, surface, id, props, catalog);',
+    'const send = relay.relayBrowserEvent.bind(relay);',
+    'relay.relayBrowserEvent.apply(relay, args);',
+    'const { relayBrowserEvent } = relay;',
+    'const { relayBrowserEvent: send } = relay;',
+    "const key = 'relayBrowserEvent'; relay[key](event);",
+  ])('flags any reference to the relay outside the collect handler: %s', (statement) => {
+    expect(auditBrowserEventRelaySource('apps/worker/src/x.ts', statement).length).toBeGreaterThan(
+      0,
+    );
+    expect(auditBrowserEventRelaySource(COLLECT_FILE, statement)).toEqual([]);
+  });
+
+  it('allows the telemetry package source to define and call the relay', () => {
+    expect(
+      auditBrowserEventRelaySource(
+        'packages/telemetry/src/PostHogTelemetryClient.ts',
+        'relayBrowserEvent(event: string) { return true; }',
+      ),
+    ).toEqual([]);
+  });
+
   it('reports the line of each violation', () => {
     expect(
       auditBrowserEventRelaySource(

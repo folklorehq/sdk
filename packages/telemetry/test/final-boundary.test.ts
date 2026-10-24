@@ -7,6 +7,7 @@ import {
   CATALOG_BACKED_BROWSER_EVENTS,
   CLIENT_ERROR_NAMES,
   TelemetryEvent,
+  type BrowserCatalog,
   type BrowserTelemetryEventName,
   type TelemetryEventMap,
 } from '../src/events.js';
@@ -256,7 +257,7 @@ describe('PostHogTelemetryClient final boundary', () => {
   });
 
   it.each(['page_viewed', 'cta_clicked', 'route_viewed', 'onboarding_step_viewed'] as const)(
-    'refuses a valid %s because no catalog-taking relay exists yet',
+    'refuses a valid %s on track() because only the catalog-taking relay may send it',
     (event) => {
       const { client, captured } = recordingClient();
 
@@ -268,6 +269,162 @@ describe('PostHogTelemetryClient final boundary', () => {
       );
     },
   );
+
+  describe('relayBrowserEvent', () => {
+    const CATALOG: BrowserCatalog = {
+      routeTemplates: new Set(['/members']),
+      pages: new Set(['/pricing', '/']),
+      ctas: new Set(['hero_get_started']),
+    };
+    const EMPTY_CATALOG: BrowserCatalog = {
+      routeTemplates: new Set(),
+      pages: new Set(),
+      ctas: new Set(),
+    };
+    const SURFACE_FOR = {
+      page_viewed: 'web',
+      cta_clicked: 'web',
+      route_viewed: 'console',
+      onboarding_step_viewed: 'console',
+    } as const;
+    const { surface: _surface, ...ROUTE_CLIENT_PROPERTIES } =
+      VALID_RELAYED_EVENT_FIXTURES.route_viewed;
+
+    it.each(['page_viewed', 'cta_clicked', 'onboarding_step_viewed'] as const)(
+      'sends a catalog-member %s',
+      (event) => {
+        const { client, captured } = recordingClient();
+
+        const sent = client.relayBrowserEvent(
+          event,
+          SURFACE_FOR[event],
+          ORGANIZATION_ID,
+          { ...VALID_RELAYED_EVENT_FIXTURES[event] },
+          CATALOG,
+        );
+
+        expect(sent).toBe(true);
+        expect(captured).toEqual([
+          { distinctId: ORGANIZATION_ID, event, properties: VALID_RELAYED_EVENT_FIXTURES[event] },
+        ]);
+      },
+    );
+
+    it('adds the surface to route_viewed itself', () => {
+      const { client, captured } = recordingClient();
+
+      client.relayBrowserEvent(
+        'route_viewed',
+        'console',
+        ORGANIZATION_ID,
+        { ...ROUTE_CLIENT_PROPERTIES },
+        CATALOG,
+      );
+
+      expect(captured).toEqual([
+        {
+          distinctId: ORGANIZATION_ID,
+          event: 'route_viewed',
+          properties: VALID_RELAYED_EVENT_FIXTURES.route_viewed,
+        },
+      ]);
+    });
+
+    it.each(['page_viewed', 'cta_clicked', 'route_viewed', 'onboarding_step_viewed'] as const)(
+      'still refuses %s on track() after the relay exists',
+      (event) => {
+        const { client, captured } = recordingClient();
+
+        client.track(event, ORGANIZATION_ID, VALID_RELAYED_EVENT_FIXTURES[event] as never);
+
+        expect(captured).toEqual([]);
+      },
+    );
+
+    it.each([
+      ['page_viewed', 'web', { eventSchemaVersion: 1, page: '/pricing' }],
+      ['cta_clicked', 'web', { eventSchemaVersion: 1, cta: 'hero_get_started', page: '/' }],
+      ['route_viewed', 'console', { eventSchemaVersion: 1, routeTemplate: '/members' }],
+    ] as const)('drops %s when it is outside the supplied catalog', (event, surface, props) => {
+      const { client, captured } = recordingClient();
+
+      const sent = client.relayBrowserEvent(
+        event,
+        surface,
+        ORGANIZATION_ID,
+        { ...props },
+        EMPTY_CATALOG,
+      );
+
+      expect(sent).toBe(false);
+      expect(captured).toEqual([]);
+    });
+
+    it('drops every catalog-backed event when no catalog is supplied', () => {
+      const { client, captured } = recordingClient();
+
+      for (const event of CATALOG_BACKED_BROWSER_EVENTS) {
+        client.relayBrowserEvent(
+          event as BrowserTelemetryEventName,
+          'console',
+          ORGANIZATION_ID,
+          { eventSchemaVersion: 1, page: '/pricing', routeTemplate: 'unmatched', step: 'sources' },
+          undefined as never,
+        );
+      }
+
+      expect(captured).toEqual([]);
+    });
+
+    it('drops an event the surface may not send', () => {
+      const { client, captured } = recordingClient();
+
+      client.relayBrowserEvent(
+        'page_viewed',
+        'console',
+        ORGANIZATION_ID,
+        { eventSchemaVersion: 1, page: '/pricing' },
+        CATALOG,
+      );
+
+      expect(captured).toEqual([]);
+    });
+
+    it('drops a route_viewed whose surface is web', () => {
+      const { client, captured } = recordingClient();
+
+      client.relayBrowserEvent(
+        'route_viewed',
+        'web',
+        ORGANIZATION_ID,
+        { eventSchemaVersion: 1, routeTemplate: 'unmatched' },
+        CATALOG,
+      );
+
+      expect(captured).toEqual([]);
+    });
+
+    it('drops an extra property and an invalid distinct id', () => {
+      const { client, captured } = recordingClient();
+
+      client.relayBrowserEvent(
+        'page_viewed',
+        'web',
+        ORGANIZATION_ID,
+        { eventSchemaVersion: 1, page: '/pricing', url: 'https://x.example/a' },
+        CATALOG,
+      );
+      client.relayBrowserEvent(
+        'page_viewed',
+        'web',
+        'person@example.com',
+        { eventSchemaVersion: 1, page: '/pricing' },
+        CATALOG,
+      );
+
+      expect(captured).toEqual([]);
+    });
+  });
 
   it.each([
     ['a string status code', { statusCode: '200' }],

@@ -20,6 +20,11 @@
       "development": "./src/content-free.ts",
       "types": "./dist/content-free.d.ts",
       "default": "./dist/content-free.js"
+    },
+    "./collect-envelope": {
+      "development": "./src/collect-envelope.ts",
+      "types": "./dist/collect-envelope.d.ts",
+      "default": "./dist/collect-envelope.js"
     }
   },
   "scripts": {

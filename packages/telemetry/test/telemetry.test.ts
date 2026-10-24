@@ -36,6 +36,17 @@ describe('NoopTelemetryClient', () => {
     ).not.toThrow();
   });
 
+  it('relayBrowserEvent reports that nothing was sent', () => {
+    const catalog = {
+      routeTemplates: new Set<string>(),
+      pages: new Set(['/']),
+      ctas: new Set<string>(),
+    };
+    expect(
+      new NoopTelemetryClient().relayBrowserEvent('page_viewed', 'web', 'system', {}, catalog),
+    ).toBe(false);
+  });
+
   it('flush resolves', async () => {
     const client = new NoopTelemetryClient();
     await expect(client.flush()).resolves.toBeUndefined();

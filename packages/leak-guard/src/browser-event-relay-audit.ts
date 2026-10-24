@@ -7,9 +7,14 @@ import ts from 'typescript';
 const SOURCE_FILE_PATTERN = /\.[cm]?[jt]sx?$/;
 const SOURCE_ROOTS = ['apps', 'packages', 'enclave', 'ingest-proxy', 'preview-proxy'];
 const COLLECT_HANDLER_PREFIX = 'apps/control-plane-server/src/analytics/collect/';
+const RELAY_MENTION_ALLOWED_PREFIXES = [
+  'packages/telemetry/src/',
+  'packages/leak-guard/src/browser-event-relay-audit.ts',
+];
 const SERVER_TRACK_MIN_ARGUMENTS = 3;
 const BROWSER_EVENT_NAMES: ReadonlySet<string> = new Set(Object.values(BrowserTelemetryEvent));
 const BROWSER_EVENT_CONSTANT = 'BrowserTelemetryEvent';
+const RELAY_METHOD = 'relayBrowserEvent';
 
 export interface BrowserEventRelayViolation {
   file: string;
@@ -21,10 +26,11 @@ export function auditBrowserEventRelaySource(
   text: string,
 ): BrowserEventRelayViolation[] {
   if (file.startsWith(COLLECT_HANDLER_PREFIX)) return [];
+  const mayMentionRelay = RELAY_MENTION_ALLOWED_PREFIXES.some((prefix) => file.startsWith(prefix));
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
   const violations: BrowserEventRelayViolation[] = [];
   const visit = (node: ts.Node): void => {
-    if (isServerTrackOfBrowserEvent(node)) {
+    if (isServerTrackOfBrowserEvent(node) || (!mayMentionRelay && mentionsRelay(node))) {
       const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
       violations.push({ file, line });
     }
@@ -50,12 +56,20 @@ function isServerTrackOfBrowserEvent(node: ts.Node): boolean {
   return isTrackCallee(node.expression) && namesBrowserEvent(node.arguments[0]);
 }
 
+function mentionsRelay(node: ts.Node): boolean {
+  return (ts.isIdentifier(node) || ts.isStringLiteralLike(node)) && node.text === RELAY_METHOD;
+}
+
 function isTrackCallee(callee: ts.Expression): boolean {
-  if (ts.isPropertyAccessExpression(callee)) return callee.name.text === 'track';
+  return isMethodCallee(callee, 'track');
+}
+
+function isMethodCallee(callee: ts.Expression, method: string): boolean {
+  if (ts.isPropertyAccessExpression(callee)) return callee.name.text === method;
   return (
     ts.isElementAccessExpression(callee) &&
     ts.isStringLiteralLike(callee.argumentExpression) &&
-    callee.argumentExpression.text === 'track'
+    callee.argumentExpression.text === method
   );
 }
 
