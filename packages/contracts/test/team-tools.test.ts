@@ -5,16 +5,20 @@ import { TEAM_TOOL_KINDS, teamToolsInputSchema, teamToolsSchema } from '../src/o
 
 const TEAM_ID = '7f8c1c1e-3a4b-4c5d-8e9f-0a1b2c3d4e5f';
 const MANDATORY_GITHUB = { sourceKind: 'github', mandatory: true };
+const MANDATORY_SLACK = { sourceKind: 'slack', mandatory: true };
 
 describe('team tools contracts', () => {
-  it('refuses a mandatory link on a kind that cannot link yet in a write', () => {
-    expect(teamToolsInputSchema.safeParse({ tools: [MANDATORY_GITHUB] }).success).toBe(false);
+  it('accepts a mandatory github link in a write', () => {
+    expect(teamToolsInputSchema.safeParse({ tools: [MANDATORY_GITHUB] }).success).toBe(true);
   });
 
-  it('refuses a mandatory slack link in a write and accepts an optional one', () => {
-    const slack = (mandatory: boolean) => ({ tools: [{ sourceKind: 'slack', mandatory }] });
-    expect(teamToolsInputSchema.safeParse(slack(true)).success).toBe(false);
-    expect(teamToolsInputSchema.safeParse(slack(false)).success).toBe(true);
+  it('refuses a mandatory link on a kind that cannot link yet in a write', () => {
+    expect(teamToolsInputSchema.safeParse({ tools: [MANDATORY_SLACK] }).success).toBe(false);
+  });
+
+  it('accepts an optional slack link in a write', () => {
+    const slack = { tools: [{ sourceKind: 'slack', mandatory: false }] };
+    expect(teamToolsInputSchema.safeParse(slack).success).toBe(true);
   });
 
   it('refuses more tools than there are kinds', () => {
@@ -30,9 +34,9 @@ describe('team tools contracts', () => {
   it('accepts a stored mandatory row on such a kind in the read response', () => {
     const view = {
       teamId: TEAM_ID,
-      tools: [MANDATORY_GITHUB, { sourceKind: 'slack', mandatory: true }],
+      tools: [MANDATORY_GITHUB, MANDATORY_SLACK],
       canEdit: true,
-      linkableKinds: ['slack'],
+      linkableKinds: ['github'],
     };
     expect(teamToolsSchema.safeParse(view).success).toBe(true);
   });
