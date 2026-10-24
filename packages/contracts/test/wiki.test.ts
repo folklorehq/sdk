@@ -14,6 +14,7 @@ import {
   wikiFeedResponseSchema,
   wikiPageResponseSchema,
   wikiPageStatusResponseSchema,
+  WIKI_LIST_NONE,
   wikiListQuerySchema,
   wikiListResponseSchema,
   wikiStubListEntrySchema,
@@ -839,6 +840,19 @@ describe('wiki list contracts', () => {
     expect(
       wikiListQuerySchema.parse({ q: '  auth ', team: TEAM, docType: 'runbook' }),
     ).toMatchObject({ q: 'auth', team: TEAM, docType: 'runbook' });
+  });
+
+  it('accepts none as the team filter and the owner filter, and nothing near it', () => {
+    expect(WIKI_LIST_NONE).toBe('none');
+    expect(wikiListQuerySchema.parse({ team: 'none' })).toMatchObject({ team: 'none' });
+    expect(wikiListQuerySchema.parse({ owner: 'none' })).toMatchObject({ owner: 'none' });
+    expect(wikiListQuerySchema.parse({ team: TEAM })).toMatchObject({ team: TEAM });
+    for (const owner of ['usr', 'me', 'None', '', TEAM]) {
+      expect(wikiListQuerySchema.safeParse({ owner }).success).toBe(false);
+    }
+    for (const team of ['None', 'NONE', '']) {
+      expect(wikiListQuerySchema.safeParse({ team }).success).toBe(false);
+    }
   });
 
   it('accepts a theme row and a team onboarding row and rejects extra fields', () => {

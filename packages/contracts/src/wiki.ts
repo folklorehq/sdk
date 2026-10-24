@@ -547,6 +547,7 @@ export const WIKI_LIST_DEFAULT_LIMIT = 50;
 export const WIKI_LIST_MAX_LIMIT = 100;
 export const WIKI_LIST_QUERY_MAX_CHARS = 200;
 export const WIKI_LIST_CURSOR_MAX_CHARS = 512;
+export const WIKI_LIST_NONE = 'none';
 
 export const wikiListQuerySchema = z
   .object({
@@ -554,7 +555,8 @@ export const wikiListQuerySchema = z
     cursor: z.string().min(1).max(WIKI_LIST_CURSOR_MAX_CHARS).optional(),
     q: z.string().trim().min(1).max(WIKI_LIST_QUERY_MAX_CHARS).optional(),
     docType: z.enum(KNOWN_DOCUMENT_TYPE_IDS).optional(),
-    team: z.string().uuid().optional(),
+    team: z.union([z.string().uuid(), z.literal(WIKI_LIST_NONE)]).optional(),
+    owner: z.literal(WIKI_LIST_NONE).optional(),
     audience: z.string().uuid().optional(),
   })
   .strict();
