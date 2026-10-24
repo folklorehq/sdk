@@ -49,6 +49,7 @@ export const TelemetryEvent = {
   NotificationSendFailed: 'notification.send_failed',
   WorkerError: 'worker.error',
   DeploymentCheckin: 'deployment.checkin',
+  EnclaveEventLoopDelay: 'enclave.event_loop_delay',
   OrgUsage: 'org.usage',
   TenantDataDeleted: 'tenant.data_deleted',
   ErrorCaptured: 'error.captured',
@@ -126,6 +127,13 @@ type OpsEvents = {
     outputTokens?: number;
   };
   'inference.receipt_verified': { sessionId: string };
+  'enclave.event_loop_delay': {
+    loopDelayP50Ms: number;
+    loopDelayP99Ms: number;
+    loopDelayMaxMs: number;
+    loopSamples: number;
+    seconds: number;
+  };
   'wiki.synthesized': { orgId: string; themeId: string };
   'wiki.rich_blocks.synthesized': {
     orgId: string;

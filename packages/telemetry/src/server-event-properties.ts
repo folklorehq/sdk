@@ -252,6 +252,13 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     { inputTokens: count, outputTokens: count },
   ),
   'inference.receipt_verified': propertyContract({ sessionId }),
+  'enclave.event_loop_delay': propertyContract({
+    loopDelayP50Ms: count,
+    loopDelayP99Ms: count,
+    loopDelayMaxMs: count,
+    loopSamples: count,
+    seconds: count,
+  }),
   'inference.model_rejected': propertyContract({ model: rejectedModel }),
   'inference.attestation_failed': propertyContract({
     reason: (value) =>

@@ -87,6 +87,13 @@ const VALID_SERVER_EVENT_FIXTURES = {
     outputTokens: 1,
   },
   'inference.receipt_verified': { sessionId: ORGANIZATION_ID },
+  'enclave.event_loop_delay': {
+    loopDelayP50Ms: 1,
+    loopDelayP99Ms: 400,
+    loopDelayMaxMs: 1100,
+    loopSamples: 50,
+    seconds: 60,
+  },
   'inference.model_rejected': { model: 'deepseek-v4-pro' },
   'inference.attestation_failed': { reason: 'response carried no receipt id' },
   'inference.error': { model: 'z-ai/glm-5.2', errorType: 'generate_failed' },
