@@ -99,8 +99,39 @@ describe('browser telemetry static audit', () => {
   it('allows the facade adapter to own the browser SDK', () => {
     expect(
       auditBrowserTelemetrySource(
-        'packages/web-telemetry/src/PostHogBrowserTelemetryClient.ts',
+        'packages/web-telemetry/src/posthog/PostHogBrowserTelemetryClient.ts',
         "import { PostHog } from 'posthog-js/lib/src/posthog-core.js'; const posthog = new PostHog(); posthog.capture('source.connect_started', {});",
+      ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    "import { createPostHogBrowserTelemetryClient } from '@folklore/web-telemetry/posthog';",
+    "export { PostHogBrowserTelemetryClient } from '@folklore/web-telemetry/posthog';",
+    "import posthog = require('@folklore/web-telemetry/posthog');",
+    "const mod = require('@folklore/web-telemetry/posthog');",
+    "void import('@folklore/web-telemetry/posthog');",
+    'void import(`@folklore/web-telemetry/posthog`);',
+  ])('rejects the posthog subpath in web, console and operator source: %s', (source) => {
+    for (const file of [
+      'apps/web/src/telemetry.ts',
+      'apps/console/src/telemetry.ts',
+      'apps/operator/src/telemetry.ts',
+    ]) {
+      expect(auditBrowserTelemetrySource(file, source)).toEqual([
+        { file, line: 1, reason: 'posthog_subpath_import' },
+      ]);
+    }
+  });
+
+  it('allows the posthog subpath in the box, and the beacon root everywhere', () => {
+    const subpath =
+      "import { createPostHogBrowserTelemetryClient } from '@folklore/web-telemetry/posthog';";
+    expect(auditBrowserTelemetrySource('apps/box/src/telemetry.ts', subpath)).toEqual([]);
+    expect(
+      auditBrowserTelemetrySource(
+        'apps/web/src/telemetry.ts',
+        "import { createBrowserTelemetryClient } from '@folklore/web-telemetry';",
       ),
     ).toEqual([]);
   });

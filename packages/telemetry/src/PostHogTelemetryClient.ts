@@ -20,6 +20,7 @@ import {
 } from './events.js';
 import { areServerTelemetryPropertiesValid } from './server-event-properties.js';
 import { checkDistinctId } from './content-free.js';
+import { snapshotOwnEnumerableDataRecord } from './snapshot.js';
 
 const SYSTEM_ACTOR = 'system';
 const MAX_EVENT_AGE_MS = 24 * 60 * 60 * 1000;
@@ -133,28 +134,6 @@ export class PostHogTelemetryClient implements TelemetryClient, BrowserEventRela
 }
 
 function snapshotProperties(value: unknown): Record<string, unknown> | null {
-  try {
-    if (!isPlainRecord(value)) return null;
-    const snapshot = Object.create(null) as Record<string, unknown>;
-    for (const key of Reflect.ownKeys(value)) {
-      if (typeof key !== 'string') return null;
-      const descriptor = Object.getOwnPropertyDescriptor(value, key);
-      if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) return null;
-      Object.defineProperty(snapshot, key, {
-        configurable: false,
-        enumerable: true,
-        value: descriptor.value,
-        writable: false,
-      });
-    }
-    return Object.freeze(snapshot);
-  } catch {
-    return null;
-  }
-}
-
-function isPlainRecord(value: unknown): value is Record<PropertyKey, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
+  const snapshot = snapshotOwnEnumerableDataRecord(value);
+  return snapshot && Object.freeze(snapshot);
 }

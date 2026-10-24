@@ -7,11 +7,13 @@ const SOURCE_FILE_PATTERN = /\.[cm]?[jt]sx?$/;
 const BROWSER_SOURCE_ROOTS = ['apps', 'packages'];
 const FACADE_SOURCE_PREFIX = 'packages/web-telemetry/';
 const GLOBAL_SDK_HOSTS = new Set(['globalThis', 'window', 'self']);
+const POSTHOG_SUBPATH = '@folklore/web-telemetry/posthog';
+const BEACON_ONLY_SOURCE_PREFIXES = ['apps/web/src/', 'apps/console/src/', 'apps/operator/src/'];
 
 export interface BrowserTelemetryViolation {
   file: string;
   line: number;
-  reason: 'direct_sdk_import' | 'direct_sdk_capture';
+  reason: 'direct_sdk_import' | 'direct_sdk_capture' | 'posthog_subpath_import';
 }
 
 export function auditBrowserTelemetrySource(
@@ -23,6 +25,11 @@ export function auditBrowserTelemetrySource(
   const imports = postHogImports(source);
   const capturedImports = new Set<ts.Node>();
   const violations: BrowserTelemetryViolation[] = [];
+  if (BEACON_ONLY_SOURCE_PREFIXES.some((prefix) => file.startsWith(prefix))) {
+    for (const node of postHogSubpathImports(source)) {
+      violations.push(violation(source, file, node, 'posthog_subpath_import'));
+    }
+  }
 
   const visit = (node: ts.Node): void => {
     const binding = postHogCaptureBinding(node, imports, source);
@@ -49,6 +56,46 @@ export function auditBrowserTelemetryTree(root: string): BrowserTelemetryViolati
       const file = normalizePath(relative(root, path));
       return auditBrowserTelemetrySource(file, readFileSync(path, 'utf8'));
     });
+}
+
+function postHogSubpathImports(source: ts.SourceFile): ts.Node[] {
+  const nodes: ts.Node[] = [];
+  const visit = (node: ts.Node): void => {
+    if (isPostHogSubpathReference(node)) nodes.push(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return nodes;
+}
+
+function isPostHogSubpathReference(node: ts.Node): boolean {
+  if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+    return isPostHogSubpathSpecifier(node.moduleSpecifier);
+  }
+  if (ts.isImportEqualsDeclaration(node)) {
+    return (
+      ts.isExternalModuleReference(node.moduleReference) &&
+      isPostHogSubpathSpecifier(node.moduleReference.expression)
+    );
+  }
+  return (
+    ts.isCallExpression(node) &&
+    (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+      isRequireIdentifier(node.expression)) &&
+    isPostHogSubpathSpecifier(node.arguments[0])
+  );
+}
+
+function isRequireIdentifier(expression: ts.Expression): boolean {
+  return ts.isIdentifier(expression) && expression.text === 'require';
+}
+
+function isPostHogSubpathSpecifier(node: ts.Node | undefined): boolean {
+  return (
+    node !== undefined &&
+    (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
+    (node.text === POSTHOG_SUBPATH || node.text.startsWith(`${POSTHOG_SUBPATH}/`))
+  );
 }
 
 interface PostHogImports {

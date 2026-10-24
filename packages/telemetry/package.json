@@ -25,6 +25,11 @@
       "development": "./src/collect-envelope.ts",
       "types": "./dist/collect-envelope.d.ts",
       "default": "./dist/collect-envelope.js"
+    },
+    "./snapshot": {
+      "development": "./src/snapshot.ts",
+      "types": "./dist/snapshot.d.ts",
+      "default": "./dist/snapshot.js"
     }
   },
   "scripts": {
