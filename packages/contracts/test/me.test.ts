@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { audienceLensIdSchema, meProfileSchema } from '../src/me.js';
+import { audienceLensIdSchema, meProfileSchema, meTeamSchema } from '../src/me.js';
 
 const PROFILE = {
   userId: 'usr_1',
@@ -39,6 +39,31 @@ describe('meProfileSchema', () => {
       meProfileSchema.safeParse({ ...PROFILE, audiences: [{ id: '', name: 'Engineering' }] })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('meProfileSchema teams', () => {
+  const TEAM = { id: 't1', name: 'Payments', isLead: true };
+
+  it('accepts a profile without teams, as an older API sends it', () => {
+    expect(meProfileSchema.parse(PROFILE).teams).toBeUndefined();
+  });
+
+  it('accepts a profile carrying the viewer teams', () => {
+    expect(meProfileSchema.parse({ ...PROFILE, teams: [TEAM] }).teams).toEqual([TEAM]);
+    expect(meProfileSchema.parse({ ...PROFILE, teams: [] }).teams).toEqual([]);
+  });
+
+  it('rejects a team carrying an unknown field', () => {
+    expect(meTeamSchema.safeParse({ ...TEAM, role: 'lead' }).success).toBe(false);
+  });
+
+  it('rejects a team without a real id', () => {
+    expect(meTeamSchema.safeParse({ ...TEAM, id: '' }).success).toBe(false);
+  });
+
+  it('rejects a team missing the lead flag', () => {
+    expect(meTeamSchema.safeParse({ id: 't1', name: 'Payments' }).success).toBe(false);
   });
 });
 

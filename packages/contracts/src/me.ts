@@ -11,6 +11,15 @@ export const meAudienceSchema = z
   .strict();
 export type MeAudience = z.infer<typeof meAudienceSchema>;
 
+export const meTeamSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string(),
+    isLead: z.boolean(),
+  })
+  .strict();
+export type MeTeam = z.infer<typeof meTeamSchema>;
+
 export const meProfileSchema = z
   .object({
     userId: z.string(),
@@ -19,6 +28,8 @@ export const meProfileSchema = z
     initials: z.string(),
     orgName: z.string(),
     audiences: z.array(meAudienceSchema),
+    // Optional: an older API or a rollback omits it.
+    teams: z.array(meTeamSchema).optional(),
   })
   .strict();
 export type MeProfile = z.infer<typeof meProfileSchema>;
