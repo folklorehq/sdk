@@ -59,11 +59,8 @@ export type TeamOnboardingView = z.infer<typeof teamOnboardingViewSchema>;
 export const IDENTITY_LINK_KINDS = ['github', 'slack', 'linear', 'notion'] as const;
 export type IdentityLinkKind = (typeof IDENTITY_LINK_KINDS)[number];
 
-// UNWIRED: github and linear identity links cannot complete yet.
-export const LIVE_IDENTITY_LINK_KINDS = [
-  'slack',
-  'notion',
-] as const satisfies readonly IdentityLinkKind[];
+// UNWIRED: no identity link can complete until its provider envelope exists (FOL-67).
+export const LIVE_IDENTITY_LINK_KINDS = [] as const satisfies readonly IdentityLinkKind[];
 
 export const TEAM_TOOL_KINDS = [
   'github',

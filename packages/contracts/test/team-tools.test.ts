@@ -11,6 +11,12 @@ describe('team tools contracts', () => {
     expect(teamToolsInputSchema.safeParse({ tools: [MANDATORY_GITHUB] }).success).toBe(false);
   });
 
+  it('refuses a mandatory slack link in a write and accepts an optional one', () => {
+    const slack = (mandatory: boolean) => ({ tools: [{ sourceKind: 'slack', mandatory }] });
+    expect(teamToolsInputSchema.safeParse(slack(true)).success).toBe(false);
+    expect(teamToolsInputSchema.safeParse(slack(false)).success).toBe(true);
+  });
+
   it('refuses more tools than there are kinds', () => {
     const tools = Array.from({ length: TEAM_TOOL_KINDS.length + 1 }, () => ({
       sourceKind: 'slack',
@@ -24,7 +30,7 @@ describe('team tools contracts', () => {
   it('accepts a stored mandatory row on such a kind in the read response', () => {
     const view = {
       teamId: TEAM_ID,
-      tools: [MANDATORY_GITHUB],
+      tools: [MANDATORY_GITHUB, { sourceKind: 'slack', mandatory: true }],
       canEdit: true,
       linkableKinds: ['slack'],
     };
