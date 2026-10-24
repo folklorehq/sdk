@@ -1,6 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
+import {
+  DURATION_BUCKETS,
+  REQUEST_METHODS,
+  isHttpStatus,
+  isRouteTemplateShape,
+} from '@folklore/core';
 import { isErrorReport } from '@folklore/errors';
-import type { ServerTelemetryEventName } from './events.js';
+import {
+  BROWSER_CLIENT_ERROR_ORIGINS,
+  BROWSER_SOURCE_CONNECT_FAILURES,
+  CLIENT_ERROR_NAMES,
+  ONBOARDING_STEPS,
+  ROUTE_VIEW_SURFACES,
+  isBrowserSourceKind,
+  type ServerTelemetryEventName,
+} from './events.js';
 
 type PropertyValidator = (value: unknown) => boolean;
 type EventPropertiesValidator = (properties: Record<string, unknown>) => boolean;
@@ -43,6 +57,8 @@ const INFERENCE_MODELS = new Set([
   'nomic-embed-text',
   'qwen2.5:7b',
 ]);
+const BROWSER_PAGE_PATTERN = /^(?:\/[a-z]{0,30}|not_found)$/;
+const BROWSER_CTA_PATTERN = /^[a-z][a-z_]{0,39}$/;
 const REJECTED_MODELS = new Set([
   'deepseek-v4-pro',
   'moonshot/kimi-k3',
@@ -98,6 +114,14 @@ const oneOf =
   (value) =>
     typeof value === 'string' && values.has(value);
 const literal = (...values: readonly string[]): PropertyValidator => oneOf(new Set(values));
+const matches =
+  (pattern: RegExp): PropertyValidator =>
+  (value) =>
+    typeof value === 'string' && pattern.test(value);
+const schemaVersion1: PropertyValidator = (value) => value === 1;
+const httpStatus: PropertyValidator = isHttpStatus;
+const browserSourceKind: PropertyValidator = (value) =>
+  typeof value === 'string' && isBrowserSourceKind(value);
 const sourceKind = oneOf(SOURCE_KINDS);
 const model = oneOf(INFERENCE_MODELS);
 const rejectedModel = oneOf(REJECTED_MODELS);
@@ -206,7 +230,6 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   'subscription.seats_changed': propertyContract({ ...orgId, seats: count }),
   'wiki.viewed': propertyContract({
     ...orgId,
-    themeId: uuid,
     audience: (value) => value === 'all-members' || uuid(value),
     blockCount: count,
   }),
@@ -342,6 +365,44 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     tombstoned: bool,
   }),
   'error.captured': isErrorReport,
+  'api.request': propertyContract({
+    method: literal(...REQUEST_METHODS),
+    routeTemplate: isRouteTemplateShape,
+    statusCode: httpStatus,
+    durationBucket: literal(...DURATION_BUCKETS),
+  }),
+  'source.connect_started': propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    sourceKind: browserSourceKind,
+  }),
+  'source.connect_failed': propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    sourceKind: browserSourceKind,
+    reason: oneOf(BROWSER_SOURCE_CONNECT_FAILURES),
+  }),
+  sign_in_completed: propertyContract({}),
+  client_error: propertyContract({
+    origin: oneOf(BROWSER_CLIENT_ERROR_ORIGINS),
+    errorName: literal(...CLIENT_ERROR_NAMES),
+  }),
+  page_viewed: propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    page: matches(BROWSER_PAGE_PATTERN),
+  }),
+  cta_clicked: propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    cta: matches(BROWSER_CTA_PATTERN),
+    page: matches(BROWSER_PAGE_PATTERN),
+  }),
+  route_viewed: propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    surface: literal(...ROUTE_VIEW_SURFACES),
+    routeTemplate: isRouteTemplateShape,
+  }),
+  onboarding_step_viewed: propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    step: literal(...ONBOARDING_STEPS),
+  }),
 } satisfies Record<ServerTelemetryEventName, EventPropertiesValidator>;
 
 export function areServerTelemetryPropertiesValid(

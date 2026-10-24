@@ -1,12 +1,27 @@
 // SPDX-License-Identifier: Apache-2.0
-export type { TelemetryClient } from './ports.js';
+export type { TelemetryClient, TelemetryTrackOptions } from './ports.js';
 export type {
+  BrowserCatalog,
+  BrowserEventProperties,
+  BrowserSurface,
+  BrowserTelemetryEventName,
+  ClientErrorName,
   InvitePresetLabel,
   InviteRevocationCause,
   TelemetryEventMap,
   TelemetryEventName,
 } from './events.js';
-export { TelemetryEvent } from './events.js';
+export {
+  areBrowserTelemetryPropertiesValid,
+  BROWSER_SURFACES,
+  BrowserTelemetryEvent,
+  CATALOG_BACKED_BROWSER_EVENTS,
+  CLIENT_ERROR_NAMES,
+  clientErrorName,
+  isBrowserEventAllowedFrom,
+  isBrowserTelemetryEvent,
+  TelemetryEvent,
+} from './events.js';
 export {
   checkContentFree,
   checkDistinctId,

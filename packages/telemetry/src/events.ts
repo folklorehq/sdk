@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { UNMATCHED_ROUTE_TEMPLATE, type DurationBucket, type RequestMethod } from '@folklore/core';
 import type { ErrorReport } from '@folklore/errors';
 
 export const TelemetryEvent = {
@@ -53,6 +54,7 @@ export const TelemetryEvent = {
   OrgUsage: 'org.usage',
   TenantDataDeleted: 'tenant.data_deleted',
   ErrorCaptured: 'error.captured',
+  ApiRequest: 'api.request',
 } as const;
 
 export type InvitePresetLabel = 'admin' | 'member' | 'custom';
@@ -100,7 +102,7 @@ type ProductEvents = {
   'subscription.created': { orgId: string; status: string };
   'subscription.status_changed': { orgId: string; status: string };
   'subscription.seats_changed': { orgId: string; seats: number };
-  'wiki.viewed': { orgId: string; themeId: string; audience: string; blockCount: number };
+  'wiki.viewed': { orgId: string; audience: string; blockCount: number };
   'review.actioned': { orgId: string; action: 'assign' | 'remove' };
   'theme.merge_reviewed': { orgId: string; action: 'approve' | 'reject' };
 };
@@ -175,6 +177,12 @@ type OpsEvents = {
   };
   'wiki.link_preview': { orgId: string; outcome: 'preview' | 'empty'; latencyMs: number };
   'notification.sent': { orgId: string; channel: 'email' | 'slack' };
+  'api.request': {
+    method: RequestMethod;
+    routeTemplate: string;
+    statusCode: number;
+    durationBucket: DurationBucket;
+  };
   'deployment.checkin': {
     deploymentId: string;
     seatCount: number;
@@ -233,7 +241,53 @@ export const BrowserTelemetryEvent = {
   SourceConnectFailed: 'source.connect_failed',
   SignInCompleted: 'sign_in_completed',
   ClientError: 'client_error',
+  PageViewed: 'page_viewed',
+  CtaClicked: 'cta_clicked',
+  RouteViewed: 'route_viewed',
+  OnboardingStepViewed: 'onboarding_step_viewed',
 } as const;
+
+export const BROWSER_SURFACES = ['web', 'console', 'operator', 'box'] as const;
+export type BrowserSurface = (typeof BROWSER_SURFACES)[number];
+
+export interface BrowserCatalog {
+  readonly routeTemplates: ReadonlySet<string>;
+  readonly pages: ReadonlySet<string>;
+  readonly ctas: ReadonlySet<string>;
+}
+
+export const CLIENT_ERROR_NAMES = [
+  'Error',
+  'TypeError',
+  'RangeError',
+  'ReferenceError',
+  'SyntaxError',
+  'URIError',
+  'EvalError',
+  'AggregateError',
+  'DOMException',
+  'AbortError',
+  'NetworkError',
+  'SecurityError',
+  'NotAllowedError',
+  'QuotaExceededError',
+  'InvalidStateError',
+  'NotFoundError',
+  'TimeoutError',
+  'ChunkLoadError',
+  'UnknownError',
+  'other',
+] as const;
+export type ClientErrorName = (typeof CLIENT_ERROR_NAMES)[number];
+
+export const ONBOARDING_STEPS = ['sources', 'roster', 'invite', 'done'] as const;
+export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
+
+export const ROUTE_VIEW_SURFACES = ['console', 'operator', 'box'] as const;
+export type RouteViewSurface = (typeof ROUTE_VIEW_SURFACES)[number];
+
+const CLIENT_ERROR_NAME_SET: ReadonlySet<string> = new Set(CLIENT_ERROR_NAMES);
+const OTHER_CLIENT_ERROR_NAME: ClientErrorName = 'other';
 
 export type BrowserSourceKind =
   | 'github'
@@ -269,18 +323,31 @@ type BrowserEvents = {
     reason: BrowserSourceConnectFailure;
   };
   sign_in_completed: Record<string, never>;
-  client_error: { origin: BrowserClientErrorOrigin; errorName: string };
+  client_error: { origin: BrowserClientErrorOrigin; errorName: ClientErrorName };
+  page_viewed: { eventSchemaVersion: 1; page: string };
+  cta_clicked: { eventSchemaVersion: 1; cta: string; page: string };
+  route_viewed: { eventSchemaVersion: 1; surface: RouteViewSurface; routeTemplate: string };
+  onboarding_step_viewed: { eventSchemaVersion: 1; step: OnboardingStep };
 };
+
+export type BrowserEventProperties<K extends BrowserTelemetryEventName> = K extends 'route_viewed'
+  ? Omit<TelemetryEventMap[K], 'surface'>
+  : TelemetryEventMap[K];
 
 export type TelemetryEventMap = ProductEvents & OpsEvents & ErrorEvents & BrowserEvents;
 
 export type TelemetryEventName = keyof TelemetryEventMap;
 
-export type ServerTelemetryEventName = (typeof TelemetryEvent)[keyof typeof TelemetryEvent];
-
 export type BrowserTelemetryEventName = keyof BrowserEvents;
 
-const SERVER_TELEMETRY_EVENTS = new Set<string>(Object.values(TelemetryEvent));
+export type ServerTelemetryEventName =
+  | (typeof TelemetryEvent)[keyof typeof TelemetryEvent]
+  | BrowserTelemetryEventName;
+
+const SERVER_TELEMETRY_EVENTS = new Set<string>([
+  ...Object.values(TelemetryEvent),
+  ...Object.values(BrowserTelemetryEvent),
+]);
 
 export function isServerTelemetryEvent(value: unknown): value is ServerTelemetryEventName {
   return typeof value === 'string' && SERVER_TELEMETRY_EVENTS.has(value);
@@ -303,7 +370,7 @@ const BROWSER_SOURCE_KINDS = new Set<BrowserSourceKind>([
   'microsoft365_calendar',
 ]);
 
-const BROWSER_SOURCE_CONNECT_FAILURES = new Set<BrowserSourceConnectFailure>([
+export const BROWSER_SOURCE_CONNECT_FAILURES = new Set<BrowserSourceConnectFailure>([
   'cancelled',
   'failed',
   'network',
@@ -312,7 +379,7 @@ const BROWSER_SOURCE_CONNECT_FAILURES = new Set<BrowserSourceConnectFailure>([
   'unsupported',
 ]);
 
-const BROWSER_CLIENT_ERROR_ORIGINS = new Set<BrowserClientErrorOrigin>([
+export const BROWSER_CLIENT_ERROR_ORIGINS = new Set<BrowserClientErrorOrigin>([
   'error_boundary',
   'window_error',
   'unhandled_rejection',
@@ -323,7 +390,38 @@ const BROWSER_EVENT_PROPERTY_KEYS: Record<BrowserTelemetryEventName, readonly st
   'source.connect_failed': ['eventSchemaVersion', 'sourceKind', 'reason'],
   sign_in_completed: [],
   client_error: ['origin', 'errorName'],
+  page_viewed: ['eventSchemaVersion', 'page'],
+  cta_clicked: ['eventSchemaVersion', 'cta', 'page'],
+  route_viewed: ['eventSchemaVersion', 'routeTemplate'],
+  onboarding_step_viewed: ['eventSchemaVersion', 'step'],
 };
+
+const BROWSER_EVENT_SURFACES: Record<BrowserTelemetryEventName, readonly BrowserSurface[]> = {
+  'source.connect_started': ['console', 'box'],
+  'source.connect_failed': ['console', 'box'],
+  sign_in_completed: ['console', 'operator', 'box'],
+  client_error: ['console', 'operator', 'box'],
+  page_viewed: ['web'],
+  cta_clicked: ['web'],
+  route_viewed: ROUTE_VIEW_SURFACES,
+  onboarding_step_viewed: ['console'],
+};
+
+export const CATALOG_BACKED_BROWSER_EVENTS: ReadonlySet<string> =
+  new Set<BrowserTelemetryEventName>([
+    'page_viewed',
+    'cta_clicked',
+    'route_viewed',
+    'onboarding_step_viewed',
+  ]);
+
+const ONBOARDING_STEP_SET: ReadonlySet<string> = new Set(ONBOARDING_STEPS);
+const CATALOG_PROPERTY_KEYS: ReadonlySet<string> = new Set([
+  'page',
+  'cta',
+  'routeTemplate',
+  'step',
+]);
 
 export function isBrowserTelemetryEvent(event: string): event is BrowserTelemetryEventName {
   return Object.prototype.hasOwnProperty.call(BROWSER_EVENT_PROPERTY_KEYS, event);
@@ -337,10 +435,39 @@ export function browserTelemetryPropertyKeys(event: BrowserTelemetryEventName): 
   return BROWSER_EVENT_PROPERTY_KEYS[event];
 }
 
+export function clientErrorName(value: unknown): ClientErrorName {
+  if (!(value instanceof Error)) return OTHER_CLIENT_ERROR_NAME;
+  try {
+    const name = value.name;
+    return CLIENT_ERROR_NAME_SET.has(name) && isGlobalConstructor(value.constructor)
+      ? (name as ClientErrorName)
+      : OTHER_CLIENT_ERROR_NAME;
+  } catch {
+    return OTHER_CLIENT_ERROR_NAME;
+  }
+}
+
+// An application-defined subclass is "other" even when it inherits a listed name.
+function isGlobalConstructor(constructor: unknown): boolean {
+  return (
+    typeof constructor === 'function' &&
+    constructor.name !== '' &&
+    (globalThis as unknown as Record<string, unknown>)[constructor.name] === constructor
+  );
+}
+
+export function isBrowserEventAllowedFrom(
+  event: BrowserTelemetryEventName,
+  surface: BrowserSurface,
+): boolean {
+  return isBrowserTelemetryEvent(event) && BROWSER_EVENT_SURFACES[event].includes(surface);
+}
+
 export function isBrowserTelemetryProperty(
   event: BrowserTelemetryEventName,
   key: string,
   value: unknown,
+  catalog?: BrowserCatalog,
 ): boolean {
   if (key === 'eventSchemaVersion') return value === 1;
   if (key === 'sourceKind') {
@@ -357,11 +484,10 @@ export function isBrowserTelemetryProperty(
     return (
       event === BrowserTelemetryEvent.ClientError &&
       typeof value === 'string' &&
-      value.length > 0 &&
-      value.length <= 64 &&
-      /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(value)
+      CLIENT_ERROR_NAME_SET.has(value)
     );
   }
+  if (CATALOG_PROPERTY_KEYS.has(key)) return isCatalogProperty(event, key, value, catalog);
   return (
     event === BrowserTelemetryEvent.SourceConnectFailed &&
     key === 'reason' &&
@@ -370,16 +496,46 @@ export function isBrowserTelemetryProperty(
   );
 }
 
+function isCatalogProperty(
+  event: BrowserTelemetryEventName,
+  key: string,
+  value: unknown,
+  catalog: BrowserCatalog | undefined,
+): boolean {
+  if (catalog === undefined || typeof value !== 'string') return false;
+  switch (key) {
+    case 'page':
+      return (
+        (event === BrowserTelemetryEvent.PageViewed ||
+          event === BrowserTelemetryEvent.CtaClicked) &&
+        catalog.pages.has(value)
+      );
+    case 'cta':
+      return event === BrowserTelemetryEvent.CtaClicked && catalog.ctas.has(value);
+    case 'routeTemplate':
+      return (
+        event === BrowserTelemetryEvent.RouteViewed &&
+        (value === UNMATCHED_ROUTE_TEMPLATE || catalog.routeTemplates.has(value))
+      );
+    case 'step':
+      return event === BrowserTelemetryEvent.OnboardingStepViewed && ONBOARDING_STEP_SET.has(value);
+    default:
+      return false;
+  }
+}
+
 export function areBrowserTelemetryPropertiesValid(
   event: BrowserTelemetryEventName,
   properties: Record<string, unknown>,
+  catalog?: BrowserCatalog,
 ): boolean {
   if (!isBrowserTelemetryEvent(event)) return false;
   const allowedKeys = browserTelemetryPropertyKeys(event);
   return (
     Object.keys(properties).length === allowedKeys.length &&
     allowedKeys.every(
-      (key) => key in properties && isBrowserTelemetryProperty(event, key, properties[key]),
+      (key) =>
+        key in properties && isBrowserTelemetryProperty(event, key, properties[key], catalog),
     )
   );
 }

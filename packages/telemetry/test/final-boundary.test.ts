@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import type { ErrorReport } from '@folklore/errors';
+import { areServerTelemetryPropertiesValid } from '../src/server-event-properties.js';
 import {
+  BrowserTelemetryEvent,
+  CATALOG_BACKED_BROWSER_EVENTS,
+  CLIENT_ERROR_NAMES,
   TelemetryEvent,
-  type ServerTelemetryEventName,
+  type BrowserTelemetryEventName,
   type TelemetryEventMap,
 } from '../src/events.js';
 import { PostHogTelemetryClient } from '../src/PostHogTelemetryClient.js';
@@ -60,7 +64,6 @@ const VALID_SERVER_EVENT_FIXTURES = {
   'subscription.seats_changed': { orgId: ORGANIZATION_ID, seats: 1 },
   'wiki.viewed': {
     orgId: ORGANIZATION_ID,
-    themeId: ORGANIZATION_ID,
     audience: 'all-members',
     blockCount: 1,
   },
@@ -170,7 +173,24 @@ const VALID_SERVER_EVENT_FIXTURES = {
     tombstoned: false,
   },
   'error.captured': ERROR_REPORT,
-} satisfies { [K in ServerTelemetryEventName]: TelemetryEventMap[K] };
+  'api.request': {
+    method: 'GET',
+    routeTemplate: '/v1/orgs/:id/members',
+    statusCode: 200,
+    durationBucket: 'lt_100ms',
+  },
+} satisfies { [K in (typeof TelemetryEvent)[keyof typeof TelemetryEvent]]: TelemetryEventMap[K] };
+
+const VALID_RELAYED_EVENT_FIXTURES = {
+  'source.connect_started': { eventSchemaVersion: 1, sourceKind: 'github' },
+  'source.connect_failed': { eventSchemaVersion: 1, sourceKind: 'github', reason: 'network' },
+  sign_in_completed: {},
+  client_error: { origin: 'error_boundary', errorName: 'TypeError' },
+  page_viewed: { eventSchemaVersion: 1, page: '/pricing' },
+  cta_clicked: { eventSchemaVersion: 1, cta: 'hero_get_started', page: '/' },
+  route_viewed: { eventSchemaVersion: 1, surface: 'console', routeTemplate: '/members' },
+  onboarding_step_viewed: { eventSchemaVersion: 1, step: 'sources' },
+} satisfies { [K in BrowserTelemetryEventName]: TelemetryEventMap[K] };
 
 interface CaptureStub {
   captured: unknown[];
@@ -207,6 +227,129 @@ describe('PostHogTelemetryClient final boundary', () => {
     }
 
     expect(captured).toHaveLength(Object.values(TelemetryEvent).length);
+  });
+
+  const catalogFreeEvents = Object.values(BrowserTelemetryEvent).filter(
+    (event) => !CATALOG_BACKED_BROWSER_EVENTS.has(event),
+  );
+  const catalogBackedEvents = Object.values(BrowserTelemetryEvent).filter((event) =>
+    CATALOG_BACKED_BROWSER_EVENTS.has(event),
+  );
+
+  it('accepts every relayed browser event name that needs no catalog', () => {
+    const { client, captured } = recordingClient();
+
+    for (const event of catalogFreeEvents) {
+      client.track(event, ORGANIZATION_ID, VALID_RELAYED_EVENT_FIXTURES[event]);
+    }
+
+    expect(captured).toHaveLength(catalogFreeEvents.length);
+  });
+
+  it('keeps the catalog-backed names exactly the four the browser contract gates', () => {
+    expect([...catalogBackedEvents].sort()).toEqual([
+      'cta_clicked',
+      'onboarding_step_viewed',
+      'page_viewed',
+      'route_viewed',
+    ]);
+  });
+
+  it.each(['page_viewed', 'cta_clicked', 'route_viewed', 'onboarding_step_viewed'] as const)(
+    'refuses a valid %s because no catalog-taking relay exists yet',
+    (event) => {
+      const { client, captured } = recordingClient();
+
+      client.track(event, ORGANIZATION_ID, VALID_RELAYED_EVENT_FIXTURES[event] as never);
+
+      expect(captured).toEqual([]);
+      expect(areServerTelemetryPropertiesValid(event, VALID_RELAYED_EVENT_FIXTURES[event])).toBe(
+        true,
+      );
+    },
+  );
+
+  it.each([
+    ['a string status code', { statusCode: '200' }],
+    ['an extra statusClass key', { statusClass: '2xx' }],
+    ['a path key', { path: '/v1/orgs' }],
+    ['a lowercase method', { method: 'get' }],
+    ['status 99', { statusCode: 99 }],
+    ['status 600', { statusCode: 600 }],
+    ['a fractional status', { statusCode: 200.5 }],
+    ['an unknown duration bucket', { durationBucket: '1s' }],
+    ['a UUID in the route template', { routeTemplate: `/v1/orgs/${ORGANIZATION_ID}` }],
+    ['a query string in the route template', { routeTemplate: '/v1/orgs?x=1' }],
+    ['a non-string route template', { routeTemplate: 42 }],
+  ])('rejects an api.request payload with %s', (_case, mutation) => {
+    const { client, captured } = recordingClient();
+
+    client.track('api.request', 'system', {
+      ...VALID_SERVER_EVENT_FIXTURES['api.request'],
+      ...mutation,
+    } as never);
+
+    expect(captured).toEqual([]);
+  });
+
+  it('accepts the unmatched and not_recorded api.request values', () => {
+    const { client, captured } = recordingClient();
+
+    client.track('api.request', 'system', {
+      ...VALID_SERVER_EVENT_FIXTURES['api.request'],
+      routeTemplate: 'unmatched',
+      durationBucket: 'not_recorded',
+    });
+
+    expect(captured).toHaveLength(1);
+  });
+
+  it.each([
+    ['page_viewed', { page: '/pricing?x' }],
+    ['page_viewed', { page: '/Pricing' }],
+    ['page_viewed', { page: '/pricing/extra' }],
+    ['page_viewed', { eventSchemaVersion: 2 }],
+    ['page_viewed', { path: '/pricing' }],
+    ['cta_clicked', { cta: 'Hero' }],
+    ['cta_clicked', { cta: 'hero get started' }],
+    ['cta_clicked', { page: 'https://evil.example/' }],
+    ['route_viewed', { surface: 'web' }],
+    ['route_viewed', { surface: 'staff' }],
+    ['route_viewed', { routeTemplate: `/tenants/${ORGANIZATION_ID}` }],
+    ['route_viewed', { title: 'Project Zephyr' }],
+    ['onboarding_step_viewed', { step: 'recovery' }],
+    ['onboarding_step_viewed', { step: 'Project Zephyr' }],
+    ['sign_in_completed', { provider: 'google' }],
+    ['client_error', { errorName: 'MyCustomError' }],
+    ['client_error', { errorName: 'TypeError: customer content' }],
+    ['client_error', { origin: 'renderer' }],
+    ['source.connect_started', { sourceKind: 'meeting' }],
+    ['source.connect_failed', { reason: 'OAuth error: token abc123' }],
+  ] as const)('rejects a relayed %s payload with %j', (event, mutation) => {
+    const { client, captured } = recordingClient();
+
+    client.track(event, 'system', { ...VALID_RELAYED_EVENT_FIXTURES[event], ...mutation } as never);
+
+    expect(captured).toEqual([]);
+  });
+
+  it.each(CLIENT_ERROR_NAMES)('accepts the client error name %s', (errorName) => {
+    const { client, captured } = recordingClient();
+
+    client.track('client_error', ORGANIZATION_ID, { origin: 'window_error', errorName });
+
+    expect(captured).toHaveLength(1);
+  });
+
+  it('rejects a wiki.viewed payload carrying a themeId', () => {
+    const { client, captured } = recordingClient();
+
+    client.track('wiki.viewed', ORGANIZATION_ID, {
+      ...VALID_SERVER_EVENT_FIXTURES['wiki.viewed'],
+      themeId: ORGANIZATION_ID,
+    } as never);
+
+    expect(captured).toEqual([]);
   });
 
   it.each([
