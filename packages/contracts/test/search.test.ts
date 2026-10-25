@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ANSWER_DEFAULT_LIMIT,
   ANSWER_MAX_LIMIT,
+  ASK_QUESTION_MAX_CHARS,
   abstainReasonSchema,
   answerRequestSchema,
   answerResponseSchema,
@@ -43,6 +44,12 @@ describe('answerRequestSchema', () => {
 
   it('rejects a blank question', () => {
     expect(answerRequestSchema.safeParse({ q: '   ' }).success).toBe(false);
+  });
+
+  it('caps the question at 2,000 characters', () => {
+    expect(ASK_QUESTION_MAX_CHARS).toBe(2_000);
+    expect(answerRequestSchema.safeParse({ q: 'x'.repeat(2_000) }).success).toBe(true);
+    expect(answerRequestSchema.safeParse({ q: 'x'.repeat(2_001) }).success).toBe(false);
   });
 });
 

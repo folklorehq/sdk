@@ -4,6 +4,7 @@ import { audienceLensIdSchema } from './me.js';
 
 export const ANSWER_DEFAULT_LIMIT = 8;
 export const ANSWER_MAX_LIMIT = 20;
+export const ASK_QUESTION_MAX_CHARS = 2_000;
 // The enclave truncates every preview to this before it leaves the index (enclave EnclaveFactRetriever
 // imports this same constant; answerer CITATION_SNIPPET_LIMIT); the bound is asserted on the wire so an
 // over-long body can't ride the field.
@@ -29,7 +30,7 @@ export type SearchResponse = z.infer<typeof searchResponseSchema>;
 
 export const answerRequestSchema = z
   .object({
-    q: z.string().trim().min(1),
+    q: z.string().trim().min(1).max(ASK_QUESTION_MAX_CHARS),
     limit: z.coerce
       .number()
       .int()
