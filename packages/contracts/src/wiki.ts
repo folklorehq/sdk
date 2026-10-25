@@ -443,6 +443,7 @@ export const wikiPageOwnerSchema = z
     name: z.string(),
     kind: z.enum(['user', 'team']),
     isConfirmed: z.boolean(),
+    provenance: z.enum(['inferred', 'confirmed']).optional(),
   })
   .strict();
 export type WikiPageOwner = z.infer<typeof wikiPageOwnerSchema>;
@@ -451,6 +452,7 @@ export const wikiPageMetaSchema = z
   .object({
     ownerName: z.string().nullable(),
     ownerKind: z.enum(['user', 'team']).nullable(),
+    ownerProvenance: z.enum(['inferred', 'confirmed']).nullable().optional(),
     owners: z.array(wikiPageOwnerSchema).optional(),
     confidence: z.number(),
     tags: z.array(z.string()),
