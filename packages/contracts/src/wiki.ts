@@ -193,6 +193,9 @@ export const embedBlockSchema = z
     description: z.string().optional(),
     imageUrl: z.string().url().optional(),
     faviconUrl: z.string().url().optional(),
+    // A generated card the box must not enrich or decorate at view time (no third-party request).
+    // not yet wired: no writer sets textOnly until WS-RICH-EMBED clears G-EMBED-READER-DEPLOYED (plan §10.12).
+    textOnly: z.literal(true).optional(),
   })
   .strict();
 export type EmbedBlock = z.infer<typeof embedBlockSchema>;

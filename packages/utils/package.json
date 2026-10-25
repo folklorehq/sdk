@@ -26,6 +26,11 @@
       "types": "./dist/random.d.ts",
       "default": "./dist/random.js"
     },
+    "./safe-href": {
+      "development": "./src/safe-href.ts",
+      "types": "./dist/safe-href.d.ts",
+      "default": "./dist/safe-href.js"
+    },
     "./deep-freeze": {
       "development": "./src/deep-freeze.ts",
       "types": "./dist/deep-freeze.d.ts",

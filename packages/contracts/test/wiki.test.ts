@@ -259,6 +259,13 @@ describe('rich wiki block schemas', () => {
     expect(embedBlockSchema.parse(body)).toEqual(body);
   });
 
+  it('keeps textOnly: true on an embed and rejects any other value', () => {
+    const body = { kind: 'embed', id: '1', url: 'https://figma.com/file/abc', textOnly: true };
+    expect(embedBlockSchema.parse(body)).toEqual(body);
+    expect(embedBlockSchema.safeParse({ ...body, textOnly: false }).success).toBe(false);
+    expect(embedBlockSchema.safeParse({ ...body, textOnly: 'true' }).success).toBe(false);
+  });
+
   it('rejects an invalid embed url', () => {
     expect(embedBlockSchema.safeParse({ kind: 'embed', id: '1', url: 'not-a-url' }).success).toBe(
       false,

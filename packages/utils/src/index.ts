@@ -12,6 +12,7 @@ export {
 } from './hash.js';
 export { canonicalJson, canonicalJsonHash } from './canonical-json.js';
 export { deepFreeze } from './deep-freeze.js';
+export { safeHref } from './safe-href.js';
 export { toVectorLiteral } from './vector.js';
 export { normalizePersonName } from './person-name.js';
 export {
