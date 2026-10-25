@@ -29,9 +29,11 @@ const DYNAMIC_VALUE = Symbol('dynamic_log_value');
 //
 // The theme-merge calibration CLI is an operator script whose stderr carries only fixed messages
 // or a five-character SQLSTATE (CalibrationCliError.describe), covered by
-// apps/worker/test/merge-calibration-report.test.ts.
+// apps/worker/test/merge-calibration-report.test.ts. The KB coherence report CLI is the same shape: its
+// stdout is the strict counts-only schema and its stderr one fixed code (apps/worker/test/kb-coherence-report.test.ts).
 const CONSOLE_EXEMPT_FILES = new Set([
   'apps/worker/src/workers/themes/merge-calibration/calibrate-theme-merges.ts',
+  'apps/worker/src/workers/wiki/kb-coherence/report-kb-coherence.ts',
   'apps/api/src/main.ts',
   'apps/pool-provisioning-runner/src/main.ts',
   'apps/pool-provisioning-runner/src/lambda.ts',
