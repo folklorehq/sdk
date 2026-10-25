@@ -42,6 +42,19 @@ export function clipText(value: string, max: number, suffix = ''): string {
   return `${value.slice(0, isHighSurrogate ? room - 1 : room)}${suffix}`;
 }
 
+/** Zero-width and word-joiner characters, as escapes for use inside a regular expression class. */
+export const INVISIBLE_CHARACTER_CLASS = '\\u200B-\\u200D\\u2060\\uFEFF';
+const INVISIBLE_CHARACTERS = new RegExp(`[${INVISIBLE_CHARACTER_CLASS}]`);
+const INVISIBLE_CHARACTERS_GLOBAL = new RegExp(`[${INVISIBLE_CHARACTER_CLASS}]`, 'g');
+
+export function hasInvisibleCharacter(text: string): boolean {
+  return INVISIBLE_CHARACTERS.test(text);
+}
+
+export function stripInvisibleCharacters(text: string): string {
+  return text.replace(INVISIBLE_CHARACTERS_GLOBAL, '');
+}
+
 /** Up to two leading letters of the space-separated words in a name. */
 export function initials(name: string): string {
   return name

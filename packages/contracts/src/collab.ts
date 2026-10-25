@@ -28,6 +28,9 @@ export const COLLAB_WS_PATH = '/collab';
 // enclave's upgrade proxy takes it from there rather than re-deriving it.
 export const COLLAB_DEFAULT_PORT = 1234;
 
+// The Yjs fragment holding a page's draft: the editor binds it and the server's direct edits read it.
+export const COLLAB_DRAFT_FRAGMENT = 'default';
+
 // Hocuspocus' store debounce, pinned: an acknowledged edit is sealed at most MAX later.
 export const COLLAB_STORE_DEBOUNCE_MS = 2_000;
 export const COLLAB_STORE_MAX_DEBOUNCE_MS = 10_000;
