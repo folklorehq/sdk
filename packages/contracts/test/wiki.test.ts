@@ -14,6 +14,7 @@ import {
   wikiFeedResponseSchema,
   wikiPageResponseSchema,
   wikiPageStatusResponseSchema,
+  WIKI_LIST_ME,
   WIKI_LIST_NONE,
   wikiListQuerySchema,
   wikiListResponseSchema,
@@ -854,12 +855,42 @@ describe('wiki list contracts', () => {
     expect(wikiListQuerySchema.parse({ team: 'none' })).toMatchObject({ team: 'none' });
     expect(wikiListQuerySchema.parse({ owner: 'none' })).toMatchObject({ owner: 'none' });
     expect(wikiListQuerySchema.parse({ team: TEAM })).toMatchObject({ team: TEAM });
-    for (const owner of ['usr', 'me', 'None', '', TEAM]) {
+    for (const owner of ['usr', 'Me', 'None', '', TEAM]) {
       expect(wikiListQuerySchema.safeParse({ owner }).success).toBe(false);
     }
     for (const team of ['None', 'NONE', '']) {
       expect(wikiListQuerySchema.safeParse({ team }).success).toBe(false);
     }
+  });
+
+  it('accepts me as the owner filter, meaning the caller', () => {
+    expect(WIKI_LIST_ME).toBe('me');
+    expect(wikiListQuerySchema.parse({ owner: 'me' })).toMatchObject({ owner: 'me' });
+  });
+
+  it('accepts an owner provenance on a list row and rejects an unknown one', () => {
+    const row = {
+      id: 'p1',
+      kind: 'theme',
+      themeId: 't1',
+      onboardingTeamId: null,
+      title: 'Auth',
+      docType: 'concept',
+      audienceId: null,
+      team: null,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const parse = (owner: unknown) =>
+      wikiListResponseSchema.safeParse({
+        pages: [{ ...row, owner }],
+        limit: 50,
+        nextCursor: null,
+        truncated: false,
+      }).success;
+    expect(parse({ userId: 'u1', name: 'Ada', provenance: 'inferred' })).toBe(true);
+    expect(parse({ userId: 'u1', name: 'Ada', provenance: 'confirmed' })).toBe(true);
+    expect(parse({ userId: 'u1', name: 'Ada' })).toBe(true);
+    expect(parse({ userId: 'u1', name: 'Ada', provenance: 'suggested' })).toBe(false);
   });
 
   it('accepts a theme row and a team onboarding row and rejects extra fields', () => {

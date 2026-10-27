@@ -441,12 +441,14 @@ export const wikiPageBlockSchema = z
   .strict();
 export type WikiPageBlock = z.infer<typeof wikiPageBlockSchema>;
 
+export const wikiOwnerProvenanceSchema = z.enum(['inferred', 'confirmed']);
+
 export const wikiPageOwnerSchema = z
   .object({
     name: z.string(),
     kind: z.enum(['user', 'team']),
     isConfirmed: z.boolean(),
-    provenance: z.enum(['inferred', 'confirmed']).optional(),
+    provenance: wikiOwnerProvenanceSchema.optional(),
   })
   .strict();
 export type WikiPageOwner = z.infer<typeof wikiPageOwnerSchema>;
@@ -455,7 +457,7 @@ export const wikiPageMetaSchema = z
   .object({
     ownerName: z.string().nullable(),
     ownerKind: z.enum(['user', 'team']).nullable(),
-    ownerProvenance: z.enum(['inferred', 'confirmed']).nullable().optional(),
+    ownerProvenance: wikiOwnerProvenanceSchema.nullable().optional(),
     owners: z.array(wikiPageOwnerSchema).optional(),
     confidence: z.number(),
     tags: z.array(z.string()),
@@ -553,6 +555,7 @@ export const WIKI_LIST_MAX_LIMIT = 100;
 export const WIKI_LIST_QUERY_MAX_CHARS = 200;
 export const WIKI_LIST_CURSOR_MAX_CHARS = 512;
 export const WIKI_LIST_NONE = 'none';
+export const WIKI_LIST_ME = 'me';
 
 export const wikiListQuerySchema = z
   .object({
@@ -561,7 +564,7 @@ export const wikiListQuerySchema = z
     q: z.string().trim().min(1).max(WIKI_LIST_QUERY_MAX_CHARS).optional(),
     docType: z.enum(KNOWN_DOCUMENT_TYPE_IDS).optional(),
     team: z.union([z.string().uuid(), z.literal(WIKI_LIST_NONE)]).optional(),
-    owner: z.literal(WIKI_LIST_NONE).optional(),
+    owner: z.enum([WIKI_LIST_NONE, WIKI_LIST_ME]).optional(),
     audience: z.string().uuid().optional(),
   })
   .strict();
@@ -580,7 +583,14 @@ export const wikiListItemSchema = z
     docType: documentTypeSchema,
     audienceId: z.string().nullable(),
     team: z.object({ id: z.string(), name: z.string() }).strict().nullable(),
-    owner: z.object({ userId: z.string(), name: z.string().nullable() }).strict().nullable(),
+    owner: z
+      .object({
+        userId: z.string(),
+        name: z.string().nullable(),
+        provenance: wikiOwnerProvenanceSchema.optional(),
+      })
+      .strict()
+      .nullable(),
     updatedAt: z.string(),
   })
   .strict();
