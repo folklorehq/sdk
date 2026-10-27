@@ -1900,6 +1900,30 @@ export const oauthDisconnectCleanupCommandSchema = z
   .strict();
 export type OAuthDisconnectCleanupCommand = z.infer<typeof oauthDisconnectCleanupCommandSchema>;
 
+export const CODEBASE_GRAPH_ERASE_ALL_GENERATIONS = 'all';
+// Under the tenant load balancer's 60 s idle timeout; a larger erase resumes across calls instead.
+export const CODEBASE_GRAPH_ERASE_SUBMISSION_TIMEOUT_MS = 55_000;
+export const CODEBASE_GRAPH_ERASE_REASONS = ['disabled', 'invalidated', 'parent_retired'] as const;
+export type CodebaseGraphEraseReason = (typeof CODEBASE_GRAPH_ERASE_REASONS)[number];
+
+export const codebaseGraphEraseCommandSchema = z
+  .object({
+    eraseId: webhookLifecycleUuidSchema,
+    orgId: webhookLifecycleUuidSchema,
+    tenantDeploymentId: webhookLifecycleUuidSchema,
+    retiredGeneration: z.union([
+      webhookLifecycleUuidSchema,
+      z.literal(CODEBASE_GRAPH_ERASE_ALL_GENERATIONS),
+    ]),
+    reason: z.enum(CODEBASE_GRAPH_ERASE_REASONS),
+    pass: z.union([z.literal(1), z.literal(2)]),
+  })
+  .strict();
+export type CodebaseGraphEraseCommand = z.infer<typeof codebaseGraphEraseCommandSchema>;
+
+export const codebaseGraphEraseResponseSchema = z.object({ done: z.boolean() }).strict();
+export type CodebaseGraphEraseResponse = z.infer<typeof codebaseGraphEraseResponseSchema>;
+
 export const retiredOAuthCredentialLookupSchema = z
   .object({
     orgId: webhookLifecycleUuidSchema,
