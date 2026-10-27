@@ -34,6 +34,11 @@ const FROZEN: Record<string, string[]> = {
     'authors[].sourceUserId',
     'bodyHash',
     'bodyS3Key',
+    // Opaque keyed node ids, pattern-bound to `cn:` plus 32 hex (asserted below).
+    'codeGraph.canaryId',
+    'codeGraph.nodes[].id',
+    'codeGraph.nodes[].parentId',
+    'codeGraph.refs[].nodeId',
     'containerRefs[]',
     'containerSeeds[].shape',
     'containerSeeds[].sourceContainerId',
@@ -238,6 +243,39 @@ describe('enclave→worker DTO shapes are content-free by construction', () => {
       expect(tokenUsageSchema.safeParse(usageWith(prose)).success, prose).toBe(false);
     }
     expect(tokenUsageSchema.safeParse(usageWith('z-ai/glm-5.2')).success).toBe(true);
+  });
+
+  it('every codeGraph string is a pattern-bound opaque id, so prose cannot ride it', () => {
+    const id = `cn:${'a'.repeat(32)}`;
+    const base = {
+      factId: 'f',
+      orgId: 'o',
+      sourceKind: 'code',
+      sourceFactId: 's',
+      occurredAt: '2026-01-01T00:00:00.000Z',
+      bodyS3Key: 'k',
+      bodyHash: 'h',
+      kind: 'content',
+      containerRefs: [],
+      explicitLinks: [],
+      extractedEntities: [],
+      containerSeeds: [],
+      hnswNeighbors: [],
+    };
+    const graphWith = (prose: string) => [
+      { nodes: [{ id: prose, kind: 'repo', depth: 0, parentId: null }], refs: [] },
+      { nodes: [{ id, kind: 'file', depth: 1, parentId: prose }], refs: [] },
+      { nodes: [], refs: [{ nodeId: prose, relation: 'cited' }] },
+      { nodes: [], refs: [], canaryId: prose },
+    ];
+    for (const prose of ['src/payments/ledger.ts', 'cn:src/payments', `cn:${'A'.repeat(32)}`, '']) {
+      for (const codeGraph of graphWith(prose)) {
+        const result = processedFactSchema.safeParse({ ...base, codeGraph });
+        expect(result.success, prose).toBe(false);
+      }
+    }
+    const ok = { nodes: [{ id, kind: 'repo', depth: 0, parentId: null }], refs: [] };
+    expect(processedFactSchema.safeParse({ ...base, codeGraph: ok }).success).toBe(true);
   });
 
   // A timeline span adds two free strings: a model id under the same pattern, and a failure code

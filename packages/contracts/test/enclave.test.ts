@@ -39,6 +39,10 @@ import {
   themeDispositionReplySchema,
   PAGE_TITLE_MAX_LENGTH,
   aggregateThemeSchema,
+  CODE_GRAPH_NODES_MAX,
+  CODE_GRAPH_REFS_MAX,
+  CODE_NODE_DEPTH_MAX,
+  codeGraphSchema,
   isValidPageTitle,
   wikiArticleSchema,
   wikiSynthesisArticleSchema,
@@ -481,6 +485,66 @@ describe('processedFactSchema', () => {
         containerSeeds: [{ ...valid.containerSeeds[0], plaintext: 'customer prose' }],
       }).success,
     ).toBe(false);
+  });
+
+  describe('codeGraph', () => {
+    const repoId = `cn:${'a'.repeat(32)}`;
+    const fileId = `cn:${'b'.repeat(32)}`;
+    const graph = {
+      nodes: [
+        { id: repoId, kind: 'repo', depth: 0, parentId: null },
+        { id: fileId, kind: 'file', depth: 1, parentId: repoId },
+      ],
+      refs: [{ nodeId: fileId, relation: 'cited' }],
+    };
+
+    it('parses a valid graph', () => {
+      expect(processedFactSchema.parse({ ...valid, codeGraph: graph }).codeGraph).toEqual(graph);
+    });
+
+    it('parses an old enclave fact with no codeGraph and adds no default', () => {
+      expect(processedFactSchema.parse(valid)).not.toHaveProperty('codeGraph');
+    });
+
+    it('accepts a canary id that matches the node id pattern', () => {
+      const canaryId = `cn:${'c'.repeat(32)}`;
+      expect(codeGraphSchema.parse({ ...graph, canaryId }).canaryId).toBe(canaryId);
+    });
+
+    it.each([
+      ['an id with the wrong shape', { ...graph, nodes: [{ ...graph.nodes[0], id: 'cn:XYZ' }] }],
+      [
+        'an uppercase hex id',
+        { ...graph, nodes: [{ ...graph.nodes[0], id: `cn:${'A'.repeat(32)}` }] },
+      ],
+      ['an extra name property', { ...graph, nodes: [{ ...graph.nodes[0], name: 'src/a.ts' }] }],
+      ['an unknown kind', { ...graph, nodes: [{ ...graph.nodes[0], kind: 'canary' }] }],
+      [
+        'depth above the maximum',
+        { ...graph, nodes: [{ ...graph.nodes[0], depth: CODE_NODE_DEPTH_MAX + 1 }] },
+      ],
+      ['a negative depth', { ...graph, nodes: [{ ...graph.nodes[0], depth: -1 }] }],
+      ['an unknown relation', { ...graph, refs: [{ nodeId: fileId, relation: 'renamed' }] }],
+      ['an extra ref property', { ...graph, refs: [{ ...graph.refs[0], path: 'src/a.ts' }] }],
+      ['a malformed canary id', { ...graph, canaryId: 'cn:XYZ' }],
+      ['an extra graph property', { ...graph, names: {} }],
+      [
+        'too many nodes',
+        { ...graph, nodes: Array.from({ length: CODE_GRAPH_NODES_MAX + 1 }, () => graph.nodes[0]) },
+      ],
+      [
+        'too many refs',
+        { ...graph, refs: Array.from({ length: CODE_GRAPH_REFS_MAX + 1 }, () => graph.refs[0]) },
+      ],
+    ])('rejects %s', (_label, codeGraph) => {
+      expect(processedFactSchema.safeParse({ ...valid, codeGraph }).success).toBe(false);
+    });
+
+    it('accepts the node and ref caps exactly', () => {
+      const nodes = Array.from({ length: CODE_GRAPH_NODES_MAX }, () => graph.nodes[0]);
+      const refs = Array.from({ length: CODE_GRAPH_REFS_MAX }, () => graph.refs[0]);
+      expect(codeGraphSchema.safeParse({ nodes, refs }).success).toBe(true);
+    });
   });
 
   describe('salience', () => {

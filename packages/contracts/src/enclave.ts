@@ -176,6 +176,37 @@ export const wikiExportTargetKindSchema = z.enum(['notion', 'clickup']);
 export type WikiExportTargetKind = z.infer<typeof wikiExportTargetKindSchema>;
 export const NOTION_KIND = wikiExportTargetKindSchema.enum.notion;
 
+export const CODE_NODE_ID_PATTERN = /^cn:[0-9a-f]{32}$/;
+export const CODE_GRAPH_NODES_MAX = 512;
+export const CODE_GRAPH_REFS_MAX = 128;
+export const CODE_NODE_DEPTH_MAX = 64;
+export const codeNodeKindSchema = z.enum(['repo', 'dir', 'file', 'symbol']);
+export type CodeNodeKind = z.infer<typeof codeNodeKindSchema>;
+export const codeGraphNodeSchema = z
+  .object({
+    id: z.string().regex(CODE_NODE_ID_PATTERN),
+    kind: codeNodeKindSchema,
+    depth: z.number().int().min(0).max(CODE_NODE_DEPTH_MAX),
+    parentId: z.string().regex(CODE_NODE_ID_PATTERN).nullable(),
+  })
+  .strict();
+export const codeGraphRefRelationSchema = z.enum(['cited', 'added', 'modified', 'removed']);
+export const codeGraphRefSchema = z
+  .object({
+    nodeId: z.string().regex(CODE_NODE_ID_PATTERN),
+    relation: codeGraphRefRelationSchema,
+  })
+  .strict();
+// UNWIRED: no producer until B-W3, after the receiving worker is deployed.
+export const codeGraphSchema = z
+  .object({
+    nodes: z.array(codeGraphNodeSchema).max(CODE_GRAPH_NODES_MAX),
+    refs: z.array(codeGraphRefSchema).max(CODE_GRAPH_REFS_MAX),
+    canaryId: z.string().regex(CODE_NODE_ID_PATTERN).optional(),
+  })
+  .strict();
+export type CodeGraph = z.infer<typeof codeGraphSchema>;
+
 export const processedFactSchema = z
   .object({
     factId: z.string(),
@@ -207,6 +238,8 @@ export const processedFactSchema = z
       .array(processedFactUnlinkedAuthorSchema)
       .max(PROCESSED_FACT_MAX_AUTHORS)
       .optional(),
+    // No .default(): an enclave that omits it must stay valid, and a default would sign `codeGraph: undefined`.
+    codeGraph: codeGraphSchema.optional(),
   })
   .strict();
 export type ProcessedFact = z.infer<typeof processedFactSchema>;
