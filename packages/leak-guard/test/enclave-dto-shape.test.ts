@@ -101,6 +101,8 @@ const FROZEN: Record<string, string[]> = {
     'requestId',
     'themes[].containerIds[]',
     'themes[].docType',
+    // A uuid naming a live theme, never text; reviewed for the theme disposition.
+    'themes[].dispositionTargetThemeId',
     'themes[].facts[].factId',
     'themes[].name',
     'themes[].team',

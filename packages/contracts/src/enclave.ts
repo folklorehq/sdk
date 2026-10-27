@@ -523,6 +523,48 @@ export const themeFactScoreSchema = z
   .strict();
 export type ThemeFactScore = z.infer<typeof themeFactScoreSchema>;
 
+export const THEME_DISPOSITIONS = [
+  'create',
+  'append_section',
+  'linked_decision',
+  'activity_only',
+  'ask_only',
+] as const;
+export const themeDispositionSchema = z.enum(THEME_DISPOSITIONS);
+export const READER_ROLES = [
+  'engineer',
+  'operator',
+  'product',
+  'leader',
+  'new_member',
+  'customer',
+  'anyone',
+] as const;
+export const readerRoleSchema = z.enum(READER_ROLES);
+export const READER_INTENTS = [
+  'understand_system',
+  'solve_problem',
+  'make_decision',
+  'perform_process',
+] as const;
+export const readerIntentSchema = z.enum(READER_INTENTS);
+export const WHY_DOCUMENT = ['durable_reference', 'procedure', 'decision_record', 'none'] as const;
+export const whyDocumentSchema = z.enum(WHY_DOCUMENT);
+export const themeDispositionReplySchema = z
+  .object({
+    disposition: themeDispositionSchema,
+    readerRole: readerRoleSchema,
+    readerIntent: readerIntentSchema,
+    whyDocument: whyDocumentSchema,
+    confidence: z.number().min(0).max(1),
+  })
+  .strict();
+export type ThemeDisposition = z.infer<typeof themeDispositionSchema>;
+export type ReaderRole = z.infer<typeof readerRoleSchema>;
+export type ReaderIntent = z.infer<typeof readerIntentSchema>;
+export type WhyDocument = z.infer<typeof whyDocumentSchema>;
+export type ThemeDispositionReply = z.infer<typeof themeDispositionReplySchema>;
+
 export const synthesizedThemeSchema = z
   .object({
     themeId: z.string(),
@@ -540,6 +582,14 @@ export const synthesizedThemeSchema = z
     // Sent only as `true`, when `name` is the metadata fallback; no default, so an older strict
     // worker never sees the key on a model-named theme. The worker then keeps a stored name.
     namedByFallback: z.boolean().optional(),
+    // Disposition: closed enums, a confidence and a theme id, never text. Optional with
+    // no default, so an older strict worker never sees the keys.
+    disposition: themeDispositionSchema.optional(),
+    readerRole: readerRoleSchema.optional(),
+    readerIntent: readerIntentSchema.optional(),
+    whyDocument: whyDocumentSchema.optional(),
+    dispositionConfidence: z.number().min(0).max(1).optional(),
+    dispositionTargetThemeId: z.string().uuid().optional(),
   })
   .strict();
 export type SynthesizedTheme = z.infer<typeof synthesizedThemeSchema>;

@@ -36,6 +36,7 @@ import {
   themeContainerFactRefSchema,
   THEME_SURFACE_CEILING,
   themeSynthesisResultSchema,
+  themeDispositionReplySchema,
   PAGE_TITLE_MAX_LENGTH,
   aggregateThemeSchema,
   isValidPageTitle,
@@ -1167,6 +1168,82 @@ describe('themeSynthesisResultSchema', () => {
     expect(parsed.themes[0]).not.toHaveProperty('namedByFallback');
     expect(JSON.stringify(parsed)).not.toContain('namedByFallback');
     expect(reparsed.themes[0]).not.toHaveProperty('namedByFallback');
+  });
+
+  describe('disposition fields', () => {
+    const TARGET_THEME_ID = '6f1d2c3b-4a5e-4f60-8a7b-9c0d1e2f3a4b';
+    const theme = {
+      themeId: 't1',
+      name: 'payments: Checkout Reliability',
+      kind: 'topic',
+      team: 'payments',
+      importance: 0.9,
+      tags: ['incident'],
+      containerIds: ['c1'],
+      facts: [],
+    };
+    const disposed = {
+      disposition: 'append_section',
+      readerRole: 'engineer',
+      readerIntent: 'understand_system',
+      whyDocument: 'durable_reference',
+      dispositionConfidence: 0.8,
+      dispositionTargetThemeId: TARGET_THEME_ID,
+    };
+    const payload = (change: Record<string, unknown>) => ({
+      type: 'theme_synthesis',
+      requestId: 'req-1',
+      inputVersion: 'input-v1',
+      leaseToken: 'lease-1',
+      orgId: 'org-1',
+      themes: [{ ...theme, ...change }],
+      related: [],
+    });
+
+    it('parses an old-shape theme without adding any disposition field', () => {
+      const parsed = themeSynthesisResultSchema.parse(payload({}));
+      for (const field of Object.keys(disposed)) expect(parsed.themes[0]).not.toHaveProperty(field);
+    });
+
+    it('parses every field when valid', () => {
+      expect(themeSynthesisResultSchema.parse(payload(disposed)).themes[0]).toMatchObject(disposed);
+    });
+
+    it.each([
+      ['disposition', 'publish_everything'],
+      ['readerRole', 'wizard'],
+      ['readerIntent', 'browse'],
+      ['whyDocument', 'because'],
+      ['dispositionConfidence', 1.5],
+      ['dispositionConfidence', -0.1],
+      ['dispositionTargetThemeId', 'theme-a'],
+      ['extraKey', 'customer prose'],
+    ])('rejects %s = %j', (field, value) => {
+      expect(themeSynthesisResultSchema.safeParse(payload({ [field]: value })).success).toBe(false);
+    });
+
+    it('the enclave reply schema accepts the closed shape and rejects free text in any field', () => {
+      const reply = {
+        disposition: 'create',
+        readerRole: 'leader',
+        readerIntent: 'make_decision',
+        whyDocument: 'decision_record',
+        confidence: 0.7,
+      };
+      expect(themeDispositionReplySchema.parse(reply)).toEqual(reply);
+      for (const field of ['disposition', 'readerRole', 'readerIntent', 'whyDocument']) {
+        expect(
+          themeDispositionReplySchema.safeParse({ ...reply, [field]: 'a free text answer' })
+            .success,
+        ).toBe(false);
+      }
+      expect(themeDispositionReplySchema.safeParse({ ...reply, confidence: 2 }).success).toBe(
+        false,
+      );
+      expect(themeDispositionReplySchema.safeParse({ ...reply, rationale: 'text' }).success).toBe(
+        false,
+      );
+    });
   });
 
   it('defaults aggregates to an empty array when omitted', () => {
