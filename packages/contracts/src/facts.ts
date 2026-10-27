@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
+import { FACT_SOURCE_KINDS } from './connectors/index.js';
 import { factKindSchema } from './enclave.js';
 import { SNIPPET_MAX_CHARS } from './search.js';
 
@@ -7,26 +8,7 @@ export const FACT_EXCERPT_MAX_CHARS = 1_200;
 export const FACT_EXCERPT_BATCH_MAX = 50;
 export const FACT_SNIPPETS_ENABLED = '1';
 
-export const factSourceKindSchema = z.enum([
-  'github',
-  'slack',
-  'notion',
-  'linear',
-  'jira',
-  'intercom',
-  'meeting',
-  'code',
-  'confluence',
-  'email',
-  'google_calendar',
-  'google_drive',
-  'gmail',
-  'microsoft365_calendar',
-  'microsoft365_mail',
-  'microsoft365',
-  'zoom_bot',
-  'zoom',
-]);
+export const factSourceKindSchema = z.enum(FACT_SOURCE_KINDS);
 
 export const factListQuerySchema = z
   .object({

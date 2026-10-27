@@ -1,7 +1,7 @@
 # Custom connector example
 
-A third-party `standup_bot` source that registers with `ConnectorRegistry` without patching
-built-in connector registration.
+A third-party `standup_bot` source registered into a local `ConnectorRegistry` instance, for
+authoring and tests. A production deployment runs only connectors built into its verified image.
 
 ## Layout
 
@@ -20,5 +20,5 @@ pnpm --filter @folklore/cli test
 
 The CLI test suite loads this example and normalizes `fixture.json` through a fresh registry.
 
-To register in production code, call `registerStandupConnector(getDefaultConnectorRegistry())`
-at process startup before handling webhooks.
+To use it in your own tooling, call `registerStandupConnector(registry)` on a `ConnectorRegistry`
+instance you construct.
