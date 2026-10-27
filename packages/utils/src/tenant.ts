@@ -100,3 +100,16 @@ export const WORKSPACE_ROOT_DOMAIN = 'folklorehq.com';
 export function workspaceAddress(slug: string | null): string | null {
   return slug ? `${slug}.${WORKSPACE_ROOT_DOMAIN}` : null;
 }
+
+const ROOT_DOMAIN_RE = /^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+
+/** The https origin of a valid tenant label under a root domain; null for anything a tenant cannot own, so a caller never guesses a host. */
+export function workspaceOrigin(
+  slug: string | null,
+  rootDomain: string = WORKSPACE_ROOT_DOMAIN,
+): string | null {
+  if (slug === null || !isValidTenantSubdomain(slug) || !ROOT_DOMAIN_RE.test(rootDomain)) {
+    return null;
+  }
+  return `https://${slug}.${rootDomain}`;
+}

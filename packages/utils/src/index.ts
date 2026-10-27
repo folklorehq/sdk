@@ -91,6 +91,7 @@ export {
   isValidTenantSubdomain,
   resolveTenantFromHost,
   workspaceAddress,
+  workspaceOrigin,
 } from './tenant.js';
 export { emailDomain, isPublicEmailDomain, isWorkEmail } from './public-email-domains.js';
 export {

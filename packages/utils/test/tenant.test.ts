@@ -10,6 +10,7 @@ import {
   isValidSubdomainLabel,
   isValidTenantSubdomain,
   resolveTenantFromHost,
+  workspaceOrigin,
 } from '../src/tenant.js';
 import * as utils from '../src/index.js';
 
@@ -157,5 +158,51 @@ describe('resolveTenantFromHost', () => {
     it('returns null for empty input', () => {
       expect(resolveTenantFromHost('')).toBeNull();
     });
+  });
+});
+
+describe('workspaceOrigin', () => {
+  it('is the https origin of a valid tenant label', () => {
+    expect(workspaceOrigin('acme')).toBe('https://acme.folklorehq.com');
+    expect(workspaceOrigin('acme-corp')).toBe('https://acme-corp.folklorehq.com');
+  });
+
+  it.each([
+    ['no label', null],
+    ['an empty label', ''],
+    ['a reserved platform host', 'app'],
+    ['a label with a dot, which would name another host', 'a.evil'],
+    ['an uppercase label', 'Acme'],
+    ['a punycode label', 'xn--acme'],
+    ['a label carrying a path', 'acme/path'],
+    ['a label carrying credentials', 'user@acme'],
+  ])('is null for %s, so a caller never guesses a host', (_label, slug) => {
+    expect(workspaceOrigin(slug)).toBeNull();
+  });
+});
+
+describe('workspaceOrigin with a platform root domain', () => {
+  it('addresses the slug under the root domain the platform names', () => {
+    expect(workspaceOrigin('acme', 'example.test')).toBe('https://acme.example.test');
+    expect(workspaceOrigin('acme', 'app.preview.example.test')).toBe(
+      'https://acme.app.preview.example.test',
+    );
+  });
+
+  it.each([
+    ['a scheme', 'https://example.test'],
+    ['a path', 'example.test/app'],
+    ['an uppercase letter', 'Example.test'],
+    ['a single label', 'localhost'],
+    ['a port', 'example.test:8443'],
+    ['credentials', 'user@example.test'],
+    ['an empty string', ''],
+    ['an empty label', 'example..test'],
+  ])('is null for a root domain with %s, so a caller never builds a host from it', (_n, root) => {
+    expect(workspaceOrigin('acme', root)).toBeNull();
+  });
+
+  it('still defaults to the folklorehq.com workspace root', () => {
+    expect(workspaceOrigin('acme')).toBe('https://acme.folklorehq.com');
   });
 });
