@@ -42,4 +42,19 @@ export const linearManifest = {
     documentBodies: false,
   },
   settings: 'none',
+  identity: {
+    live: true,
+    authUrl: 'https://linear.app/oauth/authorize',
+    scopes: ['read'],
+    scopeParam: 'scope',
+    pkce: 'disabled',
+    fallbackToSource: true,
+    lookup: {
+      method: 'POST',
+      url: 'https://api.linear.app/graphql',
+      graphqlQuery: 'query FolkloreIdentity { viewer { id name } }',
+      idPointer: '/data/viewer/id',
+      namePointer: '/data/viewer/name',
+    },
+  },
 } as const satisfies ConnectorManifest;

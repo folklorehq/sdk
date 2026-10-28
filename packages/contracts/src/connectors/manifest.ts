@@ -135,6 +135,39 @@ export const connectorUiSchema = z
     message: 'a connectable kind needs a description and a scope preview',
   });
 
+export const jsonPointerSchema = z.string().regex(/^(\/[^/~]*(~[01][^/~]*)*)*$/);
+
+export const identityLookupSchema = z
+  .object({
+    method: z.enum(['GET', 'POST']),
+    url: httpsHostUrlSchema,
+    graphqlQuery: z.string().min(1).max(512).optional(),
+    idPointer: jsonPointerSchema.min(1),
+    namePointer: jsonPointerSchema.min(1).optional(),
+  })
+  .strict()
+  .refine((lookup) => lookup.graphqlQuery === undefined || lookup.method === 'POST', {
+    message: 'a GraphQL lookup is a POST',
+  });
+
+// A member links by the explicit OAuth button only; the lookup runs once with the redeemed token, which is then discarded.
+export const connectorIdentitySchema = z
+  .object({
+    live: z.boolean(),
+    authUrl: httpsHostUrlSchema,
+    scopes: z.array(z.string().min(1)).readonly(),
+    scopeParam: z.enum(['scope', 'user_scope']),
+    pkce: z.enum(['required', 'disabled']),
+    clientIdEnv: envNameSchema.optional(),
+    fallbackToSource: z.boolean(),
+    extraAuthParams: z.record(z.string()).optional(),
+    lookup: identityLookupSchema,
+  })
+  .strict();
+
+// UNWIRED: no caller until customer-defined connectors are wired. Sealed data, never a provider the enclave links members through.
+export const customConnectorIdentitySchema = z.null();
+
 export const connectorManifestSchema = z
   .object({
     manifestVersion: z.literal(CONNECTOR_MANIFEST_VERSION),
@@ -161,7 +194,28 @@ export const connectorManifestSchema = z
     pull: connectorPullSchema.nullable(),
     settings: connectorSettingsSchema,
     containerLabels: z.array(containerLabelNameSchema).readonly().optional(),
+    identity: connectorIdentitySchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((manifest, ctx) => {
+    const identity = manifest.identity;
+    if (!identity) return;
+    const lookupHost = new URL(identity.lookup.url).hostname;
+    if (!manifest.egress.apiHosts.includes(lookupHost)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['identity', 'lookup', 'url'],
+        message: 'host not in egress.apiHosts',
+      });
+    }
+    const hasClient = identity.clientIdEnv !== undefined || identity.fallbackToSource;
+    if (!hasClient || (identity.fallbackToSource && manifest.auth?.type !== 'oauth2')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['identity', 'fallbackToSource'],
+        message: 'no OAuth client to use',
+      });
+    }
+  });
 
 export type ConnectorManifest = z.infer<typeof connectorManifestSchema>;

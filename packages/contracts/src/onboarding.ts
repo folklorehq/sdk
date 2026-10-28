@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
-import { CONNECTOR_MANIFESTS } from './connectors/index.js';
+import { CONNECTOR_MANIFESTS, identityLinkSpecs } from './connectors/index.js';
 
 // Content-free per-team onboarding view (docs/product/onboarding-wikis.md Part A / Stage 1). Every
 // field is org metadata — source-kind strings, ids, team/theme labels, member display names, link
@@ -57,11 +57,20 @@ export const teamOnboardingViewSchema = z
   .strict();
 export type TeamOnboardingView = z.infer<typeof teamOnboardingViewSchema>;
 
-export const IDENTITY_LINK_KINDS = ['github', 'slack', 'linear', 'notion'] as const;
+type IdentityManifest = Extract<
+  (typeof CONNECTOR_MANIFESTS)[number],
+  { readonly identity: { readonly live: boolean } }
+>;
+
+export const IDENTITY_LINK_KINDS = identityLinkSpecs().map((s) => s.kind) as unknown as readonly [
+  IdentityManifest['kind'],
+  ...IdentityManifest['kind'][],
+];
 export type IdentityLinkKind = (typeof IDENTITY_LINK_KINDS)[number];
 
-// UNWIRED: slack, notion and linear identity links cannot complete yet.
-export const LIVE_IDENTITY_LINK_KINDS = ['github'] as const satisfies readonly IdentityLinkKind[];
+export const LIVE_IDENTITY_LINK_KINDS = identityLinkSpecs()
+  .filter((s) => s.live)
+  .map((s) => s.kind) as unknown as readonly [IdentityLinkKind, ...IdentityLinkKind[]];
 
 type TeamToolManifest = Extract<
   (typeof CONNECTOR_MANIFESTS)[number],

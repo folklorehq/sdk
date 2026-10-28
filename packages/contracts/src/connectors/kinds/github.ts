@@ -43,4 +43,18 @@ export const githubManifest = {
     documentBodies: false,
   },
   settings: 'none',
+  identity: {
+    live: true,
+    authUrl: 'https://github.com/login/oauth/authorize',
+    scopes: [],
+    scopeParam: 'scope',
+    pkce: 'required',
+    clientIdEnv: 'GITHUB_IDENTITY_CLIENT_ID',
+    fallbackToSource: false,
+    lookup: {
+      method: 'GET',
+      url: 'https://api.github.com/user',
+      idPointer: '/id',
+    },
+  },
 } as const satisfies ConnectorManifest;

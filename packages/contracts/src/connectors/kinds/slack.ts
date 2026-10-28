@@ -55,4 +55,19 @@ export const slackManifest = {
     documentBodies: false,
   },
   settings: 'none',
+  identity: {
+    // UNWIRED: stays false until a Slack identity envelope exists.
+    live: false,
+    authUrl: 'https://slack.com/oauth/v2/authorize',
+    scopes: ['identity.basic'],
+    scopeParam: 'user_scope',
+    pkce: 'disabled',
+    clientIdEnv: 'SLACK_IDENTITY_CLIENT_ID',
+    fallbackToSource: true,
+    lookup: {
+      method: 'GET',
+      url: 'https://slack.com/api/auth.test',
+      idPointer: '/user_id',
+    },
+  },
 } as const satisfies ConnectorManifest;

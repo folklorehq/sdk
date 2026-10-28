@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 import { containerLabelSchema } from './container-labels.js';
-import { hostSchema, type ConnectorManifest } from './manifest.js';
+import { hostSchema, jsonPointerSchema, type ConnectorManifest } from './manifest.js';
 
 export const STREAM_SPEC_VERSION = 1;
 export const SPEC_MAX_RECORDS_PER_PAGE = 1000;
 export const SPEC_MAX_STREAM_STATE_BYTES = 2048;
 export const SPEC_MAX_ENVELOPE_BYTES = 8192;
 
-export const jsonPointerSchema = z.string().regex(/^(\/[^/~]*(~[01][^/~]*)*)*$/);
+export { jsonPointerSchema };
 
 // {record.*} is reserved for edge descriptors and refused here.
 export const SPEC_TEMPLATE_TOKEN =

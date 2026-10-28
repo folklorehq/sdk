@@ -50,4 +50,20 @@ export const notionManifest = {
     documentBodies: false,
   },
   settings: 'none',
+  identity: {
+    // UNWIRED: stays false until a Notion identity envelope exists.
+    live: false,
+    authUrl: 'https://api.notion.com/v1/oauth/authorize',
+    scopes: [],
+    scopeParam: 'scope',
+    pkce: 'disabled',
+    clientIdEnv: 'NOTION_IDENTITY_CLIENT_ID',
+    fallbackToSource: true,
+    extraAuthParams: { owner: 'user' },
+    lookup: {
+      method: 'GET',
+      url: 'https://api.notion.com/v1/users/me',
+      idPointer: '/id',
+    },
+  },
 } as const satisfies ConnectorManifest;
