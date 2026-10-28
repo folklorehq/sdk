@@ -9,6 +9,7 @@ import {
   claudeEffortSchema,
   claudeInferencePurposeSchema,
   claudeQualityScoresSchema,
+  RECEIPT_REBUILD_REASONS,
   REBUILD_REASONS,
 } from '../src/claude-inference.js';
 import { inferenceUsageOutcomeSchema } from '../src/inference-routing.js';
@@ -174,6 +175,26 @@ describe('claudeQualityScoresSchema', () => {
     for (const rebuildReason of ['other', 'reused', '']) {
       expect(claudeQualityScoresSchema.safeParse({ ...scores, rebuildReason }).success).toBe(false);
     }
+  });
+});
+
+describe('RECEIPT_REBUILD_REASONS', () => {
+  it('is the full reasons followed by the three updating-page reasons, in that order', () => {
+    expect([...RECEIPT_REBUILD_REASONS]).toEqual([
+      ...REBUILD_REASONS,
+      'incremental',
+      'delta',
+      'section_add',
+    ]);
+  });
+
+  it('is exactly the set a quality score may carry', () => {
+    for (const rebuildReason of RECEIPT_REBUILD_REASONS) {
+      expect(claudeQualityScoresSchema.safeParse({ ...scores, rebuildReason }).success).toBe(true);
+    }
+    expect(claudeQualityScoresSchema.safeParse({ ...scores, rebuildReason: 'other' }).success).toBe(
+      false,
+    );
   });
 });
 

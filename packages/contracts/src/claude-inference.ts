@@ -57,12 +57,15 @@ export const REBUILD_REASONS = [
   'audience_changed',
 ] as const;
 export type RebuildReason = (typeof REBUILD_REASONS)[number];
-const claudeRebuildReasonSchema = z.enum([
+// A new value moves the wiki_synthesis_receipts.rebuild_reason CHECK in the same worker-first PR.
+export const RECEIPT_REBUILD_REASONS = [
   ...REBUILD_REASONS,
   'incremental',
   'delta',
   'section_add',
-]);
+] as const;
+export type ReceiptRebuildReason = (typeof RECEIPT_REBUILD_REASONS)[number];
+const claudeRebuildReasonSchema = z.enum(RECEIPT_REBUILD_REASONS);
 
 export const claudeQualityScoresSchema = z
   .object({
