@@ -60,6 +60,7 @@ export const SAFE_LOG_FIELDS = Object.freeze([
   'fanout1',
   'fanout2',
   'fanout3plus',
+  'flagKey',
   'generation',
   'halt_break_glass_armed',
   'halt_quorum_armed',

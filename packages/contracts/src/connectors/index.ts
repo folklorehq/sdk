@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// UNWIRED: only factSourceKindSchema and the manifest tests read manifests so far.
+import type { ConnectorManifest } from './manifest.js';
 import { PRIVATE_CONNECTOR_MANIFESTS } from './private-registry.js';
 import { PUBLIC_CONNECTOR_MANIFESTS } from './public-registry.js';
 
@@ -18,3 +18,10 @@ export type FactSourceKind = Extract<AnyManifest, { readonly emitsFacts: true }>
 export const FACT_SOURCE_KINDS = CONNECTOR_MANIFESTS.filter((m) => m.emitsFacts).map(
   (m) => m.kind,
 ) as unknown as readonly [FactSourceKind, ...FactSourceKind[]];
+
+export type MemberManifestKind = Extract<AnyManifest, { readonly audience: 'member' }>['kind'];
+
+// Widened first: the SDK registry holds only org kinds, so the narrow tuple type makes this comparison a type error there.
+export const MEMBER_MANIFEST_KINDS = (CONNECTOR_MANIFESTS as readonly ConnectorManifest[])
+  .filter((m) => m.audience === 'member')
+  .map((m) => m.kind) as unknown as readonly [MemberManifestKind, ...MemberManifestKind[]];

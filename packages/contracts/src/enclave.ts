@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
+import { MEMBER_MANIFEST_KINDS } from './connectors/index.js';
 import { factMetricSchema } from './metrics.js';
 import { sealedContentEnvelopeV1Schema } from './sealed-content.js';
 import { shadowArmSchema } from './shadow-review.js';
@@ -1857,21 +1858,11 @@ export type EnclaveSourceConnectionsResponse = z.infer<
   typeof enclaveSourceConnectionsResponseSchema
 >;
 
-// Declared here rather than imported so this module stays free of source-policy code; a test pins the list.
-const MEMBER_SOURCE_CONNECTION_KINDS = [
-  'gmail',
-  'microsoft365_mail',
-  'google_calendar',
-  'microsoft365_calendar',
-  'google_drive',
-  'microsoft365',
-] as const;
-
 // ownerAccountId is advisory here; the enclave must bind it into the member token's encryption context.
 export const enclaveMemberSourceConnectionProjectionSchema = enclaveSourceConnectionProjectionSchema
   .extend({
     orgId: webhookLifecycleUuidSchema,
-    kind: z.enum(MEMBER_SOURCE_CONNECTION_KINDS),
+    kind: z.enum(MEMBER_MANIFEST_KINDS),
     installationId: z.null(),
     externalTenantId: z.null(),
     ownerAccountId: z.string().uuid(),

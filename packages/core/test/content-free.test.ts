@@ -217,6 +217,25 @@ describe('a source sha is a full lower-case commit sha, not free text', () => {
   );
 });
 
+describe('a flag key is a connector registry key, not free text', () => {
+  it.each(['connector.slack', 'connector.microsoft365_calendar'])('accepts %j', (value) => {
+    expect(checkSafeLogContext({ flagKey: value })).toBeNull();
+  });
+
+  it.each([
+    'slack',
+    'connector.',
+    'connector.Slack',
+    'connector.a',
+    `connector.${'a'.repeat(33)}`,
+    'connector.slack for acme corp',
+    'connector.slack\nrow',
+    '',
+  ])('refuses %j', (value) => {
+    expect(checkSafeLogContext({ flagKey: value })).toBe('invalid_context_value');
+  });
+});
+
 describe('a pool program revision is a number, never a string', () => {
   it('accepts a numeric revision and refuses the same value as text', () => {
     expect(checkSafeLogContext({ revision: 20 })).toBeNull();
