@@ -29,6 +29,7 @@ export {
   contentFreeLogCode,
   ContentFreeViolationError,
   SAFE_LOG_PURPOSES,
+  SAFE_LOG_SIGNUP_STAGES,
   isFailureCodeSlug,
   type SafeLogRejectionReason,
   type SafeLogContextSnapshot,

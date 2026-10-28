@@ -6,6 +6,7 @@ import {
   contentFreeLogCode,
   isFailureCodeSlug,
   SAFE_LOG_FIELDS,
+  SAFE_LOG_SIGNUP_STAGES,
   type SafeLogContext,
   type SafeLogField,
 } from '../src/index.js';
@@ -403,5 +404,39 @@ describe('isFailureCodeSlug', () => {
         expect(checkSafeLogContext({ errorCode: value })).toBeNull();
       }
     }
+  });
+});
+
+describe('signup timing fields', () => {
+  it('accepts a stage from the closed set with integer seconds, a boolean warm and a retry count', () => {
+    for (const stage of SAFE_LOG_SIGNUP_STAGES) {
+      expect(checkSafeLogContext({ stage, seconds: 12, warm: true, retries: 0 }), stage).toBeNull();
+    }
+  });
+
+  it.each(['', 'unknown', 'Total', 'total ', 'tenant stack'])('refuses stage %j', (stage) => {
+    expect(checkSafeLogContext({ stage })).toBe('invalid_context_value');
+  });
+
+  it.each([1, 'true', 'false', 0, null])('refuses a non-boolean warm %j', (warm) => {
+    expect(checkSafeLogContext({ warm })).toBe('invalid_context_value');
+  });
+
+  it.each([-1, 1.5, '2', true, null, Number.NaN])('refuses retries %j', (retries) => {
+    expect(checkSafeLogContext({ retries })).toBe('invalid_context_value');
+  });
+
+  it.each(['secondsSinceOrgCreated', 'secondsSinceActive'])(
+    '%s is a non-negative integer',
+    (key) => {
+      expect(checkSafeLogContext({ [key]: 42 })).toBeNull();
+      for (const value of [-1, 0.5, '42', null]) {
+        expect(checkSafeLogContext({ [key]: value }), String(value)).toBe('invalid_context_value');
+      }
+    },
+  );
+
+  it('accepts a non-negative integer retries and a boolean warm', () => {
+    expect(checkSafeLogContext({ retries: 3, warm: false })).toBeNull();
   });
 });

@@ -73,6 +73,24 @@ export const SAFE_LOG_PURPOSES: ReadonlySet<string> = new Set([
   'team_onboarding_long',
   'untagged',
 ]);
+export const SAFE_LOG_SIGNUP_STAGES = Object.freeze([
+  'reserve',
+  'tenant_stack',
+  'handoff_configure',
+  'manifest_publish',
+  'access_apply',
+  'delivery',
+  'ingest_key',
+  'route',
+  'health',
+  'total',
+] as const);
+const NON_NEGATIVE_INTEGER_FIELDS: ReadonlySet<string> = new Set([
+  'retries',
+  'secondsSinceActive',
+  'secondsSinceOrgCreated',
+]);
+const SAFE_LOG_SIGNUP_STAGE_SET: ReadonlySet<string> = new Set(SAFE_LOG_SIGNUP_STAGES);
 const EXPLICIT_CONTENT_FREE_FIELDS = new Set([
   'messageid',
   'prompttokens',
@@ -249,6 +267,11 @@ function isPlainRecord(value: unknown): value is Record<PropertyKey, unknown> {
 }
 
 function isSafeLogValue(key: string, value: unknown): boolean {
+  if (key === 'warm') return typeof value === 'boolean';
+  if (NON_NEGATIVE_INTEGER_FIELDS.has(key)) {
+    return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+  }
+  if (key === 'stage') return typeof value === 'string' && SAFE_LOG_SIGNUP_STAGE_SET.has(value);
   if (value === null || typeof value === 'boolean') return true;
   if (typeof value === 'number') return Number.isFinite(value);
   if (typeof value !== 'string' || value.length > MAX_VALUE_LENGTH) return false;

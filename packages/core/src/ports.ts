@@ -113,6 +113,7 @@ export const SAFE_LOG_FIELDS = Object.freeze([
   'responseMs',
   'restarts',
   'retried',
+  'retries',
   'revision',
   'reviewFlagRateBp',
   'reviewTriggers',
@@ -126,6 +127,8 @@ export const SAFE_LOG_FIELDS = Object.freeze([
   'rotation_armed',
   'route',
   'seconds',
+  'secondsSinceActive',
+  'secondsSinceOrgCreated',
   'seq',
   'signals',
   'skippedArchived',
@@ -138,6 +141,7 @@ export const SAFE_LOG_FIELDS = Object.freeze([
   'skippedOutOfWindow',
   'sourceSha',
   'spansDropped',
+  'stage',
   'startOffsetMs',
   'status',
   'statusCode',
@@ -154,6 +158,7 @@ export const SAFE_LOG_FIELDS = Object.freeze([
   'usageEntries',
   'verifyMaxMs',
   'verifyMs',
+  'warm',
   'wouldSkip',
 ] as const);
 
