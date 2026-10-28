@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { Logger } from '@folklore/core';
+import type { ConnectorTransport, Logger } from '@folklore/core';
 import type { Connector, ConnectorContext, WebhookEvent } from '../connector.js';
 import type { NormalizedRecords } from '../normalized.js';
 import type { CodebaseRepositorySelection } from '../code-selection.js';
@@ -17,6 +17,8 @@ export interface PullConnectorDeps {
   exportedPageIds?: ReadonlySet<string>;
   // UNWIRED: no connector reads the body mode yet.
   documentBodies?: DocumentBodyMode;
+  // UNWIRED: the enclave supplies a transport once spec kinds are switched on.
+  connectorTransport?: ConnectorTransport;
 }
 
 export type WebhookConnectorFactory = (ctx: ConnectorContext) => Connector;

@@ -1,0 +1,413 @@
+{
+  "pulls": [
+    {
+      "facts": [
+        {
+          "sourceFactId": "linear:cycle:closed:cycle-1:1781438400000",
+          "kind": "transition",
+          "occurredAt": "2026-06-14T12:00:00.000Z",
+          "resourceExternalId": "team-1",
+          "authors": [],
+          "containerRefs": [
+            "linear:cycle:cycle-1"
+          ],
+          "sourceThreadId": "linear:cycle:cycle-1",
+          "entities": [],
+          "transition": {
+            "transitionType": "closed"
+          },
+          "raw": {
+            "entity": "cycle",
+            "id": "cycle-1"
+          }
+        },
+        {
+          "sourceFactId": "linear:cycle:created:cycle-1",
+          "kind": "content",
+          "occurredAt": "2026-06-01T12:00:00.000Z",
+          "resourceExternalId": "team-1",
+          "authors": [],
+          "containerRefs": [
+            "linear:cycle:cycle-1"
+          ],
+          "sourceThreadId": "linear:cycle:cycle-1",
+          "entities": [],
+          "content": {
+            "body": "Cycle 7",
+            "explicitLinks": []
+          },
+          "raw": {
+            "entity": "cycle",
+            "id": "cycle-1"
+          }
+        },
+        {
+          "sourceFactId": "linear:issue:archived:issue-c:1781352000000",
+          "kind": "transition",
+          "occurredAt": "2026-06-13T12:00:00.000Z",
+          "resourceExternalId": "team-1",
+          "authors": [],
+          "containerRefs": [
+            "ENG-45"
+          ],
+          "sourceThreadId": "ENG-45",
+          "entities": [
+            "ENG-45",
+            "linear:project:project-1",
+            "linear:cycle:cycle-1"
+          ],
+          "transition": {
+            "transitionType": "archived"
+          },
+          "raw": {
+            "entity": "issue",
+            "id": "issue-c"
+          }
+        },
+        {
+          "sourceFactId": "linear:issue:assignee:h-assignee",
+          "kind": "transition",
+          "occurredAt": "2026-06-12T12:00:00.000Z",
+          "resourceExternalId": "team-1",
+          "authors": [
+            {
+              "sourceUserId": "user-2",
+              "role": "author"
+            }
+          ],
+          "containerRefs": [
+            "ENG-42"
+          ],
+          "sourceThreadId": "ENG-42",
+          "entities": [
+            "ENG-42",
+            "linear:project:project-1",
+            "linear:cycle:cycle-1"
+          ],
+          "transition": {
+            "transitionType": "updated",
+            "detail": {
+              "field": "assignee",
+              "from": null,
+              "to": "user-9"
+            }
+          },
+          "raw": {
+            "entity": "issue",
+            "id": "issue-a"
+          }
+        },
+        {
+          "sourceFactId": "linear:issue:assignee:h-late-1",
+          "kind": "transition",
+          "occurredAt": "2026-06-13T12:00:00.000Z",
+          "resourceExternalId": "team-1",
+          "authors": [
+            {
+              "sourceUserId": "user-2",
+              "role": "author"
+            }
+          ],
+          "containerRefs": [
+            "ENG-42"
+          ],
+          "sourceThreadId": "ENG-42",
+          "entities": [
+            "ENG-42",
+            "linear:project:project-1",
+            "linear:cycle:cycle-1"
+          ],
+          "transition": {
+            "transitionType": "updated",
+            "detail": {
+              "field": "assignee",
+              "from": null,
+              "to": "user-c"
+            }
+          },
+          "raw": {
+            "entity": "issue",
+            "id": "issue-a"
+          }
+        },
+        {
+          "sourceFactId": "linear:issue:created:issue-b",
+          "kind": "content",
+          "occurredAt": "2026-06-09T12:00:00.000Z",
+          "resourceExternalId": "team-1",
+          "authors": [
+            {
+              "sourceUserId": "user-1",
+              "role": "author"
+            }
+          ],
+          "containerRefs": [
+            "ENG-44"
+          ],
+          "sourceThreadId": "ENG-44",
+          "entities": [
+            "ENG-44"
+          ],
+          "content": {
+            "body": "Fix the auth bug",
+            "explicitLinks": []
+          },
+          "raw": {
+            "entity": "issue",
+            "id": "issue-b"
+          }
+        },
+        {
+          "sourceFactId": "linear:issue:created:issue-c",
+          "kind": "content",
+          "occurredAt": "2026-06-07T12:00:00.000Z",
+          "resourceExternalId": "team-1",
+          "authors": [
+            {
+              "sourceUserId": "user-1",
+              "role": "author"
+            }
+          ],
+          "containerRefs": [
+            "ENG-45"
+          ],
+          "sourceThreadId": "ENG-45",
+          "entities": [
+            "ENG-45",
+            "linear:project:project-1",
+            "linear:cycle:cycle-1"
+          ],
+          "content": {
+            "body": "Fix the auth bug\n\nAuth is broken on mobile.",
+            "explicitLinks": []
+          },
+          "raw": {
+            "entity": "issue",
+            "id": "issue-c"
+          }
+        },
+        {
+          "sourceFactId": "linear:issue:edited:issue-a:h-late-3",
+          "kind": "content",
+          "occurredAt": "2026-06-14T12:00:00.000Z",
+          "resourceExternalId": "team-1",
+          "authors": [
+            {
+              "sourceUserId": "user-2",
+              "role": "author"
+            }
+          ],
+          "containerRefs": [
+            "ENG-42"
+          ],
+          "sourceThreadId": "ENG-42",
+          "entities": [
+            "ENG-42",
+            "linear:project:project-1",
+            "linear:cycle:cycle-1"
+          ],
+          "content": {
+            "body": "Fix the auth bug\n\nAuth is broken. See https://linear.app/acme/issue/ENG-43/refactor-login",
+            "explicitLinks": [
+              "ENG-43"
+            ]
+          },
+          "raw": {
+            "entity": "issue",
+            "id": "issue-a"
+          }
+        },
+        {
+          "sourceFactId": "linear:issue:priority:h-late-2",
+          "kind": "transition",
+          "occurredAt": "2026-06-14T12:00:00.000Z",
+          "resourceExternalId": "team-1",
+          "authors": [
+            {
+              "sourceUserId": "user-2",
+              "role": "author"
+            }
+          ],
+          "containerRefs": [
+            "ENG-42"
+          ],
+          "sourceThreadId": "ENG-42",
+          "entities": [
+            "ENG-42",
+            "linear:project:project-1",
+            "linear:cycle:cycle-1"
+          ],
+          "transition": {
+            "transitionType": "updated",
+            "detail": {
+              "field": "priority",
+              "from": 0,
+              "to": 2
+            }
+          },
+          "raw": {
+            "entity": "issue",
+            "id": "issue-a"
+          }
+        },
+        {
+          "sourceFactId": "linear:issue:state:h-state",
+          "kind": "transition",
+          "occurredAt": "2026-06-11T12:00:00.000Z",
+          "resourceExternalId": "team-1",
+          "authors": [
+            {
+              "sourceUserId": "user-2",
+              "role": "author"
+            }
+          ],
+          "containerRefs": [
+            "ENG-42"
+          ],
+          "sourceThreadId": "ENG-42",
+          "entities": [
+            "ENG-42",
+            "linear:project:project-1",
+            "linear:cycle:cycle-1"
+          ],
+          "transition": {
+            "transitionType": "started",
+            "detail": {
+              "field": "state",
+              "from": "s1",
+              "to": "s2"
+            }
+          },
+          "raw": {
+            "entity": "issue",
+            "id": "issue-a"
+          }
+        },
+        {
+          "sourceFactId": "linear:project:closed:project-1:1781438400000",
+          "kind": "transition",
+          "occurredAt": "2026-06-14T12:00:00.000Z",
+          "authors": [],
+          "containerRefs": [
+            "linear:project:project-1"
+          ],
+          "sourceThreadId": "linear:project:project-1",
+          "entities": [],
+          "transition": {
+            "transitionType": "closed"
+          },
+          "raw": {
+            "entity": "project",
+            "id": "project-1"
+          }
+        },
+        {
+          "sourceFactId": "linear:project:closed:project-2:1781352000000",
+          "kind": "transition",
+          "occurredAt": "2026-06-13T12:00:00.000Z",
+          "authors": [],
+          "containerRefs": [
+            "linear:project:project-2"
+          ],
+          "sourceThreadId": "linear:project:project-2",
+          "entities": [],
+          "transition": {
+            "transitionType": "closed"
+          },
+          "raw": {
+            "entity": "project",
+            "id": "project-2"
+          }
+        },
+        {
+          "sourceFactId": "linear:project:created:project-1",
+          "kind": "content",
+          "occurredAt": "2026-05-16T12:00:00.000Z",
+          "authors": [
+            {
+              "sourceUserId": "user-1",
+              "role": "author"
+            }
+          ],
+          "containerRefs": [
+            "linear:project:project-1"
+          ],
+          "sourceThreadId": "linear:project:project-1",
+          "entities": [],
+          "content": {
+            "body": "Mobile relaunch\n\nShip the new mobile app\n\nDetailed scope for the relaunch",
+            "explicitLinks": []
+          },
+          "raw": {
+            "entity": "project",
+            "id": "project-1"
+          }
+        },
+        {
+          "sourceFactId": "linear:project:created:project-2",
+          "kind": "content",
+          "occurredAt": "2026-05-26T12:00:00.000Z",
+          "authors": [
+            {
+              "sourceUserId": "user-1",
+              "role": "author"
+            }
+          ],
+          "containerRefs": [
+            "linear:project:project-2"
+          ],
+          "sourceThreadId": "linear:project:project-2",
+          "entities": [],
+          "content": {
+            "body": "Mobile relaunch\n\nShip the new mobile app\n\nDetailed scope for the relaunch",
+            "explicitLinks": []
+          },
+          "raw": {
+            "entity": "project",
+            "id": "project-2"
+          }
+        }
+      ],
+      "containers": [
+        {
+          "sourceContainerId": "ENG-42",
+          "shape": "stateful",
+          "label": "linear_issue",
+          "resourceExternalId": "team-1"
+        },
+        {
+          "sourceContainerId": "ENG-44",
+          "shape": "stateful",
+          "label": "linear_issue",
+          "resourceExternalId": "team-1"
+        },
+        {
+          "sourceContainerId": "ENG-45",
+          "shape": "stateful",
+          "label": "linear_issue",
+          "resourceExternalId": "team-1"
+        },
+        {
+          "sourceContainerId": "linear:cycle:cycle-1",
+          "shape": "stateful",
+          "label": "linear_cycle",
+          "resourceExternalId": "team-1"
+        },
+        {
+          "sourceContainerId": "linear:project:project-1",
+          "shape": "stateful",
+          "label": "linear_project"
+        },
+        {
+          "sourceContainerId": "linear:project:project-2",
+          "shape": "stateful",
+          "label": "linear_project"
+        }
+      ],
+      "cursor": {
+        "value": "{\"v\":1,\"w\":{\"projects\":{\"wm\":1781524680000,\"emitAfter\":1749988799999,\"slice\":null},\"cycles\":{\"wm\":1781524680000,\"emitAfter\":1749988799999,\"slice\":null},\"issues\":{\"wm\":1781524680000,\"emitAfter\":1749988799999,\"slice\":null},\"comments\":{\"wm\":null,\"emitAfter\":null,\"slice\":null}}}"
+      },
+      "hasMore": true
+    }
+  ]
+}

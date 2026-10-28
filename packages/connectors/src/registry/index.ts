@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { ConnectorContext } from '../connector.js';
 import type { NormalizedRecords } from '../normalized.js';
-import { registerBuiltinConnectors } from './builtin.js';
+import { registerConnectorDefinitions } from '../definition/definitions.js';
+import { CONNECTOR_DEFINITIONS, SHAPE_ADAPTERS } from '../definition/registry.js';
 import { ConnectorRegistry, type PullConnectorDeps } from './ConnectorRegistry.js';
 
 const defaultRegistry = new ConnectorRegistry();
-registerBuiltinConnectors(defaultRegistry);
+registerConnectorDefinitions(defaultRegistry, CONNECTOR_DEFINITIONS, SHAPE_ADAPTERS);
 
 export function getDefaultConnectorRegistry(): ConnectorRegistry {
   return defaultRegistry;

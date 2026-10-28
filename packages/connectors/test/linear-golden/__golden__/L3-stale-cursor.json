@@ -1,0 +1,119 @@
+{
+  "pulls": [
+    {
+      "facts": [
+        {
+          "sourceFactId": "linear:issue:created:issue-0",
+          "kind": "content",
+          "occurredAt": "2026-06-10T12:00:00.000Z",
+          "resourceExternalId": "team-1",
+          "authors": [
+            {
+              "sourceUserId": "user-1",
+              "role": "author"
+            }
+          ],
+          "containerRefs": [
+            "ENG-100"
+          ],
+          "sourceThreadId": "ENG-100",
+          "entities": [
+            "ENG-100",
+            "linear:project:project-1",
+            "linear:cycle:cycle-1"
+          ],
+          "content": {
+            "body": "Fix the auth bug\n\nAuth is broken on mobile.",
+            "explicitLinks": []
+          },
+          "raw": {
+            "entity": "issue",
+            "id": "issue-0"
+          }
+        },
+        {
+          "sourceFactId": "linear:issue:created:issue-1",
+          "kind": "content",
+          "occurredAt": "2026-06-10T12:00:00.000Z",
+          "resourceExternalId": "team-1",
+          "authors": [
+            {
+              "sourceUserId": "user-1",
+              "role": "author"
+            }
+          ],
+          "containerRefs": [
+            "ENG-101"
+          ],
+          "sourceThreadId": "ENG-101",
+          "entities": [
+            "ENG-101",
+            "linear:project:project-1",
+            "linear:cycle:cycle-1"
+          ],
+          "content": {
+            "body": "Fix the auth bug\n\nAuth is broken on mobile.",
+            "explicitLinks": []
+          },
+          "raw": {
+            "entity": "issue",
+            "id": "issue-1"
+          }
+        },
+        {
+          "sourceFactId": "linear:issue:created:issue-2",
+          "kind": "content",
+          "occurredAt": "2026-06-10T12:00:00.000Z",
+          "resourceExternalId": "team-1",
+          "authors": [
+            {
+              "sourceUserId": "user-1",
+              "role": "author"
+            }
+          ],
+          "containerRefs": [
+            "ENG-102"
+          ],
+          "sourceThreadId": "ENG-102",
+          "entities": [
+            "ENG-102",
+            "linear:project:project-1",
+            "linear:cycle:cycle-1"
+          ],
+          "content": {
+            "body": "Fix the auth bug\n\nAuth is broken on mobile.",
+            "explicitLinks": []
+          },
+          "raw": {
+            "entity": "issue",
+            "id": "issue-2"
+          }
+        }
+      ],
+      "containers": [
+        {
+          "sourceContainerId": "ENG-100",
+          "shape": "stateful",
+          "label": "linear_issue",
+          "resourceExternalId": "team-1"
+        },
+        {
+          "sourceContainerId": "ENG-101",
+          "shape": "stateful",
+          "label": "linear_issue",
+          "resourceExternalId": "team-1"
+        },
+        {
+          "sourceContainerId": "ENG-102",
+          "shape": "stateful",
+          "label": "linear_issue",
+          "resourceExternalId": "team-1"
+        }
+      ],
+      "cursor": {
+        "value": "{\"v\":1,\"w\":{\"projects\":{\"wm\":1781524680000,\"emitAfter\":1749988799999,\"slice\":null},\"cycles\":{\"wm\":1781524680000,\"emitAfter\":1749988799999,\"slice\":null},\"issues\":{\"wm\":1781524680000,\"emitAfter\":1749988799999,\"slice\":null},\"comments\":{\"wm\":1781524680000,\"emitAfter\":1749988799999,\"slice\":null}}}"
+      },
+      "hasMore": false
+    }
+  ]
+}

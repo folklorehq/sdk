@@ -213,6 +213,7 @@ export type ConnectorSpecErrorCode =
   | 'spec_paginator_stalled'
   | 'spec_page_cap'
   | 'spec_transport_missing'
+  | 'spec_manifest_missing'
   | 'spec_shape_missing'
   | 'spec_cursor_too_long'
   | 'spec_response_not_json'

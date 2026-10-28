@@ -14,7 +14,7 @@ describe('ConnectorSpecError', () => {
     expect(err.toTelemetry().error_type).toBe('egress_host_refused');
   });
 
-  it.each(['spec_invalid', 'spec_path_invalid'] as const)(
+  it.each(['spec_invalid', 'spec_path_invalid', 'spec_manifest_missing'] as const)(
     'carries %s as a code-only error',
     (code) => {
       const err = new ConnectorSpecError(code);
