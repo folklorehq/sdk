@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { z } from 'zod';
-import type { ConnectorManifest, identityLookupSchema } from './manifest.js';
+import type { ConnectorManifest, identityLookupSchema, identityRevokeSchema } from './manifest.js';
 import { PRIVATE_CONNECTOR_MANIFESTS } from './private-registry.js';
 import { PUBLIC_CONNECTOR_MANIFESTS } from './public-registry.js';
+
+export type IdentityLookup = z.infer<typeof identityLookupSchema>;
+export type IdentityRevoke = z.infer<typeof identityRevokeSchema>;
 
 export interface IdentityLinkSpec {
   readonly kind: string;
@@ -13,7 +16,8 @@ export interface IdentityLinkSpec {
   readonly pkce: 'required' | 'disabled';
   readonly clientIdEnvs: readonly string[];
   readonly extraAuthParams?: Readonly<Record<string, string>>;
-  readonly lookup: z.infer<typeof identityLookupSchema>;
+  readonly lookup: IdentityLookup;
+  readonly revoke?: IdentityRevoke;
 }
 
 const COMPILED: readonly ConnectorManifest[] = [
@@ -38,6 +42,7 @@ function specOf(manifest: ConnectorManifest): IdentityLinkSpec | null {
     clientIdEnvs: [...(identity.clientIdEnv ? [identity.clientIdEnv] : []), ...sourceEnv],
     ...(identity.extraAuthParams ? { extraAuthParams: identity.extraAuthParams } : {}),
     lookup: identity.lookup,
+    ...(identity.revoke ? { revoke: identity.revoke } : {}),
   };
 }
 

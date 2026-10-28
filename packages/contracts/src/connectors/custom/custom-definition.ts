@@ -2,13 +2,12 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import { z } from 'zod';
-import { hostSchema } from '../manifest.js';
+import { FORBIDDEN_HEADER, hostSchema } from '../manifest.js';
 import {
   connectorSpecSchema,
   factMappingSchema,
   jsonPointerSchema,
   paramNameSchema,
-  FORBIDDEN_HEADER,
   RESERVED_PARAM_NAMES,
 } from '../stream-spec.js';
 import { CUSTOM_SLOT_KINDS } from './custom-slot-kinds.js';

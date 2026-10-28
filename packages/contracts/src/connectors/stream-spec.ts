@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 import { containerLabelSchema } from './container-labels.js';
-import { hostSchema, jsonPointerSchema, type ConnectorManifest } from './manifest.js';
+import {
+  headerNameSchema,
+  hostSchema,
+  jsonPointerSchema,
+  type ConnectorManifest,
+} from './manifest.js';
 
 export const STREAM_SPEC_VERSION = 1;
 export const SPEC_MAX_RECORDS_PER_PAGE = 1000;
@@ -24,8 +29,6 @@ export const paramNameSchema = z
   .string()
   .regex(/^[A-Za-z0-9_$.-]{1,64}$/)
   .refine((name) => !RESERVED_PARAM_NAMES.has(name), 'reserved parameter name');
-export const FORBIDDEN_HEADER =
-  /^(?:authorization|proxy-authorization|cookie|host|x-forwarded-[a-z-]*)$/i;
 
 export const templateSchema = z
   .string()
@@ -43,11 +46,6 @@ export const pathTemplateSchema = templateSchema
   .refine((v) => !hasPathControl(v), 'backslash or control character in a path')
   .refine((v) => v.startsWith('/'), 'path must start with /')
   .refine((v) => !/[?#]/.test(v) && !v.split('/').includes('..'), 'query, fragment or .. in path');
-
-const headerNameSchema = z
-  .string()
-  .regex(/^[A-Za-z0-9-]{1,64}$/)
-  .refine((name) => !FORBIDDEN_HEADER.test(name), 'header is owned by the runtime');
 
 export const requestSpecSchema = z
   .object({

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { ConnectorManifest } from '../manifest.js';
+import { NOTION_API_VERSION } from '../provider-versions.js';
 
 export const notionManifest = {
   manifestVersion: 1,
@@ -63,6 +64,7 @@ export const notionManifest = {
     lookup: {
       method: 'GET',
       url: 'https://api.notion.com/v1/users/me',
+      headers: { 'notion-version': NOTION_API_VERSION },
       idPointer: '/id',
     },
   },

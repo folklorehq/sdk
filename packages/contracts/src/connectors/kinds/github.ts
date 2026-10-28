@@ -54,6 +54,7 @@ export const githubManifest = {
     lookup: {
       method: 'GET',
       url: 'https://api.github.com/user',
+      headers: { accept: 'application/vnd.github+json' },
       idPointer: '/id',
     },
   },

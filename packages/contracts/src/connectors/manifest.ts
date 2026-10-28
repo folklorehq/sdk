@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
+import { isFramingHeader } from './custom/read-semantics.js';
 
 export const CONNECTOR_MANIFEST_VERSION = 1;
 
@@ -135,6 +136,15 @@ export const connectorUiSchema = z
     message: 'a connectable kind needs a description and a scope preview',
   });
 
+// Framing headers are classified by the custom-definition checker, so they stay out of this shared set and are refused separately for identity lookups.
+export const FORBIDDEN_HEADER =
+  /^(?:authorization|proxy-[a-z-]*|cookie|host|x-forwarded-[a-z-]*|forwarded|x-real-ip|expect)$/i;
+
+export const headerNameSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9-]{1,64}$/)
+  .refine((name) => !FORBIDDEN_HEADER.test(name), 'header is owned by the runtime');
+
 export const jsonPointerSchema = z.string().regex(/^(\/[^/~]*(~[01][^/~]*)*)*$/);
 
 export const identityLookupSchema = z
@@ -142,6 +152,12 @@ export const identityLookupSchema = z
     method: z.enum(['GET', 'POST']),
     url: httpsHostUrlSchema,
     graphqlQuery: z.string().min(1).max(512).optional(),
+    headers: z
+      .record(
+        headerNameSchema.refine((name) => !isFramingHeader(name), 'framing header'),
+        z.string().regex(/^[\x20-\x7e]{1,128}$/),
+      )
+      .optional(),
     idPointer: jsonPointerSchema.min(1),
     namePointer: jsonPointerSchema.min(1).optional(),
   })
@@ -149,6 +165,18 @@ export const identityLookupSchema = z
   .refine((lookup) => lookup.graphqlQuery === undefined || lookup.method === 'POST', {
     message: 'a GraphQL lookup is a POST',
   });
+
+// Revocation is best effort and sends each declared token as a form `token` field to a host in egress.apiHosts.
+export const identityRevokeSchema = z
+  .object({
+    url: httpsHostUrlSchema,
+    tokens: z
+      .array(z.enum(['refresh_token', 'access_token']))
+      .min(1)
+      .max(2)
+      .readonly(),
+  })
+  .strict();
 
 // A member links by the explicit OAuth button only; the lookup runs once with the redeemed token, which is then discarded.
 export const connectorIdentitySchema = z
@@ -162,6 +190,7 @@ export const connectorIdentitySchema = z
     fallbackToSource: z.boolean(),
     extraAuthParams: z.record(z.string()).optional(),
     lookup: identityLookupSchema,
+    revoke: identityRevokeSchema.optional(),
   })
   .strict();
 
@@ -205,6 +234,16 @@ export const connectorManifestSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['identity', 'lookup', 'url'],
+        message: 'host not in egress.apiHosts',
+      });
+    }
+    if (
+      identity.revoke &&
+      !manifest.egress.apiHosts.includes(new URL(identity.revoke.url).hostname)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['identity', 'revoke', 'url'],
         message: 'host not in egress.apiHosts',
       });
     }
