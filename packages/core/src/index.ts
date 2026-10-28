@@ -11,6 +11,11 @@ export {
   type MonotonicCache,
   type Closable,
 } from './ports.js';
+export type {
+  ConnectorTransport,
+  TransportRequest,
+  TransportResponse,
+} from './connector-transport.js';
 export type { RateLimitDecision, RateLimiter, RateLimitRequest } from './rate-limiter.js';
 export { ShutdownManager, type ShutdownHandler, type ShutdownOptions } from './ShutdownManager.js';
 export {

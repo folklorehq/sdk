@@ -6,17 +6,47 @@ export const CONNECTOR_MANIFEST_VERSION = 1;
 export const connectorReleaseSchema = z.enum(['beta', 'dark', 'retired', 'planned']);
 export const connectorAudienceSchema = z.enum(['org', 'member']);
 
+export const FORBIDDEN_HOST_SUFFIXES = [
+  '.internal',
+  '.local',
+  '.localhost',
+  '.amazonaws.com',
+] as const;
+
+const hostAllowed = (host: string) =>
+  !FORBIDDEN_HOST_SUFFIXES.some((suffix) => host === suffix.slice(1) || host.endsWith(suffix));
+
 // A DNS name with an alphabetic TLD: IP literals are refused.
-export const hostSchema = z.string().regex(/^(?:[a-z0-9-]+\.)+[a-z]{2,}$/);
-export const suffixSchema = z.string().regex(/^(?:\.[a-z0-9-]+)+\.[a-z]{2,}$/);
-const httpsUrlSchema = z.string().url().startsWith('https://');
+export const hostSchema = z
+  .string()
+  .regex(/^(?:[a-z0-9-]+\.)+[a-z]{2,}$/)
+  .refine(hostAllowed, 'forbidden host suffix');
+export const suffixSchema = z
+  .string()
+  .regex(/^(?:\.[a-z0-9-]+)+\.[a-z]{2,}$/)
+  .refine(hostAllowed, 'forbidden host suffix');
+
+const urlHostAllowed = (value: string): boolean => {
+  try {
+    return hostSchema.safeParse(new URL(value).hostname).success;
+  } catch {
+    return false;
+  }
+};
+
+const httpsHostUrlSchema = z
+  .string()
+  .url()
+  .startsWith('https://')
+  .refine(urlHostAllowed, 'URL host refused');
+export const containerLabelNameSchema = z.string().regex(/^[a-z][a-z0-9_]{1,40}$/);
 const envNameSchema = z.string().regex(/^[A-Z][A-Z0-9_]*$/);
 const kindNameSchema = z.string().regex(/^[a-z][a-z0-9_]{1,31}$/);
 
 export const enclaveRedeemSchema = z
   .object({
-    tokenEndpoint: httpsUrlSchema,
-    identityEndpoint: httpsUrlSchema,
+    tokenEndpoint: httpsHostUrlSchema,
+    identityEndpoint: httpsHostUrlSchema,
     refreshRequired: z.boolean(),
   })
   .strict();
@@ -25,7 +55,7 @@ export const connectorAuthSchema = z.discriminatedUnion('type', [
   z
     .object({
       type: z.literal('oauth2'),
-      authUrl: httpsUrlSchema,
+      authUrl: httpsHostUrlSchema,
       scopes: z.array(z.string().min(1)).readonly(),
       scopeParam: z.enum(['scope', 'user_scope']),
       pkce: z.enum(['required', 'disabled']),
@@ -130,6 +160,7 @@ export const connectorManifestSchema = z
     webhook: connectorWebhookSchema.nullable(),
     pull: connectorPullSchema.nullable(),
     settings: connectorSettingsSchema,
+    containerLabels: z.array(containerLabelNameSchema).readonly().optional(),
   })
   .strict();
 

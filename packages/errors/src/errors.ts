@@ -203,6 +203,41 @@ export class ExternalServiceError extends AppError {
   }
 }
 
+export type ConnectorSpecErrorCode =
+  | 'egress_host_refused'
+  | 'egress_redirect_refused'
+  | 'header_value_refused'
+  | 'spec_invalid'
+  | 'spec_path_invalid'
+  | 'spec_record_selector_invalid'
+  | 'spec_paginator_stalled'
+  | 'spec_page_cap'
+  | 'spec_transport_missing'
+  | 'spec_shape_missing'
+  | 'spec_cursor_too_long'
+  | 'spec_response_not_json'
+  | 'spec_response_too_large'
+  | 'spec_page_too_large'
+  | 'egress_request_failed'
+  | 'cursor_envelope_unsealed';
+
+/** The message is the code; there is no cause and no URL, header value or body, so it is safe to log. */
+export class ConnectorSpecError extends AppError {
+  constructor(code: ConnectorSpecErrorCode, context?: { readonly header: string }) {
+    super(code, { code, category: 'internal', ...(context ? { context } : {}) });
+  }
+}
+
+/** Carries a status only: never a URL, header or body. */
+export class TransportStatusError extends AppError {
+  constructor(readonly status: number) {
+    super(`connector_http_${status}`, {
+      code: `connector_http_${status}`,
+      category: 'external',
+    });
+  }
+}
+
 /** A capability is not wired in this deployment (503); `code` names the specific reason. */
 export class ServiceUnavailableError extends AppError {
   constructor(message: string, code: string, options: AppErrorOptions = {}) {

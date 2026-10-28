@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 import { MEMBER_MANIFEST_KINDS } from './connectors/index.js';
+import { containerLabelSchema } from './connectors/container-labels.js';
 import { factMetricSchema } from './metrics.js';
 import { sealedContentEnvelopeV1Schema } from './sealed-content.js';
 import { shadowArmSchema } from './shadow-review.js';
@@ -41,28 +42,7 @@ const pageTitleSchema = z.string().refine(isValidPageTitle);
 export const factKindSchema = z.enum(['content', 'transition']);
 export type FactKind = z.infer<typeof factKindSchema>;
 
-// Our own literals, never customer text — the label lookup they key is shared, not per-tenant.
-export const containerLabelSchema = z.enum([
-  'calendar_event',
-  'code_repo',
-  'confluence_page',
-  'email_thread',
-  'github_pr',
-  'github_repo',
-  'google_doc',
-  'intercom_conversation',
-  'jira_issue',
-  'linear_cycle',
-  'linear_issue',
-  'linear_project',
-  'meeting_transcript',
-  'microsoft365_doc',
-  'notion_page',
-  'slack_channel',
-  'slack_thread',
-  'unknown',
-]);
-export type ContainerLabel = z.infer<typeof containerLabelSchema>;
+export { containerLabelSchema, type ContainerLabel } from './connectors/container-labels.js';
 
 export const containerSeedSchema = z
   .object({

@@ -125,3 +125,4 @@ export {
   postgresSqlState,
 } from './postgres-error-type.js';
 export { parseRetryAfterMs } from './retry-after.js';
+export { resolveJsonPointer } from './json-pointer.js';

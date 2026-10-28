@@ -1,0 +1,195 @@
+{
+  "pulls": [
+    {
+      "requests": [
+        "/v1/projects",
+        "/v1/projects/p1/tasks",
+        "/v1/projects/p1/tasks?pageToken=page-2",
+        "/v1/projects/p1/tasks?pageToken=page-3",
+        "/v1/projects/p2/tasks",
+        "/v1/projects/p2/tasks?pageToken=page-2",
+        "/v1/projects/p2/tasks?pageToken=page-3"
+      ],
+      "facts": [
+        "example:unknown:created:p1",
+        "example:comment:t1a",
+        "example:comment:t1b",
+        "example:comment:t1c",
+        "example:unknown:created:p2",
+        "example:comment:t2a",
+        "example:comment:t2b",
+        "example:comment:t2c"
+      ],
+      "hasMore": false,
+      "cursor": {
+        "projects": {
+          "c": "2026-08-02T00:00:00.000Z",
+          "m": null,
+          "d": false,
+          "p": null,
+          "i": null,
+          "k": null,
+          "w": null
+        },
+        "tasks": {
+          "c": "2026-08-08T00:00:00.000Z",
+          "m": null,
+          "d": false,
+          "p": null,
+          "i": null,
+          "k": null,
+          "w": null
+        }
+      }
+    },
+    {
+      "requests": [
+        "/v1/projects?since=2026-08-02T00%3A00%3A00.000Z",
+        "/v1/projects/p1/tasks?since=2026-08-08T00%3A00%3A00.000Z"
+      ],
+      "facts": [
+        "example:unknown:created:p1",
+        "example:comment:t1a"
+      ],
+      "hasMore": true,
+      "cursor": {
+        "projects": {
+          "c": "2026-08-02T00:00:00.000Z",
+          "m": "2026-09-01T00:00:00.000Z",
+          "d": false,
+          "p": null,
+          "i": 0,
+          "k": null,
+          "w": {
+            "s": "2025-10-27T12:00:00.000Z",
+            "e": "2026-10-27T12:00:00.000Z"
+          }
+        },
+        "tasks": {
+          "c": "2026-08-08T00:00:00.000Z",
+          "m": "2026-09-01T00:00:00.000Z",
+          "d": false,
+          "p": "page-2",
+          "i": null,
+          "k": "p1",
+          "w": null
+        }
+      }
+    },
+    {
+      "requests": [
+        "/v1/projects?since=2026-08-02T00%3A00%3A00.000Z",
+        "/v1/projects/p1/tasks?since=2026-08-08T00%3A00%3A00.000Z&pageToken=page-2",
+        "/v1/projects/p1/tasks?since=2026-08-08T00%3A00%3A00.000Z&pageToken=page-3",
+        "/v1/projects/p2/tasks?since=2026-08-08T00%3A00%3A00.000Z"
+      ],
+      "facts": [
+        "example:comment:t1b",
+        "example:comment:t1c",
+        "example:unknown:created:p2",
+        "example:comment:t2a"
+      ],
+      "hasMore": true,
+      "cursor": {
+        "projects": {
+          "c": "2026-08-02T00:00:00.000Z",
+          "m": "2026-09-01T00:00:00.000Z",
+          "d": true,
+          "p": null,
+          "i": 2,
+          "k": null,
+          "w": {
+            "s": "2025-10-27T12:00:00.000Z",
+            "e": "2026-10-27T12:00:00.000Z"
+          }
+        },
+        "tasks": {
+          "c": "2026-08-08T00:00:00.000Z",
+          "m": "2026-09-01T00:00:00.000Z",
+          "d": false,
+          "p": "page-2",
+          "i": null,
+          "k": "p2",
+          "w": null
+        }
+      }
+    },
+    {
+      "requests": [
+        "/v1/projects?since=2026-08-02T00%3A00%3A00.000Z",
+        "/v1/projects/p2/tasks?since=2026-08-08T00%3A00%3A00.000Z&pageToken=page-2",
+        "/v1/projects/p2/tasks?since=2026-08-08T00%3A00%3A00.000Z&pageToken=page-3"
+      ],
+      "facts": [
+        "example:comment:t2b",
+        "example:comment:t2c"
+      ],
+      "hasMore": false,
+      "cursor": {
+        "projects": {
+          "c": "2026-08-02T00:00:00.000Z",
+          "m": null,
+          "d": false,
+          "p": null,
+          "i": null,
+          "k": null,
+          "w": null
+        },
+        "tasks": {
+          "c": "2026-08-08T00:00:00.000Z",
+          "m": null,
+          "d": false,
+          "p": null,
+          "i": null,
+          "k": null,
+          "w": null
+        }
+      }
+    },
+    {
+      "requests": [
+        "/v1/projects?since=2026-08-02T00%3A00%3A00.000Z",
+        "/v1/projects/p0/tasks?since=2026-08-08T00%3A00%3A00.000Z",
+        "/v1/projects/p1/tasks?since=2026-08-08T00%3A00%3A00.000Z",
+        "/v1/projects/p1/tasks?since=2026-08-08T00%3A00%3A00.000Z&pageToken=page-2",
+        "/v1/projects/p1/tasks?since=2026-08-08T00%3A00%3A00.000Z&pageToken=page-3",
+        "/v1/projects/p2/tasks?since=2026-08-08T00%3A00%3A00.000Z",
+        "/v1/projects/p2/tasks?since=2026-08-08T00%3A00%3A00.000Z&pageToken=page-2",
+        "/v1/projects/p2/tasks?since=2026-08-08T00%3A00%3A00.000Z&pageToken=page-3"
+      ],
+      "facts": [
+        "example:unknown:created:p0",
+        "example:comment:t0a",
+        "example:unknown:created:p1",
+        "example:comment:t1a",
+        "example:comment:t1b",
+        "example:comment:t1c",
+        "example:unknown:created:p2",
+        "example:comment:t2a",
+        "example:comment:t2b",
+        "example:comment:t2c"
+      ],
+      "hasMore": false,
+      "cursor": {
+        "projects": {
+          "c": "2026-09-01T00:00:00.000Z",
+          "m": null,
+          "d": false,
+          "p": null,
+          "i": null,
+          "k": null,
+          "w": null
+        },
+        "tasks": {
+          "c": "2026-09-01T00:00:00.000Z",
+          "m": null,
+          "d": false,
+          "p": null,
+          "i": null,
+          "k": null,
+          "w": null
+        }
+      }
+    }
+  ]
+}
