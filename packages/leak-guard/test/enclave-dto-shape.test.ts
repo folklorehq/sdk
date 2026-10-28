@@ -12,6 +12,7 @@ import {
   tokenUsageSchema,
   inferenceSpanSchema,
   wikiSynthesisDeferredSchema,
+  inferenceUsageDiscardedSchema,
   TOKEN_USAGE_MODEL_MAX_LENGTH,
 } from '@folklore/contracts/enclave';
 import { stringLeafPaths } from '../src/zod-introspect.js';
@@ -91,6 +92,7 @@ const FROZEN: Record<string, string[]> = {
     'tokenUsage[].model',
   ],
   wikiSynthesisDeferred: ['leaseToken', 'orgId', 'requestId', 'themeId', 'tokenUsage[].model'],
+  inferenceUsageDiscarded: ['messageId', 'orgId', 'requestId', 'tokenUsage[].model'],
   themeSynthesisResult: [
     'aggregates[].aggregateThemeId',
     'aggregates[].children[].childThemeId',
@@ -193,6 +195,7 @@ const SCHEMAS = {
   processedFact: processedFactSchema,
   wikiSynthesisResult: wikiSynthesisResultSchema,
   wikiSynthesisDeferred: wikiSynthesisDeferredSchema,
+  inferenceUsageDiscarded: inferenceUsageDiscardedSchema,
   themeSynthesisResult: themeSynthesisResultSchema,
   teamOnboardingSynthesisResult: teamOnboardingSynthesisResultSchema,
   synthesisRequest: synthesisRequestSchema,

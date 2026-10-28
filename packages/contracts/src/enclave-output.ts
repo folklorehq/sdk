@@ -20,6 +20,7 @@ export const enclaveOutputTypeSchema = z.enum([
   'theme_merge_adjudication',
   'member_identity_link',
   'fact_authors',
+  'inference_usage_discarded',
 ]);
 export type EnclaveOutputType = z.infer<typeof enclaveOutputTypeSchema>;
 
@@ -190,6 +191,17 @@ export function enclaveOutputBindingForPayload(
       identity,
     });
   }
+  if (type === 'inference_usage_discarded') {
+    const requestId = requiredString(payload, 'requestId');
+    const messageId = requiredString(payload, 'messageId');
+    return outputBinding({
+      outputType: 'inference_usage_discarded',
+      outputId: `${requestId}:discarded:${messageId}:${requiredPositiveInteger(payload, 'attempt')}`,
+      resourceIds: [requestId],
+      payload,
+      identity,
+    });
+  }
   if (type === 'theme_synthesis') {
     const themes = requiredRecordArray(payload, 'themes');
     const resourceIds = themes.flatMap((theme) => [
@@ -241,6 +253,14 @@ function requiredString(payload: Record<string, unknown>, key: string): string {
   const value = payload[key];
   if (typeof value !== 'string' || value.length === 0)
     throw new Error('enclave_output_field_invalid');
+  return value;
+}
+
+function requiredPositiveInteger(payload: Record<string, unknown>, key: string): number {
+  const value = payload[key];
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+    throw new Error('enclave_output_field_invalid');
+  }
   return value;
 }
 

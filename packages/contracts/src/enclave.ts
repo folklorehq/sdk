@@ -526,6 +526,42 @@ export const wikiSynthesisDeferredSchema = z
   .strict();
 export type WikiSynthesisDeferred = z.infer<typeof wikiSynthesisDeferredSchema>;
 
+export const INFERENCE_USAGE_DISCARDED_MAX_ENTRIES = 128;
+export const INFERENCE_USAGE_DISCARDED_MAX_COUNT = 1_000_000_000_000;
+export const INFERENCE_USAGE_DISCARDED_REQUEST_ID_PATTERN = /^[0-9a-f]{64}$/;
+export const SQS_MESSAGE_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+// A count past the bound would fail the worker's integer check on every retry and hold the org's FIFO group.
+const discardedCountSchema = z
+  .number()
+  .int()
+  .nonnegative()
+  .max(INFERENCE_USAGE_DISCARDED_MAX_COUNT);
+
+const discardedUsageEntrySchema = tokenUsageSchema.extend({
+  calls: discardedCountSchema,
+  cachedCalls: discardedCountSchema.default(0),
+  promptTokens: discardedCountSchema,
+  completionTokens: discardedCountSchema,
+  cacheReadTokens: discardedCountSchema.optional(),
+  cacheWriteTokens: discardedCountSchema.optional(),
+});
+
+// Not tokenUsageArray: malformed usage must refuse the output, never read as an empty (free) run.
+// The SQS message id keeps a re-sent request id (a re-lease, a re-derived theme request) from colliding with an earlier message's attempt.
+export const inferenceUsageDiscardedSchema = z
+  .object({
+    type: z.literal('inference_usage_discarded'),
+    orgId: z.string().min(1),
+    requestId: z.string().regex(INFERENCE_USAGE_DISCARDED_REQUEST_ID_PATTERN),
+    messageId: z.string().regex(SQS_MESSAGE_ID_PATTERN),
+    attempt: z.number().int().positive().safe(),
+    tokenUsage: z.array(discardedUsageEntrySchema).max(INFERENCE_USAGE_DISCARDED_MAX_ENTRIES),
+  })
+  .strict();
+export type InferenceUsageDiscarded = z.infer<typeof inferenceUsageDiscardedSchema>;
+
 // Per-fact relevance to the theme (container-cosine to the cluster centroid) — the
 // SCORED_FOR edge weight. Lets read-time fact ordering (wiki synthesis packing) rank by real
 // relevance instead of the prior constant 1.0. Content-free scalar; no body or name crosses.

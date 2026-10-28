@@ -218,6 +218,7 @@ describe('member identity link output', () => {
       'theme_merge_adjudication',
       'member_identity_link',
       'fact_authors',
+      'inference_usage_discarded',
     ]);
   });
 
@@ -289,7 +290,7 @@ describe('fact authors binding', () => {
   });
 
   it('adds the output type after member_identity_link', () => {
-    expect(enclaveOutputTypeSchema.options.slice(-2)).toEqual([
+    expect(enclaveOutputTypeSchema.options.slice(-3, -1)).toEqual([
       'member_identity_link',
       'fact_authors',
     ]);
