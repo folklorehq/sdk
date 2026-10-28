@@ -56,6 +56,11 @@
       "types": "./dist/canonical-json-pure.d.ts",
       "default": "./dist/canonical-json-pure.js"
     },
+    "./json-pointer": {
+      "development": "./src/json-pointer.ts",
+      "types": "./dist/json-pointer.d.ts",
+      "default": "./dist/json-pointer.js"
+    },
     "./uuid": {
       "development": "./src/uuid.ts",
       "types": "./dist/uuid.d.ts",

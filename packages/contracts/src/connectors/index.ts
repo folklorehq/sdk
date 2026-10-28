@@ -5,6 +5,7 @@ import { PUBLIC_CONNECTOR_MANIFESTS } from './public-registry.js';
 
 export * from './manifest.js';
 export * from './stream-spec.js';
+export * from './custom/index.js';
 export { PUBLIC_CONNECTOR_MANIFESTS } from './public-registry.js';
 export { PRIVATE_WIKI_EXPORT_DESTINATIONS } from './private-registry.js';
 

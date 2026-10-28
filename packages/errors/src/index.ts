@@ -32,6 +32,8 @@ export {
   ConnectorSpecError,
   TransportStatusError,
   type ConnectorSpecErrorCode,
+  CustomConnectorError,
+  type CustomConnectorErrorCode,
   ThemeRequestTooLargeError,
   ServiceUnavailableError,
   EncryptionContextMismatchError,

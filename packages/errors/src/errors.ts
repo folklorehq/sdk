@@ -229,6 +229,40 @@ export class ConnectorSpecError extends AppError {
   }
 }
 
+export type CustomConnectorErrorCode =
+  | 'custom_definition_invalid'
+  | 'custom_definition_unreadable'
+  | 'custom_definition_revision_mismatch'
+  | 'custom_revision_identity_changed'
+  | 'custom_slot_unavailable'
+  | 'custom_slot_has_facts'
+  | 'custom_session_expired'
+  | 'custom_budget_exhausted'
+  | 'custom_credential_rejected'
+  | 'custom_credential_binding_mismatch'
+  | 'custom_method_refused'
+  | 'custom_host_refused'
+  | 'custom_hosts_unconfirmed'
+  | 'custom_login_challenge'
+  | 'custom_login_csrf_missing'
+  | 'custom_upload_busy'
+  | 'custom_upload_delivery_mismatch'
+  | 'custom_login_rate_limited'
+  | 'egress_grant_unavailable'
+  | 'egress_grant_unsupported'
+  | 'custom_har_invalid'
+  | 'custom_har_busy'
+  | 'custom_export_invalid'
+  | 'custom_openapi_invalid'
+  | 'custom_mass_deletion_refused';
+
+/** The message is the code; never a cause, host, path or value. */
+export class CustomConnectorError extends AppError {
+  constructor(code: CustomConnectorErrorCode) {
+    super(code, { code, category: 'internal' });
+  }
+}
+
 /** Carries a status only: never a URL, header or body. */
 export class TransportStatusError extends AppError {
   constructor(readonly status: number) {

@@ -15,7 +15,7 @@ export const SPEC_TEMPLATE_TOKEN =
   /\{parent\.[A-Za-z0-9_]{1,64}\}|\{connection\.externalTenantId\}|\{cursor\}|\{page\}|\{window\.(?:start|end)\}/g;
 const PARENT_TOKEN = /\{parent\.([A-Za-z0-9_]{1,64})\}/g;
 const TEMPLATE_MAX_LENGTH = 256;
-const RESERVED_PARAM_NAMES: ReadonlySet<string> = new Set([
+export const RESERVED_PARAM_NAMES: ReadonlySet<string> = new Set([
   '__proto__',
   'constructor',
   'prototype',
@@ -24,7 +24,8 @@ export const paramNameSchema = z
   .string()
   .regex(/^[A-Za-z0-9_$.-]{1,64}$/)
   .refine((name) => !RESERVED_PARAM_NAMES.has(name), 'reserved parameter name');
-const FORBIDDEN_HEADER = /^(?:authorization|proxy-authorization|cookie|host|x-forwarded-[a-z-]*)$/i;
+export const FORBIDDEN_HEADER =
+  /^(?:authorization|proxy-authorization|cookie|host|x-forwarded-[a-z-]*)$/i;
 
 export const templateSchema = z
   .string()

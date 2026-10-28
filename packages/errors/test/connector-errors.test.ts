@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { AppError, ConnectorSpecError, TransportStatusError } from '../src/index.js';
+import {
+  AppError,
+  ConnectorSpecError,
+  CustomConnectorError,
+  TransportStatusError,
+} from '../src/index.js';
 
 describe('ConnectorSpecError', () => {
   it('uses the code as the message and carries no cause', () => {
@@ -43,5 +48,24 @@ describe('TransportStatusError', () => {
     expect(err.httpStatus).toBe(502);
     expect(err.context).toBeUndefined();
     expect(err.cause).toBeUndefined();
+  });
+});
+
+describe('CustomConnectorError', () => {
+  it.each([
+    'custom_definition_invalid',
+    'custom_revision_identity_changed',
+    'custom_host_refused',
+    'egress_grant_unsupported',
+    'custom_mass_deletion_refused',
+  ] as const)('carries %s as a code-only error', (code) => {
+    const err = new CustomConnectorError(code);
+    expect(err).toBeInstanceOf(AppError);
+    expect(err.code).toBe(code);
+    expect(err.message).toBe(code);
+    expect(err.category).toBe('internal');
+    expect(err.cause).toBeUndefined();
+    expect(err.context).toBeUndefined();
+    expect(err.toTelemetry().error_type).toBe(code);
   });
 });
