@@ -44,6 +44,23 @@ export const RESERVED_SUBDOMAINS: ReadonlySet<string> = new Set([
   'help',
   'support',
   'blog',
+  'send',
+  'mta-sts',
+  'autodiscover',
+  'autoconfig',
+  'sso',
+  'id',
+  'account',
+  'accounts',
+  'security',
+  'secure',
+  'signin',
+  'operator',
+  'staging',
+  'age',
+  'imap',
+  'pop',
+  'email',
 ]);
 
 export function isValidSubdomainLabel(label: string): boolean {

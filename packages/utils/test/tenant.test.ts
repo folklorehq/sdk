@@ -47,6 +47,42 @@ describe('isReservedSubdomain', () => {
     }
   });
 
+  it.each([
+    'send',
+    'mta-sts',
+    'autodiscover',
+    'autoconfig',
+    'sso',
+    'id',
+    'account',
+    'accounts',
+    'security',
+    'secure',
+    'signin',
+    'login',
+    'auth',
+    'operator',
+    'staging',
+    'age',
+    'smtp',
+    'imap',
+    'pop',
+    'mail',
+    'email',
+    'status',
+    'help',
+    'support',
+    'docs',
+    'blog',
+    'billing',
+    'webhooks',
+    'cdn',
+    'static',
+    'assets',
+  ])('reserves the mail, identity and support host %s', (label) => {
+    expect(isReservedSubdomain(label)).toBe(true);
+  });
+
   it('does not flag an ordinary tenant name', () => {
     expect(isReservedSubdomain('acme')).toBe(false);
   });
