@@ -38,6 +38,36 @@ export const themeGraphResponseSchema = z.object({
 });
 export type ThemeGraphResponse = z.infer<typeof themeGraphResponseSchema>;
 
+export const THEME_SUMMARY_MAX_IDS = 100;
+const THEME_SUMMARY_ID_SEPARATOR = ',';
+
+/** The fields a Home row shows for one page, ids and titles only. */
+export const themePageSummarySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  docType: documentTypeSchema,
+  ownerTeamName: z.string().nullable(),
+  updatedAt: z.string(),
+  audience: z.string().nullable(),
+});
+export type ThemePageSummary = z.infer<typeof themePageSummarySchema>;
+
+export const themeSummariesQuerySchema = z.object({
+  ids: z
+    .string()
+    .transform((raw) => raw.split(THEME_SUMMARY_ID_SEPARATOR).filter((id) => id.length > 0))
+    .pipe(z.array(z.string().uuid()).min(1).max(THEME_SUMMARY_MAX_IDS)),
+});
+
+export const themeSummariesResponseSchema = z.object({
+  pages: z.array(themePageSummarySchema),
+});
+export type ThemeSummariesResponse = z.infer<typeof themeSummariesResponseSchema>;
+
+export function themeSummariesIdsParam(ids: readonly string[]): string {
+  return ids.join(THEME_SUMMARY_ID_SEPARATOR);
+}
+
 /** One pending duplicate-theme pair awaiting human disposition — ids/scores/names only; the box resolves names from its own DB, never the control plane. */
 export const themeMergeReviewItemSchema = z.object({
   candidateId: z.string(),

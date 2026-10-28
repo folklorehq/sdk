@@ -328,7 +328,7 @@ importers:
         version: link:../errors
       posthog-node:
         specifier: ^5.39.1
-        version: 5.58.0
+        version: 5.59.0
     devDependencies:
       '@folklore/tsconfig':
         specifier: workspace:*
@@ -825,8 +825,8 @@ packages:
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
 
-  '@posthog/core@1.61.1':
-    resolution: {integrity: sha512-qyMTxPfjeJkHIhpcukOgBN3BWXbCyFRPz8/Voy5qZtVh9NZqj3EhC6LLeYZuJhL3WpqhQTgn2FMIwAo/ag6fmw==}
+  '@posthog/core@1.61.2':
+    resolution: {integrity: sha512-l3b6Dc2NmItwmyu6ot7K2jtStQOAQjZw/PB/gpZwk2W6SBCbvPg6YJzReSBSQLuok19ridbfVNk70a5hgoGX2Q==}
 
   '@posthog/types@1.418.0':
     resolution: {integrity: sha512-WqDXUWH1R8OilBp2PfDpQIRZSCs3QyOnw7H3YK7lvZLCMIsOqSZAKJrrqYWt4f7FvnVCACRuNGCC0HKh3J/HWw==}
@@ -1620,8 +1620,8 @@ packages:
     resolution: {integrity: sha512-LJlKCCAUFKOuZxipUdYw1NzIITEsPcgyOG9LkvRJvuKj/bRzbuRY0ARXvL0pWGpsZvn8jku+LMep2eU0seHp8g==}
     engines: {node: ^10 || ^12 || >=14}
 
-  posthog-node@5.58.0:
-    resolution: {integrity: sha512-UwvrvIQT5wMA8+E7yGXXr6+YCY7Uj9N68MS28wNQ/KYJUXK1d2Y561dRelBoEj2AfaqCNvOMWhWl6kHZSBDwuQ==}
+  posthog-node@5.59.0:
+    resolution: {integrity: sha512-vn8lr3WTKLNHe9DtP3oXT82+Ywoeo17nPapOH269vlKmbrSZiv6aTsokeGXXlXgkffhI6POk3+CKgBN3ADEONg==}
     engines: {node: ^20.20.0 || >=22.22.0}
     peerDependencies:
       '@opentelemetry/api': ^1.2.0
@@ -2225,7 +2225,7 @@ snapshots:
 
   '@pinojs/redact@0.4.0': {}
 
-  '@posthog/core@1.61.1':
+  '@posthog/core@1.61.2':
     dependencies:
       '@posthog/types': 1.418.0
 
@@ -3058,9 +3058,9 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.2
 
-  posthog-node@5.58.0:
+  posthog-node@5.59.0:
     dependencies:
-      '@posthog/core': 1.61.1
+      '@posthog/core': 1.61.2
 
   prelude-ls@1.2.1: {}
 
