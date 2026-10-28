@@ -564,6 +564,15 @@ export const READER_INTENTS = [
 export const readerIntentSchema = z.enum(READER_INTENTS);
 export const WHY_DOCUMENT = ['durable_reference', 'procedure', 'decision_record', 'none'] as const;
 export const whyDocumentSchema = z.enum(WHY_DOCUMENT);
+export const DISPOSITION_BASES = [
+  'rule_small_decision',
+  'rule_activity',
+  'rule_near_duplicate',
+  'model_small',
+  'model_large',
+] as const;
+export const dispositionBasisSchema = z.enum(DISPOSITION_BASES);
+export type DispositionBasis = z.infer<typeof dispositionBasisSchema>;
 export const themeDispositionReplySchema = z
   .object({
     disposition: themeDispositionSchema,
@@ -604,6 +613,7 @@ export const synthesizedThemeSchema = z
     whyDocument: whyDocumentSchema.optional(),
     dispositionConfidence: z.number().min(0).max(1).optional(),
     dispositionTargetThemeId: z.string().uuid().optional(),
+    dispositionBasis: dispositionBasisSchema.optional(),
   })
   .strict();
 export type SynthesizedTheme = z.infer<typeof synthesizedThemeSchema>;

@@ -4,6 +4,7 @@ import {
   AUTHOR_DISPLAY_NAME_MAX,
   AUTHOR_EMAIL_MAX,
   AUTHOR_SOURCE_USER_ID_MAX,
+  DISPOSITION_BASES,
   FEED_FACT_SALIENCE,
   SALIENT_FACT_SALIENCE,
   DEFAULT_SYNTHESIS_INPUT_TOKEN_BUDGET,
@@ -14,6 +15,7 @@ import {
   INFERENCE_TIMELINE_MAX_SPANS,
   PROCESSED_FACT_MAX_AUTHORS,
   associationJudgementResultSchema,
+  dispositionBasisSchema,
   factAuthorReextractRequestSchema,
   factAuthorsResultSchema,
   factSalienceSchema,
@@ -1285,6 +1287,31 @@ describe('themeSynthesisResultSchema', () => {
     ])('rejects %s = %j', (field, value) => {
       expect(themeSynthesisResultSchema.safeParse(payload({ [field]: value })).success).toBe(false);
     });
+
+    it.each(DISPOSITION_BASES)('parses dispositionBasis = %s', (dispositionBasis) => {
+      const parsed = themeSynthesisResultSchema.parse(payload({ dispositionBasis }));
+      expect(parsed.themes[0]).toMatchObject({ dispositionBasis });
+    });
+
+    it('lists the five bases the tenant CHECK constraint is built from', () => {
+      expect([...DISPOSITION_BASES]).toEqual([
+        'rule_small_decision',
+        'rule_activity',
+        'rule_near_duplicate',
+        'model_small',
+        'model_large',
+      ]);
+      expect(dispositionBasisSchema.options).toEqual([...DISPOSITION_BASES]);
+    });
+
+    it.each(['model', 'rule', 'a free text basis', ''])(
+      'rejects dispositionBasis = %j',
+      (value) => {
+        expect(
+          themeSynthesisResultSchema.safeParse(payload({ dispositionBasis: value })).success,
+        ).toBe(false);
+      },
+    );
 
     it('the enclave reply schema accepts the closed shape and rejects free text in any field', () => {
       const reply = {
