@@ -1,29 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
-// UNWIRED: body_fetch_failed, comment_cap and deletion_unresolved have no producer yet.
-export type PullSkipReason =
-  | 'archived'
-  | 'out_of_window'
-  | 'budget_deferred'
-  | 'body_fetch_failed'
-  | 'exported'
-  | 'listing_incomplete'
-  | 'comment_cap'
-  | 'deletion_unresolved';
+import {
+  PULL_CHARS_BUCKET,
+  type PullSkipReason as ContractPullSkipReason,
+  type PullStatsSignal,
+} from '@folklore/contracts';
 
-export interface PullStats {
+export type PullSkipReason = ContractPullSkipReason;
+
+// UNWIRED: the skip reasons body_fetch_failed, comment_cap and deletion_unresolved have no producer yet.
+export type PullStats = Pick<
+  PullStatsSignal,
+  'listed' | 'emitted' | 'apiCalls' | 'listingRestarts' | 'bodyCharsBucket' | 'truncatedBodies'
+> & {
+  skipped: Partial<Record<PullSkipReason, number>>;
   /** Set by a connector that knows a chunk belongs to a backfill whose continuation messages do not say so. */
   backfillChunk?: true;
-  listed: number;
-  emitted: number;
-  apiCalls: number;
-  listingRestarts: number;
-  skipped: Partial<Record<PullSkipReason, number>>;
-  bodyCharsBucket?: number;
-  // UNWIRED: only bodyMeasured sets it.
-  truncatedBodies?: number;
-}
-
-export const BODY_CHARS_BUCKET = 10_000;
+};
 
 /** Counts only: nothing here may carry an id, title, path or body. */
 export class PullStatsCounter {
@@ -60,7 +52,7 @@ export class PullStatsCounter {
     this.skipped.set(reason, (this.skipped.get(reason) ?? 0) + 1);
   }
 
-  // UNWIRED: no connector reports body sizes yet.
+  // UNWIRED: no connector reports body sizes or truncations (truncatedBodies) yet.
   bodyMeasured(chars: number, truncated: boolean): void {
     this.bodyChars = (this.bodyChars ?? 0) + chars;
     if (truncated) this.truncatedBodies += 1;
@@ -77,7 +69,7 @@ export class PullStatsCounter {
       ...(this.bodyChars === null
         ? {}
         : {
-            bodyCharsBucket: Math.ceil(this.bodyChars / BODY_CHARS_BUCKET) * BODY_CHARS_BUCKET,
+            bodyCharsBucket: Math.ceil(this.bodyChars / PULL_CHARS_BUCKET) * PULL_CHARS_BUCKET,
             truncatedBodies: this.truncatedBodies,
           }),
     };

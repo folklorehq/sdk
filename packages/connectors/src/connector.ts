@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { Logger } from '@folklore/core';
 import type { NormalizedRecords, NormalizedResource } from './normalized.js';
-import type { PullStats } from './pull-stats.js';
+import type { PullStats } from './PullStatsCounter.js';
 
 /** Opaque, per-connector incremental sync position. */
 export interface SyncCursor {

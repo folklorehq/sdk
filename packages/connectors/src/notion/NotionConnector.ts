@@ -12,7 +12,7 @@ import type {
 import type { NormalizedFact, NormalizedRecords, NormalizedResource } from '../normalized.js';
 import { takeOldestWithinBudget } from '../budgeted-pull.js';
 import { isCreateEvent } from '../pull-classification.js';
-import { PullStatsCounter } from '../pull-stats.js';
+import { PullStatsCounter } from '../PullStatsCounter.js';
 import type { NotionApiClient, NotionPageListing } from './client.js';
 import { normalizeNotionPageEvent, normalizeNotionPageSeed } from './normalize.js';
 import {

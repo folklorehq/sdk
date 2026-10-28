@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { PullStatsCounter } from '../src/pull-stats.js';
+import { PullStatsCounter } from '../src/PullStatsCounter.js';
 
 describe('PullStatsCounter', () => {
   it('starts at zero with no body figures', () => {
