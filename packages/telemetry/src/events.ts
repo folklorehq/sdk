@@ -64,6 +64,13 @@ export const TelemetryEvent = {
   AgentAccessPolicyChanged: 'agent_access.policy_changed',
   AgentAccessPolicyWriteRefused: 'agent_access.policy_write_refused',
   AgentAccessConfigInvalid: 'agent_access.config_invalid',
+  AgentAccessConsentDecided: 'agent_access.consent_decided',
+  AgentAccessAuthorizationRefused: 'agent_access.authorization_refused',
+  AgentAccessConnectionCreated: 'agent_access.connection_created',
+  AgentAccessTokenIssued: 'agent_access.token_issued',
+  AgentAccessConnectionsRevoked: 'agent_access.connections_revoked',
+  AgentAccessOAuthError: 'agent_access.oauth_error',
+  AgentAccessSweepRun: 'agent_access.sweep_run',
 } as const;
 
 // Telemetry imports nothing from contracts (the private agent-access module stays out of the SDK mirror); the control-plane vocabulary test pins these to it.
@@ -81,7 +88,64 @@ export const AGENT_ACCESS_TELEMETRY_WRITE_DENIALS = [
   'mode_unavailable',
   'revision_conflict',
 ] as const;
-export const AGENT_ACCESS_TELEMETRY_CONFIG_CODES = ['org_allowlist_invalid'] as const;
+export const AGENT_ACCESS_TELEMETRY_CONFIG_CODES = [
+  'org_allowlist_invalid',
+  'signing_key_invalid',
+  'signing_key_reused',
+  'cookie_secret_invalid',
+  'issuer_not_https',
+  'console_origin_missing',
+  'console_origin_invalid',
+  'debug_logging_enabled',
+  'ssrf_guard_unavailable',
+  'provider_init_failed',
+] as const;
+export const AGENT_ACCESS_TELEMETRY_AGENTS = ['claude_desktop', 'claude_code', 'cursor'] as const;
+export const AGENT_ACCESS_TELEMETRY_ASSURANCES = ['vendor_https', 'loopback'] as const;
+export const AGENT_ACCESS_TELEMETRY_REFUSALS = [
+  'invalid_resource',
+  'unavailable',
+  'not_member',
+  'workspace_paused',
+  'access_off',
+  'agent_not_allowed',
+  'no_scopes',
+  'fresh_session_required',
+] as const;
+export const AGENT_ACCESS_TELEMETRY_REVOCATIONS = [
+  'member_revoked',
+  'admin_revoked',
+  'agent_removed',
+  'access_off',
+  'member_removed',
+  'workspace_paused',
+  'workspace_unavailable',
+  'token_reuse',
+  'client_revoked',
+  'grant_ended',
+  'account_security',
+] as const;
+export const AGENT_ACCESS_TELEMETRY_OAUTH_ERRORS = [
+  'invalid_request',
+  'invalid_client',
+  'invalid_grant',
+  'invalid_target',
+  'invalid_scope',
+  'unauthorized_client',
+  'unsupported_grant_type',
+  'unsupported_response_type',
+  'access_denied',
+  'consent_required',
+  'login_required',
+  'interaction_required',
+  'invalid_redirect_uri',
+  'server_error',
+  'invalid_client_metadata',
+  'unsupported_response_mode',
+  'temporarily_unavailable',
+] as const;
+
+type AgentAccessAgent = (typeof AGENT_ACCESS_TELEMETRY_AGENTS)[number];
 
 export type InvitePresetLabel = 'admin' | 'member' | 'custom';
 export type InviteRevocationCause =
@@ -161,10 +225,38 @@ type ProductEvents = {
     orgId: string;
     reason: (typeof AGENT_ACCESS_TELEMETRY_WRITE_DENIALS)[number];
   };
+  'agent_access.consent_decided': {
+    orgId: string;
+    agent: AgentAccessAgent;
+    decision: 'allow' | 'deny';
+    redirectAssurance: (typeof AGENT_ACCESS_TELEMETRY_ASSURANCES)[number];
+  };
+  'agent_access.authorization_refused': {
+    reason: (typeof AGENT_ACCESS_TELEMETRY_REFUSALS)[number];
+    phase: 'consent' | 'token';
+  };
+  'agent_access.connection_created': { orgId: string; agent: AgentAccessAgent; scopeCount: number };
+  'agent_access.connections_revoked': {
+    orgId: string;
+    reason: (typeof AGENT_ACCESS_TELEMETRY_REVOCATIONS)[number];
+    count: number;
+  };
 };
 
 /** Pipeline stage durations, throughput, and fleet check-in vitals — no content. */
 type OpsEvents = {
+  'agent_access.token_issued': {
+    orgId: string;
+    agent: AgentAccessAgent;
+    grantType: 'authorization_code' | 'refresh_token';
+  };
+  'agent_access.sweep_run': {
+    outcome: 'completed' | 'failed';
+    deleted: number;
+    reconciled: number;
+    destroyed: number;
+    durationMs: number;
+  };
   'fact.ingested': { orgId: string; sourceKind: string };
   'fact.scored': {
     orgId: string;
@@ -296,6 +388,10 @@ type ErrorEvents = {
     rejectedBy: 'postgres_upsert' | 'postgres_upsert_failed' | 'routing_reconciliation_failed';
   };
   'agent_access.config_invalid': { code: (typeof AGENT_ACCESS_TELEMETRY_CONFIG_CODES)[number] };
+  'agent_access.oauth_error': {
+    phase: 'authorization' | 'token' | 'revocation' | 'server';
+    errorCode: (typeof AGENT_ACCESS_TELEMETRY_OAUTH_ERRORS)[number];
+  };
   'error.captured': ErrorReport;
 };
 

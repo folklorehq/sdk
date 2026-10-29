@@ -72,6 +72,36 @@ const VALID_SERVER_EVENT_FIXTURES = {
   },
   'agent_access.policy_write_refused': { orgId: ORGANIZATION_ID, reason: 'revision_conflict' },
   'agent_access.config_invalid': { code: 'org_allowlist_invalid' },
+  'agent_access.consent_decided': {
+    orgId: ORGANIZATION_ID,
+    agent: 'cursor',
+    decision: 'allow',
+    redirectAssurance: 'loopback',
+  },
+  'agent_access.authorization_refused': { reason: 'fresh_session_required', phase: 'consent' },
+  'agent_access.connection_created': {
+    orgId: ORGANIZATION_ID,
+    agent: 'claude_code',
+    scopeCount: 2,
+  },
+  'agent_access.token_issued': {
+    orgId: ORGANIZATION_ID,
+    agent: 'claude_desktop',
+    grantType: 'refresh_token',
+  },
+  'agent_access.connections_revoked': {
+    orgId: ORGANIZATION_ID,
+    reason: 'account_security',
+    count: 3,
+  },
+  'agent_access.oauth_error': { phase: 'token', errorCode: 'invalid_client_metadata' },
+  'agent_access.sweep_run': {
+    outcome: 'completed',
+    deleted: 4,
+    reconciled: 1,
+    destroyed: 2,
+    durationMs: 35,
+  },
   'beta_invite.created': {},
   'beta_invite.accepted': { betaInviteId: ORGANIZATION_ID },
   'directory.imported': {
@@ -724,6 +754,94 @@ describe('PostHogTelemetryClient final boundary', () => {
       expect(captured).toEqual([]);
     },
   );
+
+  it.each([
+    ['an unknown agent', 'agent_access.consent_decided', { agent: 'gemini' }],
+    ['an unknown decision', 'agent_access.consent_decided', { decision: 'maybe' }],
+    [
+      'an unknown redirect assurance',
+      'agent_access.consent_decided',
+      { redirectAssurance: 'strong' },
+    ],
+    ['an org id', 'agent_access.authorization_refused', { orgId: ORGANIZATION_ID }],
+    [
+      'a free-text reason',
+      'agent_access.authorization_refused',
+      { reason: 'Your workspace is paused' },
+    ],
+    ['an unknown phase', 'agent_access.authorization_refused', { phase: 'resume' }],
+    ['an unknown revocation reason', 'agent_access.connections_revoked', { reason: 'stolen' }],
+    ['a fractional count', 'agent_access.connections_revoked', { count: 1.5 }],
+    [
+      'a client id key',
+      'agent_access.connection_created',
+      { clientId: 'https://x.example/c.json' },
+    ],
+    ['a scope string', 'agent_access.connection_created', { scopes: 'folklore.ask' }],
+    ['an unknown grant type', 'agent_access.token_issued', { grantType: 'client_credentials' }],
+    [
+      'a library message as the error code',
+      'agent_access.oauth_error',
+      { errorCode: 'invalid_grant: grant request is invalid' },
+    ],
+    ['an unknown error phase', 'agent_access.oauth_error', { phase: 'consent' }],
+    ['an unknown sweep outcome', 'agent_access.sweep_run', { outcome: 'partial' }],
+    ['a negative sweep count', 'agent_access.sweep_run', { deleted: -1 }],
+  ] as const)('rejects an agent access payload with %s', (_case, event, override) => {
+    const { client, captured } = recordingClient();
+
+    client.track(event, ORGANIZATION_ID, {
+      ...VALID_SERVER_EVENT_FIXTURES[event],
+      ...override,
+    } as never);
+
+    expect(captured).toEqual([]);
+  });
+
+  it.each([
+    'provider_init_failed',
+    'ssrf_guard_unavailable',
+    'signing_key_invalid',
+    'signing_key_reused',
+    'cookie_secret_invalid',
+    'issuer_not_https',
+    'console_origin_missing',
+    'console_origin_invalid',
+    'debug_logging_enabled',
+  ] as const)(
+    'accepts the authorization server build code %s on agent_access.config_invalid',
+    (code) => {
+      const { client, captured } = recordingClient();
+
+      client.track('agent_access.config_invalid', 'system', { code });
+
+      expect(captured).toHaveLength(1);
+    },
+  );
+
+  it.each([
+    'invalid_client_metadata',
+    'unsupported_response_mode',
+    'temporarily_unavailable',
+    'server_error',
+  ] as const)('accepts the OAuth error code %s', (errorCode) => {
+    const { client, captured } = recordingClient();
+
+    client.track('agent_access.oauth_error', 'system', { phase: 'authorization', errorCode });
+
+    expect(captured).toHaveLength(1);
+  });
+
+  it('accepts the account id as the distinct id on agent_access.authorization_refused', () => {
+    const { client, captured } = recordingClient();
+
+    client.track('agent_access.authorization_refused', ORGANIZATION_ID, {
+      reason: 'not_member',
+      phase: 'token',
+    });
+
+    expect(captured).toHaveLength(1);
+  });
 
   it('accepts the system distinct id on agent_access.config_invalid', () => {
     const { client, captured } = recordingClient();

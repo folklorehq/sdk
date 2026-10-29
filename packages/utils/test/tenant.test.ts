@@ -9,7 +9,9 @@ import {
   isReservedSubdomain,
   isValidSubdomainLabel,
   isValidTenantSubdomain,
+  mcpResourceUrl,
   resolveTenantFromHost,
+  tenantFromMcpResource,
   workspaceOrigin,
 } from '../src/tenant.js';
 import * as utils from '../src/index.js';
@@ -240,5 +242,65 @@ describe('workspaceOrigin with a platform root domain', () => {
 
   it('still defaults to the folklorehq.com workspace root', () => {
     expect(workspaceOrigin('acme')).toBe('https://acme.folklorehq.com');
+  });
+});
+
+describe('mcpResourceUrl', () => {
+  it('is the canonical MCP address of a valid tenant label', () => {
+    expect(mcpResourceUrl('acme')).toBe('https://acme.folklorehq.com/mcp');
+    expect(mcpResourceUrl('acme', 'example.test')).toBe('https://acme.example.test/mcp');
+  });
+
+  it.each([
+    ['no label', null],
+    ['a reserved platform host', 'app'],
+    ['an uppercase label', 'Acme'],
+    ['a label with a dot', 'a.evil'],
+  ])('is null for %s', (_name, slug) => {
+    expect(mcpResourceUrl(slug)).toBeNull();
+  });
+});
+
+describe('tenantFromMcpResource', () => {
+  it('reads the tenant slug of the exact MCP resource URL', () => {
+    expect(tenantFromMcpResource('https://acme.folklorehq.com/mcp')).toBe('acme');
+    expect(tenantFromMcpResource('https://acme.example.test/mcp', 'example.test')).toBe('acme');
+  });
+
+  it('accepts an uppercase host and lowercases it', () => {
+    expect(tenantFromMcpResource('https://ACME.FolkloreHQ.com/mcp')).toBe('acme');
+  });
+
+  it.each([
+    ['a plain http scheme', 'http://acme.folklorehq.com/mcp'],
+    ['an uppercase scheme', 'HTTPS://acme.folklorehq.com/mcp'],
+    ['a port', 'https://acme.folklorehq.com:8443/mcp'],
+    ['userinfo', 'https://user@acme.folklorehq.com/mcp'],
+    ['credentials', 'https://user:pass@acme.folklorehq.com/mcp'],
+    ['a query', 'https://acme.folklorehq.com/mcp?x=1'],
+    ['an empty query', 'https://acme.folklorehq.com/mcp?'],
+    ['a fragment', 'https://acme.folklorehq.com/mcp#x'],
+    ['an empty fragment', 'https://acme.folklorehq.com/mcp#'],
+    ['a trailing slash', 'https://acme.folklorehq.com/mcp/'],
+    ['a deeper path', 'https://acme.folklorehq.com/mcp/x'],
+    ['an uppercase path', 'https://acme.folklorehq.com/MCP'],
+    ['a dot segment path', 'https://acme.folklorehq.com/./mcp'],
+    ['an encoded path', 'https://acme.folklorehq.com/%6dcp'],
+    ['a missing path', 'https://acme.folklorehq.com'],
+    ['a backslash', 'https://acme.folklorehq.com\\@evil.example/mcp'],
+    ['a trailing dot host', 'https://acme.folklorehq.com./mcp'],
+    ['a reserved label', 'https://app.folklorehq.com/mcp'],
+    ['two labels', 'https://a.b.folklorehq.com/mcp'],
+    ['the apex', 'https://folklorehq.com/mcp'],
+    ['the wrong root', 'https://acme.evil.example/mcp'],
+    ['whitespace', ' https://acme.folklorehq.com/mcp'],
+    ['an empty string', ''],
+  ])('is null for %s', (_name, resource) => {
+    expect(tenantFromMcpResource(resource)).toBeNull();
+  });
+
+  it('is exported from the package index', () => {
+    expect(utils.tenantFromMcpResource).toBe(tenantFromMcpResource);
+    expect(utils.mcpResourceUrl).toBe(mcpResourceUrl);
   });
 });

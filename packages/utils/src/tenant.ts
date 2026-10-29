@@ -130,3 +130,28 @@ export function workspaceOrigin(
   }
   return `https://${slug}.${rootDomain}`;
 }
+
+export const MCP_RESOURCE_PATH = '/mcp';
+
+const MCP_RESOURCE_RE = /^https:\/\/([^/?#@:\\]+)\/mcp$/;
+
+/** The canonical MCP resource URL of a tenant; null for a label a tenant cannot own. */
+export function mcpResourceUrl(
+  slug: string | null,
+  rootDomain: string = WORKSPACE_ROOT_DOMAIN,
+): string | null {
+  const origin = workspaceOrigin(slug, rootDomain);
+  return origin === null ? null : `${origin}${MCP_RESOURCE_PATH}`;
+}
+
+// Matched on the raw string, not a parsed URL: the URL parser would normalise dot segments, an empty
+// query and a trailing-dot host into a form that was never the registered resource.
+export function tenantFromMcpResource(
+  resource: string,
+  rootDomain: string = WORKSPACE_ROOT_DOMAIN,
+): string | null {
+  const host = MCP_RESOURCE_RE.exec(resource)?.[1]?.toLowerCase();
+  if (host === undefined || host.endsWith('.')) return null;
+  const label = labelUnderRoot(host, rootDomain);
+  return label !== null && mcpResourceUrl(label, rootDomain) !== null ? label : null;
+}

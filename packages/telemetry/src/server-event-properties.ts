@@ -7,8 +7,13 @@ import {
 } from '@folklore/core';
 import { isErrorReport } from '@folklore/errors';
 import {
+  AGENT_ACCESS_TELEMETRY_AGENTS,
+  AGENT_ACCESS_TELEMETRY_ASSURANCES,
   AGENT_ACCESS_TELEMETRY_CONFIG_CODES,
   AGENT_ACCESS_TELEMETRY_MODES,
+  AGENT_ACCESS_TELEMETRY_OAUTH_ERRORS,
+  AGENT_ACCESS_TELEMETRY_REFUSALS,
+  AGENT_ACCESS_TELEMETRY_REVOCATIONS,
   AGENT_ACCESS_TELEMETRY_SENSITIVITIES,
   AGENT_ACCESS_TELEMETRY_WRITE_DENIALS,
   BROWSER_CLIENT_ERROR_ORIGINS,
@@ -239,6 +244,42 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   }),
   'agent_access.config_invalid': propertyContract({
     code: literal(...AGENT_ACCESS_TELEMETRY_CONFIG_CODES),
+  }),
+  'agent_access.consent_decided': propertyContract({
+    ...orgId,
+    agent: literal(...AGENT_ACCESS_TELEMETRY_AGENTS),
+    decision: literal('allow', 'deny'),
+    redirectAssurance: literal(...AGENT_ACCESS_TELEMETRY_ASSURANCES),
+  }),
+  'agent_access.authorization_refused': propertyContract({
+    reason: literal(...AGENT_ACCESS_TELEMETRY_REFUSALS),
+    phase: literal('consent', 'token'),
+  }),
+  'agent_access.connection_created': propertyContract({
+    ...orgId,
+    agent: literal(...AGENT_ACCESS_TELEMETRY_AGENTS),
+    scopeCount: count,
+  }),
+  'agent_access.token_issued': propertyContract({
+    ...orgId,
+    agent: literal(...AGENT_ACCESS_TELEMETRY_AGENTS),
+    grantType: literal('authorization_code', 'refresh_token'),
+  }),
+  'agent_access.connections_revoked': propertyContract({
+    ...orgId,
+    reason: literal(...AGENT_ACCESS_TELEMETRY_REVOCATIONS),
+    count,
+  }),
+  'agent_access.oauth_error': propertyContract({
+    phase: literal('authorization', 'token', 'revocation', 'server'),
+    errorCode: literal(...AGENT_ACCESS_TELEMETRY_OAUTH_ERRORS),
+  }),
+  'agent_access.sweep_run': propertyContract({
+    outcome: literal('completed', 'failed'),
+    deleted: count,
+    reconciled: count,
+    destroyed: count,
+    durationMs: count,
   }),
   'member.invited': propertyContract({
     ...orgId,
