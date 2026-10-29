@@ -1240,7 +1240,7 @@ const pullSkippedShape = Object.fromEntries(
   PULL_SKIP_REASONS.map((reason) => [reason, pullStatCount.optional()]),
 ) as Record<PullSkipReason, z.ZodOptional<typeof pullStatCount>>;
 
-// Integers, booleans and closed keys only; character totals are bucketed per pull, never per fact.
+// Integers, booleans and closed keys only; character totals are bucketed per pull (a one-fact pull reports that fact's length rounded up to 10k).
 export const pullStatsSchema = z
   .object({
     facts: pullStatCount,
