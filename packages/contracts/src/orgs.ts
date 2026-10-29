@@ -489,6 +489,7 @@ export const orgOverviewSchema = z
         id: z.string(),
         name: z.string(),
         slug: z.string().nullable(),
+        /** The billing plan tier (`team`, `business` or `enterprise`), not the placement lifecycle marker. */
         plan: z.string(),
         trialEndsAt: z.string().nullable(),
       })

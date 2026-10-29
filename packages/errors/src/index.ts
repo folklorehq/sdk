@@ -39,6 +39,7 @@ export {
   EncryptionContextMismatchError,
   ConfigurationError,
   InternalError,
+  EnterprisePlanUnavailableError,
   InvalidBillingBasisError,
   PERSONAL_SOURCE_FACT_DENIALS,
   PersonalSourceFactRejectedError,

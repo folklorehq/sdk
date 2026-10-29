@@ -9,6 +9,7 @@ import {
   NotPausedError,
   StepUpRequiredError,
   AmbiguousHostError,
+  EnterprisePlanUnavailableError,
   ConcurrencyLimitError,
   AppError,
   CannotChangeSelfError,
@@ -81,7 +82,8 @@ describe('AppError subclasses', () => {
     ['platform_workspace', new PlatformWorkspaceError()],
     ['not_on_a_host', new NotOnHostError()],
     ['host_agent_outdated', new HostAgentOutdatedError()],
-  ])('uses the stable pause refusal code %s', (code, error) => {
+    ['enterprise_plan_unavailable', new EnterprisePlanUnavailableError()],
+  ])('uses the stable conflict refusal code %s', (code, error) => {
     expect(error.code).toBe(code);
     expect(error.httpStatus).toBe(409);
     expect(error).toBeInstanceOf(AppError);

@@ -310,6 +310,17 @@ export class ConfigurationError extends AppError {
   }
 }
 
+/** Enterprise needs the order-form billing basis on the tenant, which is not projected yet, so the tier is refused. */
+export class EnterprisePlanUnavailableError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('The enterprise plan cannot be set until the billing basis is projected', {
+      ...options,
+      code: 'enterprise_plan_unavailable',
+      category: 'conflict',
+    });
+  }
+}
+
 /** An org's billing basis (plan, interval or counts) is not one the entitlement contract accepts. */
 export class InvalidBillingBasisError extends AppError {
   constructor(options: AppErrorOptions = {}) {
