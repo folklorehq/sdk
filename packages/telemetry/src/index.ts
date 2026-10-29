@@ -12,6 +12,10 @@ export type {
   TelemetryEventName,
 } from './events.js';
 export {
+  AGENT_ACCESS_TELEMETRY_CONFIG_CODES,
+  AGENT_ACCESS_TELEMETRY_MODES,
+  AGENT_ACCESS_TELEMETRY_SENSITIVITIES,
+  AGENT_ACCESS_TELEMETRY_WRITE_DENIALS,
   areBrowserTelemetryPropertiesValid,
   BROWSER_SURFACES,
   browserTelemetryPropertyKeys,

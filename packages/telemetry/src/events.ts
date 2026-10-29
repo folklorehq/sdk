@@ -56,7 +56,27 @@ export const TelemetryEvent = {
   TenantDataDeleted: 'tenant.data_deleted',
   ErrorCaptured: 'error.captured',
   ApiRequest: 'api.request',
+  AgentAccessPolicyChanged: 'agent_access.policy_changed',
+  AgentAccessPolicyWriteRefused: 'agent_access.policy_write_refused',
+  AgentAccessConfigInvalid: 'agent_access.config_invalid',
 } as const;
+
+// Telemetry imports nothing from contracts (the private agent-access module stays out of the SDK mirror); the control-plane vocabulary test pins these to it.
+export const AGENT_ACCESS_TELEMETRY_MODES = ['off', 'answers', 'answers_and_pages'] as const;
+export const AGENT_ACCESS_TELEMETRY_SENSITIVITIES = [
+  'public',
+  'team_scoped',
+  'restricted',
+  'confidential',
+] as const;
+export const AGENT_ACCESS_TELEMETRY_WRITE_DENIALS = [
+  'forbidden',
+  'unavailable',
+  'billing',
+  'mode_unavailable',
+  'revision_conflict',
+] as const;
+export const AGENT_ACCESS_TELEMETRY_CONFIG_CODES = ['org_allowlist_invalid'] as const;
 
 export type InvitePresetLabel = 'admin' | 'member' | 'custom';
 export type InviteRevocationCause =
@@ -106,6 +126,17 @@ type ProductEvents = {
   'wiki.viewed': { orgId: string; audience: string; blockCount: number };
   'review.actioned': { orgId: string; action: 'assign' | 'remove' };
   'theme.merge_reviewed': { orgId: string; action: 'approve' | 'reject' };
+  'agent_access.policy_changed': {
+    orgId: string;
+    mode: (typeof AGENT_ACCESS_TELEMETRY_MODES)[number];
+    maxSensitivity: (typeof AGENT_ACCESS_TELEMETRY_SENSITIVITIES)[number];
+    allowedAgentCount: number;
+    widening: boolean;
+  };
+  'agent_access.policy_write_refused': {
+    orgId: string;
+    reason: (typeof AGENT_ACCESS_TELEMETRY_WRITE_DENIALS)[number];
+  };
 };
 
 /** Pipeline stage durations, throughput, and fleet check-in vitals — no content. */
@@ -240,6 +271,7 @@ type ErrorEvents = {
     sourceKind: string;
     rejectedBy: 'postgres_upsert' | 'postgres_upsert_failed' | 'routing_reconciliation_failed';
   };
+  'agent_access.config_invalid': { code: (typeof AGENT_ACCESS_TELEMETRY_CONFIG_CODES)[number] };
   'error.captured': ErrorReport;
 };
 

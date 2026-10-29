@@ -52,6 +52,15 @@ const VALID_SERVER_EVENT_FIXTURES = {
     count: 1,
     cause: 'inviter_no_longer_permitted',
   },
+  'agent_access.policy_changed': {
+    orgId: ORGANIZATION_ID,
+    mode: 'answers',
+    maxSensitivity: 'restricted',
+    allowedAgentCount: 1,
+    widening: true,
+  },
+  'agent_access.policy_write_refused': { orgId: ORGANIZATION_ID, reason: 'revision_conflict' },
+  'agent_access.config_invalid': { code: 'org_allowlist_invalid' },
   'beta_invite.created': {},
   'beta_invite.accepted': { betaInviteId: ORGANIZATION_ID },
   'directory.imported': {
@@ -645,6 +654,49 @@ describe('PostHogTelemetryClient final boundary', () => {
     client.track('member.invites_revoked', ORGANIZATION_ID, properties as never);
 
     expect(captured).toEqual([]);
+  });
+
+  it.each([
+    ['an unknown mode', 'agent_access.policy_changed', { mode: 'pages' }],
+    ['an unknown ceiling', 'agent_access.policy_changed', { maxSensitivity: 'secret' }],
+    ['a negative agent count', 'agent_access.policy_changed', { allowedAgentCount: -1 }],
+    ['an extra email key', 'agent_access.policy_changed', { email: 'dana@acme.com' }],
+    ['a free-text reason', 'agent_access.policy_write_refused', { reason: 'You are not an admin' }],
+    ['an extra agent key', 'agent_access.policy_write_refused', { agent: 'cursor' }],
+    [
+      'an env assignment as the code',
+      'agent_access.config_invalid',
+      { code: 'AGENT_ACCESS_ORG_IDS=abc' },
+    ],
+  ] as const)('rejects an agent access payload with %s', (_case, event, override) => {
+    const { client, captured } = recordingClient();
+
+    client.track(event, ORGANIZATION_ID, {
+      ...VALID_SERVER_EVENT_FIXTURES[event],
+      ...override,
+    } as never);
+
+    expect(captured).toEqual([]);
+  });
+
+  it.each(['agent_access.policy_changed', 'agent_access.policy_write_refused'] as const)(
+    'rejects %s without its org id',
+    (event) => {
+      const { orgId: _orgId, ...withoutOrg } = VALID_SERVER_EVENT_FIXTURES[event];
+      const { client, captured } = recordingClient();
+
+      client.track(event, ORGANIZATION_ID, withoutOrg as never);
+
+      expect(captured).toEqual([]);
+    },
+  );
+
+  it('accepts the system distinct id on agent_access.config_invalid', () => {
+    const { client, captured } = recordingClient();
+
+    client.track('agent_access.config_invalid', 'system', { code: 'org_allowlist_invalid' });
+
+    expect(captured).toHaveLength(1);
   });
 
   it('accepts the numeric ACI session identifier emitted by the receipt verifier', () => {

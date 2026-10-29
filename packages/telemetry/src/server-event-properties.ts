@@ -7,6 +7,10 @@ import {
 } from '@folklore/core';
 import { isErrorReport } from '@folklore/errors';
 import {
+  AGENT_ACCESS_TELEMETRY_CONFIG_CODES,
+  AGENT_ACCESS_TELEMETRY_MODES,
+  AGENT_ACCESS_TELEMETRY_SENSITIVITIES,
+  AGENT_ACCESS_TELEMETRY_WRITE_DENIALS,
   BROWSER_CLIENT_ERROR_ORIGINS,
   BROWSER_SOURCE_CONNECT_FAILURES,
   CLIENT_ERROR_NAMES,
@@ -202,6 +206,20 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
       'postgres_upsert_failed',
       'routing_reconciliation_failed',
     ),
+  }),
+  'agent_access.policy_changed': propertyContract({
+    ...orgId,
+    mode: literal(...AGENT_ACCESS_TELEMETRY_MODES),
+    maxSensitivity: literal(...AGENT_ACCESS_TELEMETRY_SENSITIVITIES),
+    allowedAgentCount: count,
+    widening: bool,
+  }),
+  'agent_access.policy_write_refused': propertyContract({
+    ...orgId,
+    reason: literal(...AGENT_ACCESS_TELEMETRY_WRITE_DENIALS),
+  }),
+  'agent_access.config_invalid': propertyContract({
+    code: literal(...AGENT_ACCESS_TELEMETRY_CONFIG_CODES),
   }),
   'member.invited': propertyContract({
     ...orgId,
