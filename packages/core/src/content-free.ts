@@ -86,9 +86,13 @@ export const SAFE_LOG_SIGNUP_STAGES = Object.freeze([
   'total',
 ] as const);
 const NON_NEGATIVE_INTEGER_FIELDS: ReadonlySet<string> = new Set([
+  'eligibleRefs',
+  'excludedRefs',
   'retries',
   'secondsSinceActive',
   'secondsSinceOrgCreated',
+  'skippedContainers',
+  'tierlessRefs',
 ]);
 const SAFE_LOG_SIGNUP_STAGE_SET: ReadonlySet<string> = new Set(SAFE_LOG_SIGNUP_STAGES);
 const EXPLICIT_CONTENT_FREE_FIELDS = new Set([

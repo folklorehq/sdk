@@ -426,15 +426,19 @@ describe('signup timing fields', () => {
     expect(checkSafeLogContext({ retries })).toBe('invalid_context_value');
   });
 
-  it.each(['secondsSinceOrgCreated', 'secondsSinceActive'])(
-    '%s is a non-negative integer',
-    (key) => {
-      expect(checkSafeLogContext({ [key]: 42 })).toBeNull();
-      for (const value of [-1, 0.5, '42', null]) {
-        expect(checkSafeLogContext({ [key]: value }), String(value)).toBe('invalid_context_value');
-      }
-    },
-  );
+  it.each([
+    'secondsSinceOrgCreated',
+    'secondsSinceActive',
+    'eligibleRefs',
+    'excludedRefs',
+    'tierlessRefs',
+    'skippedContainers',
+  ])('%s is a non-negative integer', (key) => {
+    expect(checkSafeLogContext({ [key]: 42 })).toBeNull();
+    for (const value of [-1, 0.5, '42', null]) {
+      expect(checkSafeLogContext({ [key]: value }), String(value)).toBe('invalid_context_value');
+    }
+  });
 
   it('accepts a non-negative integer retries and a boolean warm', () => {
     expect(checkSafeLogContext({ retries: 3, warm: false })).toBeNull();
