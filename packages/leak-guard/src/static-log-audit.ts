@@ -27,6 +27,10 @@ const DYNAMIC_VALUE = Symbol('dynamic_log_value');
 // apps/control-plane-server/test/composition-preflight-cli.test.ts, which includes a guard that a
 // configured value can never reach a line.
 //
+// The Stripe ensure entrypoint prints fixed role and outcome words plus Stripe object ids (never a key or
+// signing secret; errors pass through redactKeyFragments), covered by
+// apps/control-plane-server/test/billing/ensure-stripe-billing-source.test.ts.
+//
 // The theme-merge calibration CLI is an operator script whose stderr carries only fixed messages
 // or a five-character SQLSTATE (CalibrationCliError.describe), covered by
 // apps/worker/test/merge-calibration-report.test.ts. The KB coherence report CLI is the same shape: its
@@ -39,6 +43,7 @@ const CONSOLE_EXEMPT_FILES = new Set([
   'apps/pool-provisioning-runner/src/lambda.ts',
   'apps/control-plane-server/src/ops/cli.ts',
   'apps/control-plane-server/src/ops/setup-stripe-products.ts',
+  'apps/control-plane-server/src/ops/ensure-stripe-billing.ts',
   'apps/control-plane-server/src/composition-root/cli/preflight-composition.ts',
   'apps/worker/src/dev-bridge.ts',
   'apps/worker/src/dev-resolve-themes.ts',
