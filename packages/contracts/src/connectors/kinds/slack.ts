@@ -56,13 +56,11 @@ export const slackManifest = {
   },
   settings: 'none',
   identity: {
-    // UNWIRED: stays false until a Slack identity envelope exists.
-    live: false,
+    live: true,
     authUrl: 'https://slack.com/oauth/v2/authorize',
     scopes: ['identity.basic'],
     scopeParam: 'user_scope',
     pkce: 'disabled',
-    clientIdEnv: 'SLACK_IDENTITY_CLIENT_ID',
     fallbackToSource: true,
     lookup: {
       method: 'GET',

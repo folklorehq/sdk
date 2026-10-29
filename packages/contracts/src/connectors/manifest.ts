@@ -247,6 +247,13 @@ export const connectorManifestSchema = z
         message: 'host not in egress.apiHosts',
       });
     }
+    if (identity.clientIdEnv !== undefined && identity.fallbackToSource) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['identity', 'clientIdEnv'],
+        message: 'a source-app identity flow has no client of its own',
+      });
+    }
     const hasClient = identity.clientIdEnv !== undefined || identity.fallbackToSource;
     if (!hasClient || (identity.fallbackToSource && manifest.auth?.type !== 'oauth2')) {
       ctx.addIssue({

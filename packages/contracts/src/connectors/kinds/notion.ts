@@ -58,7 +58,6 @@ export const notionManifest = {
     scopes: [],
     scopeParam: 'scope',
     pkce: 'disabled',
-    clientIdEnv: 'NOTION_IDENTITY_CLIENT_ID',
     fallbackToSource: true,
     extraAuthParams: { owner: 'user' },
     lookup: {

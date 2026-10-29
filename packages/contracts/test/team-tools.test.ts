@@ -5,7 +5,7 @@ import { TEAM_TOOL_KINDS, teamToolsInputSchema, teamToolsSchema } from '../src/o
 
 const TEAM_ID = '7f8c1c1e-3a4b-4c5d-8e9f-0a1b2c3d4e5f';
 const MANDATORY_GITHUB = { sourceKind: 'github', mandatory: true };
-const MANDATORY_SLACK = { sourceKind: 'slack', mandatory: true };
+const MANDATORY_NOTION = { sourceKind: 'notion', mandatory: true };
 
 describe('team tools contracts', () => {
   it('accepts a mandatory github link in a write', () => {
@@ -13,7 +13,7 @@ describe('team tools contracts', () => {
   });
 
   it('refuses a mandatory link on a kind that cannot link yet in a write', () => {
-    expect(teamToolsInputSchema.safeParse({ tools: [MANDATORY_SLACK] }).success).toBe(false);
+    expect(teamToolsInputSchema.safeParse({ tools: [MANDATORY_NOTION] }).success).toBe(false);
   });
 
   it('accepts an optional slack link in a write', () => {
@@ -34,7 +34,7 @@ describe('team tools contracts', () => {
   it('accepts a stored mandatory row on such a kind in the read response', () => {
     const view = {
       teamId: TEAM_ID,
-      tools: [MANDATORY_GITHUB, MANDATORY_SLACK],
+      tools: [MANDATORY_GITHUB, MANDATORY_NOTION],
       canEdit: true,
       linkableKinds: ['github'],
     };

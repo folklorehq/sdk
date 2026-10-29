@@ -57,4 +57,22 @@ export const jiraManifest = {
     documentBodies: false,
   },
   settings: 'none',
+  identity: {
+    live: true,
+    authUrl: 'https://auth.atlassian.com/authorize',
+    scopes: ['read:me'],
+    scopeParam: 'scope',
+    pkce: 'disabled',
+    fallbackToSource: true,
+    extraAuthParams: {
+      audience: 'api.atlassian.com',
+      prompt: 'consent',
+    },
+    lookup: {
+      method: 'GET',
+      url: 'https://api.atlassian.com/me',
+      idPointer: '/account_id',
+      namePointer: '/name',
+    },
+  },
 } as const satisfies ConnectorManifest;

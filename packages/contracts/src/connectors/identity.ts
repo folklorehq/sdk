@@ -15,6 +15,8 @@ export interface IdentityLinkSpec {
   readonly scopeParam: 'scope' | 'user_scope';
   readonly pkce: 'required' | 'disabled';
   readonly clientIdEnvs: readonly string[];
+  readonly fallbackToSource: boolean;
+  readonly authorizeParameterMode?: 'standard' | 'client-state-only';
   readonly extraAuthParams?: Readonly<Record<string, string>>;
   readonly lookup: IdentityLookup;
   readonly revoke?: IdentityRevoke;
@@ -32,6 +34,10 @@ function specOf(manifest: ConnectorManifest): IdentityLinkSpec | null {
     identity.fallbackToSource && manifest.auth?.type === 'oauth2'
       ? [manifest.auth.clientIdEnv]
       : [];
+  const sourceAuthorizeMode =
+    identity.fallbackToSource && manifest.auth?.type === 'oauth2'
+      ? manifest.auth.authorizeParameterMode
+      : undefined;
   return {
     kind: manifest.kind,
     live: identity.live,
@@ -40,6 +46,8 @@ function specOf(manifest: ConnectorManifest): IdentityLinkSpec | null {
     scopeParam: identity.scopeParam,
     pkce: identity.pkce,
     clientIdEnvs: [...(identity.clientIdEnv ? [identity.clientIdEnv] : []), ...sourceEnv],
+    fallbackToSource: identity.fallbackToSource,
+    ...(sourceAuthorizeMode ? { authorizeParameterMode: sourceAuthorizeMode } : {}),
     ...(identity.extraAuthParams ? { extraAuthParams: identity.extraAuthParams } : {}),
     lookup: identity.lookup,
     ...(identity.revoke ? { revoke: identity.revoke } : {}),
