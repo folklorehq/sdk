@@ -170,6 +170,13 @@ const richBlockCountFields = {
   canvasDropped: count,
 };
 
+const synthesizedContract = propertyContract({
+  ...orgId,
+  themeId: uuid,
+  audiences: count,
+  withdrawnAudiences: count,
+});
+
 const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   'org.created': propertyContract(
     { orgId: uuid, plan: literal('trial', 'beta', 'growth', 'business', 'enterprise') },
@@ -297,7 +304,10 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   'inference.receipt_verification_staged_off': propertyContract({
     mode: literal('commissioning', 'non_production'),
   }),
-  'wiki.synthesized': propertyContract({ ...orgId, themeId: uuid }),
+  'wiki.synthesized': (properties) =>
+    synthesizedContract(properties) &&
+    (properties.withdrawnAudiences as number) <= (properties.audiences as number),
+  'wiki.first_page.ready': propertyContract({ ...orgId, secondsSinceFirstPull: count }),
   'wiki.rich_blocks.synthesized': propertyContract({
     ...orgId,
     themeId: uuid,

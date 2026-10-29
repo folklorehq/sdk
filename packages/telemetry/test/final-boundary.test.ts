@@ -102,7 +102,13 @@ const VALID_SERVER_EVENT_FIXTURES = {
   'inference.attestation_failed': { reason: 'response carried no receipt id' },
   'inference.error': { model: 'z-ai/glm-5.2', errorType: 'generate_failed' },
   'inference.receipt_verification_staged_off': { mode: 'commissioning' },
-  'wiki.synthesized': { orgId: ORGANIZATION_ID, themeId: ORGANIZATION_ID },
+  'wiki.synthesized': {
+    orgId: ORGANIZATION_ID,
+    themeId: ORGANIZATION_ID,
+    audiences: 2,
+    withdrawnAudiences: 1,
+  },
+  'wiki.first_page.ready': { orgId: ORGANIZATION_ID, secondsSinceFirstPull: 42 },
   'wiki.rich_blocks.synthesized': {
     orgId: ORGANIZATION_ID,
     themeId: ORGANIZATION_ID,
@@ -496,6 +502,54 @@ describe('PostHogTelemetryClient final boundary', () => {
     client.track('client_error', ORGANIZATION_ID, { origin: 'window_error', errorName });
 
     expect(captured).toHaveLength(1);
+  });
+
+  it.each([
+    ['a negative audience count', { audiences: -1 }],
+    ['a fractional audience count', { audiences: 1.5 }],
+    ['a negative withdrawn count', { withdrawnAudiences: -1 }],
+    ['withdrawn above audiences', { audiences: 1, withdrawnAudiences: 2 }],
+    ['a blockId', { blockId: ORGANIZATION_ID }],
+    ['no themeId', { themeId: undefined }],
+  ])('rejects a wiki.synthesized payload with %s', (_case, override) => {
+    const { client, captured } = recordingClient();
+
+    client.track('wiki.synthesized', ORGANIZATION_ID, {
+      ...VALID_SERVER_EVENT_FIXTURES['wiki.synthesized'],
+      ...override,
+    } as never);
+
+    expect(captured).toEqual([]);
+  });
+
+  it('accepts a wiki.synthesized payload with every audience withdrawn', () => {
+    const { client, captured } = recordingClient();
+
+    client.track('wiki.synthesized', ORGANIZATION_ID, {
+      orgId: ORGANIZATION_ID,
+      themeId: ORGANIZATION_ID,
+      audiences: 2,
+      withdrawnAudiences: 2,
+    });
+
+    expect(captured).toHaveLength(1);
+  });
+
+  it.each([
+    ['a negative seconds value', { secondsSinceFirstPull: -1 }],
+    ['a fractional seconds value', { secondsSinceFirstPull: 1.5 }],
+    ['a string seconds value', { secondsSinceFirstPull: '42' }],
+    ['an extra themeId', { themeId: ORGANIZATION_ID }],
+    ['no seconds value', { secondsSinceFirstPull: undefined }],
+  ])('rejects a wiki.first_page.ready payload with %s', (_case, override) => {
+    const { client, captured } = recordingClient();
+
+    client.track('wiki.first_page.ready', ORGANIZATION_ID, {
+      ...VALID_SERVER_EVENT_FIXTURES['wiki.first_page.ready'],
+      ...override,
+    } as never);
+
+    expect(captured).toEqual([]);
   });
 
   it('rejects a wiki.viewed payload carrying a themeId', () => {

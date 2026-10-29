@@ -43,6 +43,7 @@ export const TelemetryEvent = {
   InferenceError: 'inference.error',
   InferenceReceiptVerificationStagedOff: 'inference.receipt_verification_staged_off',
   WikiSynthesized: 'wiki.synthesized',
+  WikiFirstPageReady: 'wiki.first_page.ready',
   WikiRichBlocksSynthesized: 'wiki.rich_blocks.synthesized',
   WikiCritiqueCompleted: 'wiki.critique.completed',
   WikiLinkPreview: 'wiki.link_preview',
@@ -136,7 +137,13 @@ type OpsEvents = {
     loopSamples: number;
     seconds: number;
   };
-  'wiki.synthesized': { orgId: string; themeId: string };
+  'wiki.synthesized': {
+    orgId: string;
+    themeId: string;
+    audiences: number;
+    withdrawnAudiences: number;
+  };
+  'wiki.first_page.ready': { orgId: string; secondsSinceFirstPull: number };
   'wiki.rich_blocks.synthesized': {
     orgId: string;
     themeId: string;
