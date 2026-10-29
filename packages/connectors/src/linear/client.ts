@@ -6,6 +6,7 @@ import type {
   LinearIssueNode,
   LinearPage,
   LinearProjectNode,
+  LinearTeamNode,
 } from './types.js';
 
 export interface LinearWindow {
@@ -25,6 +26,7 @@ export interface LinearApiClient {
   comments(window: LinearWindow, after: string | null): Promise<LinearPage<LinearCommentNode>>;
   projects(window: LinearWindow, after: string | null): Promise<LinearPage<LinearProjectNode>>;
   cycles(window: LinearWindow, after: string | null): Promise<LinearPage<LinearCycleNode>>;
+  teams(after: string | null): Promise<LinearPage<LinearTeamNode>>;
   rateState(): LinearRateState;
 }
 

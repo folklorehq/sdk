@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { ConnectorManifest } from './manifest.js';
+import type { ResourceScopeUnit } from './resource-scope.js';
 import { PRIVATE_CONNECTOR_MANIFESTS } from './private-registry.js';
 import { PUBLIC_CONNECTOR_MANIFESTS } from './public-registry.js';
 
 export * from './manifest.js';
+export * from './resource-scope.js';
 export * from './stream-spec.js';
 export * from './identity.js';
 export * from './provider-versions.js';
@@ -29,3 +31,16 @@ export type MemberManifestKind = Extract<AnyManifest, { readonly audience: 'memb
 export const MEMBER_MANIFEST_KINDS = (CONNECTOR_MANIFESTS as readonly ConnectorManifest[])
   .filter((m) => m.audience === 'member')
   .map((m) => m.kind) as unknown as readonly [MemberManifestKind, ...MemberManifestKind[]];
+
+const ORG_MANIFESTS = (CONNECTOR_MANIFESTS as readonly ConnectorManifest[]).filter(
+  (m) => m.audience === 'org',
+);
+
+export function resourceScopeUnitFor(kind: string): ResourceScopeUnit | undefined {
+  return ORG_MANIFESTS.find((m) => m.kind === kind && m.settings === 'resource_scope')
+    ?.resourceScope?.unit;
+}
+
+export function isPausableSourceKind(kind: string): boolean {
+  return ORG_MANIFESTS.some((m) => m.kind === kind && m.emitsFacts && m.pull !== null);
+}

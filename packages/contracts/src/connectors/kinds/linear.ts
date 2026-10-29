@@ -41,7 +41,8 @@ export const linearManifest = {
     cadenceMinutes: 15,
     documentBodies: false,
   },
-  settings: 'none',
+  settings: 'resource_scope',
+  resourceScope: { unit: 'team' },
   identity: {
     live: true,
     authUrl: 'https://linear.app/oauth/authorize',

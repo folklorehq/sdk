@@ -469,3 +469,77 @@ describe('Slack sensitivity hints', () => {
     expect(result.facts[0]!.sensitivityHints).toEqual({ names: [], restrictedScope: true });
   });
 });
+
+describe('SlackConnector resource scope', () => {
+  const noop = () => {};
+  const logger: Logger = {
+    trace: noop,
+    debug: noop,
+    info: noop,
+    warn: noop,
+    error: noop,
+    fatal: noop,
+    child: () => logger,
+  };
+
+  function clientWith(channels: Array<{ id: string; name: string; is_private?: boolean }>) {
+    const listed: string[] = [];
+    const client: SlackClient = {
+      listConversations: async () => channels.map((ch) => ({ ...ch, is_member: true })),
+      listMessages: async (channelId) => {
+        listed.push(channelId);
+        return { messages: [makeMessage({ channel: channelId })], nextCursor: null };
+      },
+    };
+    return { client, listed };
+  }
+
+  const twoChannels = [
+    { id: 'C1', name: 'general', is_private: false },
+    { id: 'C2', name: 'secret-plans', is_private: true },
+  ];
+
+  it('listResources carries the channel name as displayName', async () => {
+    const { client } = clientWith(twoChannels);
+    const resources = await new SlackConnector({ logger }, client).listResources();
+    expect(resources).toEqual([
+      { externalId: 'C1', resourceType: 'channel', isPublic: true, displayName: 'general' },
+      { externalId: 'C2', resourceType: 'channel', isPublic: false, displayName: 'secret-plans' },
+    ]);
+  });
+
+  it('pull never lists messages for a channel the predicate rejects', async () => {
+    const { client, listed } = clientWith(twoChannels);
+    const result = await new SlackConnector({ logger }, client).pull(
+      { value: null },
+      { includesResource: (id) => id === 'C1' },
+    );
+    expect(listed).toEqual(['C1']);
+    expect(result.facts).toHaveLength(1);
+  });
+
+  it('pull reads every channel when no predicate is given', async () => {
+    const { client, listed } = clientWith(twoChannels);
+    await new SlackConnector({ logger }, client).pull({ value: null });
+    expect(listed).toEqual(['C1', 'C2']);
+  });
+
+  it('pull reads every channel when the predicate accepts all', async () => {
+    const { client, listed } = clientWith(twoChannels);
+    await new SlackConnector({ logger }, client).pull(
+      { value: null },
+      { includesResource: () => true },
+    );
+    expect(listed).toEqual(['C1', 'C2']);
+  });
+
+  it('pull reads nothing when the predicate rejects all', async () => {
+    const { client, listed } = clientWith(twoChannels);
+    const result = await new SlackConnector({ logger }, client).pull(
+      { value: null },
+      { includesResource: () => false },
+    );
+    expect(listed).toEqual([]);
+    expect(result.facts).toEqual([]);
+  });
+});

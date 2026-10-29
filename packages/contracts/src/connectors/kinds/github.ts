@@ -42,7 +42,8 @@ export const githubManifest = {
     cadenceMinutes: 15,
     documentBodies: false,
   },
-  settings: 'none',
+  settings: 'resource_scope',
+  resourceScope: { unit: 'repository' },
   identity: {
     live: true,
     authUrl: 'https://github.com/login/oauth/authorize',

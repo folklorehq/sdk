@@ -16,6 +16,8 @@ export interface PullOptions {
   maxFacts?: number;
   /** True when this pull starts a forced or onboarding backfill rather than resuming one. */
   backfill?: boolean;
+  /** Pushdown only: a connector that iterates resources may skip one for which this is false; the pipeline filter stays the guarantee. */
+  includesResource?: (externalId: string) => boolean;
 }
 
 /** An inbound webhook delivery, before source-specific decoding. */

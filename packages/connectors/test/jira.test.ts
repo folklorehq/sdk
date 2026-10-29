@@ -7,6 +7,7 @@ import {
   jiraIssueContainerId,
   normalizeJiraCommentEvent,
   normalizeJiraIssueEvent,
+  projectToResource,
 } from '../src/jira/index.js';
 import type { JiraApiClient } from '../src/jira/index.js';
 import type { AdfNode, JiraIssue } from '../src/jira/types.js';
@@ -357,5 +358,30 @@ describe('Jira author email verification', () => {
     const actor = withReporter({ accountId: 'acc-1', accountType: 'atlassian' });
     expect(actor.email).toBeUndefined();
     expect('providerVerifiedEmail' in actor).toBe(false);
+  });
+});
+
+describe('Jira resources', () => {
+  it('projectToResource carries the project name as displayName', () => {
+    expect(projectToResource({ key: 'PROJ', name: 'Platform', isPrivate: true })).toEqual({
+      externalId: 'PROJ',
+      resourceType: 'project',
+      isPublic: false,
+      displayName: 'Platform',
+    });
+  });
+
+  it('listResources returns each project with its name', async () => {
+    const client = new FakeJiraClient([]);
+    client.listProjects = async () => [
+      { id: '1', key: 'PROJ', name: 'Platform' },
+      { id: '2', key: 'OPS', name: 'Operations', isPrivate: true },
+    ];
+    const connector = new JiraConnector({ logger: new PinoLogger({ level: 'silent' }) }, client);
+
+    expect(await connector.listResources()).toEqual([
+      { externalId: 'PROJ', resourceType: 'project', isPublic: true, displayName: 'Platform' },
+      { externalId: 'OPS', resourceType: 'project', isPublic: false, displayName: 'Operations' },
+    ]);
   });
 });

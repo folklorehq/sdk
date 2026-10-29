@@ -35,6 +35,8 @@ export interface NormalizedResource {
   resourceType: string;
   isPublic: boolean;
   parentExternalId?: string;
+  /** Content: for the admin's box API response only; never persist or log. */
+  displayName?: string;
 }
 
 export interface NormalizedContent {

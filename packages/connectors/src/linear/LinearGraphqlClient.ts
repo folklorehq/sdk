@@ -15,6 +15,7 @@ import {
   LINEAR_ISSUE_HISTORY_QUERY,
   LINEAR_ISSUES_QUERY,
   LINEAR_PROJECTS_QUERY,
+  LINEAR_TEAMS_QUERY,
 } from './queries.js';
 import type {
   LinearCommentNode,
@@ -23,6 +24,7 @@ import type {
   LinearIssueNode,
   LinearPage,
   LinearProjectNode,
+  LinearTeamNode,
 } from './types.js';
 
 export type LinearRawTransport = Pick<LinearGraphQLClient, 'rawRequest'>;
@@ -39,6 +41,7 @@ interface LinearResponseData {
   readonly comments?: LinearPage<LinearCommentNode>;
   readonly projects?: LinearPage<LinearProjectNode>;
   readonly cycles?: LinearPage<LinearCycleNode>;
+  readonly teams?: LinearPage<LinearTeamNode>;
   readonly issue?: { readonly history?: LinearPage<LinearHistoryNode> } | null;
 }
 
@@ -75,6 +78,10 @@ export class LinearGraphqlClient implements LinearApiClient {
 
   cycles(window: LinearWindow, after: string | null): Promise<LinearPage<LinearCycleNode>> {
     return this.page(LINEAR_CYCLES_QUERY, this.windowVariables(window, after), (d) => d.cycles);
+  }
+
+  teams(after: string | null): Promise<LinearPage<LinearTeamNode>> {
+    return this.page(LINEAR_TEAMS_QUERY, { after }, (d) => d.teams);
   }
 
   rateState(): LinearRateState {

@@ -12,6 +12,7 @@ import type {
   LinearIssueNode,
   LinearPage,
   LinearProjectNode,
+  LinearTeamNode,
 } from '../../../src/linear/types.js';
 
 export type FakeLinearStream = 'issues' | 'comments' | 'projects' | 'cycles';
@@ -23,6 +24,8 @@ export class FakeLinearApi implements LinearApiClient {
   commentNodes: LinearCommentNode[] = [];
   projectNodes: LinearProjectNode[] = [];
   cycleNodes: LinearCycleNode[] = [];
+  teamNodes: LinearTeamNode[] = [];
+  teamsFailure: Error | null = null;
   readonly historyOverflow = new Map<string, LinearHistoryNode[]>();
   readonly failures: Partial<Record<FakeLinearStream, Error>> = {};
   readonly windows: Array<{ stream: FakeLinearStream; window: LinearWindow }> = [];
@@ -55,6 +58,17 @@ export class FakeLinearApi implements LinearApiClient {
 
   async cycles(window: LinearWindow, after: string | null): Promise<LinearPage<LinearCycleNode>> {
     return this.read('cycles', this.cycleNodes, window, after);
+  }
+
+  async teams(after: string | null): Promise<LinearPage<LinearTeamNode>> {
+    this.requests += 1;
+    if (this.teamsFailure) throw this.teamsFailure;
+    const start = after === null ? 0 : Number(after);
+    const end = Math.min(start + this.pageSize, this.teamNodes.length);
+    return {
+      nodes: this.teamNodes.slice(start, end),
+      pageInfo: { hasNextPage: end < this.teamNodes.length, endCursor: String(end) },
+    };
   }
 
   async issueHistory(

@@ -27,3 +27,8 @@ export const LINEAR_CYCLES_QUERY = `query FolkloreLinearCycles($gt: DateTimeOrDu
   cycles(first: 50, after: $after, orderBy: updatedAt, includeArchived: true, filter: { updatedAt: { gt: $gt, lte: $lte } }) {
     nodes { id number name description createdAt updatedAt completedAt team { id } }
     pageInfo { hasNextPage endCursor } } }`;
+
+export const LINEAR_TEAMS_QUERY = `query FolkloreLinearTeams($after: String) {
+  teams(first: 50, after: $after) {
+    nodes { id name private }
+    pageInfo { hasNextPage endCursor } } }`;

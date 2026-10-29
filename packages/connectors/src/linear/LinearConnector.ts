@@ -23,7 +23,7 @@ import {
   type LinearStreamPosition,
 } from './pull-cursor.js';
 import { readLinearStream, type LinearStreamResult } from './stream-reader.js';
-import type { LinearHistoryNode, LinearIssueNode } from './types.js';
+import type { LinearHistoryNode, LinearIssueNode, LinearPage, LinearTeamNode } from './types.js';
 
 const LINEAR_MAX_REQUESTS_PER_PULL = 200;
 const LINEAR_COMPLEXITY_HEADROOM = 20_000;
@@ -59,7 +59,13 @@ export class LinearConnector extends BaseConnector {
   }
 
   async listResources(): Promise<NormalizedResource[]> {
-    return [];
+    const teams = await this.call('list_teams', () => this.allTeams());
+    return teams.map((team) => ({
+      externalId: team.id,
+      resourceType: 'team',
+      isPublic: !team.private,
+      displayName: team.name,
+    }));
   }
 
   async pull(cursor: SyncCursor, options?: PullOptions): Promise<PullResult> {
@@ -206,6 +212,17 @@ export class LinearConnector extends BaseConnector {
       collector.containers.set(container.sourceContainerId, container);
     }
     return records.facts.length;
+  }
+
+  private async allTeams(): Promise<LinearTeamNode[]> {
+    const teams: LinearTeamNode[] = [];
+    let after: string | null = null;
+    do {
+      const page: LinearPage<LinearTeamNode> = await this.client.teams(after);
+      teams.push(...page.nodes);
+      after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+    } while (after !== null);
+    return teams;
   }
 
   private async fullHistory(issue: LinearIssueNode): Promise<LinearHistoryNode[]> {

@@ -86,6 +86,12 @@ export interface LinearProjectNode {
   readonly creator: LinearRef | null;
 }
 
+export interface LinearTeamNode {
+  readonly id: string;
+  readonly name: string;
+  readonly private: boolean;
+}
+
 export interface LinearCycleNode {
   readonly id: string;
   readonly number: number;

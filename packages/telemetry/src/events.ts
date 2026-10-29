@@ -11,6 +11,11 @@ export const TelemetryEvent = {
   MarketingOptInRecordFailed: 'marketing_opt_in.record_failed',
   SourceConnected: 'source.connected',
   SourceRoutingConflict: 'source.routing_conflict',
+  SourceScopeChanged: 'source.scope_changed',
+  SourceScopeChangeFailed: 'source.scope_change_failed',
+  SourceSyncPaused: 'source.sync_paused',
+  SourceSyncResumed: 'source.sync_resumed',
+  SourceSyncPauseFailed: 'source.sync_pause_failed',
   MemberInvited: 'member.invited',
   MemberInvitesRevoked: 'member.invites_revoked',
   BetaInviteCreated: 'beta_invite.created',
@@ -110,6 +115,25 @@ type ProductEvents = {
   };
   'co_processing_consent.recorded': { orgId: string; tier: string; disclosureVersion: string };
   'source.connected': { orgId: string; sourceKind: string; hasRefreshToken: boolean };
+  'source.scope_changed': {
+    orgId: string;
+    sourceKind: string;
+    mode: 'all' | 'selected';
+    addedCount: number;
+    removedCount: number;
+  };
+  'source.scope_change_failed': {
+    orgId: string;
+    sourceKind: string;
+    reason: 'conflict' | 'invalid' | 'unavailable';
+  };
+  'source.sync_paused': { orgId: string; sourceKind: string };
+  'source.sync_resumed': { orgId: string; sourceKind: string };
+  'source.sync_pause_failed': {
+    orgId: string;
+    sourceKind: string;
+    reason: 'conflict' | 'unavailable';
+  };
   'member.invited': { orgId: string; role: InvitePresetLabel; count: number };
   'member.invites_revoked': { orgId: string; count: number; cause: InviteRevocationCause };
   'beta_invite.created': Record<string, never>;
@@ -278,6 +302,7 @@ type ErrorEvents = {
 export const BrowserTelemetryEvent = {
   SourceConnectStarted: 'source.connect_started',
   SourceConnectFailed: 'source.connect_failed',
+  SourceSettingsViewed: 'source.settings_viewed',
   SignInCompleted: 'sign_in_completed',
   ClientError: 'client_error',
   PageViewed: 'page_viewed',
@@ -361,6 +386,7 @@ type BrowserEvents = {
     sourceKind: BrowserSourceKind;
     reason: BrowserSourceConnectFailure;
   };
+  'source.settings_viewed': { eventSchemaVersion: 1; sourceKind: BrowserSourceKind };
   sign_in_completed: Record<string, never>;
   client_error: { origin: BrowserClientErrorOrigin; errorName: ClientErrorName };
   page_viewed: { eventSchemaVersion: 1; page: string };
@@ -427,6 +453,7 @@ export const BROWSER_CLIENT_ERROR_ORIGINS = new Set<BrowserClientErrorOrigin>([
 const BROWSER_EVENT_PROPERTY_KEYS: Record<BrowserTelemetryEventName, readonly string[]> = {
   'source.connect_started': ['eventSchemaVersion', 'sourceKind'],
   'source.connect_failed': ['eventSchemaVersion', 'sourceKind', 'reason'],
+  'source.settings_viewed': ['eventSchemaVersion', 'sourceKind'],
   sign_in_completed: [],
   client_error: ['origin', 'errorName'],
   page_viewed: ['eventSchemaVersion', 'page'],
@@ -438,6 +465,7 @@ const BROWSER_EVENT_PROPERTY_KEYS: Record<BrowserTelemetryEventName, readonly st
 const BROWSER_EVENT_SURFACES: Record<BrowserTelemetryEventName, readonly BrowserSurface[]> = {
   'source.connect_started': ['console', 'box'],
   'source.connect_failed': ['console', 'box'],
+  'source.settings_viewed': ['console'],
   sign_in_completed: ['console', 'operator', 'box'],
   client_error: ['console', 'operator', 'box'],
   page_viewed: ['web'],

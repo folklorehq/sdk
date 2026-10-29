@@ -198,6 +198,25 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   }),
   'marketing_opt_in.record_failed': propertyContract({}),
   'source.connected': propertyContract({ ...orgId, sourceKind, hasRefreshToken: bool }),
+  'source.scope_changed': propertyContract({
+    ...orgId,
+    sourceKind,
+    mode: literal('all', 'selected'),
+    addedCount: count,
+    removedCount: count,
+  }),
+  'source.scope_change_failed': propertyContract({
+    ...orgId,
+    sourceKind,
+    reason: literal('conflict', 'invalid', 'unavailable'),
+  }),
+  'source.sync_paused': propertyContract({ ...orgId, sourceKind }),
+  'source.sync_resumed': propertyContract({ ...orgId, sourceKind }),
+  'source.sync_pause_failed': propertyContract({
+    ...orgId,
+    sourceKind,
+    reason: literal('conflict', 'unavailable'),
+  }),
   'source.routing_conflict': propertyContract({
     ...orgId,
     sourceKind,
@@ -407,6 +426,10 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     eventSchemaVersion: schemaVersion1,
     sourceKind: browserSourceKind,
     reason: oneOf(BROWSER_SOURCE_CONNECT_FAILURES),
+  }),
+  'source.settings_viewed': propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    sourceKind: browserSourceKind,
   }),
   sign_in_completed: propertyContract({}),
   client_error: propertyContract({

@@ -177,7 +177,13 @@ export function normalizeJiraCommentEvent(event: JiraCommentEvent): NormalizedRe
 
 export function projectToResource(project: {
   key: string;
+  name: string;
   isPrivate?: boolean;
 }): NormalizedResource {
-  return { externalId: project.key, resourceType: 'project', isPublic: !project.isPrivate };
+  return {
+    externalId: project.key,
+    resourceType: 'project',
+    isPublic: !project.isPrivate,
+    displayName: project.name,
+  };
 }

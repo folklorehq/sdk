@@ -12,6 +12,7 @@ import {
   normalizePullRequestEvent,
   normalizePullRequestTransition,
   pullRequestContainerId,
+  repoToResource,
   userToActor,
 } from '../src/github/normalize.js';
 import type {
@@ -452,5 +453,16 @@ describe('push commit authors', () => {
   it('gives a PR opened by a deleted account no author', () => {
     const { fact } = normalizePullRequest(repo, { ...pr, user: { id: 0, login: '' } });
     expect(fact.authors).toEqual([]);
+  });
+});
+
+describe('GitHub resources', () => {
+  it('repoToResource carries the repository full name as displayName', () => {
+    expect(repoToResource({ id: 7, full_name: 'acme/api', private: true })).toEqual({
+      externalId: '7',
+      resourceType: 'repository',
+      isPublic: false,
+      displayName: 'acme/api',
+    });
   });
 });

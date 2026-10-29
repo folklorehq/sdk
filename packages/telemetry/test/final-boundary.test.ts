@@ -46,6 +46,17 @@ const VALID_SERVER_EVENT_FIXTURES = {
     sourceKind: 'github',
     rejectedBy: 'postgres_upsert',
   },
+  'source.scope_changed': {
+    orgId: ORGANIZATION_ID,
+    sourceKind: 'slack',
+    mode: 'selected',
+    addedCount: 2,
+    removedCount: 1,
+  },
+  'source.scope_change_failed': { orgId: ORGANIZATION_ID, sourceKind: 'slack', reason: 'conflict' },
+  'source.sync_paused': { orgId: ORGANIZATION_ID, sourceKind: 'slack' },
+  'source.sync_resumed': { orgId: ORGANIZATION_ID, sourceKind: 'slack' },
+  'source.sync_pause_failed': { orgId: ORGANIZATION_ID, sourceKind: 'slack', reason: 'conflict' },
   'member.invited': { orgId: ORGANIZATION_ID, role: 'member', count: 1 },
   'member.invites_revoked': {
     orgId: ORGANIZATION_ID,
@@ -200,6 +211,7 @@ const VALID_SERVER_EVENT_FIXTURES = {
 const VALID_RELAYED_EVENT_FIXTURES = {
   'source.connect_started': { eventSchemaVersion: 1, sourceKind: 'github' },
   'source.connect_failed': { eventSchemaVersion: 1, sourceKind: 'github', reason: 'network' },
+  'source.settings_viewed': { eventSchemaVersion: 1, sourceKind: 'slack' },
   sign_in_completed: {},
   client_error: { origin: 'error_boundary', errorName: 'TypeError' },
   page_viewed: { eventSchemaVersion: 1, page: '/pricing' },
@@ -511,6 +523,28 @@ describe('PostHogTelemetryClient final boundary', () => {
     client.track('client_error', ORGANIZATION_ID, { origin: 'window_error', errorName });
 
     expect(captured).toHaveLength(1);
+  });
+
+  it.each([
+    ['a resource name', 'source.scope_changed', { sourceKind: 'slack', channel: 'secret-launch' }],
+    ['a free-text sourceKind', 'source.scope_changed', { sourceKind: 'Project Zephyr' }],
+    ['an unknown mode', 'source.scope_changed', { mode: 'some' }],
+    ['a negative count', 'source.scope_changed', { addedCount: -1 }],
+    ['an unknown reason', 'source.scope_change_failed', { reason: 'S3 throttled' }],
+    ['a resource id', 'source.sync_paused', { resourceId: 'C123' }],
+    ['a resource id', 'source.sync_resumed', { resourceId: 'C123' }],
+    ['an unknown reason', 'source.sync_pause_failed', { reason: 'S3 throttled' }],
+    ['an invalid-scope reason', 'source.sync_pause_failed', { reason: 'invalid' }],
+    ['a resource id', 'source.sync_pause_failed', { resourceId: 'C123' }],
+  ] as const)('rejects %s on %s', (_case, event, override) => {
+    const { client, captured } = recordingClient();
+
+    client.track(event, ORGANIZATION_ID, {
+      ...VALID_SERVER_EVENT_FIXTURES[event],
+      ...override,
+    } as never);
+
+    expect(captured).toEqual([]);
   });
 
   it.each([

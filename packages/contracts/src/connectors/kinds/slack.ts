@@ -54,7 +54,8 @@ export const slackManifest = {
     cadenceMinutes: 15,
     documentBodies: false,
   },
-  settings: 'none',
+  settings: 'resource_scope',
+  resourceScope: { unit: 'channel' },
   identity: {
     live: true,
     authUrl: 'https://slack.com/oauth/v2/authorize',

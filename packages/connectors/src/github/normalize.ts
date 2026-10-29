@@ -77,7 +77,12 @@ export function githubCommitUnlinkedActors(commit: GitHubCommit): NormalizedUnli
 }
 
 export function repoToResource(repo: GitHubRepo): NormalizedResource {
-  return { externalId: String(repo.id), resourceType: 'repository', isPublic: !repo.private };
+  return {
+    externalId: String(repo.id),
+    resourceType: 'repository',
+    isPublic: !repo.private,
+    displayName: repo.full_name,
+  };
 }
 
 /**

@@ -25,6 +25,7 @@ it('keeps browser event properties closed and flat', () => {
   expectTypeOf<BrowserTelemetryEventName>().toEqualTypeOf<
     | 'source.connect_started'
     | 'source.connect_failed'
+    | 'source.settings_viewed'
     | 'sign_in_completed'
     | 'client_error'
     | 'page_viewed'
@@ -184,6 +185,7 @@ describe('isBrowserEventAllowedFrom', () => {
     client_error: ['console', 'operator', 'box'],
     'source.connect_started': ['console', 'box'],
     'source.connect_failed': ['console', 'box'],
+    'source.settings_viewed': ['console'],
   };
 
   it.each(

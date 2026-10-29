@@ -34,6 +34,7 @@ export class SlackConnector extends BaseConnector {
       // Fail closed on the source-access boundary: a channel is public only when Slack
       // explicitly says so; a missing is_private is treated as private.
       isPublic: ch.is_private === false,
+      displayName: ch.name,
     }));
   }
 
@@ -46,6 +47,7 @@ export class SlackConnector extends BaseConnector {
     const channels = await this.call('listConversations', () => this.client.listConversations());
 
     for (const channel of channels) {
+      if (options?.includesResource?.(channel.id) === false) continue;
       let pageCursor: string | undefined;
       do {
         const result = await this.call('listMessages', () =>

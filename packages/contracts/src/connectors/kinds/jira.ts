@@ -56,7 +56,8 @@ export const jiraManifest = {
     cadenceMinutes: 15,
     documentBodies: false,
   },
-  settings: 'none',
+  settings: 'resource_scope',
+  resourceScope: { unit: 'project' },
   identity: {
     live: true,
     authUrl: 'https://auth.atlassian.com/authorize',

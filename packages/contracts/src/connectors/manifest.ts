@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
+import { resourceScopeUnitSchema } from './resource-scope.js';
 import { isFramingHeader } from './custom/read-semantics.js';
 
 export const CONNECTOR_MANIFEST_VERSION = 1;
@@ -123,6 +124,7 @@ export const connectorSettingsSchema = z.enum([
   'codebase_selection',
   'mail_label_allowlist',
   'mail_folder_allowlist',
+  'resource_scope',
 ]);
 
 export const connectorUiSchema = z
@@ -223,6 +225,7 @@ export const connectorManifestSchema = z
     pull: connectorPullSchema.nullable(),
     settings: connectorSettingsSchema,
     containerLabels: z.array(containerLabelNameSchema).readonly().optional(),
+    resourceScope: z.object({ unit: resourceScopeUnitSchema }).strict().optional(),
     identity: connectorIdentitySchema.optional(),
   })
   .strict()
@@ -262,6 +265,18 @@ export const connectorManifestSchema = z
         message: 'no OAuth client to use',
       });
     }
-  });
+  })
+  .refine((m) => (m.resourceScope !== undefined) === (m.settings === 'resource_scope'), {
+    message: 'resourceScope is declared if and only if settings is resource_scope',
+    path: ['resourceScope'],
+  })
+  .refine(
+    (m) =>
+      m.settings !== 'resource_scope' || (m.audience === 'org' && m.emitsFacts && m.pull !== null),
+    {
+      message: 'resource_scope needs an org kind that emits facts and pulls',
+      path: ['settings'],
+    },
+  );
 
 export type ConnectorManifest = z.infer<typeof connectorManifestSchema>;
