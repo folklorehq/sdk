@@ -30,6 +30,12 @@ export function stripInlineMarkdown(text: string): string {
   return collapseWhitespace(current);
 }
 
+export function formatList(items: readonly string[]): string {
+  const last = items.at(-1);
+  if (last === undefined || items.length === 1) return last ?? '';
+  return `${items.slice(0, -1).join(', ')} and ${last}`;
+}
+
 const HIGH_SURROGATE_MIN = 0xd800;
 const HIGH_SURROGATE_MAX = 0xdbff;
 

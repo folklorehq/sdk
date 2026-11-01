@@ -10,6 +10,8 @@ const ABSOLUTE_FORMAT = new Intl.DateTimeFormat(undefined, {
   timeStyle: 'short',
 });
 
+const SHORT_DATE_FORMAT = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+
 export type RelativeTimeStyle = 'compact' | 'ago';
 
 export type RelativeTimeOptions = {
@@ -28,6 +30,11 @@ type RelativeUnit = { count: number; suffix: 'm' | 'h' | 'd' };
 export function formatAbsoluteTime(iso: string, invalidLabel = ''): string {
   const time = Date.parse(iso);
   return Number.isNaN(time) ? invalidLabel : ABSOLUTE_FORMAT.format(time);
+}
+
+export function formatShortDate(iso: string, invalidLabel = ''): string {
+  const time = Date.parse(iso);
+  return Number.isNaN(time) ? invalidLabel : SHORT_DATE_FORMAT.format(time);
 }
 
 function wholeUnit(elapsed: number, rounding: Rounding): RelativeUnit | null {

@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { formatAbsoluteTime, formatRelativeTime, utcDayKey, utcDayStart } from '../src/time.js';
+import {
+  formatAbsoluteTime,
+  formatRelativeTime,
+  formatShortDate,
+  utcDayKey,
+  utcDayStart,
+} from '../src/time.js';
 
 const NOW = Date.parse('2026-10-02T12:00:00.000Z');
 const SECOND = 1000;
@@ -229,6 +235,21 @@ describe('formatAbsoluteTime', () => {
   it('returns the invalid label for an unparseable timestamp', () => {
     expect(formatAbsoluteTime('nope')).toBe('');
     expect(formatAbsoluteTime('nope', 'Not reported')).toBe('Not reported');
+  });
+});
+
+describe('formatShortDate', () => {
+  const SHORT_DATE = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+
+  it('formats a valid timestamp as month and day only', () => {
+    const iso = '2026-10-03T12:00:00.000Z';
+    expect(formatShortDate(iso)).toBe(SHORT_DATE.format(Date.parse(iso)));
+    expect(formatShortDate(iso)).not.toMatch(/2026|:/);
+  });
+
+  it('returns the invalid label for an unparseable timestamp', () => {
+    expect(formatShortDate('nope')).toBe('');
+    expect(formatShortDate('nope', 'Not yet')).toBe('Not yet');
   });
 });
 

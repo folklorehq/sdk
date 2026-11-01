@@ -24,6 +24,7 @@ export {
   stripInvisibleCharacters,
   stripInlineMarkdown,
   initials,
+  formatList,
   escapeRegExp,
   escapeSqlLikePattern,
   extractExplicitLinks,
