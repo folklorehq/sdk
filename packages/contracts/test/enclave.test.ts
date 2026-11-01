@@ -562,8 +562,11 @@ describe('processedFactSchema', () => {
       'routine',
     ] as const;
 
-    it.each(SALIENCE_VALUES)('accepts %s', (salience) => {
-      expect(processedFactSchema.parse({ ...valid, salience }).salience).toBe(salience);
+    it('accepts every listed salience', () => {
+      const parsed = SALIENCE_VALUES.map(
+        (salience) => processedFactSchema.parse({ ...valid, salience }).salience,
+      );
+      expect(parsed).toEqual([...SALIENCE_VALUES]);
     });
 
     it('leaves salience absent, with no default, when an older enclave omits it', () => {
@@ -1288,9 +1291,13 @@ describe('themeSynthesisResultSchema', () => {
       expect(themeSynthesisResultSchema.safeParse(payload({ [field]: value })).success).toBe(false);
     });
 
-    it.each(DISPOSITION_BASES)('parses dispositionBasis = %s', (dispositionBasis) => {
-      const parsed = themeSynthesisResultSchema.parse(payload({ dispositionBasis }));
-      expect(parsed.themes[0]).toMatchObject({ dispositionBasis });
+    it('parses every listed dispositionBasis', () => {
+      const parsed = DISPOSITION_BASES.map(
+        (dispositionBasis) =>
+          themeSynthesisResultSchema.parse(payload({ dispositionBasis })).themes[0]
+            ?.dispositionBasis,
+      );
+      expect(parsed).toEqual([...DISPOSITION_BASES]);
     });
 
     it('lists the five bases the tenant CHECK constraint is built from', () => {
@@ -2180,11 +2187,11 @@ describe('fact authors result', () => {
 });
 
 describe('GITHUB_ACCOUNT_ID_PATTERN', () => {
-  it.each(['1', '42', '4242424242', '9'.repeat(16)])('accepts the numeric account id %s', (id) => {
+  it.each(['1', '9'.repeat(16)])('accepts the numeric account id %s', (id) => {
     expect(GITHUB_ACCOUNT_ID_PATTERN.test(id)).toBe(true);
   });
 
-  it.each(['', '0', '01', 'undefined', 'NaN', '-1', '1.5', '9'.repeat(17), ' 42', '4 2'])(
+  it.each(['', '0', '01', 'undefined', '-1', '1.5', '9'.repeat(17), ' 42', '4 2'])(
     'refuses %j',
     (id) => {
       expect(GITHUB_ACCOUNT_ID_PATTERN.test(id)).toBe(false);

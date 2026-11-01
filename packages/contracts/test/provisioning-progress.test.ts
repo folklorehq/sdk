@@ -22,12 +22,18 @@ const VALID = {
 } as const;
 
 describe('provisioning progress contract', () => {
-  it.each(PROVISIONING_STEPS)('round-trips the step %s', (step) => {
-    expect(provisioningStepSchema.parse(step)).toBe(step);
+  it('round-trips every step', () => {
+    expect(PROVISIONING_STEPS.map((step) => provisioningStepSchema.parse(step))).toEqual([
+      ...PROVISIONING_STEPS,
+    ]);
   });
 
-  it.each(PROVISIONING_PROGRESS_BLOCKERS)('round-trips the blocker %s', (blocker) => {
-    expect(provisioningProgressBlockerSchema.parse(blocker)).toBe(blocker);
+  it('round-trips every blocker', () => {
+    expect(
+      PROVISIONING_PROGRESS_BLOCKERS.map((blocker) =>
+        provisioningProgressBlockerSchema.parse(blocker),
+      ),
+    ).toEqual([...PROVISIONING_PROGRESS_BLOCKERS]);
   });
 
   it.each(['server_updating', 'failed', 'placement_required', 'verifying'])(
