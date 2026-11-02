@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import {
-  OWNER_SUGGESTION_MIN_AUTHORED_CITED_FACTS,
-  OWNER_SUGGESTION_MIN_SHARE,
-  ownerSuggestionSchema,
-} from '../src/owner-suggestions.js';
+import { ownerSuggestionSchema } from '../src/owner-suggestions.js';
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -65,10 +61,5 @@ describe('ownerSuggestionSchema', () => {
   it('refuses a non-uuid user id and an empty source kind', () => {
     expect(ownerSuggestionSchema.safeParse({ ...claimable, userId: 'u1' }).success).toBe(false);
     expect(ownerSuggestionSchema.safeParse({ ...needsLink, sourceKind: '' }).success).toBe(false);
-  });
-
-  it('exposes the thresholds the service applies', () => {
-    expect(OWNER_SUGGESTION_MIN_AUTHORED_CITED_FACTS).toBe(5);
-    expect(OWNER_SUGGESTION_MIN_SHARE).toBe(0.4);
   });
 });

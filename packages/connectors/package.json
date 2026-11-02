@@ -37,6 +37,7 @@
     "letterparser": "0.1.8",
     "p-limit": "^7.3.1",
     "typescript": "^5.6.3",
+    "yaml": "2.9.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

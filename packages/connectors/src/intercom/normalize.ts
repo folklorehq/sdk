@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { NormalizedFact, NormalizedRecords } from '../normalized.js';
+import { isRoleMailbox } from '@folklore/utils';
+import type { NormalizedActor, NormalizedFact, NormalizedRecords } from '../normalized.js';
 import type {
+  IntercomAuthor,
   IntercomConversation,
   IntercomConversationPart,
   IntercomNotificationEvent,
@@ -22,6 +24,12 @@ function isIngestablePart(
   return Boolean(part.id) && isIngestableContent(part);
 }
 
+function authorOf(author: IntercomAuthor): NormalizedActor {
+  const actor: NormalizedActor = { sourceUserId: author.id, role: 'author' };
+  if (author.type !== 'admin' || !author.email || isRoleMailbox(author.email)) return actor;
+  return { ...actor, email: author.email, ...(author.name ? { displayName: author.name } : {}) };
+}
+
 function partToFact(
   convo: IntercomConversation,
   part: IntercomConversationPart,
@@ -34,7 +42,7 @@ function partToFact(
     kind: 'content',
     occurredAt: new Date(part.created_at * 1000),
     resourceExternalId: convo.id,
-    authors: [{ sourceUserId: part.author.id, role: 'author' }],
+    authors: [authorOf(part.author)],
     containerRefs: [containerId],
     sourceThreadId: containerId,
     entities: [convo.id],
@@ -78,7 +86,7 @@ export function normalizeIntercomEvent(event: IntercomNotificationEvent): Normal
           kind: 'content',
           occurredAt,
           resourceExternalId: convo.id,
-          authors: [{ sourceUserId: msg.author.id, role: 'author' }],
+          authors: [authorOf(msg.author)],
           containerRefs: [containerId],
           sourceThreadId: containerId,
           entities: [convo.id],

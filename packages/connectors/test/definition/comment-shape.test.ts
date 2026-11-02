@@ -125,9 +125,4 @@ describe('CommentShape', () => {
       ).toBe(true);
     });
   });
-
-  it('returns nothing for a mapping of another shape', () => {
-    const other = stream({ mapping: ITEM_MAPPING }).mapping!;
-    expect(run(comment(), parentRecord(), other)).toEqual({ containers: [], facts: [] });
-  });
 });

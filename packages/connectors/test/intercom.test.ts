@@ -4,7 +4,6 @@ import { PinoLogger } from '@folklore/logger';
 import {
   IntercomConnector,
   IntercomSdkClient,
-  intercomConversationId,
   normalizeIntercomConversationParts,
   normalizeIntercomEvent,
 } from '../src/intercom/index.js';
@@ -12,67 +11,26 @@ import type { IntercomApiClient, IntercomConversationPage } from '../src/interco
 import type { IntercomConversation, IntercomConversationPart } from '../src/intercom/index.js';
 import { UNIX_TS, makeConversationCreatedEvent, makeReplyEvent } from './fixtures/intercom.js';
 
-describe('intercomConversationId', () => {
-  it('formats as intercom:conv:{id}', () => {
-    expect(intercomConversationId('conv-42')).toBe('intercom:conv:conv-42');
-  });
-});
-
 describe('normalizeIntercomEvent — conversation.user.created', () => {
-  it('produces one container and one content fact', () => {
+  it('maps the opening message to one container and one content fact', () => {
     const result = normalizeIntercomEvent(makeConversationCreatedEvent());
     expect(result.containers).toHaveLength(1);
-    expect(result.facts).toHaveLength(1);
-    expect(result.facts[0]!.kind).toBe('content');
-  });
-
-  it('container has label intercom_conversation and shape flat', () => {
-    const result = normalizeIntercomEvent(makeConversationCreatedEvent());
     expect(result.containers[0]).toMatchObject({
       label: 'intercom_conversation',
       shape: 'flat',
+      sourceContainerId: 'intercom:conv:conv-42',
     });
-  });
-
-  it('container sourceContainerId is intercom:conv:{id}', () => {
-    const result = normalizeIntercomEvent(makeConversationCreatedEvent());
-    expect(result.containers[0]!.sourceContainerId).toBe('intercom:conv:conv-42');
-  });
-
-  it('fact occurredAt is Unix seconds × 1000 converted to Date', () => {
-    const result = normalizeIntercomEvent(makeConversationCreatedEvent());
+    expect(result.facts).toHaveLength(1);
+    expect(result.facts[0]).toMatchObject({
+      kind: 'content',
+      sourceFactId: 'intercom:conv:created:conv-42',
+      containerRefs: ['intercom:conv:conv-42'],
+      sourceThreadId: 'intercom:conv:conv-42',
+      entities: ['conv-42'],
+      content: { body: 'I need help with billing.', explicitLinks: [] },
+    });
     expect(result.facts[0]!.occurredAt.getTime()).toBe(UNIX_TS * 1000);
-  });
-
-  it('fact body is the conversation message body', () => {
-    const result = normalizeIntercomEvent(makeConversationCreatedEvent());
-    expect(result.facts[0]!.content?.body).toBe('I need help with billing.');
-  });
-
-  it('fact author is the message author', () => {
-    const result = normalizeIntercomEvent(makeConversationCreatedEvent());
     expect(result.facts[0]!.authors[0]!.sourceUserId).toBe('user-1');
-  });
-
-  it('emits the conversation id as the structural entity', () => {
-    const result = normalizeIntercomEvent(makeConversationCreatedEvent());
-    expect(result.facts[0]!.entities).toEqual(['conv-42']);
-  });
-
-  it('sourceFactId is deterministic and derived from the conversation id (append-only dedup key)', () => {
-    const result = normalizeIntercomEvent(makeConversationCreatedEvent());
-    expect(result.facts[0]!.sourceFactId).toBe('intercom:conv:created:conv-42');
-  });
-
-  it('the created fact anchors its container via containerRefs and sourceThreadId', () => {
-    const result = normalizeIntercomEvent(makeConversationCreatedEvent());
-    expect(result.facts[0]!.containerRefs).toEqual(['intercom:conv:conv-42']);
-    expect(result.facts[0]!.sourceThreadId).toBe('intercom:conv:conv-42');
-  });
-
-  it('carries no explicit links', () => {
-    const result = normalizeIntercomEvent(makeConversationCreatedEvent());
-    expect(result.facts[0]!.content?.explicitLinks).toEqual([]);
   });
 
   it('returns nothing when the created conversation has no opening message', () => {
@@ -85,42 +43,20 @@ describe('normalizeIntercomEvent — conversation.user.created', () => {
 });
 
 describe('normalizeIntercomEvent — reply topic', () => {
-  it('produces no container and one content fact', () => {
+  it('maps a reply to one content fact keyed on the part id and no container', () => {
     const result = normalizeIntercomEvent(makeReplyEvent());
     expect(result.containers).toHaveLength(0);
     expect(result.facts).toHaveLength(1);
-    expect(result.facts[0]!.kind).toBe('content');
-  });
-
-  it('fact references the conversation container', () => {
-    const result = normalizeIntercomEvent(makeReplyEvent());
+    expect(result.facts[0]).toMatchObject({
+      kind: 'content',
+      sourceFactId: 'intercom:part:part-1',
+      sourceThreadId: 'intercom:conv:conv-42',
+      entities: ['conv-42'],
+      content: { body: 'Happy to help!' },
+    });
     expect(result.facts[0]!.containerRefs).toContain('intercom:conv:conv-42');
-    expect(result.facts[0]!.sourceThreadId).toBe('intercom:conv:conv-42');
-  });
-
-  it('fact body is the reply part body', () => {
-    const result = normalizeIntercomEvent(makeReplyEvent());
-    expect(result.facts[0]!.content?.body).toBe('Happy to help!');
-  });
-
-  it('fact author is the reply part author', () => {
-    const result = normalizeIntercomEvent(makeReplyEvent());
-    expect(result.facts[0]!.authors[0]!.sourceUserId).toBe('admin-1');
-  });
-
-  it('fact occurredAt uses the part created_at timestamp', () => {
-    const result = normalizeIntercomEvent(makeReplyEvent());
     expect(result.facts[0]!.occurredAt.getTime()).toBe((UNIX_TS + 60) * 1000);
-  });
-
-  it('sourceFactId keys on the part id, not the (collision-prone) whole-second timestamp', () => {
-    const result = normalizeIntercomEvent(makeReplyEvent());
-    expect(result.facts[0]!.sourceFactId).toBe('intercom:part:part-1');
-  });
-
-  it('a reply part shares the conversation id as its only structural entity', () => {
-    const result = normalizeIntercomEvent(makeReplyEvent());
-    expect(result.facts[0]!.entities).toEqual(['conv-42']);
+    expect(result.facts[0]!.authors[0]!.sourceUserId).toBe('admin-1');
   });
 
   it('normalizes the most recent conversation part when several are present', () => {
@@ -349,6 +285,39 @@ describe('normalizeIntercomConversationParts', () => {
       makePart({ id: 'part-new', created_at: UNIX_TS + 100, body: 'new' }),
     ]);
     expect(normalizeIntercomConversationParts(convo)).toHaveLength(2);
+  });
+});
+
+describe('intercom author identity hints', () => {
+  const authorOfPart = (author: IntercomConversationPart['author']) =>
+    normalizeIntercomConversationParts(makeConvoWithParts([makePart({ author })]))[0]!.authors;
+  const ALICE = {
+    type: 'admin' as const,
+    id: 'admin-1',
+    name: 'Alice Ng',
+    email: 'alice@acme.com',
+  };
+  const BARE = [{ sourceUserId: 'admin-1', role: 'author' }];
+
+  it('gives an admin with a personal address an email and a display name', () => {
+    expect(authorOfPart(ALICE)).toEqual([
+      { sourceUserId: 'admin-1', role: 'author', email: 'alice@acme.com', displayName: 'Alice Ng' },
+    ]);
+  });
+
+  it.each([
+    ['an admin with a role mailbox', { ...ALICE, name: 'Support', email: 'support@acme.com' }],
+    ['an admin with no email', { ...ALICE, email: undefined }],
+    ['a user', { ...ALICE, type: 'user' as const }],
+  ])('gives %s neither field', (_name, author) => {
+    expect(authorOfPart(author)).toEqual(BARE);
+  });
+
+  it('gives the webhook reply path and the pull path the same author', () => {
+    const event = makeReplyEvent();
+    event.data.item.conversation_parts!.conversation_parts[0]!.author = ALICE;
+
+    expect(normalizeIntercomEvent(event).facts[0]!.authors).toEqual(authorOfPart(ALICE));
   });
 });
 

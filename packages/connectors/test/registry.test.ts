@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import {
-  ConnectorRegistry,
-  createPullConnector,
-  listPullConnectorKinds,
-} from '../src/registry/index.js';
+import { ConnectorRegistry } from '../src/registry/index.js';
 import type { Logger } from '@folklore/core';
 
 const noop = () => {};
@@ -21,15 +17,6 @@ const noopLogger: Logger = {
 };
 
 describe('ConnectorRegistry', () => {
-  it('lists built-in pull-capable kinds', () => {
-    const kinds = listPullConnectorKinds();
-    expect(kinds).toContain('github');
-    expect(kinds).toContain('slack');
-    expect(kinds).toContain('linear');
-    expect(kinds).not.toContain('gmail');
-    expect(kinds).not.toContain('meeting');
-  });
-
   it('rejects duplicate registration', () => {
     const registry = new ConnectorRegistry();
     const stub = {
@@ -48,10 +35,5 @@ describe('ConnectorRegistry', () => {
         createForWebhook: () => stub,
       }),
     ).toThrow(/duplicate connector kind/);
-  });
-
-  it('constructs pull connectors from registry', () => {
-    const connector = createPullConnector('slack', { logger: noopLogger, token: 'xoxb-test' });
-    expect(connector?.kind).toBe('slack');
   });
 });

@@ -15,6 +15,7 @@ export { deepFreeze } from './deep-freeze.js';
 export { safeHref } from './safe-href.js';
 export { toVectorLiteral } from './vector.js';
 export { normalizePersonName } from './person-name.js';
+export { isRoleMailbox } from './role-mailbox.js';
 export {
   collapseWhitespace,
   truncate,

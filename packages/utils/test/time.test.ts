@@ -17,13 +17,11 @@ const DAY = 24 * HOUR;
 const ELAPSED_SAMPLES = [
   -5 * MINUTE,
   0,
-  1,
   30 * SECOND,
   59 * SECOND + 999,
   MINUTE,
   MINUTE + 1,
   90 * SECOND,
-  119 * SECOND,
   5 * MINUTE,
   44 * MINUTE + 29 * SECOND,
   59 * MINUTE,

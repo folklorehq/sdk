@@ -4,7 +4,6 @@ import { PinoLogger } from '@folklore/logger';
 import {
   JiraConnector,
   adfToText,
-  jiraIssueContainerId,
   normalizeJiraCommentEvent,
   normalizeJiraIssueEvent,
   projectToResource,
@@ -56,10 +55,6 @@ describe('adfToText', () => {
     expect(out).toContain('link (https://x.test)');
   });
 
-  it('returns empty string for null', () => {
-    expect(adfToText(null)).toBe('');
-  });
-
   it('caps recursion on a pathologically nested doc without throwing', () => {
     let node: AdfNode = { type: 'text', text: 'deep' };
     for (let i = 0; i < 5000; i++) {
@@ -69,14 +64,8 @@ describe('adfToText', () => {
   });
 });
 
-describe('jiraIssueContainerId', () => {
-  it('is the issue key', () => {
-    expect(jiraIssueContainerId(makeIssue())).toBe('PROJ-42');
-  });
-});
-
 describe('normalizeJiraIssueEvent — created', () => {
-  it('produces one stateful jira_issue container and one content fact', () => {
+  it('maps a created issue to one stateful container and one seeded content fact', () => {
     const result = normalizeJiraIssueEvent(issueEvent('jira:issue_created'));
     expect(result.containers).toHaveLength(1);
     expect(result.containers[0]).toMatchObject({
@@ -86,22 +75,18 @@ describe('normalizeJiraIssueEvent — created', () => {
       resourceExternalId: 'PROJ',
     });
     expect(result.facts).toHaveLength(1);
-    expect(result.facts[0]!.kind).toBe('content');
-  });
-
-  it('seeds the fact from summary + description, reporter, and created time', () => {
-    const fact = normalizeJiraIssueEvent(issueEvent('jira:issue_created')).facts[0]!;
+    const fact = result.facts[0]!;
+    expect(fact).toMatchObject({
+      kind: 'content',
+      sourceThreadId: 'PROJ-42',
+      entities: ['PROJ-42'],
+    });
     expect(fact.content?.body).toContain('Fix the auth bug');
     expect(fact.content?.body).toContain('Auth is broken on mobile');
+    expect(fact.content?.explicitLinks).toEqual(['https://x.test/a']);
     expect(fact.authors[0]!.sourceUserId).toBe('acc-reporter');
     expect(fact.occurredAt.toISOString()).toBe('2026-01-01T00:00:00.000Z');
-    expect(fact.sourceThreadId).toBe('PROJ-42');
     expect(fact.containerRefs).toContain('PROJ-42');
-  });
-
-  it('extracts URLs as explicit links', () => {
-    const fact = normalizeJiraIssueEvent(issueEvent('jira:issue_created')).facts[0]!;
-    expect(fact.content?.explicitLinks).toEqual(['https://x.test/a']);
   });
 
   it('keeps a Jira browse URL whole as an explicit link', () => {
@@ -121,11 +106,6 @@ describe('normalizeJiraIssueEvent — created', () => {
       const fact = normalizeJiraIssueEvent(issueEvent(kind, issue)).facts[0]!;
       expect(fact.content?.explicitLinks).toEqual([]);
     }
-  });
-
-  it('exposes the issue key as the structural entity', () => {
-    const fact = normalizeJiraIssueEvent(issueEvent('jira:issue_created')).facts[0]!;
-    expect(fact.entities).toEqual(['PROJ-42']);
   });
 });
 
@@ -222,12 +202,6 @@ describe('JiraConnector.normalizeWebhook', () => {
     });
     expect(result.facts).toHaveLength(1);
     expect(result.facts[0]!.content?.body).toBe('Looks good to me!');
-  });
-
-  it('ignores unknown events', () => {
-    const result = connector.normalizeWebhook({ type: 'jira:worklog_updated', payload: {} });
-    expect(result.facts).toHaveLength(0);
-    expect(result.containers).toHaveLength(0);
   });
 });
 

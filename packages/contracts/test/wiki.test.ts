@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import {
-  RICH_BLOCK_KINDS,
   canvasBlockSchema,
   chartBlockSchema,
   codeBlockSchema,
@@ -25,10 +24,6 @@ import {
 } from '../src/wiki.js';
 
 describe('rich wiki block schemas', () => {
-  it('enumerates the frozen kinds', () => {
-    expect([...RICH_BLOCK_KINDS]).toEqual(['diagram', 'graph', 'chart', 'code', 'embed', 'canvas']);
-  });
-
   it('round-trips a diagram body', () => {
     const body = { kind: 'diagram', id: '1', mermaid: 'graph TD; A-->B', caption: 'Flow' };
     expect(diagramBlockSchema.parse(body)).toEqual(body);

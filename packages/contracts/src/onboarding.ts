@@ -72,6 +72,10 @@ export const LIVE_IDENTITY_LINK_KINDS = identityLinkSpecs()
   .filter((s) => s.live)
   .map((s) => s.kind) as unknown as readonly [IdentityLinkKind, ...IdentityLinkKind[]];
 
+export const AUTHOR_EMAIL_SUGGESTION_KINDS = identityLinkSpecs()
+  .filter((s) => s.authorEmailSuggestions)
+  .map((s) => s.kind) as unknown as readonly [IdentityLinkKind, ...IdentityLinkKind[]];
+
 type TeamToolManifest = Extract<
   (typeof CONNECTOR_MANIFESTS)[number],
   { readonly audience: 'org'; readonly ui: { readonly connectable: true } }

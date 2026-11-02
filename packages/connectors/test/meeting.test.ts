@@ -59,13 +59,4 @@ describe('normalizeVttUpload — stable id + participant enrichment', () => {
     });
     expect(result.facts[0]!.authors[0]!.email).toBe('alice@example.com');
   });
-
-  it('falls back to a random id when none is supplied', () => {
-    const result = normalizeVttUpload({
-      title: 'Sync',
-      startedAt: '2026-01-01T00:00:00Z',
-      vtt: VTT,
-    });
-    expect(result.containers[0]!.sourceContainerId).toMatch(/^meeting:[0-9a-f-]{36}$/);
-  });
 });

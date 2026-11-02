@@ -51,6 +51,7 @@ export const intercomManifest = {
   identity: {
     // UNWIRED: a member consent would install the source app and grant its full scope, so this stays false.
     live: false,
+    authorEmailSuggestions: true,
     authUrl: 'https://app.intercom.com/oauth',
     scopes: [],
     scopeParam: 'scope',

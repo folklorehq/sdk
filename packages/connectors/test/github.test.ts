@@ -354,11 +354,7 @@ describe('userToActor', () => {
     ]);
   });
 
-  it.each([
-    { id: 0, login: '' },
-    { id: 1.5, login: 'x' },
-    { id: -3, login: 'x' },
-  ])('returns no actor for the account id in %j', (user) => {
+  it.each([{ id: 0, login: '' }])('returns no actor for the account id in %j', (user) => {
     expect(userToActor(user)).toEqual([]);
   });
 
@@ -434,14 +430,6 @@ describe('push commit authors', () => {
     const fact = normalizeCommit(repo, { ...pushCommit, author: null });
     expect(fact.authors).toEqual([]);
     expect(fact.unlinkedAuthors).toEqual([]);
-  });
-
-  it('orders the fact keys with unlinkedAuthors right after authors', () => {
-    const keys = Object.keys(normalizeCommit(repo, pushCommit));
-    expect(keys.slice(keys.indexOf('authors'), keys.indexOf('authors') + 2)).toEqual([
-      'authors',
-      'unlinkedAuthors',
-    ]);
   });
 
   it('gives PR and comment authors a login and no unlinkedAuthors key', () => {

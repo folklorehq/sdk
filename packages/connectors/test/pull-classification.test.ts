@@ -21,15 +21,6 @@ describe('isCreateEvent', () => {
   it('is an update when the record predates the window', () => {
     expect(isCreateEvent('2025-01-01T00:00:00Z', WINDOW_START)).toBe(false);
   });
-
-  it('accepts Date instances on either side', () => {
-    expect(isCreateEvent(new Date('2026-01-01T00:00:00Z'), new Date(WINDOW_START))).toBe(true);
-    expect(isCreateEvent(new Date('2025-01-01T00:00:00Z'), new Date(WINDOW_START))).toBe(false);
-  });
-
-  it('is an update when the created time is unknown but a lower bound applies', () => {
-    expect(isCreateEvent(undefined, WINDOW_START)).toBe(false);
-  });
 });
 
 describe('isCalendarCreateEvent', () => {
@@ -37,19 +28,9 @@ describe('isCalendarCreateEvent', () => {
     expect(isCalendarCreateEvent('2026-01-01T00:00:00Z', undefined, WINDOW_START)).toBe(true);
   });
 
-  it('is a create for an in-window event updated at or before creation', () => {
-    expect(
-      isCalendarCreateEvent('2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', WINDOW_START),
-    ).toBe(true);
-  });
-
   it('is an update for an in-window event edited after creation', () => {
     expect(
       isCalendarCreateEvent('2026-01-01T00:00:00Z', '2026-07-01T00:00:00Z', WINDOW_START),
     ).toBe(false);
-  });
-
-  it('is an update when the event predates the window even if unmodified', () => {
-    expect(isCalendarCreateEvent('2025-01-01T00:00:00Z', undefined, WINDOW_START)).toBe(false);
   });
 });

@@ -10,6 +10,7 @@ export type IdentityRevoke = z.infer<typeof identityRevokeSchema>;
 export interface IdentityLinkSpec {
   readonly kind: string;
   readonly live: boolean;
+  readonly authorEmailSuggestions: boolean;
   readonly authUrl: string;
   readonly scopes: readonly string[];
   readonly scopeParam: 'scope' | 'user_scope';
@@ -41,6 +42,7 @@ function specOf(manifest: ConnectorManifest): IdentityLinkSpec | null {
   return {
     kind: manifest.kind,
     live: identity.live,
+    authorEmailSuggestions: identity.authorEmailSuggestions === true,
     authUrl: identity.authUrl,
     scopes: identity.scopes,
     scopeParam: identity.scopeParam,

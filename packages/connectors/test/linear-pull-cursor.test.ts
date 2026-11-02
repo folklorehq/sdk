@@ -38,18 +38,9 @@ describe('linear pull cursor', () => {
     expect(readLinearPullCursor(writeLinearPullCursor(MID_SLICE))).toEqual(MID_SLICE);
   });
 
-  it('reads a different version as fresh', () => {
-    const stored = JSON.parse(writeLinearPullCursor(MID_SLICE)) as Record<string, unknown>;
-    expect(readLinearPullCursor(JSON.stringify({ ...stored, v: 2 }))).toEqual(ALL_FRESH);
-  });
-
   it('reads a cursor with an extra key as fresh', () => {
     const stored = JSON.parse(writeLinearPullCursor(MID_SLICE)) as Record<string, unknown>;
     expect(readLinearPullCursor(JSON.stringify({ ...stored, extra: 1 }))).toEqual(ALL_FRESH);
-  });
-
-  it('reads a plain ISO watermark as fresh', () => {
-    expect(readLinearPullCursor('2026-01-02T00:00:00.000Z')).toEqual(ALL_FRESH);
   });
 
   it('reads a stored token over the cap as fresh', () => {

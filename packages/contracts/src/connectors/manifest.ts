@@ -184,6 +184,7 @@ export const identityRevokeSchema = z
 export const connectorIdentitySchema = z
   .object({
     live: z.boolean(),
+    authorEmailSuggestions: z.literal(true).optional(),
     authUrl: httpsHostUrlSchema,
     scopes: z.array(z.string().min(1)).readonly(),
     scopeParam: z.enum(['scope', 'user_scope']),

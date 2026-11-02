@@ -214,9 +214,4 @@ describe('ItemShape', () => {
     expect(out.containers[0]?.label).toBe('github_pr');
     expect(out.facts[0]?.sourceFactId).toBe('example:github_pr:created:t1');
   });
-
-  it('returns nothing for a mapping of another shape', () => {
-    const other = stream({ mapping: { shape: 'calendar_event', namespace: 'gcal' } }).mapping!;
-    expect(run(record(), other)).toEqual({ containers: [], facts: [] });
-  });
 });

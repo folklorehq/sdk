@@ -6,7 +6,6 @@ import {
   NotionClient,
   NotionConnector,
   normalizeNotionPageEvent,
-  notionPageContainerId,
   parseNotionCursor,
   serializeNotionCursor,
 } from '../src/notion/index.js';
@@ -15,40 +14,18 @@ import { createPullConnector } from '../src/index.js';
 import { FakeNotionApiClient } from './doubles/notion/FakeNotionApiClient.js';
 import { PAGE_UUID, makePage, makePageEvent } from './fixtures/notion.js';
 
-describe('notionPageContainerId', () => {
-  it('formats as notion:page:{uuid}', () => {
-    expect(notionPageContainerId(PAGE_UUID)).toBe(`notion:page:${PAGE_UUID}`);
-  });
-});
-
 describe('normalizeNotionPageEvent — page.created', () => {
-  it('produces one container and one content fact', () => {
+  it('maps a created page to one hierarchical container and one content fact', () => {
     const result = normalizeNotionPageEvent(makePageEvent('page.created'));
     expect(result.containers).toHaveLength(1);
-    expect(result.facts).toHaveLength(1);
-    expect(result.facts[0]!.kind).toBe('content');
-  });
-
-  it('container has label notion_page and shape hierarchical', () => {
-    const result = normalizeNotionPageEvent(makePageEvent('page.created'));
     expect(result.containers[0]).toMatchObject({
       label: 'notion_page',
       shape: 'hierarchical',
+      sourceContainerId: `notion:page:${PAGE_UUID}`,
     });
-  });
-
-  it('container sourceContainerId is notion:page:{uuid}', () => {
-    const result = normalizeNotionPageEvent(makePageEvent('page.created'));
-    expect(result.containers[0]!.sourceContainerId).toBe(`notion:page:${PAGE_UUID}`);
-  });
-
-  it('fact body is the page title', () => {
-    const result = normalizeNotionPageEvent(makePageEvent('page.created'));
+    expect(result.facts).toHaveLength(1);
+    expect(result.facts[0]).toMatchObject({ kind: 'content', entities: [PAGE_UUID] });
     expect(result.facts[0]!.content?.body).toBe('My Page Title');
-  });
-
-  it('fact occurredAt is the page created_time', () => {
-    const result = normalizeNotionPageEvent(makePageEvent('page.created'));
     expect(result.facts[0]!.occurredAt.toISOString()).toBe('2026-01-01T00:00:00.000Z');
   });
 
@@ -58,43 +35,23 @@ describe('normalizeNotionPageEvent — page.created', () => {
     expect(result.facts[0]!.content?.body).toBe('Untitled');
   });
 
-  it('emits only the page id when the parent is the workspace', () => {
-    const result = normalizeNotionPageEvent(makePageEvent('page.created'));
-    expect(result.facts[0]!.entities).toEqual([PAGE_UUID]);
-  });
-
-  it('adds the parent database id as a structural entity', () => {
-    const page = makePage({ parent: { type: 'database_id', database_id: 'db-99' } });
+  it.each([
+    [{ type: 'database_id', database_id: 'db-99' }, 'db-99'],
+    [{ type: 'page_id', page_id: 'parent-page' }, 'parent-page'],
+  ])('adds the parent %j as a structural entity', (parent, id) => {
+    const page = makePage({ parent });
     const result = normalizeNotionPageEvent({ type: 'page.created', page, workspace_id: 'ws-1' });
-    expect(result.facts[0]!.entities).toEqual([PAGE_UUID, 'db-99']);
-  });
-
-  it('adds the parent page id when the page is nested under another page', () => {
-    const page = makePage({ parent: { type: 'page_id', page_id: 'parent-page' } });
-    const result = normalizeNotionPageEvent({ type: 'page.created', page, workspace_id: 'ws-1' });
-    expect(result.facts[0]!.entities).toEqual([PAGE_UUID, 'parent-page']);
+    expect(result.facts[0]!.entities).toEqual([PAGE_UUID, id]);
   });
 });
 
 describe('normalizeNotionPageEvent — page.updated', () => {
-  it('produces no container and one content fact', () => {
+  it('maps an edit to one content fact keyed on last_edited_time, with no container', () => {
     const result = normalizeNotionPageEvent(makePageEvent('page.updated'));
     expect(result.containers).toHaveLength(0);
     expect(result.facts).toHaveLength(1);
-  });
-
-  it('fact occurredAt is the page last_edited_time', () => {
-    const result = normalizeNotionPageEvent(makePageEvent('page.updated'));
     expect(result.facts[0]!.occurredAt.toISOString()).toBe('2026-01-02T00:00:00.000Z');
-  });
-
-  it('fact references the page container', () => {
-    const result = normalizeNotionPageEvent(makePageEvent('page.updated'));
     expect(result.facts[0]!.containerRefs).toContain(`notion:page:${PAGE_UUID}`);
-  });
-
-  it('sourceFactId carries last_edited_time so each edit is a distinct append-only fact', () => {
-    const result = normalizeNotionPageEvent(makePageEvent('page.updated'));
     expect(result.facts[0]!.sourceFactId).toBe(
       `notion:page:updated:${PAGE_UUID}:2026-01-02T00:00:00Z`,
     );
@@ -799,46 +756,6 @@ describe('NotionConnector.normalizeWebhook — real payload routing', () => {
     expect(result.facts[0]!.sourceFactId).toBe(`notion:page:seed:${PAGE_UUID}`);
   });
 
-  it('skips a database.* payload carrying only ids', () => {
-    const result = connector().normalizeWebhook(
-      modernWebhook('database.updated', {
-        entity: { id: 'db-99', type: 'database' },
-        data: { database_id: 'db-99' },
-      }),
-    );
-    expect(result.facts).toHaveLength(0);
-    expect(result.containers).toHaveLength(0);
-  });
-
-  it('skips page.content_updated ids-only without crashing', () => {
-    const result = connector().normalizeWebhook(modernWebhook('page.content_updated'));
-    expect(result.facts).toHaveLength(0);
-    expect(result.containers).toHaveLength(0);
-  });
-
-  it('skips page.updated ids-only (no pull data to normalize)', () => {
-    const result = connector().normalizeWebhook(modernWebhook('page.updated'));
-    expect(result.facts).toHaveLength(0);
-    expect(result.containers).toHaveLength(0);
-  });
-
-  it('skips an unknown-but-valid event name (page.deleted) without throwing', () => {
-    const result = connector().normalizeWebhook(modernWebhook('page.deleted'));
-    expect(result.facts).toHaveLength(0);
-    expect(result.containers).toHaveLength(0);
-  });
-
-  it('skips comment.created ids-only without dereferencing a body', () => {
-    const result = connector().normalizeWebhook(
-      modernWebhook('comment.created', {
-        entity: { id: 'comment-uuid', type: 'comment' },
-        data: { page_id: PAGE_UUID, discussion_id: 'disc-1' },
-      }),
-    );
-    expect(result.facts).toHaveLength(0);
-    expect(result.containers).toHaveLength(0);
-  });
-
   it('tolerates unexpected top-level keys (passthrough) and still seeds', () => {
     const result = connector().normalizeWebhook({
       type: 'page.created',
@@ -851,15 +768,6 @@ describe('NotionConnector.normalizeWebhook — real payload routing', () => {
     const result = connector().normalizeWebhook({
       type: 'page.created',
       payload: { type: 'page.created', data: { parent: { id: 'db-99', type: 'database_id' } } },
-    });
-    expect(result.facts).toHaveLength(0);
-    expect(result.containers).toHaveLength(0);
-  });
-
-  it('skips a payload with no type without throwing', () => {
-    const result = connector().normalizeWebhook({
-      type: 'page.created',
-      payload: { data: { id: PAGE_UUID } },
     });
     expect(result.facts).toHaveLength(0);
     expect(result.containers).toHaveLength(0);

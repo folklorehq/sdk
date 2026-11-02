@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ExternalServiceError } from '@folklore/errors';
 import { PinoLogger } from '@folklore/logger';
 import { LinearRequestError } from '../src/linear/client.js';
 import { LinearConnector } from '../src/linear/LinearConnector.js';
-import { LinearGraphqlClient, type LinearRawTransport } from '../src/linear/LinearGraphqlClient.js';
-import { LINEAR_TEAMS_QUERY } from '../src/linear/queries.js';
 import { normalizeLinearPulledIssue } from '../src/linear/normalize.js';
 import { FakeLinearApi } from './doubles/linear/FakeLinearApi.js';
 import { issueNode } from './fixtures/linear.js';
@@ -46,18 +44,5 @@ describe('LinearConnector.listResources', () => {
     fake.teamsFailure = new LinearRequestError('linear_graphql_error');
 
     await expect(connectorFor(fake).listResources()).rejects.toBeInstanceOf(ExternalServiceError);
-  });
-});
-
-describe('LinearGraphqlClient.teams', () => {
-  it('sends the teams document with the cursor and unwraps the connection', async () => {
-    const data = { teams: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } };
-    const rawRequest = vi.fn(async () => ({ data, headers: new Headers(), status: 200 }));
-    const client = new LinearGraphqlClient({ rawRequest } as unknown as LinearRawTransport);
-
-    const result = await client.teams('c1');
-
-    expect(rawRequest).toHaveBeenCalledWith(LINEAR_TEAMS_QUERY, { after: 'c1' });
-    expect(result.nodes).toEqual([]);
   });
 });

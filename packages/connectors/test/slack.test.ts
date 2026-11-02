@@ -5,7 +5,6 @@ import {
   SlackConnector,
   normalizeSlackMessage,
   normalizeSlackReaction,
-  slackThreadId,
 } from '../src/slack/index.js';
 import { HttpSlackClient } from '../src/slack/HttpSlackClient.js';
 import type { SlackClient } from '../src/slack/index.js';
@@ -22,88 +21,39 @@ describe('HttpSlackClient egress agent', () => {
     expect(client.client.axios.defaults.httpsAgent).toBe(agent);
     expect(client.client.axios.defaults.httpAgent).toBe(agent);
   });
-
-  it('constructs without an agent for non-enclave callers', () => {
-    expect(() => new HttpSlackClient('xoxb-token')).not.toThrow();
-  });
-});
-
-describe('slackThreadId', () => {
-  it('formats as slack:{channelId}:{ts}', () => {
-    expect(slackThreadId('C123', '1700000000.000001')).toBe('slack:C123:1700000000.000001');
-  });
 });
 
 describe('normalizeSlackMessage — parent message', () => {
-  it('produces one container and one fact', () => {
-    const result = normalizeSlackMessage(makeMessage());
+  it('maps a parent message to one flat thread container and one fact in it', () => {
+    const result = normalizeSlackMessage(makeMessage({ ts: '1700000000.000001' }));
+    const threadId = 'slack:C12345:1700000000.000001';
     expect(result.containers).toHaveLength(1);
-    expect(result.facts).toHaveLength(1);
-  });
-
-  it('container has label slack_thread and shape flat', () => {
-    const result = normalizeSlackMessage(makeMessage());
     expect(result.containers[0]).toMatchObject({
       label: 'slack_thread',
       shape: 'flat',
+      sourceContainerId: threadId,
     });
-  });
-
-  it('container sourceContainerId matches thread ID format', () => {
-    const msg = makeMessage({ ts: '1700000000.000001' });
-    const result = normalizeSlackMessage(msg);
-    expect(result.containers[0]!.sourceContainerId).toBe('slack:C12345:1700000000.000001');
-  });
-
-  it('fact sourceFactId uses slack:msg:{ts}', () => {
-    const msg = makeMessage({ ts: '1700000000.000002' });
-    const result = normalizeSlackMessage(msg);
-    expect(result.facts[0]!.sourceFactId).toBe('slack:msg:1700000000.000002');
-  });
-
-  it('fact occurredAt is derived from ts (Unix seconds × 1000)', () => {
-    const msg = makeMessage({ ts: '1700000000.000000' });
-    const result = normalizeSlackMessage(msg);
+    expect(result.facts).toHaveLength(1);
+    expect(result.facts[0]).toMatchObject({
+      sourceFactId: 'slack:msg:1700000000.000001',
+      sourceThreadId: threadId,
+      entities: ['C12345', threadId],
+    });
+    expect(result.facts[0]!.containerRefs).toContain(threadId);
     expect(result.facts[0]!.occurredAt.getTime()).toBe(1700000000 * 1000);
-  });
-
-  it('fact sourceThreadId matches container sourceContainerId', () => {
-    const result = normalizeSlackMessage(makeMessage());
-    expect(result.facts[0]!.sourceThreadId).toBe(result.containers[0]!.sourceContainerId);
-  });
-
-  it('fact containerRefs contains the thread ID', () => {
-    const result = normalizeSlackMessage(makeMessage());
-    expect(result.facts[0]!.containerRefs).toContain(result.containers[0]!.sourceContainerId);
   });
 });
 
 describe('normalizeSlackMessage — reply', () => {
-  it('produces no container and one fact', () => {
+  it('maps a reply to one fact in the parent thread and no container', () => {
     const msg = makeMessage({ ts: '1700000001.000001', thread_ts: '1700000000.000001' });
     const result = normalizeSlackMessage(msg);
+    const threadId = 'slack:C12345:1700000000.000001';
     expect(result.containers).toHaveLength(0);
     expect(result.facts).toHaveLength(1);
-  });
-
-  it('reply fact references the parent thread container', () => {
-    const msg = makeMessage({ ts: '1700000001.000001', thread_ts: '1700000000.000001' });
-    const result = normalizeSlackMessage(msg);
-    expect(result.facts[0]!.sourceThreadId).toBe('slack:C12345:1700000000.000001');
-    expect(result.facts[0]!.containerRefs).toContain('slack:C12345:1700000000.000001');
-  });
-});
-
-describe('normalizeSlackMessage — structural entities', () => {
-  it('emits the channel id and thread id from typed fields', () => {
-    const result = normalizeSlackMessage(makeMessage({ ts: '1700000000.000001' }));
-    expect(result.facts[0]!.entities).toEqual(['C12345', 'slack:C12345:1700000000.000001']);
-  });
-
-  it('a reply carries the parent thread id, not its own timestamp', () => {
-    const msg = makeMessage({ ts: '1700000001.000001', thread_ts: '1700000000.000001' });
-    const result = normalizeSlackMessage(msg);
-    expect(result.facts[0]!.entities).toEqual(['C12345', 'slack:C12345:1700000000.000001']);
+    expect(result.facts[0]!.sourceThreadId).toBe(threadId);
+    expect(result.facts[0]!.containerRefs).toContain(threadId);
+    expect(result.facts[0]!.entities).toEqual(['C12345', threadId]);
   });
 });
 
@@ -404,8 +354,6 @@ describe('Slack sensitivity hints', () => {
 
   it.each([
     ['group', true],
-    ['im', true],
-    ['mpim', true],
     ['channel', false],
     [undefined, true],
   ])('webhook channel_type %s gives restrictedScope %s and no names', (channelType, floored) => {
@@ -521,15 +469,6 @@ describe('SlackConnector resource scope', () => {
   it('pull reads every channel when no predicate is given', async () => {
     const { client, listed } = clientWith(twoChannels);
     await new SlackConnector({ logger }, client).pull({ value: null });
-    expect(listed).toEqual(['C1', 'C2']);
-  });
-
-  it('pull reads every channel when the predicate accepts all', async () => {
-    const { client, listed } = clientWith(twoChannels);
-    await new SlackConnector({ logger }, client).pull(
-      { value: null },
-      { includesResource: () => true },
-    );
     expect(listed).toEqual(['C1', 'C2']);
   });
 

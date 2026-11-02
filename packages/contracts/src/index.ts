@@ -18,6 +18,7 @@ export * from './enclave.js';
 export * from './enclave-output.js';
 export * from './facts.js';
 export * from './generation-high-water.js';
+export * from './identity-suggestions.js';
 export * from './inference-catalog.js';
 export * from './inference-gateway.js';
 export * from './inference-pricing.js';
