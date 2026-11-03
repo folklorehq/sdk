@@ -124,5 +124,21 @@ export const teamToolsSchema = z
   .strict();
 export type TeamTools = z.infer<typeof teamToolsSchema>;
 
+export const orgRequiredLinksInputSchema = z
+  .object({ kinds: z.array(teamToolKindSchema).max(TEAM_TOOL_KINDS.length) })
+  .strict()
+  .refine((input) => new Set(input.kinds).size === input.kinds.length, {
+    message: 'duplicate source kind',
+  })
+  .refine((input) => input.kinds.every(isLiveIdentityLinkKind), {
+    message: 'a required link needs a live identity-link kind',
+  });
+export type OrgRequiredLinksInput = z.infer<typeof orgRequiredLinksInputSchema>;
+
+export const orgRequiredLinksSchema = z
+  .object({ kinds: z.array(teamToolKindSchema), linkableKinds: z.array(teamToolKindSchema) })
+  .strict();
+export type OrgRequiredLinks = z.infer<typeof orgRequiredLinksSchema>;
+
 export const viewerRequiredLinksSchema = z.object({ requiredLinks: z.array(z.string()) }).strict();
 export type ViewerRequiredLinks = z.infer<typeof viewerRequiredLinksSchema>;
