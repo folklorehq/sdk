@@ -23,6 +23,8 @@ export const TelemetryEvent = {
   SourcePersonalDisconnected: 'source.personal_disconnected',
   MemberInvited: 'member.invited',
   MemberInvitesRevoked: 'member.invites_revoked',
+  TeamCreated: 'team.created',
+  DepartmentCreated: 'department.created',
   BetaInviteCreated: 'beta_invite.created',
   BetaInviteAccepted: 'beta_invite.accepted',
   DirectoryImported: 'directory.imported',
@@ -250,6 +252,13 @@ type ProductEvents = {
   'source.personal_disconnected': { orgId: string; sourceKind: PersonalSourceTelemetryKind };
   'member.invited': { orgId: string; role: InvitePresetLabel; count: number };
   'member.invites_revoked': { orgId: string; count: number; cause: InviteRevocationCause };
+  'team.created': {
+    orgId: string;
+    visibility: 'own' | 'company' | 'all';
+    hasDepartment: boolean;
+    hasLead: boolean;
+  };
+  'department.created': { orgId: string };
   'beta_invite.created': Record<string, never>;
   'beta_invite.accepted': { betaInviteId: string };
   'directory.imported': {
@@ -490,7 +499,7 @@ export const CLIENT_ERROR_NAMES = [
 ] as const;
 export type ClientErrorName = (typeof CLIENT_ERROR_NAMES)[number];
 
-export const ONBOARDING_STEPS = ['sources', 'roster', 'invite', 'done'] as const;
+export const ONBOARDING_STEPS = ['sources', 'roster', 'teams', 'invite', 'done'] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 export const ROUTE_VIEW_SURFACES = ['console', 'operator', 'box'] as const;

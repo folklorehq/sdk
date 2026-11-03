@@ -80,6 +80,13 @@ const VALID_SERVER_EVENT_FIXTURES = {
     count: 1,
     cause: 'inviter_no_longer_permitted',
   },
+  'team.created': {
+    orgId: ORGANIZATION_ID,
+    visibility: 'company',
+    hasDepartment: true,
+    hasLead: false,
+  },
+  'department.created': { orgId: ORGANIZATION_ID },
   'agent_access.policy_changed': {
     orgId: ORGANIZATION_ID,
     mode: 'answers',

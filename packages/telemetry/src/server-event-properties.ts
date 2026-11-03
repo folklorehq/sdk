@@ -318,6 +318,13 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
       'inviter_cannot_readmit',
     ),
   }),
+  'team.created': propertyContract({
+    ...orgId,
+    visibility: literal('own', 'company', 'all'),
+    hasDepartment: bool,
+    hasLead: bool,
+  }),
+  'department.created': propertyContract({ ...orgId }),
   'beta_invite.created': propertyContract({}),
   'beta_invite.accepted': propertyContract({ betaInviteId: uuid }),
   'directory.imported': propertyContract({
