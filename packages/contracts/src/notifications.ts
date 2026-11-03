@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
-export const notificationTypeSchema = z.enum(['mention', 'comment', 'reply', 'wiki_published']);
+export const notificationTypeSchema = z.enum([
+  'mention',
+  'comment',
+  'reply',
+  'wiki_published',
+  'wiki_ready',
+]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
+export const actorNotificationTypeSchema = notificationTypeSchema.exclude(['wiki_ready']);
+export type ActorNotificationType = z.infer<typeof actorNotificationTypeSchema>;
 
 export const legacyNotificationTypeSchema = z.enum(['mention', 'comment', 'reply']);
 export type LegacyNotificationType = z.infer<typeof legacyNotificationTypeSchema>;
@@ -19,7 +27,7 @@ export type DigestCadence = Extract<NotificationCadence, 'digest_periodic' | 'di
 /** The 409 refusal reason when a settings save carries a stale `expectedUpdatedAt`. */
 export const PREFERENCES_CHANGED_REASON = 'preferences_changed';
 
-const MAX_PAGE_TITLE_CHARS = 300;
+export const MAX_PAGE_TITLE_CHARS = 300;
 const SLACK_WEBHOOK_PREFIX = 'https://hooks.slack.com/';
 
 export const notificationRoutingEventSchema = z
@@ -31,19 +39,33 @@ export const notificationRoutingEventSchema = z
   .strict();
 export type NotificationRoutingEvent = z.infer<typeof notificationRoutingEventSchema>;
 
-export const notificationFeedItemSchema = z
-  .object({
-    id: z.string().uuid(),
-    type: notificationTypeSchema,
-    actorUserId: z.string().uuid(),
-    actorName: z.string(),
-    pageId: z.string().uuid(),
-    pageTitle: z.string().max(MAX_PAGE_TITLE_CHARS),
-    href: z.string().startsWith('/'),
-    occurredAt: z.string().datetime(),
-    read: z.boolean(),
-  })
-  .strict();
+const feedItemShape = {
+  id: z.string().uuid(),
+  pageId: z.string().uuid(),
+  pageTitle: z.string().max(MAX_PAGE_TITLE_CHARS),
+  href: z.string().startsWith('/'),
+  occurredAt: z.string().datetime(),
+  read: z.boolean(),
+};
+
+export const notificationFeedItemSchema = z.discriminatedUnion('type', [
+  z
+    .object({
+      ...feedItemShape,
+      type: actorNotificationTypeSchema,
+      actorUserId: z.string().uuid(),
+      actorName: z.string(),
+    })
+    .strict(),
+  z
+    .object({
+      ...feedItemShape,
+      type: z.literal('wiki_ready'),
+      actorUserId: z.null(),
+      actorName: z.null(),
+    })
+    .strict(),
+]);
 export type NotificationFeedItem = z.infer<typeof notificationFeedItemSchema>;
 
 export const notificationFeedSchema = z
