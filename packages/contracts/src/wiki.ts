@@ -491,6 +491,14 @@ export const wikiPublishResponseSchema = z
   .strict();
 export type WikiPublishResponse = z.infer<typeof wikiPublishResponseSchema>;
 
+// UNWIRED until sharing-access SA2: no producer sets `visibility` yet.
+export const wikiPageVisibilitySchema = z.discriminatedUnion('withheld', [
+  z.object({ withheld: z.literal('none') }).strict(),
+  z.object({ withheld: z.literal('some'), hiddenBlockCount: z.number().int().positive() }).strict(),
+  z.object({ withheld: z.literal('all') }).strict(),
+]);
+export type WikiPageVisibility = z.infer<typeof wikiPageVisibilitySchema>;
+
 export const wikiPageResponseSchema = z
   .object({
     themeId: z.string(),
@@ -502,6 +510,7 @@ export const wikiPageResponseSchema = z
     meta: wikiPageMetaSchema.nullable(),
     updatesQueued: z.boolean().default(false),
     renderedAt: z.string().datetime().nullable().optional(),
+    visibility: wikiPageVisibilitySchema.optional(),
   })
   .strict()
   .superRefine((page, context) => {
