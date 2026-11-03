@@ -20,6 +20,10 @@ import {
   BROWSER_SOURCE_CONNECT_FAILURES,
   CLIENT_ERROR_NAMES,
   ONBOARDING_STEPS,
+  PERSONAL_SOURCE_CONNECT_TELEMETRY_FAILURES,
+  PERSONAL_SOURCE_MODE_TELEMETRY_FAILURES,
+  PERSONAL_SOURCE_TELEMETRY_KINDS,
+  PERSONAL_SOURCE_TELEMETRY_MODES,
   ROUTE_VIEW_SURFACES,
   isBrowserSourceKind,
   type ServerTelemetryEventName,
@@ -132,6 +136,7 @@ const httpStatus: PropertyValidator = isHttpStatus;
 const browserSourceKind: PropertyValidator = (value) =>
   typeof value === 'string' && isBrowserSourceKind(value);
 const sourceKind = oneOf(SOURCE_KINDS);
+const personalSourceKind = oneOf(new Set<string>(PERSONAL_SOURCE_TELEMETRY_KINDS));
 const model = oneOf(INFERENCE_MODELS);
 const rejectedModel = oneOf(REJECTED_MODELS);
 
@@ -222,6 +227,23 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     sourceKind,
     reason: literal('conflict', 'unavailable'),
   }),
+  'source.personal_mode_changed': propertyContract({
+    ...orgId,
+    sourceKind: personalSourceKind,
+    mode: literal(...PERSONAL_SOURCE_TELEMETRY_MODES),
+  }),
+  'source.personal_mode_change_failed': propertyContract({
+    ...orgId,
+    sourceKind: personalSourceKind,
+    reason: literal(...PERSONAL_SOURCE_MODE_TELEMETRY_FAILURES),
+  }),
+  'source.personal_connected': propertyContract({ ...orgId, sourceKind: personalSourceKind }),
+  'source.personal_connect_failed': propertyContract({
+    ...orgId,
+    sourceKind: personalSourceKind,
+    reason: literal(...PERSONAL_SOURCE_CONNECT_TELEMETRY_FAILURES),
+  }),
+  'source.personal_disconnected': propertyContract({ ...orgId, sourceKind: personalSourceKind }),
   'source.routing_conflict': propertyContract({
     ...orgId,
     sourceKind,

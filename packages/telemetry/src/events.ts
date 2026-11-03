@@ -16,6 +16,11 @@ export const TelemetryEvent = {
   SourceSyncPaused: 'source.sync_paused',
   SourceSyncResumed: 'source.sync_resumed',
   SourceSyncPauseFailed: 'source.sync_pause_failed',
+  SourcePersonalModeChanged: 'source.personal_mode_changed',
+  SourcePersonalModeChangeFailed: 'source.personal_mode_change_failed',
+  SourcePersonalConnected: 'source.personal_connected',
+  SourcePersonalConnectFailed: 'source.personal_connect_failed',
+  SourcePersonalDisconnected: 'source.personal_disconnected',
   MemberInvited: 'member.invited',
   MemberInvitesRevoked: 'member.invites_revoked',
   BetaInviteCreated: 'beta_invite.created',
@@ -145,6 +150,34 @@ export const AGENT_ACCESS_TELEMETRY_OAUTH_ERRORS = [
   'temporarily_unavailable',
 ] as const;
 
+// Same rule as above: the control plane passes contract types, which must stay assignable to these.
+export const PERSONAL_SOURCE_TELEMETRY_KINDS = [
+  'gmail',
+  'microsoft365_mail',
+  'google_calendar',
+  'microsoft365_calendar',
+  'google_drive',
+  'microsoft365',
+] as const;
+export const PERSONAL_SOURCE_TELEMETRY_MODES = ['off', 'per_person', 'organization'] as const;
+// `forbidden` and `not_personal_source` are never emitted: the caller is not yet proven to belong to the org, or the kind is unvalidated path input.
+export const PERSONAL_SOURCE_MODE_TELEMETRY_FAILURES = [
+  'unsupported_connector',
+  'organization_mode_unavailable',
+  'revision_conflict',
+  'mode_change_pending',
+  'billing',
+] as const;
+export const PERSONAL_SOURCE_CONNECT_TELEMETRY_FAILURES = [
+  'account_already_connected',
+  'mode_not_per_person',
+  'membership_inactive',
+  'consent_missing',
+  'connection_superseded',
+  'disconnect_pending',
+] as const;
+
+type PersonalSourceTelemetryKind = (typeof PERSONAL_SOURCE_TELEMETRY_KINDS)[number];
 type AgentAccessAgent = (typeof AGENT_ACCESS_TELEMETRY_AGENTS)[number];
 
 export type InvitePresetLabel = 'admin' | 'member' | 'custom';
@@ -198,6 +231,23 @@ type ProductEvents = {
     sourceKind: string;
     reason: 'conflict' | 'unavailable';
   };
+  'source.personal_mode_changed': {
+    orgId: string;
+    sourceKind: PersonalSourceTelemetryKind;
+    mode: (typeof PERSONAL_SOURCE_TELEMETRY_MODES)[number];
+  };
+  'source.personal_mode_change_failed': {
+    orgId: string;
+    sourceKind: PersonalSourceTelemetryKind;
+    reason: (typeof PERSONAL_SOURCE_MODE_TELEMETRY_FAILURES)[number];
+  };
+  'source.personal_connected': { orgId: string; sourceKind: PersonalSourceTelemetryKind };
+  'source.personal_connect_failed': {
+    orgId: string;
+    sourceKind: PersonalSourceTelemetryKind;
+    reason: (typeof PERSONAL_SOURCE_CONNECT_TELEMETRY_FAILURES)[number];
+  };
+  'source.personal_disconnected': { orgId: string; sourceKind: PersonalSourceTelemetryKind };
   'member.invited': { orgId: string; role: InvitePresetLabel; count: number };
   'member.invites_revoked': { orgId: string; count: number; cause: InviteRevocationCause };
   'beta_invite.created': Record<string, never>;

@@ -57,6 +57,23 @@ const VALID_SERVER_EVENT_FIXTURES = {
   'source.sync_paused': { orgId: ORGANIZATION_ID, sourceKind: 'slack' },
   'source.sync_resumed': { orgId: ORGANIZATION_ID, sourceKind: 'slack' },
   'source.sync_pause_failed': { orgId: ORGANIZATION_ID, sourceKind: 'slack', reason: 'conflict' },
+  'source.personal_mode_changed': {
+    orgId: ORGANIZATION_ID,
+    sourceKind: 'gmail',
+    mode: 'per_person',
+  },
+  'source.personal_mode_change_failed': {
+    orgId: ORGANIZATION_ID,
+    sourceKind: 'gmail',
+    reason: 'revision_conflict',
+  },
+  'source.personal_connected': { orgId: ORGANIZATION_ID, sourceKind: 'gmail' },
+  'source.personal_connect_failed': {
+    orgId: ORGANIZATION_ID,
+    sourceKind: 'gmail',
+    reason: 'consent_missing',
+  },
+  'source.personal_disconnected': { orgId: ORGANIZATION_ID, sourceKind: 'gmail' },
   'member.invited': { orgId: ORGANIZATION_ID, role: 'member', count: 1 },
   'member.invites_revoked': {
     orgId: ORGANIZATION_ID,
@@ -565,6 +582,12 @@ describe('PostHogTelemetryClient final boundary', () => {
     ['a resource id', 'source.sync_resumed', { resourceId: 'C123' }],
     ['an unknown reason', 'source.sync_pause_failed', { reason: 'S3 throttled' }],
     ['an invalid-scope reason', 'source.sync_pause_failed', { reason: 'invalid' }],
+    ['a team tool kind', 'source.personal_connected', { sourceKind: 'slack' }],
+    [
+      'a refusal that is never emitted',
+      'source.personal_mode_change_failed',
+      { reason: 'forbidden' },
+    ],
     ['a resource id', 'source.sync_pause_failed', { resourceId: 'C123' }],
   ] as const)('rejects %s on %s', (_case, event, override) => {
     const { client, captured } = recordingClient();

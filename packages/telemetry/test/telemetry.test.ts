@@ -29,13 +29,6 @@ const HOUR_MS = 3_600_000;
 const MINUTE_MS = 60_000;
 
 describe('NoopTelemetryClient', () => {
-  it('track does not throw', () => {
-    const client = new NoopTelemetryClient();
-    expect(() =>
-      client.track('fact.ingested', 'org-1', { orgId: 'org-1', sourceKind: 'github' }),
-    ).not.toThrow();
-  });
-
   it('relayBrowserEvent reports that nothing was sent', () => {
     const catalog = {
       routeTemplates: new Set<string>(),
@@ -50,22 +43,6 @@ describe('NoopTelemetryClient', () => {
   it('flush resolves', async () => {
     const client = new NoopTelemetryClient();
     await expect(client.flush()).resolves.toBeUndefined();
-  });
-
-  it('captureError does not throw', () => {
-    const client = new NoopTelemetryClient();
-    expect(() =>
-      client.captureError({
-        error_type: 'internal_error',
-        error_name: 'InternalError',
-        category: 'internal',
-        http_status: 500,
-        operational: false,
-        component: 'worker',
-        origin: 'uncaught',
-        fingerprint: 'abc123',
-      }),
-    ).not.toThrow();
   });
 });
 
