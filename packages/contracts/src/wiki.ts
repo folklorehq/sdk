@@ -558,6 +558,11 @@ export const wikiStubListEntrySchema = z
   .strict();
 export type WikiStubListEntry = z.infer<typeof wikiStubListEntrySchema>;
 
+export const wikiBuildProgressResponseSchema = z
+  .object({ toWrite: z.number().int().nonnegative(), toWriteMore: z.boolean() })
+  .strict();
+export type WikiBuildProgressResponse = z.infer<typeof wikiBuildProgressResponseSchema>;
+
 export const WIKI_LIST_DEFAULT_LIMIT = 50;
 export const WIKI_LIST_MAX_LIMIT = 100;
 export const WIKI_LIST_QUERY_MAX_CHARS = 200;
