@@ -64,6 +64,7 @@ export const TelemetryEvent = {
   WorkerError: 'worker.error',
   DeploymentCheckin: 'deployment.checkin',
   EnclaveEventLoopDelay: 'enclave.event_loop_delay',
+  DirectoryTeamProjectionFailed: 'directory.team_projection_failed',
   OrgUsage: 'org.usage',
   TenantDataDeleted: 'tenant.data_deleted',
   ErrorCaptured: 'error.captured',
@@ -336,6 +337,7 @@ type OpsEvents = {
     outputTokens?: number;
   };
   'inference.receipt_verified': { sessionId: string };
+  'directory.team_projection_failed': Record<string, never>;
   'enclave.event_loop_delay': {
     loopDelayP50Ms: number;
     loopDelayP99Ms: number;

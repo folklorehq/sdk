@@ -165,6 +165,7 @@ const VALID_SERVER_EVENT_FIXTURES = {
     outputTokens: 1,
   },
   'inference.receipt_verified': { sessionId: ORGANIZATION_ID },
+  'directory.team_projection_failed': {},
   'enclave.event_loop_delay': {
     loopDelayP50Ms: 1,
     loopDelayP99Ms: 400,

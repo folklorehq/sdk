@@ -389,6 +389,7 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     { inputTokens: count, outputTokens: count },
   ),
   'inference.receipt_verified': propertyContract({ sessionId }),
+  'directory.team_projection_failed': propertyContract({}),
   'enclave.event_loop_delay': propertyContract({
     loopDelayP50Ms: count,
     loopDelayP99Ms: count,
