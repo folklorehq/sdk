@@ -103,6 +103,7 @@ const EXPLICIT_CONTENT_FREE_FIELDS = new Set([
   'cachewritetokens',
 ]);
 const CODE_VALUE_FIELDS = new Set([
+  'base',
   'component',
   'errorCode',
   'error_type',

@@ -79,7 +79,7 @@ importers:
         version: 0.8.3
       intercom-client:
         specifier: ^7.0.3
-        version: 7.0.3
+        version: 7.1.0
       letterparser:
         specifier: 0.1.8
         version: 0.1.8
@@ -1430,8 +1430,8 @@ packages:
     resolution: {integrity: sha512-JmXMZ6wuvDmLiHEml9ykzqO6lwFbof0GG4IkcGaENdCRDDmMVnny7s5HsIgHCbaq0w2MyPhDqkhTUgS2LU2PHA==}
     engines: {node: '>=0.8.19'}
 
-  intercom-client@7.0.3:
-    resolution: {integrity: sha512-2rsNxBNqDqA0rZ0E/VsWa+/Ao+/nOxKNj9P7gUiQoOGY88eULTJUNtT9oNnT4Dq2+6dr0vvvo+I8ZNzN30Xj7A==}
+  intercom-client@7.1.0:
+    resolution: {integrity: sha512-MFjxP5cX13LpVdnfK+gFf4OdHUgV9ysHUFEWBHoDEI80OVty47J2xBzPSZUjDY1f8efEr9j6MkeiYGSitgKWwQ==}
     engines: {node: '>=18.0.0'}
 
   is-electron@2.2.2:
@@ -2875,7 +2875,7 @@ snapshots:
 
   imurmurhash@0.1.4: {}
 
-  intercom-client@7.0.3: {}
+  intercom-client@7.1.0: {}
 
   is-electron@2.2.2: {}
 

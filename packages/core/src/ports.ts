@@ -16,6 +16,7 @@ export const SAFE_LOG_FIELDS = Object.freeze([
   'approval_key_count',
   'attempt',
   'backfill',
+  'base',
   'bindMaxMs',
   'bindMs',
   'bothFlagged',
