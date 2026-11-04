@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { verifyAttestationManifest } from '../attestation/verify.js';
 
-export interface VerifyAttestationCommandOptions {
+interface VerifyAttestationCommandOptions {
   attestationPath: string;
   commit?: string;
   eifPath?: string;
