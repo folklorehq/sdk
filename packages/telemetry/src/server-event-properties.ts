@@ -16,6 +16,7 @@ import {
   AGENT_ACCESS_TELEMETRY_REVOCATIONS,
   AGENT_ACCESS_TELEMETRY_SENSITIVITIES,
   AGENT_ACCESS_TELEMETRY_WRITE_DENIALS,
+  AUDIENCE_ADMIN_TELEMETRY_REFUSALS,
   BROWSER_CLIENT_ERROR_ORIGINS,
   BROWSER_SOURCE_CONNECT_FAILURES,
   CLIENT_ERROR_NAMES,
@@ -328,6 +329,24 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     hasLead: bool,
   }),
   'department.created': propertyContract({ ...orgId }),
+  'audience.created': propertyContract({
+    ...orgId,
+    maxSensitivity: literal(...AGENT_ACCESS_TELEMETRY_SENSITIVITIES),
+  }),
+  'audience.updated': propertyContract({
+    ...orgId,
+    renamed: bool,
+    ceilingChange: literal('raised', 'lowered', 'unchanged'),
+  }),
+  'audience.membership_changed': propertyContract({
+    ...orgId,
+    change: literal('added', 'removed'),
+  }),
+  'audience.change_refused': propertyContract({
+    ...orgId,
+    action: literal('create', 'update', 'add_member', 'remove_member'),
+    reason: literal(...AUDIENCE_ADMIN_TELEMETRY_REFUSALS),
+  }),
   'beta_invite.created': propertyContract({}),
   'beta_invite.accepted': propertyContract({ betaInviteId: uuid }),
   'directory.imported': propertyContract({

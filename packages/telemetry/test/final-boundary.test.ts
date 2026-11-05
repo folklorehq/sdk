@@ -88,6 +88,10 @@ const VALID_SERVER_EVENT_FIXTURES = {
     hasLead: false,
   },
   'department.created': { orgId: ORGANIZATION_ID },
+  'audience.created': { orgId: ORGANIZATION_ID, maxSensitivity: 'team_scoped' },
+  'audience.updated': { orgId: ORGANIZATION_ID, renamed: true, ceilingChange: 'raised' },
+  'audience.membership_changed': { orgId: ORGANIZATION_ID, change: 'added' },
+  'audience.change_refused': { orgId: ORGANIZATION_ID, action: 'create', reason: 'name_taken' },
   'agent_access.policy_changed': {
     orgId: ORGANIZATION_ID,
     mode: 'answers',
@@ -599,6 +603,8 @@ describe('PostHogTelemetryClient final boundary', () => {
       { reason: 'forbidden' },
     ],
     ['a resource id', 'source.sync_pause_failed', { resourceId: 'C123' }],
+    ['an audience name', 'audience.created', { name: 'Project Zephyr' }],
+    ['a free-text reason', 'audience.change_refused', { reason: 'Project Zephyr is taken' }],
   ] as const)('rejects %s on %s', (_case, event, override) => {
     const { client, captured } = recordingClient();
 

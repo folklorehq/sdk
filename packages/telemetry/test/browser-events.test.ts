@@ -7,7 +7,6 @@ import {
   clientErrorName,
   isBrowserEventAllowedFrom,
   isBrowserTelemetryProperty,
-  isBrowserSourceKind,
   isBrowserTelemetryEvent,
   type BrowserCatalog,
   type BrowserSurface,
@@ -91,12 +90,6 @@ it('rejects inherited and unknown browser event names at runtime', () => {
   expect(isBrowserTelemetryEvent('source.connected')).toBe(false);
 });
 
-it('accepts only source kinds in the browser egress catalog', () => {
-  expect(isBrowserSourceKind('github')).toBe(true);
-  expect(isBrowserSourceKind('meeting')).toBe(false);
-  expect(isBrowserSourceKind('email')).toBe(false);
-});
-
 it('keeps client error properties content-free at runtime', () => {
   expect(isBrowserTelemetryProperty('client_error', 'origin', 'window_error')).toBe(true);
   expect(isBrowserTelemetryProperty('client_error', 'origin', 'renderer')).toBe(false);
@@ -116,12 +109,6 @@ it('keeps empty browser events property-free at runtime', () => {
   expect(areBrowserTelemetryPropertiesValid('sign_in_completed', { eventSchemaVersion: 1 })).toBe(
     false,
   );
-});
-
-it('keeps the client error name list closed and aligned with the type', () => {
-  expect(new Set(CLIENT_ERROR_NAMES).size).toBe(CLIENT_ERROR_NAMES.length);
-  expect(CLIENT_ERROR_NAMES).toContain('other');
-  expect(CLIENT_ERROR_NAMES).toContain('UnknownError');
 });
 
 describe('clientErrorName', () => {

@@ -2,6 +2,7 @@
 export * from './agent-release.js';
 export * from './app-handoff.js';
 export * from './assignment-head.js';
+export * from './audience-admin.js';
 export * from './auth.js';
 export * from './box-roll-notice.js';
 export * from './canary-authorization.js';

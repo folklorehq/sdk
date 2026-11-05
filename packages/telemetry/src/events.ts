@@ -26,6 +26,10 @@ export const TelemetryEvent = {
   MemberInvitesRevoked: 'member.invites_revoked',
   TeamCreated: 'team.created',
   DepartmentCreated: 'department.created',
+  AudienceCreated: 'audience.created',
+  AudienceUpdated: 'audience.updated',
+  AudienceMembershipChanged: 'audience.membership_changed',
+  AudienceChangeRefused: 'audience.change_refused',
   BetaInviteCreated: 'beta_invite.created',
   BetaInviteAccepted: 'beta_invite.accepted',
   DirectoryImported: 'directory.imported',
@@ -154,6 +158,17 @@ export const AGENT_ACCESS_TELEMETRY_OAUTH_ERRORS = [
   'temporarily_unavailable',
 ] as const;
 
+// Same rule: the box API passes AUDIENCE_ADMIN_REFUSALS plus 'not_found', and a refusal missing here fails its call site's type check.
+export const AUDIENCE_ADMIN_TELEMETRY_REFUSALS = [
+  'not_found',
+  'not_editable',
+  'name_taken',
+  'name_reserved',
+  'limit_reached',
+  'ceiling_not_available',
+  'person_not_eligible',
+] as const;
+
 // Same rule as above: the control plane passes contract types, which must stay assignable to these.
 export const PERSONAL_SOURCE_TELEMETRY_KINDS = [
   'gmail',
@@ -273,6 +288,21 @@ type ProductEvents = {
     hasLead: boolean;
   };
   'department.created': { orgId: string };
+  'audience.created': {
+    orgId: string;
+    maxSensitivity: (typeof AGENT_ACCESS_TELEMETRY_SENSITIVITIES)[number];
+  };
+  'audience.updated': {
+    orgId: string;
+    renamed: boolean;
+    ceilingChange: 'raised' | 'lowered' | 'unchanged';
+  };
+  'audience.membership_changed': { orgId: string; change: 'added' | 'removed' };
+  'audience.change_refused': {
+    orgId: string;
+    action: 'create' | 'update' | 'add_member' | 'remove_member';
+    reason: (typeof AUDIENCE_ADMIN_TELEMETRY_REFUSALS)[number];
+  };
   'beta_invite.created': Record<string, never>;
   'beta_invite.accepted': { betaInviteId: string };
   'directory.imported': {
