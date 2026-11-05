@@ -11,6 +11,8 @@ export const DATA_CORRECTION_JOBS = [
   'redrive_processed_dlq',
   // Registered by #3048 WS6d (CP8); listed here so that job needs no migration.
   'backfill_fact_authors',
+  // UNWIRED until onboarding OB-4c registers it; listed here so that job needs no migration.
+  'backfill_container_places',
 ] as const;
 export const DATA_CORRECTION_MODES = ['dry_run', 'apply', 'rollback'] as const;
 export const DATA_CORRECTION_BATCH_MAX = 500;
