@@ -93,6 +93,9 @@ export type TeamToolKind = z.infer<typeof teamToolKindSchema>;
 export const isLiveIdentityLinkKind = (kind: string): boolean =>
   (LIVE_IDENTITY_LINK_KINDS as readonly string[]).includes(kind);
 
+export const isIdentityLinkKind = (kind: string | undefined): kind is IdentityLinkKind =>
+  kind !== undefined && (IDENTITY_LINK_KINDS as readonly string[]).includes(kind);
+
 const storedTeamToolSchema = z
   .object({ sourceKind: teamToolKindSchema, mandatory: z.boolean() })
   .strict();

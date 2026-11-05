@@ -19,6 +19,7 @@ import {
   BROWSER_CLIENT_ERROR_ORIGINS,
   BROWSER_SOURCE_CONNECT_FAILURES,
   CLIENT_ERROR_NAMES,
+  IDENTITY_LINK_TELEMETRY_KINDS,
   ONBOARDING_STEPS,
   PERSONAL_SOURCE_CONNECT_TELEMETRY_FAILURES,
   PERSONAL_SOURCE_MODE_TELEMETRY_FAILURES,
@@ -137,6 +138,7 @@ const browserSourceKind: PropertyValidator = (value) =>
   typeof value === 'string' && isBrowserSourceKind(value);
 const sourceKind = oneOf(SOURCE_KINDS);
 const personalSourceKind = oneOf(new Set<string>(PERSONAL_SOURCE_TELEMETRY_KINDS));
+const identityLinkKind = oneOf(new Set<string>(IDENTITY_LINK_TELEMETRY_KINDS));
 const model = oneOf(INFERENCE_MODELS);
 const rejectedModel = oneOf(REJECTED_MODELS);
 
@@ -244,6 +246,7 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     reason: literal(...PERSONAL_SOURCE_CONNECT_TELEMETRY_FAILURES),
   }),
   'source.personal_disconnected': propertyContract({ ...orgId, sourceKind: personalSourceKind }),
+  'identity.unlinked': propertyContract({ ...orgId, sourceKind: identityLinkKind }),
   'source.routing_conflict': propertyContract({
     ...orgId,
     sourceKind,

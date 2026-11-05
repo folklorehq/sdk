@@ -74,6 +74,7 @@ const VALID_SERVER_EVENT_FIXTURES = {
     reason: 'consent_missing',
   },
   'source.personal_disconnected': { orgId: ORGANIZATION_ID, sourceKind: 'gmail' },
+  'identity.unlinked': { orgId: ORGANIZATION_ID, sourceKind: 'github' },
   'member.invited': { orgId: ORGANIZATION_ID, role: 'member', count: 1 },
   'member.invites_revoked': {
     orgId: ORGANIZATION_ID,
@@ -591,6 +592,7 @@ describe('PostHogTelemetryClient final boundary', () => {
     ['an unknown reason', 'source.sync_pause_failed', { reason: 'S3 throttled' }],
     ['an invalid-scope reason', 'source.sync_pause_failed', { reason: 'invalid' }],
     ['a team tool kind', 'source.personal_connected', { sourceKind: 'slack' }],
+    ['a personal kind', 'identity.unlinked', { sourceKind: 'gmail' }],
     [
       'a refusal that is never emitted',
       'source.personal_mode_change_failed',

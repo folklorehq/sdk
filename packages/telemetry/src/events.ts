@@ -21,6 +21,7 @@ export const TelemetryEvent = {
   SourcePersonalConnected: 'source.personal_connected',
   SourcePersonalConnectFailed: 'source.personal_connect_failed',
   SourcePersonalDisconnected: 'source.personal_disconnected',
+  IdentityUnlinked: 'identity.unlinked',
   MemberInvited: 'member.invited',
   MemberInvitesRevoked: 'member.invites_revoked',
   TeamCreated: 'team.created',
@@ -180,6 +181,17 @@ export const PERSONAL_SOURCE_CONNECT_TELEMETRY_FAILURES = [
   'disconnect_pending',
 ] as const;
 
+// Same rule as the personal kinds: the control plane passes IdentityLinkKind, which must stay assignable to these.
+export const IDENTITY_LINK_TELEMETRY_KINDS = [
+  'github',
+  'slack',
+  'linear',
+  'notion',
+  'jira',
+  'intercom',
+] as const;
+
+type IdentityLinkTelemetryKind = (typeof IDENTITY_LINK_TELEMETRY_KINDS)[number];
 type PersonalSourceTelemetryKind = (typeof PERSONAL_SOURCE_TELEMETRY_KINDS)[number];
 type AgentAccessAgent = (typeof AGENT_ACCESS_TELEMETRY_AGENTS)[number];
 
@@ -251,6 +263,7 @@ type ProductEvents = {
     reason: (typeof PERSONAL_SOURCE_CONNECT_TELEMETRY_FAILURES)[number];
   };
   'source.personal_disconnected': { orgId: string; sourceKind: PersonalSourceTelemetryKind };
+  'identity.unlinked': { orgId: string; sourceKind: IdentityLinkTelemetryKind };
   'member.invited': { orgId: string; role: InvitePresetLabel; count: number };
   'member.invites_revoked': { orgId: string; count: number; cause: InviteRevocationCause };
   'team.created': {

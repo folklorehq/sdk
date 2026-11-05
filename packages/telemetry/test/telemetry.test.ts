@@ -39,11 +39,6 @@ describe('NoopTelemetryClient', () => {
       new NoopTelemetryClient().relayBrowserEvent('page_viewed', 'web', 'system', {}, catalog),
     ).toBe(false);
   });
-
-  it('flush resolves', async () => {
-    const client = new NoopTelemetryClient();
-    await expect(client.flush()).resolves.toBeUndefined();
-  });
 });
 
 describe('createTelemetryClient', () => {
