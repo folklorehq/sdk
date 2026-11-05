@@ -12,3 +12,9 @@ export function normalizePersonName(name: string): string | null {
     .trim();
   return folded === '' ? null : folded;
 }
+
+const UNNAMED_PERSON = 'Member';
+
+export function personName(displayName: string | null, email: string | null): string {
+  return displayName?.trim() || email?.split('@')[0] || UNNAMED_PERSON;
+}

@@ -53,6 +53,7 @@ export * from './session-delivery.js';
 export * from './shadow-review.js';
 export * from './shared.js';
 export * from './sources.js';
+export * from './teams.js';
 export * from './themes.js';
 export * from './trusted-time.js';
 export * from './wiki.js';
