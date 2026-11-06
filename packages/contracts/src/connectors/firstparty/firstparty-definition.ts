@@ -95,7 +95,14 @@ const baseDefinitionSchema = z
 
 type BaseDefinition = z.infer<typeof baseDefinitionSchema>;
 
-const hostnameOf = (url: string): string => new URL(url).hostname;
+// The field schemas already report an unparsable URL; the refinement still runs on that value, so it must not throw.
+const hostDiffers = (url: string, host: string): boolean => {
+  try {
+    return new URL(url).hostname !== host;
+  } catch {
+    return false;
+  }
+};
 
 // Widened to string: the public SDK registry does not carry the slot label.
 const isOtherLabel = (label: string): boolean => label !== FIRSTPARTY_CONTAINER_LABEL;
@@ -115,8 +122,8 @@ function violatedCodes(definition: BaseDefinition): string[] {
     ['firstparty_host_outside_api', spec.streams.some((s) => !hosts.api.includes(s.request.host))],
     ['firstparty_hosts_duplicate', new Set(hosts.api).size !== hosts.api.length],
     ['firstparty_stream_auth_mismatch', spec.streams.some((s) => s.auth !== 'bearer')],
-    ['firstparty_authorize_host_mismatch', hostnameOf(auth.authorizeUrl) !== hosts.authorize],
-    ['firstparty_token_host_mismatch', hostnameOf(auth.tokenUrl) !== hosts.token],
+    ['firstparty_authorize_host_mismatch', hostDiffers(auth.authorizeUrl, hosts.authorize)],
+    ['firstparty_token_host_mismatch', hostDiffers(auth.tokenUrl, hosts.token)],
     ['firstparty_shape_refused', mappings.some((m) => m.shape === 'calendar_event')],
     [
       'firstparty_label_refused',
