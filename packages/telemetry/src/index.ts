@@ -29,6 +29,7 @@ export {
   CATALOG_BACKED_BROWSER_EVENTS,
   CLIENT_ERROR_NAMES,
   clientErrorName,
+  FIRSTPARTY_REFUSAL_CODES,
   isBrowserEventAllowedFrom,
   isBrowserTelemetryEvent,
   TelemetryEvent,
@@ -46,6 +47,7 @@ export {
   assertContentFree,
   ContentFreeViolationError,
 } from './content-free.js';
+export { areServerTelemetryPropertiesValid } from './server-event-properties.js';
 export { installGlobalErrorReporting, type GlobalErrorReportingOptions } from './global-errors.js';
 export { NoopTelemetryClient } from './NoopTelemetryClient.js';
 export { PostHogTelemetryClient } from './PostHogTelemetryClient.js';

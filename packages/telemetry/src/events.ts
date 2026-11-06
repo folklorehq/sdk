@@ -84,6 +84,10 @@ export const TelemetryEvent = {
   AgentAccessConnectionsRevoked: 'agent_access.connections_revoked',
   AgentAccessOAuthError: 'agent_access.oauth_error',
   AgentAccessSweepRun: 'agent_access.sweep_run',
+  FirstpartyConnectorDraftSaved: 'firstparty_connector.draft_saved',
+  FirstpartyConnectorPublished: 'firstparty_connector.published',
+  FirstpartyConnectorUnpublished: 'firstparty_connector.unpublished',
+  FirstpartyConnectorRefused: 'firstparty_connector.refused',
 } as const;
 
 // Telemetry imports nothing from contracts (the private agent-access module stays out of the SDK mirror); the control-plane vocabulary test pins these to it.
@@ -209,6 +213,7 @@ export const IDENTITY_LINK_TELEMETRY_KINDS = [
 type IdentityLinkTelemetryKind = (typeof IDENTITY_LINK_TELEMETRY_KINDS)[number];
 type PersonalSourceTelemetryKind = (typeof PERSONAL_SOURCE_TELEMETRY_KINDS)[number];
 type AgentAccessAgent = (typeof AGENT_ACCESS_TELEMETRY_AGENTS)[number];
+type FirstpartySlotTelemetryKind = (typeof FIRSTPARTY_SLOT_TELEMETRY_KINDS)[number];
 
 export type InvitePresetLabel = 'admin' | 'member' | 'custom';
 export type InviteRevocationCause =
@@ -343,6 +348,17 @@ type ProductEvents = {
     orgId: string;
     reason: (typeof AGENT_ACCESS_TELEMETRY_REVOCATIONS)[number];
     count: number;
+  };
+  'firstparty_connector.draft_saved': { slot: FirstpartySlotTelemetryKind; revision: number };
+  'firstparty_connector.published': {
+    slot: FirstpartySlotTelemetryKind;
+    revision: number;
+    reconnectReason?: (typeof FIRSTPARTY_RECONNECT_TELEMETRY_REASONS)[number];
+  };
+  'firstparty_connector.unpublished': { slot: FirstpartySlotTelemetryKind };
+  'firstparty_connector.refused': {
+    slot: FirstpartySlotTelemetryKind;
+    code: (typeof FIRSTPARTY_REFUSAL_CODES)[number];
   };
 };
 
@@ -576,7 +592,6 @@ export const FIRSTPARTY_SLOT_TELEMETRY_KINDS = [
   'firstparty_20',
 ] as const;
 
-// UNWIRED: the first-party publish routes emit these refusal codes and reconnect reasons once they land.
 export const FIRSTPARTY_REFUSAL_CODES = [
   'firstparty_definition_invalid',
   'firstparty_slot_mismatch',

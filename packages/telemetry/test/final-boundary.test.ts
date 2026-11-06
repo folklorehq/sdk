@@ -131,6 +131,14 @@ const VALID_SERVER_EVENT_FIXTURES = {
     destroyed: 2,
     durationMs: 35,
   },
+  'firstparty_connector.draft_saved': { slot: 'firstparty_1', revision: 1 },
+  'firstparty_connector.published': {
+    slot: 'firstparty_1',
+    revision: 2,
+    reconnectReason: 'streams_changed',
+  },
+  'firstparty_connector.unpublished': { slot: 'firstparty_1' },
+  'firstparty_connector.refused': { slot: 'firstparty_1', code: 'firstparty_surface_frozen' },
   'beta_invite.created': {},
   'beta_invite.accepted': { betaInviteId: ORGANIZATION_ID },
   'directory.imported': {
