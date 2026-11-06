@@ -41,6 +41,7 @@ const FROZEN: Record<string, string[]> = {
     'codeGraph.nodes[].parentId',
     'codeGraph.refs[].nodeId',
     'containerRefs[]',
+    'containerSeeds[].placeRef',
     'containerSeeds[].shape',
     'containerSeeds[].sourceContainerId',
     'explicitLinks[]',

@@ -56,6 +56,11 @@
       "types": "./dist/async.d.ts",
       "default": "./dist/async.js"
     },
+    "./place-keys": {
+      "development": "./src/place-keys.ts",
+      "types": "./dist/place-keys.d.ts",
+      "default": "./dist/place-keys.js"
+    },
     "./canonical-json-pure": {
       "development": "./src/canonical-json-pure.ts",
       "types": "./dist/canonical-json-pure.d.ts",

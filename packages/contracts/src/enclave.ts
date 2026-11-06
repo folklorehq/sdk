@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { KEYED_PLACE_REF_PATTERN } from '@folklore/utils/place-keys';
 import { z } from 'zod';
 import { MEMBER_MANIFEST_KINDS } from './connectors/index.js';
 import { containerLabelSchema } from './connectors/container-labels.js';
@@ -47,6 +48,8 @@ export type FactKind = z.infer<typeof factKindSchema>;
 
 export { containerLabelSchema, type ContainerLabel } from './connectors/container-labels.js';
 
+export const keyedPlaceRefSchema = z.string().regex(KEYED_PLACE_REF_PATTERN);
+
 export const containerSeedSchema = z
   .object({
     sourceContainerId: z.string(),
@@ -54,6 +57,8 @@ export const containerSeedSchema = z
     // so a narrowing enum would lose facts whenever a connector ships ahead of the worker.
     label: containerLabelSchema.catch('unknown'),
     shape: z.string(),
+    // Optional so an EIF that predates OB-4b still parses; a malformed ref drops the ref, not the fact, and never lands unkeyed.
+    placeRef: keyedPlaceRefSchema.optional().catch(undefined),
   })
   .strict();
 export type ContainerSeed = z.infer<typeof containerSeedSchema>;

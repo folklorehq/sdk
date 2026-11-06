@@ -39,6 +39,12 @@ export {
   isStorableEntity,
 } from './entity-keys.js';
 export {
+  KEYED_PLACE_PREFIX,
+  KEYED_PLACE_REF_PATTERN,
+  isKeyedPlaceRef,
+  type KeyedPlaceRef,
+} from './place-keys.js';
+export {
   ANCHORED_GITHUB_ITEM_KEY_PATTERN,
   ANCHORED_ISSUE_KEY_PATTERN,
   CANONICAL_LINK_KEY_PATTERN,
