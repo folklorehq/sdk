@@ -15,6 +15,7 @@ import { FIRSTPARTY_CONTAINER_LABEL, FIRSTPARTY_SLOT_KINDS } from './firstparty-
 export const FIRSTPARTY_DEFINITION_VERSION = 1;
 export const FIRSTPARTY_MAX_STREAMS = 8;
 export const FIRSTPARTY_MAX_API_HOSTS = 4;
+export const FIRSTPARTY_MAX_DISPLAY_NAME_LENGTH = 40;
 export const FIRSTPARTY_ICON_KEYS = [
   'database',
   'ticket',
@@ -38,7 +39,6 @@ export const FIRSTPARTY_AUTHORIZE_PARAM_NAMES = [
   'include_granted_scopes',
 ] as const;
 
-const MAX_DISPLAY_NAME_LENGTH = 40;
 const MAX_SCOPES = 32;
 const MAX_TOKEN_URL_LENGTH = 200;
 const MAX_VALUE_LENGTH = 128;
@@ -77,7 +77,7 @@ const baseDefinitionSchema = z
     displayName: z
       .string()
       .min(1)
-      .max(MAX_DISPLAY_NAME_LENGTH)
+      .max(FIRSTPARTY_MAX_DISPLAY_NAME_LENGTH)
       .refine(noUnsafeCharacters, 'unsafe character'),
     iconKey: z.enum(FIRSTPARTY_ICON_KEYS).nullable(),
     hosts: z

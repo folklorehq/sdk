@@ -14,6 +14,9 @@ import {
   inferencePurposeSchema,
   inferenceUsageOutcomeSchema,
 } from './inference-routing.js';
+import { FIRSTPARTY_OAUTH_SECRET_CIPHERTEXT_BASE64 } from './connectors/firstparty/firstparty-oauth-secret.js';
+import { firstpartyDefinitionEnvelopeSchema } from './connectors/firstparty/firstparty-signing.js';
+import { FIRSTPARTY_SLOT_KINDS } from './connectors/firstparty/firstparty-slot-kinds.js';
 
 export {
   sealedContentEnvelopeV1Schema,
@@ -1969,3 +1972,28 @@ export const retiredOAuthCredentialSchema = z
   })
   .strict();
 export type RetiredOAuthCredential = z.infer<typeof retiredOAuthCredentialSchema>;
+
+// 64 raw bytes of base64: 21 full groups, then 2 characters and 2 pads.
+const ED25519_SIGNATURE_BASE64 = /^[A-Za-z0-9+/]{86}==$/;
+const MAX_SIGNER_KEY_ID_LENGTH = 256;
+
+export const firstpartyConnectorFeedSchema = z
+  .object({
+    definitions: z
+      .array(
+        z
+          .object({
+            envelope: firstpartyDefinitionEnvelopeSchema,
+            signatureB64: z.string().regex(ED25519_SIGNATURE_BASE64),
+            signerKeyId: z.string().min(1).max(MAX_SIGNER_KEY_ID_LENGTH),
+            oauthClientSecretCiphertextB64: z
+              .string()
+              .regex(FIRSTPARTY_OAUTH_SECRET_CIPHERTEXT_BASE64)
+              .nullable(),
+          })
+          .strict(),
+      )
+      .max(FIRSTPARTY_SLOT_KINDS.length),
+  })
+  .strict();
+export type FirstpartyConnectorFeed = z.infer<typeof firstpartyConnectorFeedSchema>;

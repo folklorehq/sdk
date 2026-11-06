@@ -8,6 +8,8 @@ import { FIRSTPARTY_SLOT_KINDS } from './firstparty-slot-kinds.js';
 // One RSA-4096 block, minus 2 * 32 bytes of SHA-256 OAEP overhead and 2 bytes of padding.
 export const FIRSTPARTY_OAUTH_SECRET_CIPHERTEXT_BYTES = 512;
 export const FIRSTPARTY_OAUTH_SECRET_MAX_PLAINTEXT_BYTES = 446;
+// 512 bytes of base64 is 170 full groups, then 3 characters and one pad.
+export const FIRSTPARTY_OAUTH_SECRET_CIPHERTEXT_BASE64 = /^[A-Za-z0-9+/]{683}=$/;
 const MAX_CLIENT_ID_LENGTH = 128;
 const MAX_SECRET_LENGTH = 160;
 
