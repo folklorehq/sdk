@@ -137,7 +137,6 @@ export type FactSalience = z.infer<typeof factSalienceSchema>;
 export const SALIENT_FACT_SALIENCE: ReadonlySet<FactSalience> = new Set<FactSalience>([
   'decision',
   'incident',
-  'merge',
   'issue_transition',
   'deletion',
   'human',

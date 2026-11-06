@@ -585,16 +585,14 @@ describe('processedFactSchema', () => {
       ).toBe(false);
     });
 
-    it('lists the nine values once in the schema and splits layer B from layer A by deletion alone', () => {
+    it('lists the nine values once in the schema and splits layer B from layer A by deletion and merge', () => {
       expect([...factSalienceSchema.options].sort()).toEqual([...SALIENCE_VALUES].sort());
       expect([...SALIENT_FACT_SALIENCE].sort()).toEqual(
-        ['decision', 'deletion', 'human', 'incident', 'issue_transition', 'merge'].sort(),
+        ['decision', 'deletion', 'human', 'incident', 'issue_transition'].sort(),
       );
       expect([...FEED_FACT_SALIENCE].sort()).toEqual(
         ['decision', 'human', 'incident', 'issue_transition', 'merge'].sort(),
       );
-      expect(FEED_FACT_SALIENCE.has('deletion')).toBe(false);
-      for (const value of FEED_FACT_SALIENCE) expect(SALIENT_FACT_SALIENCE.has(value)).toBe(true);
       for (const quiet of ['agent', 'ci', 'routine'] as const) {
         expect(SALIENT_FACT_SALIENCE.has(quiet)).toBe(false);
         expect(FEED_FACT_SALIENCE.has(quiet)).toBe(false);

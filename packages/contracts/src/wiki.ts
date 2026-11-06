@@ -635,7 +635,7 @@ export const WIKI_FEED_ACTIVITY_WINDOW_HOURS = 24;
 export const wikiFeedTagSchema = z.enum(['decision', 'incident', 'merged', 'closed', 'update']);
 export type WikiFeedTag = z.infer<typeof wikiFeedTagSchema>;
 
-// A page's latest salient facts as one-line excerpts, and a count of agent and CI activity.
+// A page's latest feed facts (FEED_FACT_SALIENCE) as one-line excerpts, and a count of agent and CI activity.
 export const wikiFeedResponseSchema = z
   .object({
     entries: z
