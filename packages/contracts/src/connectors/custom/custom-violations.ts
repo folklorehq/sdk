@@ -5,17 +5,15 @@ import {
   type CustomDefinition,
   type CustomViolationCode,
 } from './custom-definition.js';
-import { SPEC_TEMPLATE_TOKEN } from '../stream-spec.js';
 import {
-  PAGING_VERB_EXEMPT_NAMES,
-  hasNonReadToken,
-  hasReadVerb,
-  hasWriteVerb,
-  hasWriteVerbInParam,
-  isFramingHeader,
-  isMethodOverrideHeader,
-  isMethodOverrideParam,
-} from './read-semantics.js';
+  hasEncodedPath,
+  hasFramingHeader,
+  overridesMethod,
+  pagingNames,
+  requestHasWriteVerb,
+  withoutTemplateTokens,
+} from './stream-read-rules.js';
+import { hasNonReadToken, hasReadVerb, hasWriteVerb } from './read-semantics.js';
 
 type ApiSource = Extract<CustomDefinition['source'], { readonly type: 'api' }>;
 type CustomStream = ApiSource['spec']['streams'][number];
@@ -24,9 +22,6 @@ type CustomMapping = NonNullable<CustomStream['mapping']>;
 
 const TENANT_TOKEN = '{connection.externalTenantId}';
 const ALLOWED_SHAPES: ReadonlySet<string> = new Set(['item', 'comment']);
-
-// Template tokens are filled from record values or the runtime, so they never name an action.
-const withoutTemplateTokens = (value: string): string => value.replace(SPEC_TEMPLATE_TOKEN, ' ');
 
 class CustomDefinitionRules {
   constructor(private readonly definition: CustomDefinition) {}
@@ -103,20 +98,8 @@ class CustomDefinitionRules {
 
   private writeVerb(): boolean {
     return (
-      this.streams.some((stream) => this.requestHasWriteVerb(stream)) ||
+      this.streams.some(requestHasWriteVerb) ||
       this.otherPaths().some((path) => hasWriteVerb(withoutTemplateTokens(path)))
-    );
-  }
-
-  private requestHasWriteVerb(stream: CustomStream): boolean {
-    const { path, query = {}, body = {}, headers = {} } = stream.request;
-    const named = [...Object.entries(query), ...Object.entries(body), ...Object.entries(headers)];
-    return (
-      named.some(([name, value]) => hasWriteVerbInParam(name, value)) ||
-      this.verbCheckedPagingNames(stream).some((name) => hasWriteVerbInParam(name, '')) ||
-      [path, ...named.map(([, value]) => value)].some((value) =>
-        hasWriteVerb(withoutTemplateTokens(value)),
-      )
     );
   }
 
@@ -197,21 +180,15 @@ class CustomDefinitionRules {
   }
 
   private methodOverride(): boolean {
-    return this.streams.some((stream) => {
-      const { query = {}, body = {}, headers = {} } = stream.request;
-      const names = [...Object.keys(query), ...Object.keys(body), ...this.pagingNames(stream)];
-      return Object.keys(headers).some(isMethodOverrideHeader) || names.some(isMethodOverrideParam);
-    });
+    return this.streams.some(overridesMethod);
   }
 
   private framingHeader(): boolean {
-    return this.streams.some(({ request }) =>
-      Object.keys(request.headers ?? {}).some(isFramingHeader),
-    );
+    return this.streams.some(hasFramingHeader);
   }
 
   private pathEncoded(): boolean {
-    return this.streams.some((stream) => stream.request.path.includes('%'));
+    return this.streams.some(hasEncodedPath);
   }
 
   private credentialCollision(): boolean {
@@ -231,30 +208,9 @@ class CustomDefinitionRules {
   }
 
   private queryNames(stream: CustomStream): string[] {
-    return [...Object.keys(stream.request.query ?? {}), ...this.pagingNames(stream)].map((name) =>
+    return [...Object.keys(stream.request.query ?? {}), ...pagingNames(stream)].map((name) =>
       name.toLowerCase(),
     );
-  }
-
-  // The main paging and cursor parameters may use the exempt names; the limit and dropped names get the full check.
-  private verbCheckedPagingNames({ paginator, cursor }: CustomStream): string[] {
-    const main = [
-      ...('param' in paginator ? [paginator.param] : []),
-      ...(cursor ? [cursor.param] : []),
-    ];
-    const others = [
-      ...('limitParam' in paginator ? [paginator.limitParam] : []),
-      ...(cursor?.dropsParams ?? []),
-    ];
-    return [...main.filter((name) => !PAGING_VERB_EXEMPT_NAMES.has(name)), ...others];
-  }
-
-  private pagingNames({ paginator, cursor }: CustomStream): string[] {
-    return [
-      ...('param' in paginator ? [paginator.param] : []),
-      ...('limitParam' in paginator ? [paginator.limitParam] : []),
-      ...(cursor ? [cursor.param, ...cursor.dropsParams] : []),
-    ];
   }
 
   private deletionStreamInvalid(): boolean {

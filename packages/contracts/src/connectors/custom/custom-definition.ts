@@ -50,7 +50,7 @@ const isUnsafeCode = (code: number): boolean =>
   INVISIBLE_RANGES.some(([first, last]) => code >= first && code <= last);
 
 // Control, zero-width, line-separator and bidi-override characters can disguise text shown to an admin.
-const noUnsafeCharacters = (value: string): boolean =>
+export const noUnsafeCharacters = (value: string): boolean =>
   [...value].every((char) => !isUnsafeCode(char.codePointAt(0) ?? 0));
 
 // The runtime may set Authorization for a credential; every other runtime-owned header stays refused.

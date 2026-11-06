@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { AppError, type AppErrorOptions } from './AppError.js';
+import { AppError, type AppErrorOptions, type ErrorCategory } from './AppError.js';
 
 /** Input failed validation (bad request shape, invalid field). */
 export class ValidationError extends AppError {
@@ -260,6 +260,42 @@ export type CustomConnectorErrorCode =
 export class CustomConnectorError extends AppError {
   constructor(code: CustomConnectorErrorCode) {
     super(code, { code, category: 'internal' });
+  }
+}
+
+export type FirstpartyConnectorErrorCode =
+  | 'firstparty_slot_unavailable'
+  | 'firstparty_definition_invalid'
+  | 'firstparty_slot_mismatch'
+  | 'firstparty_stale_revision'
+  | 'firstparty_surface_frozen'
+  | 'firstparty_oauth_secret_mismatch'
+  | 'firstparty_oauth_secret_missing'
+  | 'firstparty_oauth_secret_too_large'
+  | 'firstparty_oauth_key_unavailable'
+  | 'firstparty_signer_unavailable'
+  | 'firstparty_pool_unsupported'
+  | 'firstparty_not_found';
+
+const FIRSTPARTY_CATEGORY: Readonly<Record<FirstpartyConnectorErrorCode, ErrorCategory>> = {
+  firstparty_definition_invalid: 'validation',
+  firstparty_slot_mismatch: 'validation',
+  firstparty_oauth_secret_mismatch: 'validation',
+  firstparty_oauth_secret_too_large: 'validation',
+  firstparty_stale_revision: 'conflict',
+  firstparty_surface_frozen: 'conflict',
+  firstparty_oauth_secret_missing: 'conflict',
+  firstparty_oauth_key_unavailable: 'unavailable',
+  firstparty_signer_unavailable: 'unavailable',
+  firstparty_pool_unsupported: 'unavailable',
+  firstparty_not_found: 'not_found',
+  firstparty_slot_unavailable: 'internal',
+};
+
+/** The message is the code; never a cause, host, path or value. */
+export class FirstpartyConnectorError extends AppError {
+  constructor(code: FirstpartyConnectorErrorCode, options: AppErrorOptions = {}) {
+    super(code, { ...options, code, category: FIRSTPARTY_CATEGORY[code] });
   }
 }
 

@@ -34,6 +34,8 @@ export {
   type ConnectorSpecErrorCode,
   CustomConnectorError,
   type CustomConnectorErrorCode,
+  FirstpartyConnectorError,
+  type FirstpartyConnectorErrorCode,
   ThemeRequestTooLargeError,
   ServiceUnavailableError,
   EncryptionContextMismatchError,

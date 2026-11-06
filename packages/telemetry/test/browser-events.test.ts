@@ -5,6 +5,7 @@ import {
   BROWSER_SURFACES,
   CLIENT_ERROR_NAMES,
   clientErrorName,
+  FIRSTPARTY_SLOT_TELEMETRY_KINDS,
   isBrowserEventAllowedFrom,
   isBrowserTelemetryProperty,
   isBrowserTelemetryEvent,
@@ -48,7 +49,8 @@ it('keeps browser event properties closed and flat', () => {
       | 'microsoft365'
       | 'microsoft365_mail'
       | 'google_calendar'
-      | 'microsoft365_calendar';
+      | 'microsoft365_calendar'
+      | (typeof FIRSTPARTY_SLOT_TELEMETRY_KINDS)[number];
   }>();
   expectTypeOf<TelemetryEventMap['sign_in_completed']>().toEqualTypeOf<Record<string, never>>();
   expectTypeOf<TelemetryEventMap['client_error']>().toEqualTypeOf<{

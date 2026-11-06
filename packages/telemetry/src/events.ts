@@ -553,6 +553,49 @@ export type RouteViewSurface = (typeof ROUTE_VIEW_SURFACES)[number];
 const CLIENT_ERROR_NAME_SET: ReadonlySet<string> = new Set(CLIENT_ERROR_NAMES);
 const OTHER_CLIENT_ERROR_NAME: ClientErrorName = 'other';
 
+export const FIRSTPARTY_SLOT_TELEMETRY_KINDS = [
+  'firstparty_1',
+  'firstparty_2',
+  'firstparty_3',
+  'firstparty_4',
+  'firstparty_5',
+  'firstparty_6',
+  'firstparty_7',
+  'firstparty_8',
+  'firstparty_9',
+  'firstparty_10',
+  'firstparty_11',
+  'firstparty_12',
+  'firstparty_13',
+  'firstparty_14',
+  'firstparty_15',
+  'firstparty_16',
+  'firstparty_17',
+  'firstparty_18',
+  'firstparty_19',
+  'firstparty_20',
+] as const;
+
+// UNWIRED: the first-party publish routes emit these refusal codes and reconnect reasons once they land.
+export const FIRSTPARTY_REFUSAL_CODES = [
+  'firstparty_definition_invalid',
+  'firstparty_slot_mismatch',
+  'firstparty_stale_revision',
+  'firstparty_surface_frozen',
+  'firstparty_oauth_secret_mismatch',
+  'firstparty_oauth_secret_missing',
+  'firstparty_oauth_secret_too_large',
+  'firstparty_oauth_key_unavailable',
+  'firstparty_signer_unavailable',
+  'firstparty_pool_unsupported',
+  'firstparty_not_found',
+] as const;
+
+export const FIRSTPARTY_RECONNECT_TELEMETRY_REASONS = [
+  'streams_changed',
+  'sharing_rules_changed',
+] as const;
+
 export type BrowserSourceKind =
   | 'github'
   | 'code'
@@ -567,7 +610,8 @@ export type BrowserSourceKind =
   | 'microsoft365'
   | 'microsoft365_mail'
   | 'google_calendar'
-  | 'microsoft365_calendar';
+  | 'microsoft365_calendar'
+  | (typeof FIRSTPARTY_SLOT_TELEMETRY_KINDS)[number];
 
 type BrowserSourceConnectFailure =
   | 'cancelled'
@@ -633,6 +677,7 @@ const BROWSER_SOURCE_KINDS = new Set<BrowserSourceKind>([
   'microsoft365_mail',
   'google_calendar',
   'microsoft365_calendar',
+  ...FIRSTPARTY_SLOT_TELEMETRY_KINDS,
 ]);
 
 export const BROWSER_SOURCE_CONNECT_FAILURES = new Set<BrowserSourceConnectFailure>([

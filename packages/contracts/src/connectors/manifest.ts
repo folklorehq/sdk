@@ -36,7 +36,7 @@ const urlHostAllowed = (value: string): boolean => {
   }
 };
 
-const httpsHostUrlSchema = z
+export const httpsHostUrlSchema = z
   .string()
   .url()
   .startsWith('https://')
