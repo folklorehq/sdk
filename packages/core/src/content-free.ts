@@ -30,7 +30,7 @@ const MAX_FAILURE_CODE_LENGTH = 64;
 const FAILURE_CODE_SLUG_PATTERN = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$/;
 const SAFE_DISTINCT_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-// The check-in wire accepts any canonical UUID as a deployment id, so the log boundary does too.
+// The check-in wire accepts any canonical UUID as a deployment id, and a help-center release id is one, so the log boundary does too.
 const SAFE_LOG_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SAFE_LOG_REQUEST_ID_PATTERN =
   /^(?:[a-z][a-z0-9]{0,31}_[a-z0-9]{1,95}|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
@@ -88,7 +88,10 @@ export const SAFE_LOG_SIGNUP_STAGES = Object.freeze([
 const NON_NEGATIVE_INTEGER_FIELDS: ReadonlySet<string> = new Set([
   'departments',
   'eligibleRefs',
+  'epoch',
   'excludedRefs',
+  'fileCount',
+  'releaseNumber',
   'retired',
   'retries',
   'secondsSinceActive',
@@ -296,7 +299,7 @@ function isSafeLogValue(key: string, value: unknown): boolean {
   )
     return SAFE_DISTINCT_ID_PATTERN.test(value);
   if (key === 'model') return SAFE_LOG_MODEL_PATTERN.test(value);
-  if (key === 'deploymentId') return SAFE_LOG_UUID_PATTERN.test(value);
+  if (key === 'deploymentId' || key === 'releaseId') return SAFE_LOG_UUID_PATTERN.test(value);
   if (key === 'sourceSha') return SAFE_LOG_SOURCE_SHA_PATTERN.test(value);
   if (key === 'flagKey') return SAFE_LOG_FLAG_KEY_PATTERN.test(value);
   return false;
