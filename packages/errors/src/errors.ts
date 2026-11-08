@@ -357,6 +357,20 @@ export class EnterprisePlanUnavailableError extends AppError {
   }
 }
 
+/** The org's Stripe subscription owns its plan and interval, so an operator write would diverge from what Stripe bills. */
+export class PlanManagedByBillingError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super(
+      'The plan and interval of an org with a Stripe subscription are changed through billing',
+      {
+        ...options,
+        code: 'plan_managed_by_billing',
+        category: 'conflict',
+      },
+    );
+  }
+}
+
 /** An org's billing basis (plan, interval or counts) is not one the entitlement contract accepts. */
 export class InvalidBillingBasisError extends AppError {
   constructor(options: AppErrorOptions = {}) {

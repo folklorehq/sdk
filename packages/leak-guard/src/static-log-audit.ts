@@ -42,7 +42,6 @@ const CONSOLE_EXEMPT_FILES = new Set([
   'apps/pool-provisioning-runner/src/main.ts',
   'apps/pool-provisioning-runner/src/lambda.ts',
   'apps/control-plane-server/src/ops/cli.ts',
-  'apps/control-plane-server/src/ops/setup-stripe-products.ts',
   'apps/control-plane-server/src/ops/ensure-stripe-billing.ts',
   'apps/control-plane-server/src/composition-root/cli/preflight-composition.ts',
   'apps/worker/src/dev-bridge.ts',

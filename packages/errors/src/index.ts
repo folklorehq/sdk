@@ -42,6 +42,7 @@ export {
   ConfigurationError,
   InternalError,
   EnterprisePlanUnavailableError,
+  PlanManagedByBillingError,
   InvalidBillingBasisError,
   PERSONAL_SOURCE_FACT_DENIALS,
   PersonalSourceFactRejectedError,
