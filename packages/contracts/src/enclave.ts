@@ -5,6 +5,7 @@ import { MEMBER_MANIFEST_KINDS } from './connectors/index.js';
 import { containerLabelSchema } from './connectors/container-labels.js';
 import { factMetricSchema } from './metrics.js';
 import { sealedContentEnvelopeV1Schema } from './sealed-content.js';
+import { sensitivityLevelSchema, type SensitivityLevel } from './sensitivity.js';
 import { shadowArmSchema } from './shadow-review.js';
 import { richBlockKindSchema } from './wiki.js';
 import { inferenceModelRoleSchema } from './inference-trust.js';
@@ -115,15 +116,7 @@ export const hnswNeighborSchema = z
   .strict();
 export type HnswNeighbor = z.infer<typeof hnswNeighborSchema>;
 
-// content-free sensitivity label. A bare enum only: never carries a reason, snippet,
-// or matched keyword, so it does not smuggle content across the trust boundary.
-export const sensitivityLevelSchema = z.enum([
-  'public',
-  'team_scoped',
-  'restricted',
-  'confidential',
-]);
-export type SensitivityLevel = z.infer<typeof sensitivityLevelSchema>;
+export { sensitivityLevelSchema, type SensitivityLevel };
 
 // Theme names, tags and embeddings show to every member, so only facts the All-members audience may read feed them.
 export const THEME_SURFACE_CEILING: SensitivityLevel = 'team_scoped';

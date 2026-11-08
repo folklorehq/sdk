@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { documentTypeSchema, KNOWN_DOCUMENT_TYPE_IDS } from './document-types.js';
 
+import { sensitivityLevelSchema } from './sensitivity.js';
 import { canonicalBase64BytesSchema } from './shared.js';
 
 export const WIKI_PUBLICATION_TITLE_MAX_LENGTH = 240;
@@ -510,6 +511,8 @@ export const wikiPageResponseSchema = z
     updatesQueued: z.boolean().default(false),
     renderedAt: z.string().datetime().nullable().optional(),
     visibility: wikiPageVisibilitySchema.optional(),
+    // UNWIRED until sharing-access SA3a-0b: no producer sets `sensitivity` yet.
+    sensitivity: sensitivityLevelSchema.optional(),
   })
   .strict()
   .superRefine((page, context) => {
