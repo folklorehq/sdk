@@ -534,6 +534,55 @@ export const wikiPageStatusResponseSchema = z
   .strict();
 export type WikiPageStatusResponse = z.infer<typeof wikiPageStatusResponseSchema>;
 
+export const WIKI_HISTORY_DEFAULT_LIMIT = 20;
+export const WIKI_HISTORY_MAX_LIMIT = 50;
+export const WIKI_HISTORY_NAME_MAX_CHARS = 200;
+const wikiHistoryCursorSchema = z.string().regex(/^[1-9][0-9]{0,8}$/);
+
+export const wikiHistoryQuerySchema = z
+  .object({
+    audience: z.string().optional(),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(WIKI_HISTORY_MAX_LIMIT)
+      .default(WIKI_HISTORY_DEFAULT_LIMIT),
+    cursor: wikiHistoryCursorSchema.optional(),
+  })
+  .strict();
+export type WikiHistoryQuery = z.infer<typeof wikiHistoryQuerySchema>;
+
+export const wikiHistoryActorSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('folklore') }).strict(),
+  z
+    .object({
+      kind: z.literal('person'),
+      name: z.string().min(1).max(WIKI_HISTORY_NAME_MAX_CHARS).nullable(),
+    })
+    .strict(),
+]);
+export type WikiHistoryActor = z.infer<typeof wikiHistoryActorSchema>;
+
+export const wikiHistoryEntrySchema = z
+  .object({
+    revision: z.number().int().positive(),
+    at: z.string().datetime(),
+    actor: wikiHistoryActorSchema,
+  })
+  .strict();
+export type WikiHistoryEntry = z.infer<typeof wikiHistoryEntrySchema>;
+
+// Content-free: revision numbers, times and who; never a title, a block or a fact.
+export const wikiHistoryResponseSchema = z
+  .object({
+    entries: z.array(wikiHistoryEntrySchema).max(WIKI_HISTORY_MAX_LIMIT),
+    nextCursor: wikiHistoryCursorSchema.nullable(),
+    withheld: z.boolean(),
+  })
+  .strict();
+export type WikiHistoryResponse = z.infer<typeof wikiHistoryResponseSchema>;
+
 export const WIKI_STUB_TITLE_MAX_CHARS = 300;
 
 export const wikiStubStateSchema = z.enum(['page', 'building', 'deferred', 'unavailable']);
