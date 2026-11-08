@@ -20,7 +20,9 @@ export type OnboardingPersonGap = z.infer<typeof onboardingPersonGapSchema>;
 export const onboardingPersonSchema = z.object({ userId: z.string(), name: z.string() }).strict();
 export type OnboardingPerson = z.infer<typeof onboardingPersonSchema>;
 
-export const onboardingThemeSchema = z.object({ id: z.string(), name: z.string() }).strict();
+export const onboardingThemeSchema = z
+  .object({ id: z.string(), name: z.string(), hasPage: z.boolean() })
+  .strict();
 export type OnboardingTheme = z.infer<typeof onboardingThemeSchema>;
 
 // Team-level onboarding-readiness rollup for a lead (docs/product/onboarding-wikis.md Stage 3).
