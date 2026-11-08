@@ -280,6 +280,7 @@ const VALID_RELAYED_EVENT_FIXTURES = {
   'source.connect_started': { eventSchemaVersion: 1, sourceKind: 'github' },
   'source.connect_failed': { eventSchemaVersion: 1, sourceKind: 'github', reason: 'network' },
   'source.settings_viewed': { eventSchemaVersion: 1, sourceKind: 'slack' },
+  'wiki.cite_picker': { eventSchemaVersion: 1, step: 'selected', origin: 'page' },
   sign_in_completed: {},
   client_error: { origin: 'error_boundary', errorName: 'TypeError' },
   page_viewed: { eventSchemaVersion: 1, page: '/pricing' },
@@ -579,6 +580,7 @@ describe('PostHogTelemetryClient final boundary', () => {
     ['source.connect_started', { sourceKind: 'meeting' }],
     ['source.connect_failed', { reason: 'OAuth error: token abc123' }],
     ['wiki.toolbar_action', { action: 'unknown_action' }],
+    ['wiki.cite_picker', { origin: 'Project Zephyr' }],
   ] as const)('rejects a relayed %s payload with %j', (event, mutation) => {
     const { client, captured } = recordingClient();
 

@@ -19,6 +19,8 @@ import {
   AUDIENCE_ADMIN_TELEMETRY_REFUSALS,
   BROWSER_CLIENT_ERROR_ORIGINS,
   BROWSER_SOURCE_CONNECT_FAILURES,
+  WIKI_CITE_PICKER_ORIGINS,
+  WIKI_CITE_PICKER_STEPS,
   CLIENT_ERROR_NAMES,
   FIRSTPARTY_REFUSAL_CODES,
   FIRSTPARTY_RECONNECT_TELEMETRY_REASONS,
@@ -539,6 +541,11 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   'source.settings_viewed': propertyContract({
     eventSchemaVersion: schemaVersion1,
     sourceKind: browserSourceKind,
+  }),
+  'wiki.cite_picker': propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    step: oneOf(WIKI_CITE_PICKER_STEPS),
+    origin: oneOf(WIKI_CITE_PICKER_ORIGINS),
   }),
   sign_in_completed: propertyContract({}),
   client_error: propertyContract({

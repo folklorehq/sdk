@@ -117,9 +117,6 @@ describe('PostHogTelemetryClient transport options', () => {
 
     expect(captured).toBeDefined();
     expect(captured).not.toHaveProperty('timestamp');
-  });
-
-  it('omits the timestamp when none is given', () => {
     expect(captureWithTimestamp(undefined)).not.toHaveProperty('timestamp');
   });
 

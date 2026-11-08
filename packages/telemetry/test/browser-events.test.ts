@@ -26,6 +26,7 @@ it('keeps browser event properties closed and flat', () => {
     | 'source.connect_started'
     | 'source.connect_failed'
     | 'source.settings_viewed'
+    | 'wiki.cite_picker'
     | 'sign_in_completed'
     | 'client_error'
     | 'page_viewed'
@@ -167,6 +168,7 @@ describe('isBrowserEventAllowedFrom', () => {
     'source.connect_failed': ['console', 'box'],
     'source.settings_viewed': ['console'],
     'wiki.toolbar_action': ['box'],
+    'wiki.cite_picker': ['box'],
   };
 
   it.each(

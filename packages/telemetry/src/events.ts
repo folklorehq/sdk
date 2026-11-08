@@ -519,6 +519,7 @@ export const BrowserTelemetryEvent = {
   SourceConnectStarted: 'source.connect_started',
   SourceConnectFailed: 'source.connect_failed',
   SourceSettingsViewed: 'source.settings_viewed',
+  WikiCitePicker: 'wiki.cite_picker',
   SignInCompleted: 'sign_in_completed',
   ClientError: 'client_error',
   PageViewed: 'page_viewed',
@@ -667,8 +668,28 @@ type BrowserSourceConnectFailure =
 
 type BrowserClientErrorOrigin = 'error_boundary' | 'window_error' | 'unhandled_rejection';
 
+const WIKI_CITE_PICKER_STEP_VALUES = [
+  'opened',
+  'selected',
+  'fallback',
+  'dismissed',
+  'failed',
+] as const;
+const WIKI_CITE_PICKER_ORIGIN_VALUES = ['cited', 'page', 'search', 'url', 'none'] as const;
+export type WikiCitePickerStep = (typeof WIKI_CITE_PICKER_STEP_VALUES)[number];
+export type WikiCitePickerOrigin = (typeof WIKI_CITE_PICKER_ORIGIN_VALUES)[number];
+export const WIKI_CITE_PICKER_STEPS: ReadonlySet<string> = new Set(WIKI_CITE_PICKER_STEP_VALUES);
+export const WIKI_CITE_PICKER_ORIGINS: ReadonlySet<string> = new Set(
+  WIKI_CITE_PICKER_ORIGIN_VALUES,
+);
+
 type BrowserEvents = {
   'wiki.toolbar_action': { eventSchemaVersion: 1; action: WikiToolbarAction };
+  'wiki.cite_picker': {
+    eventSchemaVersion: 1;
+    step: WikiCitePickerStep;
+    origin: WikiCitePickerOrigin;
+  };
   'source.connect_started': { eventSchemaVersion: 1; sourceKind: BrowserSourceKind };
   'source.connect_failed': {
     eventSchemaVersion: 1;
@@ -744,6 +765,7 @@ const BROWSER_EVENT_PROPERTY_KEYS: Record<BrowserTelemetryEventName, readonly st
   'source.connect_started': ['eventSchemaVersion', 'sourceKind'],
   'source.connect_failed': ['eventSchemaVersion', 'sourceKind', 'reason'],
   'source.settings_viewed': ['eventSchemaVersion', 'sourceKind'],
+  'wiki.cite_picker': ['eventSchemaVersion', 'step', 'origin'],
   sign_in_completed: [],
   client_error: ['origin', 'errorName'],
   page_viewed: ['eventSchemaVersion', 'page'],
@@ -757,6 +779,7 @@ const BROWSER_EVENT_SURFACES: Record<BrowserTelemetryEventName, readonly Browser
   'source.connect_started': ['console', 'box'],
   'source.connect_failed': ['console', 'box'],
   'source.settings_viewed': ['console'],
+  'wiki.cite_picker': ['box'],
   sign_in_completed: ['console', 'operator', 'box'],
   client_error: ['console', 'operator', 'box'],
   page_viewed: ['web'],
@@ -831,6 +854,10 @@ export function isBrowserTelemetryProperty(
   if (key === 'eventSchemaVersion') return value === 1;
   if (key === 'sourceKind') {
     return typeof value === 'string' && BROWSER_SOURCE_KINDS.has(value as BrowserSourceKind);
+  }
+  if (event === BrowserTelemetryEvent.WikiCitePicker) {
+    const allowed = key === 'step' ? WIKI_CITE_PICKER_STEPS : WIKI_CITE_PICKER_ORIGINS;
+    return (key === 'step' || key === 'origin') && typeof value === 'string' && allowed.has(value);
   }
   if (key === 'origin') {
     return (
