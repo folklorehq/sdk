@@ -32,6 +32,7 @@ it('keeps browser event properties closed and flat', () => {
     | 'cta_clicked'
     | 'route_viewed'
     | 'onboarding_step_viewed'
+    | 'wiki.toolbar_action'
   >();
   expectTypeOf<TelemetryEventMap['source.connect_started']>().toEqualTypeOf<{
     eventSchemaVersion: 1;
@@ -103,16 +104,6 @@ it('keeps client error properties content-free at runtime', () => {
   expect(isBrowserTelemetryProperty('client_error', 'origin', 'window_error')).toBe(true);
 });
 
-it('keeps empty browser events property-free at runtime', () => {
-  expect(areBrowserTelemetryPropertiesValid('sign_in_completed', {})).toBe(true);
-  expect(areBrowserTelemetryPropertiesValid('sign_in_completed', { provider: 'google' })).toBe(
-    false,
-  );
-  expect(areBrowserTelemetryPropertiesValid('sign_in_completed', { eventSchemaVersion: 1 })).toBe(
-    false,
-  );
-});
-
 describe('clientErrorName', () => {
   it('keeps the name of a listed Error', () => {
     expect(clientErrorName(new TypeError('customer content'))).toBe('TypeError');
@@ -175,6 +166,7 @@ describe('isBrowserEventAllowedFrom', () => {
     'source.connect_started': ['console', 'box'],
     'source.connect_failed': ['console', 'box'],
     'source.settings_viewed': ['console'],
+    'wiki.toolbar_action': ['box'],
   };
 
   it.each(

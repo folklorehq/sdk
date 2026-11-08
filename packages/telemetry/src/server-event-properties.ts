@@ -30,6 +30,7 @@ import {
   PERSONAL_SOURCE_TELEMETRY_KINDS,
   PERSONAL_SOURCE_TELEMETRY_MODES,
   ROUTE_VIEW_SURFACES,
+  WIKI_TOOLBAR_ACTIONS,
   isBrowserSourceKind,
   type ServerTelemetryEventName,
 } from './events.js';
@@ -561,6 +562,10 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   onboarding_step_viewed: propertyContract({
     eventSchemaVersion: schemaVersion1,
     step: literal(...ONBOARDING_STEPS),
+  }),
+  'wiki.toolbar_action': propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    action: literal(...WIKI_TOOLBAR_ACTIONS),
   }),
 } satisfies Record<ServerTelemetryEventName, EventPropertiesValidator>;
 

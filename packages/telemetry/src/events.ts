@@ -525,6 +525,7 @@ export const BrowserTelemetryEvent = {
   CtaClicked: 'cta_clicked',
   RouteViewed: 'route_viewed',
   OnboardingStepViewed: 'onboarding_step_viewed',
+  WikiToolbarAction: 'wiki.toolbar_action',
 } as const;
 
 export const BROWSER_SURFACES = ['web', 'console', 'operator', 'box'] as const;
@@ -562,6 +563,34 @@ export type ClientErrorName = (typeof CLIENT_ERROR_NAMES)[number];
 
 export const ONBOARDING_STEPS = ['sources', 'roster', 'teams', 'invite', 'done'] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
+
+export const WIKI_TOOLBAR_ACTIONS = [
+  'block_type',
+  'bold',
+  'italic',
+  'strike',
+  'inline_code',
+  'bullet_list',
+  'ordered_list',
+  'quote',
+  'link',
+  'cite',
+  'mention',
+  'comment',
+  'insert_image',
+  'insert_table',
+  'insert_code',
+  'insert_diagram',
+  'insert_chart',
+  'insert_divider',
+  'insert_board',
+  'undo',
+  'redo',
+  'more_opened',
+] as const;
+export type WikiToolbarAction = (typeof WIKI_TOOLBAR_ACTIONS)[number];
+
+const WIKI_TOOLBAR_ACTION_SET: ReadonlySet<string> = new Set(WIKI_TOOLBAR_ACTIONS);
 
 export const ROUTE_VIEW_SURFACES = ['console', 'operator', 'box'] as const;
 export type RouteViewSurface = (typeof ROUTE_VIEW_SURFACES)[number];
@@ -639,6 +668,7 @@ type BrowserSourceConnectFailure =
 type BrowserClientErrorOrigin = 'error_boundary' | 'window_error' | 'unhandled_rejection';
 
 type BrowserEvents = {
+  'wiki.toolbar_action': { eventSchemaVersion: 1; action: WikiToolbarAction };
   'source.connect_started': { eventSchemaVersion: 1; sourceKind: BrowserSourceKind };
   'source.connect_failed': {
     eventSchemaVersion: 1;
@@ -720,6 +750,7 @@ const BROWSER_EVENT_PROPERTY_KEYS: Record<BrowserTelemetryEventName, readonly st
   cta_clicked: ['eventSchemaVersion', 'cta', 'page'],
   route_viewed: ['eventSchemaVersion', 'routeTemplate'],
   onboarding_step_viewed: ['eventSchemaVersion', 'step'],
+  'wiki.toolbar_action': ['eventSchemaVersion', 'action'],
 };
 
 const BROWSER_EVENT_SURFACES: Record<BrowserTelemetryEventName, readonly BrowserSurface[]> = {
@@ -732,6 +763,7 @@ const BROWSER_EVENT_SURFACES: Record<BrowserTelemetryEventName, readonly Browser
   cta_clicked: ['web'],
   route_viewed: ROUTE_VIEW_SURFACES,
   onboarding_step_viewed: ['console'],
+  'wiki.toolbar_action': ['box'],
 };
 
 export const CATALOG_BACKED_BROWSER_EVENTS: ReadonlySet<string> =
@@ -812,6 +844,13 @@ export function isBrowserTelemetryProperty(
       event === BrowserTelemetryEvent.ClientError &&
       typeof value === 'string' &&
       CLIENT_ERROR_NAME_SET.has(value)
+    );
+  }
+  if (key === 'action') {
+    return (
+      event === BrowserTelemetryEvent.WikiToolbarAction &&
+      typeof value === 'string' &&
+      WIKI_TOOLBAR_ACTION_SET.has(value)
     );
   }
   if (CATALOG_PROPERTY_KEYS.has(key)) return isCatalogProperty(event, key, value, catalog);

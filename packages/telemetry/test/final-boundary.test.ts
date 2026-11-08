@@ -286,6 +286,7 @@ const VALID_RELAYED_EVENT_FIXTURES = {
   cta_clicked: { eventSchemaVersion: 1, cta: 'hero_get_started', page: '/' },
   route_viewed: { eventSchemaVersion: 1, surface: 'console', routeTemplate: '/members' },
   onboarding_step_viewed: { eventSchemaVersion: 1, step: 'sources' },
+  'wiki.toolbar_action': { eventSchemaVersion: 1, action: 'bold' },
 } satisfies { [K in BrowserTelemetryEventName]: TelemetryEventMap[K] };
 
 interface CaptureStub {
@@ -577,6 +578,7 @@ describe('PostHogTelemetryClient final boundary', () => {
     ['client_error', { origin: 'renderer' }],
     ['source.connect_started', { sourceKind: 'meeting' }],
     ['source.connect_failed', { reason: 'OAuth error: token abc123' }],
+    ['wiki.toolbar_action', { action: 'unknown_action' }],
   ] as const)('rejects a relayed %s payload with %j', (event, mutation) => {
     const { client, captured } = recordingClient();
 
