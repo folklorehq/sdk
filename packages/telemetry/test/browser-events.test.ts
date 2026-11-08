@@ -27,6 +27,7 @@ it('keeps browser event properties closed and flat', () => {
     | 'source.connect_failed'
     | 'source.settings_viewed'
     | 'wiki.cite_picker'
+    | 'wiki.link_picker'
     | 'sign_in_completed'
     | 'client_error'
     | 'page_viewed'
@@ -111,13 +112,10 @@ describe('clientErrorName', () => {
     expect(clientErrorName(new DOMException('customer content', 'AbortError'))).toBe('AbortError');
   });
 
-  it('maps a custom Error subclass to other', () => {
-    expect(clientErrorName(new (class Foo extends Error {})())).toBe('other');
-  });
-
-  it('maps a custom subclass that reuses a listed name to other', () => {
+  it('maps a custom Error subclass to other, even one that reuses a listed name', () => {
     class NetworkError extends Error {}
 
+    expect(clientErrorName(new (class Foo extends Error {})())).toBe('other');
     expect(clientErrorName(new NetworkError('customer content'))).toBe('other');
   });
 
@@ -169,6 +167,7 @@ describe('isBrowserEventAllowedFrom', () => {
     'source.settings_viewed': ['console'],
     'wiki.toolbar_action': ['box'],
     'wiki.cite_picker': ['box'],
+    'wiki.link_picker': ['box'],
   };
 
   it.each(

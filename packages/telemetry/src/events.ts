@@ -520,6 +520,7 @@ export const BrowserTelemetryEvent = {
   SourceConnectFailed: 'source.connect_failed',
   SourceSettingsViewed: 'source.settings_viewed',
   WikiCitePicker: 'wiki.cite_picker',
+  WikiLinkPicker: 'wiki.link_picker',
   SignInCompleted: 'sign_in_completed',
   ClientError: 'client_error',
   PageViewed: 'page_viewed',
@@ -683,12 +684,26 @@ export const WIKI_CITE_PICKER_ORIGINS: ReadonlySet<string> = new Set(
   WIKI_CITE_PICKER_ORIGIN_VALUES,
 );
 
+const WIKI_LINK_PICKER_STEP_VALUES = ['opened', 'selected', 'dismissed'] as const;
+const WIKI_LINK_PICKER_TARGET_VALUES = ['page', 'person', 'url', 'none'] as const;
+export type WikiLinkPickerStep = (typeof WIKI_LINK_PICKER_STEP_VALUES)[number];
+export type WikiLinkPickerTarget = (typeof WIKI_LINK_PICKER_TARGET_VALUES)[number];
+export const WIKI_LINK_PICKER_STEPS: ReadonlySet<string> = new Set(WIKI_LINK_PICKER_STEP_VALUES);
+export const WIKI_LINK_PICKER_TARGETS: ReadonlySet<string> = new Set(
+  WIKI_LINK_PICKER_TARGET_VALUES,
+);
+
 type BrowserEvents = {
   'wiki.toolbar_action': { eventSchemaVersion: 1; action: WikiToolbarAction };
   'wiki.cite_picker': {
     eventSchemaVersion: 1;
     step: WikiCitePickerStep;
     origin: WikiCitePickerOrigin;
+  };
+  'wiki.link_picker': {
+    eventSchemaVersion: 1;
+    step: WikiLinkPickerStep;
+    target: WikiLinkPickerTarget;
   };
   'source.connect_started': { eventSchemaVersion: 1; sourceKind: BrowserSourceKind };
   'source.connect_failed': {
@@ -766,6 +781,7 @@ const BROWSER_EVENT_PROPERTY_KEYS: Record<BrowserTelemetryEventName, readonly st
   'source.connect_failed': ['eventSchemaVersion', 'sourceKind', 'reason'],
   'source.settings_viewed': ['eventSchemaVersion', 'sourceKind'],
   'wiki.cite_picker': ['eventSchemaVersion', 'step', 'origin'],
+  'wiki.link_picker': ['eventSchemaVersion', 'step', 'target'],
   sign_in_completed: [],
   client_error: ['origin', 'errorName'],
   page_viewed: ['eventSchemaVersion', 'page'],
@@ -780,6 +796,7 @@ const BROWSER_EVENT_SURFACES: Record<BrowserTelemetryEventName, readonly Browser
   'source.connect_failed': ['console', 'box'],
   'source.settings_viewed': ['console'],
   'wiki.cite_picker': ['box'],
+  'wiki.link_picker': ['box'],
   sign_in_completed: ['console', 'operator', 'box'],
   client_error: ['console', 'operator', 'box'],
   page_viewed: ['web'],
@@ -858,6 +875,10 @@ export function isBrowserTelemetryProperty(
   if (event === BrowserTelemetryEvent.WikiCitePicker) {
     const allowed = key === 'step' ? WIKI_CITE_PICKER_STEPS : WIKI_CITE_PICKER_ORIGINS;
     return (key === 'step' || key === 'origin') && typeof value === 'string' && allowed.has(value);
+  }
+  if (event === BrowserTelemetryEvent.WikiLinkPicker) {
+    const allowed = key === 'step' ? WIKI_LINK_PICKER_STEPS : WIKI_LINK_PICKER_TARGETS;
+    return (key === 'step' || key === 'target') && typeof value === 'string' && allowed.has(value);
   }
   if (key === 'origin') {
     return (

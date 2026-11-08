@@ -21,6 +21,8 @@ import {
   BROWSER_SOURCE_CONNECT_FAILURES,
   WIKI_CITE_PICKER_ORIGINS,
   WIKI_CITE_PICKER_STEPS,
+  WIKI_LINK_PICKER_STEPS,
+  WIKI_LINK_PICKER_TARGETS,
   CLIENT_ERROR_NAMES,
   FIRSTPARTY_REFUSAL_CODES,
   FIRSTPARTY_RECONNECT_TELEMETRY_REASONS,
@@ -546,6 +548,11 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     eventSchemaVersion: schemaVersion1,
     step: oneOf(WIKI_CITE_PICKER_STEPS),
     origin: oneOf(WIKI_CITE_PICKER_ORIGINS),
+  }),
+  'wiki.link_picker': propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    step: oneOf(WIKI_LINK_PICKER_STEPS),
+    target: oneOf(WIKI_LINK_PICKER_TARGETS),
   }),
   sign_in_completed: propertyContract({}),
   client_error: propertyContract({
