@@ -91,6 +91,7 @@ export const SAFE_LOG_FIELDS = Object.freeze([
   'missing',
   'model',
   'nonTransitionFacts',
+  'openBatches',
   'operation',
   'operationId',
   'opusFlagged',

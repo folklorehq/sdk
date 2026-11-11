@@ -25,6 +25,19 @@ describe('usageCostMicros', () => {
     expect(INFERENCE_MODEL_CATALOG['claude-sonnet-5-5'].prices.output).toBe(11_000_000);
   });
 
+  it('prices one-hour cache writes at twice the model input price, and an unknown model at the dearest input', () => {
+    const oneHour = { promptTokens: 0, completionTokens: 0, cacheWrite1hTokens: TOKENS_PER_MTOK };
+    for (const model of INFERENCE_MODEL_IDS) {
+      expect(usageCostMicros({ model, ...oneHour }), model).toBe(
+        2 * INFERENCE_MODEL_CATALOG[model].prices.input,
+      );
+    }
+    expect(usageCostMicros({ model: 'unknown', ...oneHour })).toBe(2 * UNKNOWN_MODEL_PRICES.input);
+    expect(() =>
+      usageCostMicros({ model: 'claude-sonnet-5-5', ...oneHour, cacheWrite1hTokens: -1 }),
+    ).toThrow('claude_usage_tokens_invalid');
+  });
+
   it('prices Sonnet cache reads at 0.05x base input with the US uplift', () => {
     expect(INFERENCE_MODEL_CATALOG['claude-sonnet-5-5'].prices.cacheRead).toBe(110_000);
   });

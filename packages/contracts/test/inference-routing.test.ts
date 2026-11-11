@@ -15,6 +15,7 @@ import {
 import { isInferenceModelId } from '../src/inference-catalog.js';
 import {
   INFERENCE_CHECKER_RULES,
+  isBatchDeferralReason,
   INFERENCE_CHECK_PURPOSES,
   INFERENCE_DEFERRAL_REASONS,
   INFERENCE_LONG_PURPOSES,
@@ -76,7 +77,19 @@ describe('the provider-neutral routing vocabulary', () => {
     expect(inferenceEffortSchema.options).toEqual(['low', 'medium', 'high']);
     expect(inferenceArmSchema.options).toEqual(['D', 'R', 'B']);
     expect(inferenceUsageOutcomeSchema.options).toEqual(['ok', 'discarded', 'shadow']);
-    expect(INFERENCE_DEFERRAL_REASONS).toEqual(['provider_outage', 'provider_slow']);
+    expect(INFERENCE_DEFERRAL_REASONS).toEqual([
+      'provider_outage',
+      'provider_slow',
+      'batch_pending',
+      'batch_obsolete',
+    ]);
+  });
+
+  it('routes only the two batch reasons to the batch deferral path', () => {
+    expect(INFERENCE_DEFERRAL_REASONS.filter(isBatchDeferralReason)).toEqual([
+      'batch_pending',
+      'batch_obsolete',
+    ]);
   });
 
   it('keeps the old Claude names pointing at the same values', () => {

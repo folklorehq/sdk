@@ -128,7 +128,12 @@ describe('claude inference enums', () => {
     expect(claudeEffortSchema.safeParse('max').success).toBe(false);
     expect(claudeArmSchema.safeParse('X').success).toBe(false);
     expect(inferenceUsageOutcomeSchema.options).toEqual(['ok', 'discarded', 'shadow']);
-    expect([...CLAUDE_DEFERRAL_REASONS]).toEqual(['provider_outage', 'provider_slow']);
+    expect([...CLAUDE_DEFERRAL_REASONS]).toEqual([
+      'provider_outage',
+      'provider_slow',
+      'batch_pending',
+      'batch_obsolete',
+    ]);
   });
 });
 
@@ -201,7 +206,13 @@ describe('RECEIPT_REBUILD_REASONS', () => {
 describe('tokenUsageSchema Claude fields', () => {
   it('parses each new field with and without a value, and sets no default key', () => {
     const bare = tokenUsageSchema.parse(usage);
-    for (const key of ['purpose', 'outcome', 'cacheReadTokens', 'cacheWriteTokens']) {
+    for (const key of [
+      'purpose',
+      'outcome',
+      'cacheReadTokens',
+      'cacheWriteTokens',
+      'cacheWrite1hTokens',
+    ]) {
       expect(key in bare).toBe(false);
     }
     const full = tokenUsageSchema.parse({
@@ -210,12 +221,14 @@ describe('tokenUsageSchema Claude fields', () => {
       outcome: 'ok',
       cacheReadTokens: 5,
       cacheWriteTokens: 7,
+      cacheWrite1hTokens: 9,
     });
     expect(full).toMatchObject({
       purpose: 'wiki_section',
       outcome: 'ok',
       cacheReadTokens: 5,
       cacheWriteTokens: 7,
+      cacheWrite1hTokens: 9,
     });
     expect(tokenUsageSchema.parse({ ...usage, purpose: 'untagged' }).purpose).toBe('untagged');
   });
@@ -224,6 +237,8 @@ describe('tokenUsageSchema Claude fields', () => {
     for (const patch of [
       { cacheReadTokens: -1 },
       { cacheWriteTokens: 1.5 },
+      { cacheWrite1hTokens: -1 },
+      { cacheWrite1hTokens: 1.5 },
       { purpose: 'free_text_purpose' },
       { outcome: 'refunded' },
     ]) {
@@ -406,6 +421,23 @@ describe('wikiSynthesisDeferredSchema', () => {
     ).toBe(false);
   });
 
+  it('accepts the batch reasons with an optional open-batch count and refuses a bad count', () => {
+    for (const reason of ['batch_pending', 'batch_obsolete']) {
+      expect(
+        wikiSynthesisDeferredSchema.safeParse({ ...deferredBase, reason, openBatches: 2 }).success,
+      ).toBe(true);
+    }
+    for (const openBatches of [-1, 1.5]) {
+      expect(
+        wikiSynthesisDeferredSchema.safeParse({
+          ...deferredBase,
+          reason: 'batch_pending',
+          openBatches,
+        }).success,
+      ).toBe(false);
+    }
+  });
+
   it('refuses the whole output for a malformed usage entry instead of coercing it to []', () => {
     for (const entry of [
       { ...usage, note: 'extra key' },
@@ -480,6 +512,14 @@ describe('synthesisRequestSchema previous page states and shadow arms', () => {
     );
     expect(synthesisRequestSchema.safeParse({ ...request, shadowArms: ['R', 'B'] }).success).toBe(
       true,
+    );
+  });
+
+  it('carries collectOnly only as true, and adds no key when it is absent', () => {
+    expect(synthesisRequestSchema.parse({ ...request, collectOnly: true }).collectOnly).toBe(true);
+    expect('collectOnly' in synthesisRequestSchema.parse(request)).toBe(false);
+    expect(synthesisRequestSchema.safeParse({ ...request, collectOnly: false }).success).toBe(
+      false,
     );
   });
 });

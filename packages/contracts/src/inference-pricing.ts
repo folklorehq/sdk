@@ -8,6 +8,7 @@ import {
 
 const MICROS_PER_MTOK_DIVISOR = 1_000_000n;
 const TOKEN_PRICE_CLASSES = ['input', 'output', 'cacheWrite', 'cacheRead'] as const;
+export const CACHE_WRITE_1H_INPUT_MULTIPLIER = 2n;
 
 export interface PricedUsage {
   readonly model: string;
@@ -15,6 +16,7 @@ export interface PricedUsage {
   readonly completionTokens: number;
   readonly cacheReadTokens?: number;
   readonly cacheWriteTokens?: number;
+  readonly cacheWrite1hTokens?: number;
 }
 
 function everyPriceTier(entry: InferenceModelCatalogEntry): readonly InferenceTokenPrices[] {
@@ -45,6 +47,7 @@ function assertTokenCounts(usage: PricedUsage): void {
     usage.completionTokens,
     usage.cacheReadTokens ?? 0,
     usage.cacheWriteTokens ?? 0,
+    usage.cacheWrite1hTokens ?? 0,
   ];
   if (!counts.every((count) => Number.isSafeInteger(count) && count >= 0)) {
     throw new Error('claude_usage_tokens_invalid');
@@ -58,7 +61,8 @@ export function usageCostMicros(usage: PricedUsage): number {
     BigInt(usage.promptTokens) * BigInt(price.input) +
     BigInt(usage.completionTokens) * BigInt(price.output) +
     BigInt(usage.cacheReadTokens ?? 0) * BigInt(price.cacheRead) +
-    BigInt(usage.cacheWriteTokens ?? 0) * BigInt(price.cacheWrite);
+    BigInt(usage.cacheWriteTokens ?? 0) * BigInt(price.cacheWrite) +
+    BigInt(usage.cacheWrite1hTokens ?? 0) * BigInt(price.input) * CACHE_WRITE_1H_INPUT_MULTIPLIER;
   const wholeMicros = (scaledMicros + MICROS_PER_MTOK_DIVISOR - 1n) / MICROS_PER_MTOK_DIVISOR;
   return Number(wholeMicros);
 }

@@ -386,6 +386,8 @@ export const tokenUsageSchema = z
     outcome: inferenceUsageOutcomeSchema.optional(),
     cacheReadTokens: z.number().int().nonnegative().optional(),
     cacheWriteTokens: z.number().int().nonnegative().optional(),
+    // Disjoint from cacheWriteTokens, which stays the five-minute writes.
+    cacheWrite1hTokens: z.number().int().nonnegative().optional(),
   })
   .strict();
 export type TokenUsage = z.infer<typeof tokenUsageSchema>;
@@ -522,6 +524,7 @@ export const wikiSynthesisDeferredSchema = z
     leaseToken: z.string().min(1),
     reason: z.enum(INFERENCE_DEFERRAL_REASONS),
     tokenUsage: z.array(tokenUsageSchema),
+    openBatches: z.number().int().nonnegative().optional(),
   })
   .strict();
 export type WikiSynthesisDeferred = z.infer<typeof wikiSynthesisDeferredSchema>;
@@ -546,6 +549,7 @@ const discardedUsageEntrySchema = tokenUsageSchema.extend({
   completionTokens: discardedCountSchema,
   cacheReadTokens: discardedCountSchema.optional(),
   cacheWriteTokens: discardedCountSchema.optional(),
+  cacheWrite1hTokens: discardedCountSchema.optional(),
 });
 
 // Not tokenUsageArray: malformed usage must refuse the output, never read as an empty (free) run.
@@ -876,6 +880,8 @@ export const synthesisRequestSchema = z.object({
     .max(SHADOW_ARMS_MAX)
     .refine((arms) => new Set(arms).size === arms.length)
     .optional(),
+  // Set on a brake-exempt batch collection: the enclave collects or defers batch_pending, never runs synchronously or submits, so the claim spends nothing.
+  collectOnly: z.literal(true).optional(),
 });
 export type SynthesisRequest = z.infer<typeof synthesisRequestSchema>;
 

@@ -1911,6 +1911,8 @@ type EnclaveSynthesisRequest = {
   // Mirrors the enclave's SynthesisConsumer request shape.
   previousPageStates?: WikiPageStateEnvelope[];
   shadowArms?: ('R' | 'B')[];
+  // SB-8b adds collectOnly to the enclave's SynthesisConsumer request interface.
+  collectOnly?: true;
 };
 
 type _KnowledgeSkeletonPinned = Expect<Equal<KnowledgeSkeleton, EnclaveKnowledgeSkeleton>>;

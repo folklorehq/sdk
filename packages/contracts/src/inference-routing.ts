@@ -49,8 +49,20 @@ export type InferenceArmId = z.infer<typeof inferenceArmSchema>;
 export const inferenceUsageOutcomeSchema = z.enum(['ok', 'discarded', 'shadow']);
 export type InferenceUsageOutcome = z.infer<typeof inferenceUsageOutcomeSchema>;
 
-export const INFERENCE_DEFERRAL_REASONS = ['provider_outage', 'provider_slow'] as const;
+export const BATCH_DEFERRAL_REASONS = ['batch_pending', 'batch_obsolete'] as const;
+export type BatchDeferralReason = (typeof BATCH_DEFERRAL_REASONS)[number];
+export const INFERENCE_DEFERRAL_REASONS = [
+  'provider_outage',
+  'provider_slow',
+  ...BATCH_DEFERRAL_REASONS,
+] as const;
 export type InferenceDeferralReason = (typeof INFERENCE_DEFERRAL_REASONS)[number];
+
+export function isBatchDeferralReason(
+  reason: InferenceDeferralReason,
+): reason is BatchDeferralReason {
+  return (BATCH_DEFERRAL_REASONS as readonly string[]).includes(reason);
+}
 
 export type RoutedProviderId = Exclude<InferenceProviderId, 'phala' | 'openai'>;
 
