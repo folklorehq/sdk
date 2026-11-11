@@ -444,6 +444,21 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     loopSamples: count,
     seconds: count,
   }),
+  'enclave.mcp_calls': propertyContract({
+    windowSeconds: count,
+    askAnswered: count,
+    askAbstained: count,
+    searchReturned: count,
+    readPageReturned: count,
+    unauthorized: count,
+    forbidden: count,
+    invalid: count,
+    rateLimited: count,
+    unavailable: count,
+    failed: count,
+    projectionFailed: count,
+  }),
+  'agent_access.projection_truncated': propertyContract({ count }),
   'inference.model_rejected': propertyContract({ model: rejectedModel }),
   'inference.attestation_failed': propertyContract({
     reason: (value) =>

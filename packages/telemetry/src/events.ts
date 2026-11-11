@@ -70,6 +70,7 @@ export const TelemetryEvent = {
   WorkerError: 'worker.error',
   DeploymentCheckin: 'deployment.checkin',
   EnclaveEventLoopDelay: 'enclave.event_loop_delay',
+  EnclaveMcpCalls: 'enclave.mcp_calls',
   DirectoryTeamProjectionFailed: 'directory.team_projection_failed',
   OrgUsage: 'org.usage',
   TenantDataDeleted: 'tenant.data_deleted',
@@ -89,6 +90,7 @@ export const TelemetryEvent = {
   FirstpartyConnectorPublished: 'firstparty_connector.published',
   FirstpartyConnectorUnpublished: 'firstparty_connector.unpublished',
   FirstpartyConnectorRefused: 'firstparty_connector.refused',
+  AgentAccessProjectionTruncated: 'agent_access.projection_truncated',
 } as const;
 
 // Telemetry imports nothing from contracts (the private agent-access module stays out of the SDK mirror); the control-plane vocabulary test pins these to it.
@@ -420,6 +422,20 @@ type OpsEvents = {
     loopSamples: number;
     seconds: number;
   };
+  'enclave.mcp_calls': {
+    windowSeconds: number;
+    askAnswered: number;
+    askAbstained: number;
+    searchReturned: number;
+    readPageReturned: number;
+    unauthorized: number;
+    forbidden: number;
+    invalid: number;
+    rateLimited: number;
+    unavailable: number;
+    failed: number;
+    projectionFailed: number;
+  };
   'wiki.synthesized': {
     orgId: string;
     themeId: string;
@@ -528,6 +544,7 @@ type ErrorEvents = {
     phase: 'authorization' | 'token' | 'revocation' | 'server';
     errorCode: (typeof AGENT_ACCESS_TELEMETRY_OAUTH_ERRORS)[number];
   };
+  'agent_access.projection_truncated': { count: number };
   'error.captured': ErrorReport;
 };
 
