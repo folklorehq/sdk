@@ -44,6 +44,7 @@ export {
   EnterprisePlanUnavailableError,
   PlanManagedByBillingError,
   InvalidBillingBasisError,
+  PeriodInPastError,
   PERSONAL_SOURCE_FACT_DENIALS,
   PersonalSourceFactRejectedError,
   PersonalSourceAccountConflictError,

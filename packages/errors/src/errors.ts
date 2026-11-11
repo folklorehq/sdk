@@ -371,6 +371,17 @@ export class PlanManagedByBillingError extends AppError {
   }
 }
 
+/** A spend grant names a period that has already ended, so it could never raise a cap. */
+export class PeriodInPastError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('The grant period has already ended', {
+      ...options,
+      code: 'period_in_past',
+      category: 'validation',
+    });
+  }
+}
+
 /** An org's billing basis (plan, interval or counts) is not one the entitlement contract accepts. */
 export class InvalidBillingBasisError extends AppError {
   constructor(options: AppErrorOptions = {}) {
