@@ -92,6 +92,7 @@ const VALID_SERVER_EVENT_FIXTURES = {
   'audience.updated': { orgId: ORGANIZATION_ID, renamed: true, ceilingChange: 'raised' },
   'audience.membership_changed': { orgId: ORGANIZATION_ID, change: 'added' },
   'audience.change_refused': { orgId: ORGANIZATION_ID, action: 'create', reason: 'name_taken' },
+  'audience.membership_timeout': { reader: 'access', count: 1 },
   'agent_access.policy_changed': {
     orgId: ORGANIZATION_ID,
     mode: 'answers',

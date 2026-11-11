@@ -30,6 +30,7 @@ export const TelemetryEvent = {
   AudienceUpdated: 'audience.updated',
   AudienceMembershipChanged: 'audience.membership_changed',
   AudienceChangeRefused: 'audience.change_refused',
+  AudienceMembershipTimeout: 'audience.membership_timeout',
   BetaInviteCreated: 'beta_invite.created',
   BetaInviteAccepted: 'beta_invite.accepted',
   DirectoryImported: 'directory.imported',
@@ -172,6 +173,20 @@ export const AUDIENCE_ADMIN_TELEMETRY_REFUSALS = [
   'ceiling_not_available',
   'person_not_eligible',
 ] as const;
+
+// Same rule: a closed copy of @folklore/wiki's AUDIENCE_MEMBERSHIP_READERS, which the box API passes through the report port.
+export const AUDIENCE_MEMBERSHIP_TELEMETRY_READERS = [
+  'access',
+  'profile',
+  'notifications',
+  'synthesis',
+  'admin_count',
+  'admin_members',
+  'rule_check',
+  'preview',
+] as const;
+export type AudienceMembershipTelemetryReader =
+  (typeof AUDIENCE_MEMBERSHIP_TELEMETRY_READERS)[number];
 
 // Same rule as above: the control plane passes contract types, which must stay assignable to these.
 export const PERSONAL_SOURCE_TELEMETRY_KINDS = [
@@ -376,6 +391,7 @@ type OpsEvents = {
     destroyed: number;
     durationMs: number;
   };
+  'audience.membership_timeout': { reader: AudienceMembershipTelemetryReader; count: number };
   'fact.ingested': { orgId: string; sourceKind: string };
   'fact.scored': {
     orgId: string;

@@ -17,6 +17,7 @@ import {
   AGENT_ACCESS_TELEMETRY_SENSITIVITIES,
   AGENT_ACCESS_TELEMETRY_WRITE_DENIALS,
   AUDIENCE_ADMIN_TELEMETRY_REFUSALS,
+  AUDIENCE_MEMBERSHIP_TELEMETRY_READERS,
   BROWSER_CLIENT_ERROR_ORIGINS,
   BROWSER_SOURCE_CONNECT_FAILURES,
   WIKI_CITE_PICKER_ORIGINS,
@@ -361,6 +362,10 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   'audience.membership_changed': propertyContract({
     ...orgId,
     change: literal('added', 'removed'),
+  }),
+  'audience.membership_timeout': propertyContract({
+    reader: literal(...AUDIENCE_MEMBERSHIP_TELEMETRY_READERS),
+    count,
   }),
   'audience.change_refused': propertyContract({
     ...orgId,

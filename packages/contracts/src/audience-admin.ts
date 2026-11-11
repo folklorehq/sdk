@@ -29,7 +29,7 @@ export const adminAudienceSchema = z
     name: z.string(),
     kind: audienceKindSchema,
     maxSensitivity: sensitivityLevelSchema,
-    memberCount: z.number().int().nonnegative().nullable(), // null for the open new-hire lens
+    memberCount: z.number().int().nonnegative().nullable(), // null for the open new-hire lens, or a rule audience whose count timed out
     editable: z.boolean(),
   })
   .strict();
@@ -52,8 +52,13 @@ export const audiencePersonSchema = z
   .strict();
 export type AudiencePerson = z.infer<typeof audiencePersonSchema>;
 
+export const audienceMemberSchema = audiencePersonSchema
+  .extend({ addedByHand: z.boolean() })
+  .strict();
+export type AudienceMember = z.infer<typeof audienceMemberSchema>;
+
 export const audienceMembersSchema = z
-  .object({ members: z.array(audiencePersonSchema), truncated: z.boolean() })
+  .object({ members: z.array(audienceMemberSchema), truncated: z.boolean() })
   .strict();
 export type AudienceMembers = z.infer<typeof audienceMembersSchema>;
 

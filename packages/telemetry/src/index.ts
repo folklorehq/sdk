@@ -22,6 +22,8 @@ export {
   AGENT_ACCESS_TELEMETRY_SENSITIVITIES,
   AGENT_ACCESS_TELEMETRY_WRITE_DENIALS,
   AUDIENCE_ADMIN_TELEMETRY_REFUSALS,
+  AUDIENCE_MEMBERSHIP_TELEMETRY_READERS,
+  type AudienceMembershipTelemetryReader,
   areBrowserTelemetryPropertiesValid,
   BROWSER_SURFACES,
   browserTelemetryPropertyKeys,
@@ -49,6 +51,7 @@ export {
 } from './content-free.js';
 export { areServerTelemetryPropertiesValid } from './server-event-properties.js';
 export { installGlobalErrorReporting, type GlobalErrorReportingOptions } from './global-errors.js';
+export { membershipTimeoutReport } from './membership-timeout-report.js';
 export { NoopTelemetryClient } from './NoopTelemetryClient.js';
 export { PostHogTelemetryClient } from './PostHogTelemetryClient.js';
 
