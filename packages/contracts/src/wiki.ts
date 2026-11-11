@@ -511,7 +511,6 @@ export const wikiPageResponseSchema = z
     updatesQueued: z.boolean().default(false),
     renderedAt: z.string().datetime().nullable().optional(),
     visibility: wikiPageVisibilitySchema.optional(),
-    // UNWIRED until sharing-access SA3a-0b: no producer sets `sensitivity` yet.
     sensitivity: sensitivityLevelSchema.optional(),
   })
   .strict()
