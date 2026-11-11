@@ -596,13 +596,12 @@ export const wikiStubResponseSchema = z
     themeId: z.string().uuid(),
     title: z.string().max(WIKI_STUB_TITLE_MAX_CHARS),
     state: wikiStubStateSchema,
-    // UNWIRED: no producer sets notifyReady until SA9a-2
     notifyReady: z.boolean().optional(),
   })
   .strict();
 export type WikiStubResponse = z.infer<typeof wikiStubResponseSchema>;
 
-// UNWIRED: no route returns this until SA9a-2; the box parses it from SA9b
+// UNWIRED: the box does not parse this until SA9b
 export const wikiNotifyReadyResponseSchema = z
   .object({ state: wikiStubStateSchema, notifyReady: z.boolean() })
   .strict();

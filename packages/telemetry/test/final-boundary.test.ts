@@ -246,6 +246,7 @@ const VALID_SERVER_EVENT_FIXTURES = {
     coverageOutcome: 'clean',
   },
   'wiki.link_preview': { orgId: ORGANIZATION_ID, outcome: 'preview', latencyMs: 1 },
+  'wiki.ready_sweep': { orgId: ORGANIZATION_ID, enqueued: 1, expired: 1 },
   'notification.sent': { orgId: ORGANIZATION_ID, channel: 'email' },
   'notification.send_failed': {
     orgId: ORGANIZATION_ID,

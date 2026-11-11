@@ -65,6 +65,7 @@ export const TelemetryEvent = {
   WikiRichBlocksSynthesized: 'wiki.rich_blocks.synthesized',
   WikiCritiqueCompleted: 'wiki.critique.completed',
   WikiLinkPreview: 'wiki.link_preview',
+  WikiReadySweep: 'wiki.ready_sweep',
   NotificationSent: 'notification.sent',
   NotificationSendFailed: 'notification.send_failed',
   WorkerError: 'worker.error',
@@ -482,6 +483,7 @@ type OpsEvents = {
     coverageOutcome: 'clean' | 'blocks_added' | 'failed' | 'skipped';
   };
   'wiki.link_preview': { orgId: string; outcome: 'preview' | 'empty'; latencyMs: number };
+  'wiki.ready_sweep': { orgId: string; enqueued: number; expired: number };
   'notification.sent': { orgId: string; channel: 'email' | 'slack' };
   'api.request': {
     method: RequestMethod;

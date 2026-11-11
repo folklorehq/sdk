@@ -501,6 +501,7 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     outcome: literal('preview', 'empty'),
     latencyMs: count,
   }),
+  'wiki.ready_sweep': propertyContract({ ...orgId, enqueued: count, expired: count }),
   'notification.sent': propertyContract({ ...orgId, channel: literal('email', 'slack') }),
   'notification.send_failed': propertyContract({
     ...orgId,

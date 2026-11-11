@@ -18,3 +18,10 @@ export const NOTIFICATION_EXPIRED_METRIC = {
   name: 'NotificationExpired',
   poolDimension: 'PoolId',
 } as const;
+
+/** The CloudWatch metric a pool's notification drain emits for orgs whose wiki-ready sweep threw; a count only. */
+export const WIKI_READY_SWEEP_FAILED_METRIC = {
+  namespace: 'Folklore/Pool',
+  name: 'WikiReadySweepFailed',
+  poolDimension: 'PoolId',
+} as const;
