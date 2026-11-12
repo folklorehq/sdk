@@ -73,6 +73,18 @@ export class HostInstanceMissingError extends AppError {
   }
 }
 
+/** The directory carried no control-plane ids, so the team pass cannot key rows on them. */
+// Referenced by name from deploy tooling; do not rename or move.
+export class TeamProjectionUnkeyedError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('The directory carried no control-plane ids to key teams on', {
+      ...options,
+      code: 'team_projection_unkeyed',
+      category: 'unavailable',
+    });
+  }
+}
+
 /** The pool host has no recorded region, so it cannot be looked up. */
 export class HostLocationUnknownError extends AppError {
   constructor(options: AppErrorOptions = {}) {

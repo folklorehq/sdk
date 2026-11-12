@@ -15,6 +15,7 @@ export {
   HostInstanceMismatchError,
   HostInstanceMissingError,
   HostLocationUnknownError,
+  TeamProjectionUnkeyedError,
   HostBusyError,
   LastSuperAdminError,
   StaffAccessChangedError,
