@@ -437,6 +437,21 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   ),
   'inference.receipt_verified': propertyContract({ sessionId }),
   'directory.team_projection_failed': propertyContract({}),
+  'directory.nudge_raised': propertyContract({
+    ...orgId,
+    cause: literal(
+      'permissions_changed',
+      'member_suspended',
+      'member_admitted',
+      'member_readmitted',
+      'account_deleted',
+    ),
+  }),
+  'directory.nudge_delivered': propertyContract({ ...orgId, latencySeconds: count }),
+  'directory.nudge_overdue': propertyContract({
+    ...orgId,
+    reason: literal('pulled_not_delivered', 'pulls_stopped'),
+  }),
   'enclave.event_loop_delay': propertyContract({
     loopDelayP50Ms: count,
     loopDelayP99Ms: count,

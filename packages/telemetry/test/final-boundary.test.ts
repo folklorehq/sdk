@@ -180,6 +180,9 @@ const VALID_SERVER_EVENT_FIXTURES = {
   },
   'inference.receipt_verified': { sessionId: ORGANIZATION_ID },
   'directory.team_projection_failed': {},
+  'directory.nudge_raised': { orgId: ORGANIZATION_ID, cause: 'member_suspended' },
+  'directory.nudge_delivered': { orgId: ORGANIZATION_ID, latencySeconds: 120 },
+  'directory.nudge_overdue': { orgId: ORGANIZATION_ID, reason: 'pulls_stopped' },
   'enclave.event_loop_delay': {
     loopDelayP50Ms: 1,
     loopDelayP99Ms: 400,

@@ -73,6 +73,9 @@ export const TelemetryEvent = {
   EnclaveEventLoopDelay: 'enclave.event_loop_delay',
   EnclaveMcpCalls: 'enclave.mcp_calls',
   DirectoryTeamProjectionFailed: 'directory.team_projection_failed',
+  DirectoryNudgeRaised: 'directory.nudge_raised',
+  DirectoryNudgeDelivered: 'directory.nudge_delivered',
+  DirectoryNudgeOverdue: 'directory.nudge_overdue',
   OrgUsage: 'org.usage',
   TenantDataDeleted: 'tenant.data_deleted',
   ErrorCaptured: 'error.captured',
@@ -416,6 +419,17 @@ type OpsEvents = {
   };
   'inference.receipt_verified': { sessionId: string };
   'directory.team_projection_failed': Record<string, never>;
+  'directory.nudge_raised': {
+    orgId: string;
+    cause:
+      | 'permissions_changed'
+      | 'member_suspended'
+      | 'member_admitted'
+      | 'member_readmitted'
+      | 'account_deleted';
+  };
+  'directory.nudge_delivered': { orgId: string; latencySeconds: number };
+  'directory.nudge_overdue': { orgId: string; reason: 'pulled_not_delivered' | 'pulls_stopped' };
   'enclave.event_loop_delay': {
     loopDelayP50Ms: number;
     loopDelayP99Ms: number;
