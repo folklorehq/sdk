@@ -107,7 +107,7 @@ describe('claude inference enums', () => {
       'claude-sonnet-5-5',
     ]);
     expect(claudeInferencePurposeSchema.safeParse('wiki_section').success).toBe(true);
-    expect(CLAUDE_INFERENCE_PURPOSES).toHaveLength(29);
+    expect(CLAUDE_INFERENCE_PURPOSES).toHaveLength(30);
     expect(claudeInferencePurposeSchema.safeParse('wiki_delta').success).toBe(true);
     expect(claudeInferencePurposeSchema.safeParse('wiki_section_add').success).toBe(true);
     expect(claudeInferencePurposeSchema.safeParse('wiki_section_long').success).toBe(true);

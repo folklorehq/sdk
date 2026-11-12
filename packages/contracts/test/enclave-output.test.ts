@@ -218,6 +218,7 @@ describe('member identity link output', () => {
       'theme_merge_adjudication',
       'member_identity_link',
       'fact_authors',
+      'container_places',
       'inference_usage_discarded',
     ]);
   });
@@ -288,11 +289,34 @@ describe('fact authors binding', () => {
 
     expect(next.nonce).toBe('66'.repeat(32));
   });
+});
 
-  it('adds the output type after member_identity_link', () => {
-    expect(enclaveOutputTypeSchema.options.slice(-3, -1)).toEqual([
-      'member_identity_link',
-      'fact_authors',
-    ]);
+describe('container places binding', () => {
+  const containerA = '00000000-0000-4000-8000-00000000000a';
+  const containerB = '00000000-0000-4000-8000-00000000000b';
+  const placeRef = `plc:${'a'.repeat(32)}`;
+  const entry = (containerId: string, factId: string) => ({ containerId, factId, placeRef });
+  const payload = {
+    type: 'container_places',
+    requestId: 'c'.repeat(64),
+    orgId: '123e4567-e89b-42d3-a456-426614174000',
+    facts: [
+      entry(containerB, '00000000-0000-4000-8000-000000000001'),
+      entry(containerA, '00000000-0000-4000-8000-000000000002'),
+      entry(containerB, '00000000-0000-4000-8000-000000000003'),
+    ],
+    skipped: 0,
+  };
+
+  it('binds the request id and the sorted unique container ids', () => {
+    const binding = enclaveOutputBindingForPayload(payload, {
+      deploymentId: 'deployment-1',
+      assignmentGeneration: 3,
+      nonce: '55'.repeat(32),
+    });
+
+    expect(binding.outputType).toBe('container_places');
+    expect(binding.outputId).toBe('c'.repeat(64));
+    expect(binding.resourceIds).toEqual([containerA, containerB]);
   });
 });

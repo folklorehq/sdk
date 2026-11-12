@@ -35,7 +35,7 @@ import {
 } from '../src/inference-routing.js';
 
 describe('the provider-neutral routing vocabulary', () => {
-  it('lists the 29 purposes in the order the Claude route always had', () => {
+  it('lists the 30 purposes in the order the Claude route always had', () => {
     expect(INFERENCE_PURPOSES).toEqual([
       'wiki_outline',
       'wiki_section',
@@ -66,6 +66,7 @@ describe('the provider-neutral routing vocabulary', () => {
       'wiki_article_check',
       'wiki_article_long',
       'team_onboarding_long',
+      'page_rewrite',
     ]);
   });
 
@@ -135,6 +136,7 @@ describe('routing purpose sets and classes', () => {
       INFERENCE_PURPOSES.filter((purpose) => INFERENCE_PURPOSE_CLASS[purpose] === purposeClass);
     expect(byClass('interactive')).toEqual(['answer']);
     expect(byClass('large').sort()).toEqual([
+      'page_rewrite',
       'team_onboarding',
       'team_onboarding_long',
       'wiki_article',
@@ -146,7 +148,7 @@ describe('routing purpose sets and classes', () => {
     expect(byClass('medium')).toHaveLength(11);
   });
 
-  it('keeps the eleven writing purposes, the four check purposes and the two long purposes', () => {
+  it('keeps the twelve writing purposes, the four check purposes and the two long purposes', () => {
     expect([...INFERENCE_WRITING_PURPOSES].sort()).toEqual(
       [
         'wiki_section',
@@ -160,6 +162,7 @@ describe('routing purpose sets and classes', () => {
         'wiki_page_revise',
         'wiki_article_long',
         'team_onboarding_long',
+        'page_rewrite',
       ].sort(),
     );
     expect(INFERENCE_CHECK_PURPOSES).toEqual([

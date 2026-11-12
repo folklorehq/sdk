@@ -59,6 +59,7 @@ export const COMPILED_DEFAULT_ROUTING: CompiledRouting = Object.freeze({
     wiki_article_check: OPUS_MEDIUM,
     wiki_article_long: anthropic(SONNET, 'medium'),
     team_onboarding_long: anthropic(SONNET, 'medium'),
+    page_rewrite: anthropic(SONNET, 'medium'),
   }),
 });
 

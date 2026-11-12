@@ -38,6 +38,7 @@ export const INFERENCE_PURPOSES = [
   'wiki_article_check',
   'wiki_article_long',
   'team_onboarding_long',
+  'page_rewrite',
 ] as const;
 export type InferencePurpose = (typeof INFERENCE_PURPOSES)[number];
 export const inferencePurposeSchema = z.enum(INFERENCE_PURPOSES);
@@ -96,6 +97,7 @@ export const INFERENCE_PURPOSE_CLASS: Readonly<Record<InferencePurpose, Inferenc
   wiki_page_revise: 'large',
   wiki_article_long: 'large',
   team_onboarding_long: 'large',
+  page_rewrite: 'large',
 };
 
 export function inferenceTimeoutMs(
@@ -117,6 +119,7 @@ export const INFERENCE_WRITING_PURPOSES: ReadonlySet<InferencePurpose> = new Set
   'wiki_page_revise',
   'wiki_article_long',
   'team_onboarding_long',
+  'page_rewrite',
 ]);
 export const INFERENCE_CHECK_PURPOSES = [
   'wiki_review',

@@ -71,6 +71,7 @@ export const SAFE_LOG_PURPOSES: ReadonlySet<string> = new Set([
   'wiki_article_check',
   'wiki_article_long',
   'team_onboarding_long',
+  'page_rewrite',
   'untagged',
 ]);
 export const SAFE_LOG_SIGNUP_STAGES = Object.freeze([

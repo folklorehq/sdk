@@ -20,6 +20,7 @@ export const enclaveOutputTypeSchema = z.enum([
   'theme_merge_adjudication',
   'member_identity_link',
   'fact_authors',
+  'container_places',
   'inference_usage_discarded',
 ]);
 export type EnclaveOutputType = z.infer<typeof enclaveOutputTypeSchema>;
@@ -186,6 +187,17 @@ export function enclaveOutputBindingForPayload(
       outputId: requiredString(payload, 'requestId'),
       resourceIds: requiredRecordArray(payload, 'facts').map((fact) =>
         requiredString(fact, 'factId'),
+      ),
+      payload,
+      identity,
+    });
+  }
+  if (type === 'container_places') {
+    return outputBinding({
+      outputType: 'container_places',
+      outputId: requiredString(payload, 'requestId'),
+      resourceIds: requiredRecordArray(payload, 'facts').map((fact) =>
+        requiredString(fact, 'containerId'),
       ),
       payload,
       identity,

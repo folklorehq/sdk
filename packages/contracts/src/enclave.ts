@@ -1088,6 +1088,26 @@ export const factAuthorReextractRequestSchema = z
   .strict();
 export type FactAuthorReextractRequest = z.infer<typeof factAuthorReextractRequestSchema>;
 
+export const CONTAINER_PLACE_REEXTRACT_MAX_FACTS = 100;
+
+export const containerPlaceReextractRefSchema = factAuthorReextractRefSchema
+  .extend({ containerId: z.string().uuid() })
+  .strict();
+export type ContainerPlaceReextractRef = z.infer<typeof containerPlaceReextractRefSchema>;
+
+export const containerPlaceReextractRequestSchema = z
+  .object({
+    type: z.literal('container_place_reextract'),
+    requestId: z.string().regex(JUDGEMENT_REQUEST_ID_PATTERN),
+    orgId: z.string().uuid(),
+    facts: z
+      .array(containerPlaceReextractRefSchema)
+      .min(1)
+      .max(CONTAINER_PLACE_REEXTRACT_MAX_FACTS),
+  })
+  .strict();
+export type ContainerPlaceReextractRequest = z.infer<typeof containerPlaceReextractRequestSchema>;
+
 export const THEME_MERGE_ADJUDICATION_MAX_PAIRS = 10;
 export const THEME_MERGE_NEIGHBOR_MAX = 3;
 // Theme ids are sha256-derived uuid-shaped strings, not RFC uuids (theme-synthesis uuidFrom).
@@ -1142,6 +1162,7 @@ export const synthesisQueueRequestSchema = z.discriminatedUnion('type', [
   teamOnboardingSynthesisRequestSchema,
   associationJudgementRequestSchema,
   factAuthorReextractRequestSchema,
+  containerPlaceReextractRequestSchema,
   themeMergeAdjudicationRequestSchema,
 ]);
 export type SynthesisQueueRequest = z.infer<typeof synthesisQueueRequestSchema>;
@@ -1175,6 +1196,28 @@ export const factAuthorsResultSchema = z
     { message: 'fact_authors result exceeds its byte cap' },
   );
 export type FactAuthorsResult = z.infer<typeof factAuthorsResultSchema>;
+
+// Ids and keyed place refs only; never a body, a provider id or a container key.
+export const containerPlacesResultSchema = z
+  .object({
+    type: z.literal('container_places'),
+    requestId: z.string().regex(JUDGEMENT_REQUEST_ID_PATTERN),
+    orgId: z.string().uuid(),
+    facts: z
+      .array(
+        z
+          .object({
+            containerId: z.string().uuid(),
+            factId: z.string().uuid(),
+            placeRef: keyedPlaceRefSchema,
+          })
+          .strict(),
+      )
+      .max(CONTAINER_PLACE_REEXTRACT_MAX_FACTS),
+    skipped: z.number().int().nonnegative().max(CONTAINER_PLACE_REEXTRACT_MAX_FACTS),
+  })
+  .strict();
+export type ContainerPlacesResult = z.infer<typeof containerPlacesResultSchema>;
 
 export const associationVerdictSchema = z.enum(['assign', 'remove', 'abstain']);
 export type AssociationVerdict = z.infer<typeof associationVerdictSchema>;
