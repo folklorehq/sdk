@@ -46,6 +46,8 @@ const VETTED_CONTEXT_SPREADS: Record<string, string> = {
     'errorCode is the literal persistence_failed and the optional messageId is a canonical UUID.',
   'apps/worker/src/workers/ingest/EnclaveOutputsConsumer.ts:pull_failed_signal_received':
     'reason fields are pullFailureReasonSchema codes (lower snake, enum or integer) or null; otherwise the literal reason_absent.',
+  'apps/worker/src/workers/ingest/EnclaveOutputsConsumer.ts:wiki_synthesis_deferred':
+    'attemptRefunded is a boolean and is present only for the provider deferral reasons.',
   'apps/control-plane-server/src/auth/source-oauth/handlers/SourceOAuthHandler.ts:source_oauth.submission_failed':
     'outcome is present only when isFailureCodeSlug accepts the enclave reason.',
 };
