@@ -89,6 +89,7 @@ export interface InferenceUsageEvent {
   outcome?: InferenceUsageOutcome;
   cacheReadTokens?: number;
   cacheWriteTokens?: number;
+  cacheWrite1hTokens?: number;
 }
 
 export type InferenceUsageSink = (event: InferenceUsageEvent) => void;

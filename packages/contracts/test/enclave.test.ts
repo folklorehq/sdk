@@ -1908,6 +1908,7 @@ type EnclaveSynthesisRequest = {
   inputTokenBudget: number;
   knowledgeSkeleton?: EnclaveKnowledgeSkeleton;
   generation?: 'article' | 'sectioned';
+  deliveryMode?: 'batch' | 'sync';
   // Mirrors the enclave's SynthesisConsumer request shape.
   previousPageStates?: WikiPageStateEnvelope[];
   shadowArms?: ('R' | 'B')[];

@@ -851,6 +851,9 @@ export const WIKI_SYNTHESIS_GENERATIONS = ['article', 'sectioned'] as const;
 export const wikiSynthesisGenerationSchema = z.enum(WIKI_SYNTHESIS_GENERATIONS);
 export type WikiSynthesisGeneration = z.infer<typeof wikiSynthesisGenerationSchema>;
 
+export const WIKI_DELIVERY_MODES = ['batch', 'sync'] as const;
+export type WikiDeliveryMode = (typeof WIKI_DELIVERY_MODES)[number];
+
 export const synthesisRequestSchema = z.object({
   type: z.literal('wiki_synthesis'),
   requestId: z.string(),
@@ -874,6 +877,7 @@ export const synthesisRequestSchema = z.object({
   // the enclave hydrates it into a KnowledgeNeighborhood for the cross-wiki prompt block.
   knowledgeSkeleton: knowledgeSkeletonSchema.optional(),
   generation: wikiSynthesisGenerationSchema.optional(),
+  deliveryMode: z.enum(WIKI_DELIVERY_MODES).optional(),
   previousPageStates: z.array(wikiPageStateEnvelopeSchema).max(PREVIOUS_PAGE_STATES_MAX).optional(),
   shadowArms: z
     .array(inferenceArmSchema.exclude(['D']))
