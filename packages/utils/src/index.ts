@@ -123,7 +123,7 @@ export {
   type AgentDatabaseAuth,
   type AgentDatabaseCredential,
 } from './agent-database-credential.js';
-export { RFC_UUID_PATTERN_SOURCE, isLowercaseRfcUuid, isRfcUuid } from './uuid.js';
+export { RFC_UUID_PATTERN_SOURCE, isLowercaseRfcUuid, isRfcUuid, uuidV7Millis } from './uuid.js';
 export { verifyControlPlaneCertificate, matchesSpkiPin } from './control-plane-pin.js';
 export {
   ed25519PublicKeyFromRaw,

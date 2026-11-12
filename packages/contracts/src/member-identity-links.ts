@@ -52,3 +52,10 @@ export type MemberIdentityLinkPersistence = z.infer<typeof memberIdentityLinkPer
 export const memberIdentityLinkAckRequestSchema = z.object({ ids: z.array(z.string()) }).strict();
 
 export type MemberIdentityLinkAckRequest = z.infer<typeof memberIdentityLinkAckRequestSchema>;
+
+// The box records a member's unlink here before the control plane forgets the link row.
+export const IDENTITY_LINKS_PATH = '/api/v1/me/identity-links';
+
+export const identityUnlinkRequestSchema = z.object({ linkId: z.string().uuid() }).strict();
+
+export type IdentityUnlinkRequest = z.infer<typeof identityUnlinkRequestSchema>;

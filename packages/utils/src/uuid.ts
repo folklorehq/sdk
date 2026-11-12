@@ -15,3 +15,12 @@ export function isRfcUuid(value: string): boolean {
 export function isLowercaseRfcUuid(value: string): boolean {
   return LOWERCASE_RFC_UUID_PATTERN.test(value);
 }
+
+const UUID_VERSION_NIBBLE_INDEX = 14;
+const UUID_V7_NIBBLE = '7';
+
+/** The 48-bit unix-ms timestamp of an RFC UUIDv7, or null for any other id. */
+export function uuidV7Millis(id: string): number | null {
+  if (!isRfcUuid(id) || id[UUID_VERSION_NIBBLE_INDEX] !== UUID_V7_NIBBLE) return null;
+  return Number.parseInt(`${id.slice(0, 8)}${id.slice(9, 13)}`, 16);
+}

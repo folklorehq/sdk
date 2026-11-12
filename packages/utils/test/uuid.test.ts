@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { RFC_UUID_PATTERN_SOURCE, isLowercaseRfcUuid, isRfcUuid } from '../src/uuid.js';
+import {
+  RFC_UUID_PATTERN_SOURCE,
+  isLowercaseRfcUuid,
+  isRfcUuid,
+  uuidV7Millis,
+} from '../src/uuid.js';
 
 const V8_POOL_ID = '018f2e3d-4c5b-8a69-b7c8-d9e0f1a2b3c4';
 
@@ -34,10 +39,15 @@ describe('isRfcUuid', () => {
   });
 });
 
-describe('isLowercaseRfcUuid', () => {
-  it('accepts a lowercase UUIDv8 and refuses the same id in uppercase', () => {
+describe('id case and version helpers', () => {
+  it('refuses an uppercase id as lowercase and reads the 48-bit timestamp of a v7 id in either case', () => {
     expect(isLowercaseRfcUuid(V8_POOL_ID)).toBe(true);
     expect(isLowercaseRfcUuid(V8_POOL_ID.toUpperCase())).toBe(false);
     expect(isLowercaseRfcUuid('018f2e3d-4c5b-9a69-b7c8-d9e0f1a2b3c4')).toBe(false);
+    expect(uuidV7Millis('01900000-0000-7000-8000-000000000001')).toBe(0x019000000000);
+    expect(uuidV7Millis('0190ABCD-EF01-7123-9ABC-DEF012345678')).toBe(0x0190abcdef01);
+    expect(uuidV7Millis(V8_POOL_ID)).toBeNull();
+    expect(uuidV7Millis('01900000-0000-7000-c000-000000000001')).toBeNull();
+    expect(uuidV7Millis('link-1')).toBeNull();
   });
 });
