@@ -73,6 +73,7 @@ export const TelemetryEvent = {
   EnclaveEventLoopDelay: 'enclave.event_loop_delay',
   EnclaveMcpCalls: 'enclave.mcp_calls',
   DirectoryTeamProjectionFailed: 'directory.team_projection_failed',
+  DirectoryResponseRejected: 'directory.response_rejected',
   DirectoryNudgeRaised: 'directory.nudge_raised',
   DirectoryNudgeDelivered: 'directory.nudge_delivered',
   DirectoryNudgeOverdue: 'directory.nudge_overdue',
@@ -419,6 +420,7 @@ type OpsEvents = {
   };
   'inference.receipt_verified': { sessionId: string };
   'directory.team_projection_failed': Record<string, never>;
+  'directory.response_rejected': Record<string, never>;
   'directory.nudge_raised': {
     orgId: string;
     cause:

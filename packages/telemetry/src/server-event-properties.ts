@@ -437,6 +437,7 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   ),
   'inference.receipt_verified': propertyContract({ sessionId }),
   'directory.team_projection_failed': propertyContract({}),
+  'directory.response_rejected': propertyContract({}),
   'directory.nudge_raised': propertyContract({
     ...orgId,
     cause: literal(
