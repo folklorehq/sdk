@@ -15,11 +15,14 @@ describe('worker database metadata contract', () => {
     expect(workerDatabaseConfigSchema.parse(valid)).toEqual({ ...valid, username: 'folklore_app' });
   });
 
-  it('defaults the username to folklore_app and admits folklore_pool_worker', () => {
+  it('defaults the username to folklore_app and admits the pool worker and tenant purger', () => {
     expect(workerDatabaseConfigSchema.parse(valid).username).toBe('folklore_app');
     expect(
       workerDatabaseConfigSchema.parse({ ...valid, username: 'folklore_pool_worker' }).username,
     ).toBe('folklore_pool_worker');
+    expect(
+      workerDatabaseConfigSchema.parse({ ...valid, username: 'folklore_tenant_purger' }).username,
+    ).toBe('folklore_tenant_purger');
   });
 
   it.each(['folklore', 'postgres', 'folklore_operator', 'FOLKLORE_APP', ''])(
