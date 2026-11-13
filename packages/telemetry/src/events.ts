@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-import { UNMATCHED_ROUTE_TEMPLATE, type DurationBucket, type RequestMethod } from '@folklore/core';
+import {
+  DECISION_SITE_NAMES,
+  UNMATCHED_ROUTE_TEMPLATE,
+  type DurationBucket,
+  type RequestMethod,
+} from '@folklore/core';
 import type { ErrorReport } from '@folklore/errors';
 
 export const TelemetryEvent = {
@@ -45,6 +50,7 @@ export const TelemetryEvent = {
   FactPromoted: 'fact.promoted',
   AssociationDrainRun: 'association.drain.run',
   AssociationJudged: 'association.judged',
+  DecisionSiteRun: 'decision.site_run',
   ThemeResolved: 'theme.resolved',
   ThemeInference: 'theme.inference',
   ThemeGraphEdgeFailed: 'theme.graph_edge_failed',
@@ -194,6 +200,11 @@ export const AUDIENCE_MEMBERSHIP_TELEMETRY_READERS = [
 ] as const;
 export type AudienceMembershipTelemetryReader =
   (typeof AUDIENCE_MEMBERSHIP_TELEMETRY_READERS)[number];
+
+export const DECISION_TELEMETRY_SITES = DECISION_SITE_NAMES;
+export type DecisionTelemetrySite = (typeof DECISION_TELEMETRY_SITES)[number];
+export const DECISION_TELEMETRY_MODES = ['shadow', 'jev'] as const;
+export type DecisionTelemetryMode = (typeof DECISION_TELEMETRY_MODES)[number];
 
 // Same rule as above: the control plane passes contract types, which must stay assignable to these.
 export const PERSONAL_SOURCE_TELEMETRY_KINDS = [
@@ -408,6 +419,22 @@ type OpsEvents = {
   'fact.promoted': { orgId: string; containerId: string };
   'association.drain.run': { count: number; durationMs: number };
   'association.judged': { orgId: string; assigned: number; removed: number; recorded: number };
+  'decision.site_run': {
+    orgId: string;
+    site: DecisionTelemetrySite;
+    mode: DecisionTelemetryMode;
+    model: string;
+    calls: number;
+    failed: number;
+    late: number;
+    fellBack: number;
+    abstained: number;
+    agreed: number;
+    disagreed: number;
+    unaudited?: number;
+    jevFlagged: number;
+    todayFlagged: number;
+  };
   'theme.resolved': { orgId: string; fallback: boolean };
   'theme.inference': { orgId: string; fallback: boolean };
   'theme.merged': { orgId: string; trigger: 'auto' | 'approved' };

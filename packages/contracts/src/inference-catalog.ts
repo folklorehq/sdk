@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { deepFreeze } from '@folklore/utils/deep-freeze';
 import type { InferenceEffort, InferencePurpose } from './inference-routing.js';
 
-export const INFERENCE_PROVIDER_IDS = ['anthropic', 'phala', 'openai'] as const;
+export const INFERENCE_PROVIDER_IDS = ['anthropic', 'phala', 'openai', 'typesafe'] as const;
 export type InferenceProviderId = (typeof INFERENCE_PROVIDER_IDS)[number];
 export const inferenceProviderIdSchema = z.enum(INFERENCE_PROVIDER_IDS);
 
@@ -39,7 +39,8 @@ export type InferencePurposeClass = (typeof INFERENCE_PURPOSE_CLASSES)[number];
 export type StructuredOutputMode =
   | 'anthropic_json_schema'
   | 'openai_json_schema'
-  | 'forced_tool_call';
+  | 'forced_tool_call'
+  | 'typesafe_decision';
 export type PromptCachingMode = 'anthropic_cache_control' | 'automatic_prefix' | 'none';
 export type InferenceProcessingRegion = 'us' | 'unverified';
 
@@ -98,6 +99,21 @@ const OPENAI_ROW = {
   routable: false,
   processingRegion: 'unverified',
   caching: 'none',
+} as const;
+
+const TYPESAFE_ROW = {
+  provider: 'typesafe',
+  trustClass: 'contractual',
+  routable: false,
+  structuredOutput: 'typesafe_decision',
+  caching: 'none',
+  efforts: {},
+  timeoutsMs: { small: 15_000 },
+  processingRegion: 'us',
+  longPurposeCapped: false,
+  contextWindowTokens: 64_000,
+  prices: { input: 42_000, output: 0, cacheWrite: 42_000, cacheRead: 42_000 },
+  longContext: null,
 } as const;
 
 const OPUS_TIMEOUTS_MS = { interactive: 40_000, small: 120_000, medium: 300_000, large: 480_000 };
@@ -230,6 +246,7 @@ const CATALOG_ROWS = {
   },
   [PHALA_POLICY_GENERATE_MODEL_ID]: { ...PHALA_POLICY_ROW, weights: 'phala-role:generate' },
   [PHALA_POLICY_CHECK_MODEL_ID]: { ...PHALA_POLICY_ROW, weights: 'phala-role:check' },
+  'jev-1.13.0': { ...TYPESAFE_ROW, weights: 'typesafe/jev-1.13.0', wireModel: 'jev-1.13.0' },
 } as const satisfies Readonly<Record<string, InferenceModelCatalogEntry>>;
 
 export const INFERENCE_MODEL_CATALOG = deepFreeze(CATALOG_ROWS);
@@ -238,6 +255,8 @@ export type InferenceModelId = keyof typeof INFERENCE_MODEL_CATALOG;
 export const INFERENCE_MODEL_IDS: readonly InferenceModelId[] = Object.freeze(
   Object.keys(INFERENCE_MODEL_CATALOG) as InferenceModelId[],
 );
+
+export const JEV_DECISION_MODEL_ID: InferenceModelId = 'jev-1.13.0';
 
 export function isInferenceModelId(model: string): model is InferenceModelId {
   return Object.hasOwn(INFERENCE_MODEL_CATALOG, model);

@@ -31,6 +31,7 @@ const PHALA_MODEL_IDS = [
 ] as const;
 
 const OPENAI_MODEL_IDS = ['text-embedding-3-large'] as const;
+const TYPESAFE_MODEL_IDS = ['jev-1.13.0'] as const;
 
 const POLICY_PSEUDO_IDS = [PHALA_POLICY_GENERATE_MODEL_ID, PHALA_POLICY_CHECK_MODEL_ID] as const;
 
@@ -110,12 +111,13 @@ describe('INFERENCE_MODEL_CATALOG', () => {
     }
   });
 
-  it('has exactly the Claude, Phala and OpenAI models and no others', () => {
+  it('has exactly the Claude, Phala, OpenAI and TypeSafe models and no others', () => {
     expect([...INFERENCE_MODEL_IDS].sort()).toEqual(
       [
         ...CLAUDE_ROUTE_MODEL_IDS,
         ...PHALA_MODEL_IDS,
         ...OPENAI_MODEL_IDS,
+        ...TYPESAFE_MODEL_IDS,
         ...POLICY_PSEUDO_IDS,
       ].sort(),
     );
@@ -142,7 +144,7 @@ describe('INFERENCE_MODEL_CATALOG', () => {
     for (const entry of Object.values(INFERENCE_MODEL_CATALOG)) {
       expect(inferenceProviderIdSchema.safeParse(entry.provider).success).toBe(true);
     }
-    expect(INFERENCE_PROVIDER_IDS).toEqual(['anthropic', 'phala', 'openai']);
+    expect(INFERENCE_PROVIDER_IDS).toEqual(['anthropic', 'phala', 'openai', 'typesafe']);
   });
 
   it('prices every class as a non-negative safe integer and keeps thresholds inside the window', () => {

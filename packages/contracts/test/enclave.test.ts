@@ -55,6 +55,7 @@ import {
   webhookProtocolCaptureSchema,
   wikiSynthesisResultSchema,
   type CritiqueOutcome,
+  type DecisionTally,
   type EncryptedBodyRead,
   type KnowledgeSkeleton,
   type PullCompleteSignal,
@@ -1963,6 +1964,7 @@ type EnclaveWikiSynthesisResult = {
   shadowArticles?: WikiShadowArticle[];
   qualityScores?: ClaudeQualityScores[];
   untaggedCalls?: number;
+  decisionTally?: DecisionTally[] | undefined;
 };
 
 type _WikiSynthesisResultPinned = Expect<Equal<WikiSynthesisResult, EnclaveWikiSynthesisResult>>;

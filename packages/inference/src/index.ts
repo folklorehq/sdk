@@ -97,6 +97,19 @@ export type {
   ForwardCommitmentAuthenticatorPort,
 } from './ports.js';
 export { FORWARD_COMMITMENT_PROTOCOL, INFERENCE_OPERATION_BY_ROLE } from './ports.js';
+export type {
+  ChoiceQuestion,
+  DecideOptions,
+  DecisionAnswer,
+  DecisionModel,
+  DecisionQuestion,
+  DecisionRequest,
+  DecisionResult,
+  JevInstructions,
+  JevStateValue,
+  NoulQuestion,
+  TenantDecisionPort,
+} from './decision-ports.js';
 export { TeeEndpointBackend, type TeeEndpointConfig } from './TeeEndpointBackend.js';
 export {
   OpenAICompatBackend,

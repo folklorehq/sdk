@@ -86,13 +86,36 @@ export const SAFE_LOG_SIGNUP_STAGES = Object.freeze([
   'health',
   'total',
 ] as const);
+// Mirrors DECISION_SITES (core cannot import contracts; a worker test pins equality).
+export const DECISION_SITE_NAMES = [
+  'theme_tagging',
+  'theme_doctype',
+  'wiki_relevance',
+  'theme_merge_adjudication',
+  'association_judge',
+  'wiki_visual_warrant',
+  'citation_check',
+  'ingest_salience',
+  'ingest_sensitivity',
+  'theme_merge_pair',
+  'theme_disposition',
+] as const;
+export const SAFE_LOG_DECISION_SITES: ReadonlySet<string> = new Set(DECISION_SITE_NAMES);
+const SAFE_LOG_DECISION_MODES: ReadonlySet<string> = new Set(['shadow', 'jev']);
 const NON_NEGATIVE_INTEGER_FIELDS: ReadonlySet<string> = new Set([
+  'abstained',
   'adminsWithoutMembership',
+  'agreed',
   'departments',
+  'disagreed',
   'eligibleRefs',
   'epoch',
   'excludedRefs',
+  'failed',
+  'fellBack',
   'fileCount',
+  'jevFlagged',
+  'late',
   'leadsWritten',
   'membershipsRemoved',
   'membershipsWritten',
@@ -104,6 +127,8 @@ const NON_NEGATIVE_INTEGER_FIELDS: ReadonlySet<string> = new Set([
   'skippedContainers',
   'teams',
   'tierlessRefs',
+  'todayFlagged',
+  'unaudited',
 ]);
 const SAFE_LOG_SIGNUP_STAGE_SET: ReadonlySet<string> = new Set(SAFE_LOG_SIGNUP_STAGES);
 const EXPLICIT_CONTENT_FREE_FIELDS = new Set([
@@ -292,6 +317,8 @@ function isSafeLogValue(key: string, value: unknown): boolean {
   if (typeof value === 'number') return Number.isFinite(value);
   if (typeof value !== 'string' || value.length > MAX_VALUE_LENGTH) return false;
   if (CODE_VALUE_FIELDS.has(key)) return SAFE_LOG_EVENT_PATTERN.test(value);
+  if (key === 'decisionSite') return SAFE_LOG_DECISION_SITES.has(value);
+  if (key === 'decisionMode') return SAFE_LOG_DECISION_MODES.has(value);
   if (key === 'role') return SAFE_LOG_ROLES.has(value);
   if (key === 'purpose') return SAFE_LOG_PURPOSES.has(value);
   if (key === 'requestId') return SAFE_LOG_REQUEST_ID_PATTERN.test(value);

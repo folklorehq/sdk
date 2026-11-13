@@ -65,7 +65,7 @@ export function isBatchDeferralReason(
   return (BATCH_DEFERRAL_REASONS as readonly string[]).includes(reason);
 }
 
-export type RoutedProviderId = Exclude<InferenceProviderId, 'phala' | 'openai'>;
+export type RoutedProviderId = Exclude<InferenceProviderId, 'phala' | 'openai' | 'typesafe'>;
 
 export const INFERENCE_PURPOSE_CLASS: Readonly<Record<InferencePurpose, InferencePurposeClass>> = {
   answer: 'interactive',

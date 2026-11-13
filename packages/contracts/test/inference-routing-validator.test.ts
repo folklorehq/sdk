@@ -165,24 +165,25 @@ describe('routingTableBodyRefusal', () => {
     );
   });
 
-  it('(10b) refuses the OpenAI embedding model as not routable, naming the model refusal and not the provider', () => {
-    expect(
-      routingTableBodyRefusal(
-        body({
-          purposes: {
-            wiki_section: {
-              provider: 'openai',
-              model: 'text-embedding-3-large',
-              effort: 'low',
-              fallbacks: [],
-            },
-          },
-        }),
-        context({
-          routableProviders: new Set<InferenceProviderId>(['anthropic', 'phala', 'openai']),
-        }),
-      ),
-    ).toBe('routing_table_model_not_routable');
+  it('(10b) refuses the OpenAI embedding and Jev decision models as not routable, naming the model refusal and not the provider', () => {
+    const routableProviders = new Set<InferenceProviderId>([
+      'anthropic',
+      'phala',
+      'openai',
+      'typesafe',
+    ]);
+    for (const [provider, model] of [
+      ['openai', 'text-embedding-3-large'],
+      ['typesafe', 'jev-1.13.0'],
+    ] as const) {
+      expect(
+        routingTableBodyRefusal(
+          body({ purposes: { wiki_section: { provider, model, effort: 'low', fallbacks: [] } } }),
+          context({ routableProviders }),
+        ),
+        provider,
+      ).toBe('routing_table_model_not_routable');
+    }
   });
 
   it('(11) refuses a provider that differs from the catalog row', () => {

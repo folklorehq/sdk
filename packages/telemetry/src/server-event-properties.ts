@@ -25,6 +25,8 @@ import {
   WIKI_LINK_PICKER_STEPS,
   WIKI_LINK_PICKER_TARGETS,
   CLIENT_ERROR_NAMES,
+  DECISION_TELEMETRY_MODES,
+  DECISION_TELEMETRY_SITES,
   FIRSTPARTY_REFUSAL_CODES,
   FIRSTPARTY_RECONNECT_TELEMETRY_REASONS,
   FIRSTPARTY_SLOT_TELEMETRY_KINDS,
@@ -46,6 +48,7 @@ type EventPropertiesValidator = (properties: Record<string, unknown>) => boolean
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 // ACI's non-UUID fixture form has a fixed prefix and digits only, so it cannot encode prose.
 const ACI_SESSION_ID_PATTERN = /^sess-[0-9]{1,20}$/;
+const DECISION_MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
 const SOURCE_KINDS = new Set([
   'github',
   'code',
@@ -410,6 +413,24 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     removed: count,
     recorded: count,
   }),
+  'decision.site_run': propertyContract(
+    {
+      ...orgId,
+      site: literal(...DECISION_TELEMETRY_SITES),
+      mode: literal(...DECISION_TELEMETRY_MODES),
+      model: matches(DECISION_MODEL_PATTERN),
+      calls: count,
+      failed: count,
+      late: count,
+      fellBack: count,
+      abstained: count,
+      agreed: count,
+      disagreed: count,
+      jevFlagged: count,
+      todayFlagged: count,
+    },
+    { unaudited: count },
+  ),
   'theme.resolved': propertyContract({ ...orgId, fallback: bool }),
   'theme.inference': propertyContract({ ...orgId, fallback: bool }),
   'theme.graph_edge_failed': propertyContract({

@@ -3,6 +3,7 @@ import { KEYED_PLACE_REF_PATTERN } from '@folklore/utils/place-keys';
 import { z } from 'zod';
 import { MEMBER_MANIFEST_KINDS } from './connectors/index.js';
 import { containerLabelSchema } from './connectors/container-labels.js';
+import { DECISION_SITES, decisionSiteSchema } from './decision-sites.js';
 import { factMetricSchema } from './metrics.js';
 import { sealedContentEnvelopeV1Schema } from './sealed-content.js';
 import { sensitivityLevelSchema, type SensitivityLevel } from './sensitivity.js';
@@ -397,6 +398,35 @@ export type TokenUsage = z.infer<typeof tokenUsageSchema>;
 // message and lose the article. Falling back to no telemetry is the recoverable half.
 const tokenUsageArray = z.array(tokenUsageSchema).default([]).catch([]);
 
+const decisionCountSchema = z.number().int().nonnegative();
+
+// Counts and closed names only; an answer, a probability or a chosen option never rides it.
+export const decisionTallySchema = z
+  .object({
+    site: decisionSiteSchema,
+    mode: z.enum(['shadow', 'jev']),
+    model: usageModelIdSchema,
+    calls: decisionCountSchema,
+    failed: decisionCountSchema,
+    late: decisionCountSchema,
+    fellBack: decisionCountSchema,
+    abstained: decisionCountSchema,
+    agreed: decisionCountSchema,
+    disagreed: decisionCountSchema,
+    unaudited: decisionCountSchema.default(0),
+    jevFlagged: decisionCountSchema,
+    todayFlagged: decisionCountSchema,
+  })
+  .strict();
+export type DecisionTally = z.infer<typeof decisionTallySchema>;
+
+// A malformed tally costs the tally, never the result it rides on.
+const decisionTallyField = z
+  .array(decisionTallySchema)
+  .max(DECISION_SITES.length)
+  .optional()
+  .catch(undefined);
+
 export const INFERENCE_TIMELINE_MAX_SPANS = 200;
 export const INFERENCE_SPAN_ERROR_CODE_MAX_LENGTH = 64;
 export const INFERENCE_SPAN_ERROR_CODE_PATTERN = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$/;
@@ -505,6 +535,7 @@ export const wikiSynthesisResultSchema = z
     critique: critiqueOutcomeSchema.optional(),
     tokenUsage: tokenUsageArray,
     timeline: inferenceTimelineField,
+    decisionTally: decisionTallyField,
     pageStates: z.array(wikiPageStateEnvelopeSchema).optional(),
     // A shadow extra the worker cannot read costs the extra, never the production page.
     shadowArticles: z.array(wikiShadowArticleSchema).optional().catch(undefined),
@@ -737,6 +768,7 @@ export const themeSynthesisResultSchema = z
     aggregates: z.array(aggregateThemeSchema).default([]),
     tokenUsage: tokenUsageArray,
     timeline: inferenceTimelineField,
+    decisionTally: decisionTallyField,
   })
   .strict();
 export type ThemeSynthesisResult = z.infer<typeof themeSynthesisResultSchema>;
@@ -985,6 +1017,7 @@ export const teamOnboardingSynthesisResultSchema = z
     critique: critiqueOutcomeSchema.optional(),
     tokenUsage: tokenUsageArray,
     timeline: inferenceTimelineField,
+    decisionTally: decisionTallyField,
   })
   .strict();
 export type TeamOnboardingSynthesisResult = z.infer<typeof teamOnboardingSynthesisResultSchema>;
@@ -1244,6 +1277,7 @@ export const associationJudgementResultSchema = z
     verdicts: z.array(associationJudgementVerdictSchema).max(ASSOCIATION_JUDGEMENT_MAX_ITEMS),
     tokenUsage: tokenUsageArray,
     timeline: inferenceTimelineField,
+    decisionTally: decisionTallyField,
   })
   .strict();
 export type AssociationJudgementResult = z.infer<typeof associationJudgementResultSchema>;
@@ -1271,6 +1305,7 @@ export const themeMergeAdjudicationResultSchema = z
     verdicts: z.array(themeMergeAdjudicationVerdictSchema).max(THEME_MERGE_ADJUDICATION_MAX_PAIRS),
     tokenUsage: tokenUsageArray,
     timeline: inferenceTimelineField,
+    decisionTally: decisionTallyField,
   })
   .strict();
 export type ThemeMergeAdjudicationResult = z.infer<typeof themeMergeAdjudicationResultSchema>;
