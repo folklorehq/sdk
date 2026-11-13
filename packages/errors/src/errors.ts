@@ -160,6 +160,17 @@ export class FleetStoppedError extends AppError {
   }
 }
 
+/** A pause or resume refused because a workspace erasure owns the target. */
+export class ErasureInFlightError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('A workspace erasure is in progress', {
+      ...options,
+      code: 'erasure_in_flight',
+      category: 'conflict',
+    });
+  }
+}
+
 /** The target is the platform workspace, which cannot be paused. */
 export class PlatformWorkspaceError extends AppError {
   constructor(options: AppErrorOptions = {}) {

@@ -23,6 +23,7 @@ export {
   AlreadyPausedError,
   NotPausedError,
   FleetStoppedError,
+  ErasureInFlightError,
   PlatformWorkspaceError,
   NotOnHostError,
   HostAgentOutdatedError,

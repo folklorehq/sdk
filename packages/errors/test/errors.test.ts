@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AlreadyPausedError,
+  ErasureInFlightError,
   FleetStoppedError,
   HostAgentOutdatedError,
   NotOnHostError,
@@ -75,6 +76,8 @@ describe('AppError subclasses', () => {
     expect(new NotPausedError().code).toBe('not_paused');
     expect(new NotPausedError().httpStatus).toBe(409);
     expect(new NotPausedError()).toBeInstanceOf(AppError);
+    expect(new ErasureInFlightError().code).toBe('erasure_in_flight');
+    expect(new ErasureInFlightError().httpStatus).toBe(409);
   });
 
   it.each([
