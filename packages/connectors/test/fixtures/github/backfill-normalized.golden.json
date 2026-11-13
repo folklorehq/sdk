@@ -18,7 +18,8 @@
       "entities": ["acme/widget", "PR#340"],
       "content": {
         "body": "Change 340",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 340"
       },
       "raw": {
         "id": 2400000340,
@@ -81,7 +82,8 @@
       "entities": ["acme/widget", "PR#339"],
       "content": {
         "body": "Change 339\n\nBody for 339, follows #338",
-        "explicitLinks": ["acme/widget#338"]
+        "explicitLinks": ["acme/widget#338"],
+        "title": "Change 339"
       },
       "raw": {
         "id": 2400000339,
@@ -154,7 +156,8 @@
       "entities": ["acme/widget", "PR#338"],
       "content": {
         "body": "Change 338\n\nBody for 338, follows #337",
-        "explicitLinks": ["acme/widget#337"]
+        "explicitLinks": ["acme/widget#337"],
+        "title": "Change 338"
       },
       "raw": {
         "id": 2400000338,
@@ -179,7 +182,8 @@
       "entities": ["acme/widget", "PR#337"],
       "content": {
         "body": "Change 337\n\nBody for 337, follows #336",
-        "explicitLinks": ["acme/widget#336"]
+        "explicitLinks": ["acme/widget#336"],
+        "title": "Change 337"
       },
       "raw": {
         "id": 2400000337,
@@ -204,7 +208,8 @@
       "entities": ["acme/widget", "PR#336"],
       "content": {
         "body": "Change 336",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 336"
       },
       "raw": {
         "id": 2400000336,
@@ -308,7 +313,8 @@
       "entities": ["acme/widget", "PR#335"],
       "content": {
         "body": "Change 335\n\nBody for 335, follows #334",
-        "explicitLinks": ["acme/widget#334"]
+        "explicitLinks": ["acme/widget#334"],
+        "title": "Change 335"
       },
       "raw": {
         "id": 2400000335,
@@ -371,7 +377,8 @@
       "entities": ["acme/widget", "PR#334"],
       "content": {
         "body": "Change 334\n\nBody for 334, follows #333",
-        "explicitLinks": ["acme/widget#333"]
+        "explicitLinks": ["acme/widget#333"],
+        "title": "Change 334"
       },
       "raw": {
         "id": 2400000334,
@@ -396,7 +403,8 @@
       "entities": ["acme/widget", "PR#333"],
       "content": {
         "body": "Change 333\n\nBody for 333, follows #332",
-        "explicitLinks": ["acme/widget#332"]
+        "explicitLinks": ["acme/widget#332"],
+        "title": "Change 333"
       },
       "raw": {
         "id": 2400000333,
@@ -469,7 +477,8 @@
       "entities": ["acme/widget", "PR#332"],
       "content": {
         "body": "Change 332",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 332"
       },
       "raw": {
         "id": 2400000332,
@@ -494,7 +503,8 @@
       "entities": ["acme/widget", "PR#331"],
       "content": {
         "body": "Change 331\n\nBody for 331, follows #330",
-        "explicitLinks": ["acme/widget#330"]
+        "explicitLinks": ["acme/widget#330"],
+        "title": "Change 331"
       },
       "raw": {
         "id": 2400000331,
@@ -512,7 +522,8 @@
       "entities": ["acme/widget", "PR#330"],
       "content": {
         "body": "Change 330\n\nBody for 330, follows #329",
-        "explicitLinks": ["acme/widget#329"]
+        "explicitLinks": ["acme/widget#329"],
+        "title": "Change 330"
       },
       "raw": {
         "id": 2400000330,
@@ -616,7 +627,8 @@
       "entities": ["acme/widget", "PR#329"],
       "content": {
         "body": "Change 329\n\nBody for 329, follows #328",
-        "explicitLinks": ["acme/widget#328"]
+        "explicitLinks": ["acme/widget#328"],
+        "title": "Change 329"
       },
       "raw": {
         "id": 2400000329,
@@ -672,7 +684,8 @@
       "entities": ["acme/widget", "PR#328"],
       "content": {
         "body": "Change 328",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 328"
       },
       "raw": {
         "id": 2400000328,
@@ -697,7 +710,8 @@
       "entities": ["acme/widget", "PR#327"],
       "content": {
         "body": "Change 327\n\nBody for 327, follows #326",
-        "explicitLinks": ["acme/widget#326"]
+        "explicitLinks": ["acme/widget#326"],
+        "title": "Change 327"
       },
       "raw": {
         "id": 2400000327,
@@ -770,7 +784,8 @@
       "entities": ["acme/widget", "PR#326"],
       "content": {
         "body": "Change 326\n\nBody for 326, follows #325",
-        "explicitLinks": ["acme/widget#325"]
+        "explicitLinks": ["acme/widget#325"],
+        "title": "Change 326"
       },
       "raw": {
         "id": 2400000326,
@@ -795,7 +810,8 @@
       "entities": ["acme/widget", "PR#325"],
       "content": {
         "body": "Change 325\n\nBody for 325, follows #324",
-        "explicitLinks": ["acme/widget#324"]
+        "explicitLinks": ["acme/widget#324"],
+        "title": "Change 325"
       },
       "raw": {
         "id": 2400000325,
@@ -858,7 +874,8 @@
       "entities": ["acme/widget", "PR#324"],
       "content": {
         "body": "Change 324",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 324"
       },
       "raw": {
         "id": 2400000324,
@@ -924,7 +941,8 @@
       "entities": ["acme/widget", "PR#323"],
       "content": {
         "body": "Change 323\n\nBody for 323, follows #322",
-        "explicitLinks": ["acme/widget#322"]
+        "explicitLinks": ["acme/widget#322"],
+        "title": "Change 323"
       },
       "raw": {
         "id": 2400000323,
@@ -949,7 +967,8 @@
       "entities": ["acme/widget", "PR#322"],
       "content": {
         "body": "Change 322\n\nBody for 322, follows #321",
-        "explicitLinks": ["acme/widget#321"]
+        "explicitLinks": ["acme/widget#321"],
+        "title": "Change 322"
       },
       "raw": {
         "id": 2400000322,
@@ -1005,7 +1024,8 @@
       "entities": ["acme/widget", "PR#321"],
       "content": {
         "body": "Change 321\n\nBody for 321, follows #320",
-        "explicitLinks": ["acme/widget#320"]
+        "explicitLinks": ["acme/widget#320"],
+        "title": "Change 321"
       },
       "raw": {
         "id": 2400000321,
@@ -1078,7 +1098,8 @@
       "entities": ["acme/widget", "PR#320"],
       "content": {
         "body": "Change 320",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 320"
       },
       "raw": {
         "id": 2400000320,
@@ -1134,7 +1155,8 @@
       "entities": ["acme/widget", "PR#319"],
       "content": {
         "body": "Change 319\n\nBody for 319, follows #318",
-        "explicitLinks": ["acme/widget#318"]
+        "explicitLinks": ["acme/widget#318"],
+        "title": "Change 319"
       },
       "raw": {
         "id": 2400000319,
@@ -1159,7 +1181,8 @@
       "entities": ["acme/widget", "PR#318"],
       "content": {
         "body": "Change 318\n\nBody for 318, follows #317",
-        "explicitLinks": ["acme/widget#317"]
+        "explicitLinks": ["acme/widget#317"],
+        "title": "Change 318"
       },
       "raw": {
         "id": 2400000318,
@@ -1232,7 +1255,8 @@
       "entities": ["acme/widget", "PR#317"],
       "content": {
         "body": "Change 317\n\nBody for 317, follows #316",
-        "explicitLinks": ["acme/widget#316"]
+        "explicitLinks": ["acme/widget#316"],
+        "title": "Change 317"
       },
       "raw": {
         "id": 2400000317,
@@ -1257,7 +1281,8 @@
       "entities": ["acme/widget", "PR#316"],
       "content": {
         "body": "Change 316",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 316"
       },
       "raw": {
         "id": 2400000316,
@@ -1282,7 +1307,8 @@
       "entities": ["acme/widget", "PR#315"],
       "content": {
         "body": "Change 315\n\nBody for 315, follows #314",
-        "explicitLinks": ["acme/widget#314"]
+        "explicitLinks": ["acme/widget#314"],
+        "title": "Change 315"
       },
       "raw": {
         "id": 2400000315,
@@ -1393,7 +1419,8 @@
       "entities": ["acme/widget", "PR#314"],
       "content": {
         "body": "Change 314\n\nBody for 314, follows #313",
-        "explicitLinks": ["acme/widget#313"]
+        "explicitLinks": ["acme/widget#313"],
+        "title": "Change 314"
       },
       "raw": {
         "id": 2400000314,
@@ -1418,7 +1445,8 @@
       "entities": ["acme/widget", "PR#313"],
       "content": {
         "body": "Change 313\n\nBody for 313, follows #312",
-        "explicitLinks": ["acme/widget#312"]
+        "explicitLinks": ["acme/widget#312"],
+        "title": "Change 313"
       },
       "raw": {
         "id": 2400000313,
@@ -1443,7 +1471,8 @@
       "entities": ["acme/widget", "PR#312"],
       "content": {
         "body": "Change 312",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 312"
       },
       "raw": {
         "id": 2400000312,
@@ -1516,7 +1545,8 @@
       "entities": ["acme/widget", "PR#311"],
       "content": {
         "body": "Change 311\n\nBody for 311, follows #310",
-        "explicitLinks": ["acme/widget#310"]
+        "explicitLinks": ["acme/widget#310"],
+        "title": "Change 311"
       },
       "raw": {
         "id": 2400000311,
@@ -1541,7 +1571,8 @@
       "entities": ["acme/widget", "PR#310"],
       "content": {
         "body": "Change 310\n\nBody for 310, follows #309",
-        "explicitLinks": ["acme/widget#309"]
+        "explicitLinks": ["acme/widget#309"],
+        "title": "Change 310"
       },
       "raw": {
         "id": 2400000310,
@@ -1604,7 +1635,8 @@
       "entities": ["acme/widget", "PR#309"],
       "content": {
         "body": "Change 309\n\nBody for 309, follows #308",
-        "explicitLinks": ["acme/widget#308"]
+        "explicitLinks": ["acme/widget#308"],
+        "title": "Change 309"
       },
       "raw": {
         "id": 2400000309,
@@ -1663,7 +1695,8 @@
       "entities": ["acme/widget", "PR#308"],
       "content": {
         "body": "Change 308",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 308"
       },
       "raw": {
         "id": 2400000308,
@@ -1712,7 +1745,8 @@
       "entities": ["acme/widget", "PR#307"],
       "content": {
         "body": "Change 307\n\nBody for 307, follows #306",
-        "explicitLinks": ["acme/widget#306"]
+        "explicitLinks": ["acme/widget#306"],
+        "title": "Change 307"
       },
       "raw": {
         "id": 2400000307,
@@ -1737,7 +1771,8 @@
       "entities": ["acme/widget", "PR#306"],
       "content": {
         "body": "Change 306\n\nBody for 306, follows #305",
-        "explicitLinks": ["acme/widget#305"]
+        "explicitLinks": ["acme/widget#305"],
+        "title": "Change 306"
       },
       "raw": {
         "id": 2400000306,
@@ -1810,7 +1845,8 @@
       "entities": ["acme/widget", "PR#305"],
       "content": {
         "body": "Change 305\n\nBody for 305, follows #304",
-        "explicitLinks": ["acme/widget#304"]
+        "explicitLinks": ["acme/widget#304"],
+        "title": "Change 305"
       },
       "raw": {
         "id": 2400000305,
@@ -1873,7 +1909,8 @@
       "entities": ["acme/widget", "PR#304"],
       "content": {
         "body": "Change 304",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 304"
       },
       "raw": {
         "id": 2400000304,
@@ -1898,7 +1935,8 @@
       "entities": ["acme/widget", "PR#303"],
       "content": {
         "body": "Change 303\n\nBody for 303, follows #302",
-        "explicitLinks": ["acme/widget#302"]
+        "explicitLinks": ["acme/widget#302"],
+        "title": "Change 303"
       },
       "raw": {
         "id": 2400000303,
@@ -1971,7 +2009,8 @@
       "entities": ["acme/widget", "PR#302"],
       "content": {
         "body": "Change 302\n\nBody for 302, follows #301",
-        "explicitLinks": ["acme/widget#301"]
+        "explicitLinks": ["acme/widget#301"],
+        "title": "Change 302"
       },
       "raw": {
         "id": 2400000302,
@@ -1996,7 +2035,8 @@
       "entities": ["acme/widget", "PR#301"],
       "content": {
         "body": "Change 301\n\nBody for 301, follows #300",
-        "explicitLinks": ["acme/widget#300"]
+        "explicitLinks": ["acme/widget#300"],
+        "title": "Change 301"
       },
       "raw": {
         "id": 2400000301,
@@ -2052,7 +2092,8 @@
       "entities": ["acme/widget", "PR#300"],
       "content": {
         "body": "Change 300",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 300"
       },
       "raw": {
         "id": 2400000300,
@@ -2163,7 +2204,8 @@
       "entities": ["acme/widget", "PR#299"],
       "content": {
         "body": "Change 299\n\nBody for 299, follows #298",
-        "explicitLinks": ["acme/widget#298"]
+        "explicitLinks": ["acme/widget#298"],
+        "title": "Change 299"
       },
       "raw": {
         "id": 2400000299,
@@ -2188,7 +2230,8 @@
       "entities": ["acme/widget", "PR#298"],
       "content": {
         "body": "Change 298\n\nBody for 298, follows #297",
-        "explicitLinks": ["acme/widget#297"]
+        "explicitLinks": ["acme/widget#297"],
+        "title": "Change 298"
       },
       "raw": {
         "id": 2400000298,
@@ -2206,7 +2249,8 @@
       "entities": ["acme/widget", "PR#297"],
       "content": {
         "body": "Change 297\n\nBody for 297, follows #296",
-        "explicitLinks": ["acme/widget#296"]
+        "explicitLinks": ["acme/widget#296"],
+        "title": "Change 297"
       },
       "raw": {
         "id": 2400000297,
@@ -2279,7 +2323,8 @@
       "entities": ["acme/widget", "PR#296"],
       "content": {
         "body": "Change 296",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 296"
       },
       "raw": {
         "id": 2400000296,
@@ -2304,7 +2349,8 @@
       "entities": ["acme/widget", "PR#295"],
       "content": {
         "body": "Change 295\n\nBody for 295, follows #294",
-        "explicitLinks": ["acme/widget#294"]
+        "explicitLinks": ["acme/widget#294"],
+        "title": "Change 295"
       },
       "raw": {
         "id": 2400000295,
@@ -2367,7 +2413,8 @@
       "entities": ["acme/widget", "PR#294"],
       "content": {
         "body": "Change 294\n\nBody for 294, follows #293",
-        "explicitLinks": ["acme/widget#293"]
+        "explicitLinks": ["acme/widget#293"],
+        "title": "Change 294"
       },
       "raw": {
         "id": 2400000294,
@@ -2471,7 +2518,8 @@
       "entities": ["acme/widget", "PR#293"],
       "content": {
         "body": "Change 293\n\nBody for 293, follows #292",
-        "explicitLinks": ["acme/widget#292"]
+        "explicitLinks": ["acme/widget#292"],
+        "title": "Change 293"
       },
       "raw": {
         "id": 2400000293,
@@ -2496,7 +2544,8 @@
       "entities": ["acme/widget", "PR#292"],
       "content": {
         "body": "Change 292",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 292"
       },
       "raw": {
         "id": 2400000292,
@@ -2521,7 +2570,8 @@
       "entities": ["acme/widget", "PR#291"],
       "content": {
         "body": "Change 291\n\nBody for 291, follows #290",
-        "explicitLinks": ["acme/widget#290"]
+        "explicitLinks": ["acme/widget#290"],
+        "title": "Change 291"
       },
       "raw": {
         "id": 2400000291,
@@ -2587,7 +2637,8 @@
       "entities": ["acme/widget", "PR#290"],
       "content": {
         "body": "Change 290\n\nBody for 290, follows #289",
-        "explicitLinks": ["acme/widget#289"]
+        "explicitLinks": ["acme/widget#289"],
+        "title": "Change 290"
       },
       "raw": {
         "id": 2400000290,
@@ -2650,7 +2701,8 @@
       "entities": ["acme/widget", "PR#289"],
       "content": {
         "body": "Change 289\n\nBody for 289, follows #288",
-        "explicitLinks": ["acme/widget#288"]
+        "explicitLinks": ["acme/widget#288"],
+        "title": "Change 289"
       },
       "raw": {
         "id": 2400000289,
@@ -2675,7 +2727,8 @@
       "entities": ["acme/widget", "PR#288"],
       "content": {
         "body": "Change 288",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 288"
       },
       "raw": {
         "id": 2400000288,
@@ -2748,7 +2801,8 @@
       "entities": ["acme/widget", "PR#287"],
       "content": {
         "body": "Change 287\n\nBody for 287, follows #286",
-        "explicitLinks": ["acme/widget#286"]
+        "explicitLinks": ["acme/widget#286"],
+        "title": "Change 287"
       },
       "raw": {
         "id": 2400000287,
@@ -2797,7 +2851,8 @@
       "entities": ["acme/widget", "PR#286"],
       "content": {
         "body": "Change 286\n\nBody for 286, follows #285",
-        "explicitLinks": ["acme/widget#285"]
+        "explicitLinks": ["acme/widget#285"],
+        "title": "Change 286"
       },
       "raw": {
         "id": 2400000286,
@@ -2822,7 +2877,8 @@
       "entities": ["acme/widget", "PR#285"],
       "content": {
         "body": "Change 285\n\nBody for 285, follows #284",
-        "explicitLinks": ["acme/widget#284"]
+        "explicitLinks": ["acme/widget#284"],
+        "title": "Change 285"
       },
       "raw": {
         "id": 2400000285,
@@ -2933,7 +2989,8 @@
       "entities": ["acme/widget", "PR#284"],
       "content": {
         "body": "Change 284",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 284"
       },
       "raw": {
         "id": 2400000284,
@@ -2958,7 +3015,8 @@
       "entities": ["acme/widget", "PR#283"],
       "content": {
         "body": "Change 283\n\nBody for 283, follows #282",
-        "explicitLinks": ["acme/widget#282"]
+        "explicitLinks": ["acme/widget#282"],
+        "title": "Change 283"
       },
       "raw": {
         "id": 2400000283,
@@ -2983,7 +3041,8 @@
       "entities": ["acme/widget", "PR#282"],
       "content": {
         "body": "Change 282\n\nBody for 282, follows #281",
-        "explicitLinks": ["acme/widget#281"]
+        "explicitLinks": ["acme/widget#281"],
+        "title": "Change 282"
       },
       "raw": {
         "id": 2400000282,
@@ -3056,7 +3115,8 @@
       "entities": ["acme/widget", "PR#281"],
       "content": {
         "body": "Change 281\n\nBody for 281, follows #280",
-        "explicitLinks": ["acme/widget#280"]
+        "explicitLinks": ["acme/widget#280"],
+        "title": "Change 281"
       },
       "raw": {
         "id": 2400000281,
@@ -3081,7 +3141,8 @@
       "entities": ["acme/widget", "PR#280"],
       "content": {
         "body": "Change 280",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 280"
       },
       "raw": {
         "id": 2400000280,
@@ -3144,7 +3205,8 @@
       "entities": ["acme/widget", "PR#279"],
       "content": {
         "body": "Change 279\n\nBody for 279, follows #278",
-        "explicitLinks": ["acme/widget#278"]
+        "explicitLinks": ["acme/widget#278"],
+        "title": "Change 279"
       },
       "raw": {
         "id": 2400000279,
@@ -3217,7 +3279,8 @@
       "entities": ["acme/widget", "PR#278"],
       "content": {
         "body": "Change 278\n\nBody for 278, follows #277",
-        "explicitLinks": ["acme/widget#277"]
+        "explicitLinks": ["acme/widget#277"],
+        "title": "Change 278"
       },
       "raw": {
         "id": 2400000278,
@@ -3242,7 +3305,8 @@
       "entities": ["acme/widget", "PR#277"],
       "content": {
         "body": "Change 277\n\nBody for 277, follows #276",
-        "explicitLinks": ["acme/widget#276"]
+        "explicitLinks": ["acme/widget#276"],
+        "title": "Change 277"
       },
       "raw": {
         "id": 2400000277,
@@ -3267,7 +3331,8 @@
       "entities": ["acme/widget", "PR#276"],
       "content": {
         "body": "Change 276",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 276"
       },
       "raw": {
         "id": 2400000276,
@@ -3326,7 +3391,8 @@
       "entities": ["acme/widget", "PR#275"],
       "content": {
         "body": "Change 275\n\nBody for 275, follows #274",
-        "explicitLinks": ["acme/widget#274"]
+        "explicitLinks": ["acme/widget#274"],
+        "title": "Change 275"
       },
       "raw": {
         "id": 2400000275,
@@ -3382,7 +3448,8 @@
       "entities": ["acme/widget", "PR#274"],
       "content": {
         "body": "Change 274\n\nBody for 274, follows #273",
-        "explicitLinks": ["acme/widget#273"]
+        "explicitLinks": ["acme/widget#273"],
+        "title": "Change 274"
       },
       "raw": {
         "id": 2400000274,
@@ -3407,7 +3474,8 @@
       "entities": ["acme/widget", "PR#273"],
       "content": {
         "body": "Change 273\n\nBody for 273, follows #272",
-        "explicitLinks": ["acme/widget#272"]
+        "explicitLinks": ["acme/widget#272"],
+        "title": "Change 273"
       },
       "raw": {
         "id": 2400000273,
@@ -3511,7 +3579,8 @@
       "entities": ["acme/widget", "PR#272"],
       "content": {
         "body": "Change 272",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 272"
       },
       "raw": {
         "id": 2400000272,
@@ -3536,7 +3605,8 @@
       "entities": ["acme/widget", "PR#271"],
       "content": {
         "body": "Change 271\n\nBody for 271, follows #270",
-        "explicitLinks": ["acme/widget#270"]
+        "explicitLinks": ["acme/widget#270"],
+        "title": "Change 271"
       },
       "raw": {
         "id": 2400000271,
@@ -3561,7 +3631,8 @@
       "entities": ["acme/widget", "PR#270"],
       "content": {
         "body": "Change 270\n\nBody for 270, follows #269",
-        "explicitLinks": ["acme/widget#269"]
+        "explicitLinks": ["acme/widget#269"],
+        "title": "Change 270"
       },
       "raw": {
         "id": 2400000270,
@@ -3672,7 +3743,8 @@
       "entities": ["acme/widget", "PR#269"],
       "content": {
         "body": "Change 269\n\nBody for 269, follows #268",
-        "explicitLinks": ["acme/widget#268"]
+        "explicitLinks": ["acme/widget#268"],
+        "title": "Change 269"
       },
       "raw": {
         "id": 2400000269,
@@ -3697,7 +3769,8 @@
       "entities": ["acme/widget", "PR#268"],
       "content": {
         "body": "Change 268",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 268"
       },
       "raw": {
         "id": 2400000268,
@@ -3722,7 +3795,8 @@
       "entities": ["acme/widget", "PR#267"],
       "content": {
         "body": "Change 267\n\nBody for 267, follows #266",
-        "explicitLinks": ["acme/widget#266"]
+        "explicitLinks": ["acme/widget#266"],
+        "title": "Change 267"
       },
       "raw": {
         "id": 2400000267,
@@ -3795,7 +3869,8 @@
       "entities": ["acme/widget", "PR#266"],
       "content": {
         "body": "Change 266\n\nBody for 266, follows #265",
-        "explicitLinks": ["acme/widget#265"]
+        "explicitLinks": ["acme/widget#265"],
+        "title": "Change 266"
       },
       "raw": {
         "id": 2400000266,
@@ -3851,7 +3926,8 @@
       "entities": ["acme/widget", "PR#265"],
       "content": {
         "body": "Change 265\n\nBody for 265, follows #264",
-        "explicitLinks": ["acme/widget#264"]
+        "explicitLinks": ["acme/widget#264"],
+        "title": "Change 265"
       },
       "raw": {
         "id": 2400000265,
@@ -3907,7 +3983,8 @@
       "entities": ["acme/widget", "PR#264"],
       "content": {
         "body": "Change 264",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 264"
       },
       "raw": {
         "id": 2400000264,
@@ -3980,7 +4057,8 @@
       "entities": ["acme/widget", "PR#263"],
       "content": {
         "body": "Change 263\n\nBody for 263, follows #262",
-        "explicitLinks": ["acme/widget#262"]
+        "explicitLinks": ["acme/widget#262"],
+        "title": "Change 263"
       },
       "raw": {
         "id": 2400000263,
@@ -4005,7 +4083,8 @@
       "entities": ["acme/widget", "PR#262"],
       "content": {
         "body": "Change 262\n\nBody for 262, follows #261",
-        "explicitLinks": ["acme/widget#261"]
+        "explicitLinks": ["acme/widget#261"],
+        "title": "Change 262"
       },
       "raw": {
         "id": 2400000262,
@@ -4030,7 +4109,8 @@
       "entities": ["acme/widget", "PR#261"],
       "content": {
         "body": "Change 261\n\nBody for 261, follows #260",
-        "explicitLinks": ["acme/widget#260"]
+        "explicitLinks": ["acme/widget#260"],
+        "title": "Change 261"
       },
       "raw": {
         "id": 2400000261,
@@ -4103,7 +4183,8 @@
       "entities": ["acme/widget", "PR#260"],
       "content": {
         "body": "Change 260",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 260"
       },
       "raw": {
         "id": 2400000260,
@@ -4166,7 +4247,8 @@
       "entities": ["acme/widget", "PR#259"],
       "content": {
         "body": "Change 259\n\nBody for 259, follows #258",
-        "explicitLinks": ["acme/widget#258"]
+        "explicitLinks": ["acme/widget#258"],
+        "title": "Change 259"
       },
       "raw": {
         "id": 2400000259,
@@ -4222,7 +4304,8 @@
       "entities": ["acme/widget", "PR#258"],
       "content": {
         "body": "Change 258\n\nBody for 258, follows #257",
-        "explicitLinks": ["acme/widget#257"]
+        "explicitLinks": ["acme/widget#257"],
+        "title": "Change 258"
       },
       "raw": {
         "id": 2400000258,
@@ -4288,7 +4371,8 @@
       "entities": ["acme/widget", "PR#257"],
       "content": {
         "body": "Change 257\n\nBody for 257, follows #256",
-        "explicitLinks": ["acme/widget#256"]
+        "explicitLinks": ["acme/widget#256"],
+        "title": "Change 257"
       },
       "raw": {
         "id": 2400000257,
@@ -4313,7 +4397,8 @@
       "entities": ["acme/widget", "PR#256"],
       "content": {
         "body": "Change 256",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 256"
       },
       "raw": {
         "id": 2400000256,
@@ -4338,7 +4423,8 @@
       "entities": ["acme/widget", "PR#255"],
       "content": {
         "body": "Change 255\n\nBody for 255, follows #254",
-        "explicitLinks": ["acme/widget#254"]
+        "explicitLinks": ["acme/widget#254"],
+        "title": "Change 255"
       },
       "raw": {
         "id": 2400000255,
@@ -4449,7 +4535,8 @@
       "entities": ["acme/widget", "PR#254"],
       "content": {
         "body": "Change 254\n\nBody for 254, follows #253",
-        "explicitLinks": ["acme/widget#253"]
+        "explicitLinks": ["acme/widget#253"],
+        "title": "Change 254"
       },
       "raw": {
         "id": 2400000254,
@@ -4467,7 +4554,8 @@
       "entities": ["acme/widget", "PR#253"],
       "content": {
         "body": "Change 253\n\nBody for 253, follows #252",
-        "explicitLinks": ["acme/widget#252"]
+        "explicitLinks": ["acme/widget#252"],
+        "title": "Change 253"
       },
       "raw": {
         "id": 2400000253,
@@ -4492,7 +4580,8 @@
       "entities": ["acme/widget", "PR#252"],
       "content": {
         "body": "Change 252",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 252"
       },
       "raw": {
         "id": 2400000252,
@@ -4596,7 +4685,8 @@
       "entities": ["acme/widget", "PR#251"],
       "content": {
         "body": "Change 251\n\nBody for 251, follows #250",
-        "explicitLinks": ["acme/widget#250"]
+        "explicitLinks": ["acme/widget#250"],
+        "title": "Change 251"
       },
       "raw": {
         "id": 2400000251,
@@ -4621,7 +4711,8 @@
       "entities": ["acme/widget", "PR#250"],
       "content": {
         "body": "Change 250\n\nBody for 250, follows #249",
-        "explicitLinks": ["acme/widget#249"]
+        "explicitLinks": ["acme/widget#249"],
+        "title": "Change 250"
       },
       "raw": {
         "id": 2400000250,
@@ -4684,7 +4775,8 @@
       "entities": ["acme/widget", "PR#249"],
       "content": {
         "body": "Change 249\n\nBody for 249, follows #248",
-        "explicitLinks": ["acme/widget#248"]
+        "explicitLinks": ["acme/widget#248"],
+        "title": "Change 249"
       },
       "raw": {
         "id": 2400000249,
@@ -4757,7 +4849,8 @@
       "entities": ["acme/widget", "PR#248"],
       "content": {
         "body": "Change 248",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 248"
       },
       "raw": {
         "id": 2400000248,
@@ -4782,7 +4875,8 @@
       "entities": ["acme/widget", "PR#247"],
       "content": {
         "body": "Change 247\n\nBody for 247, follows #246",
-        "explicitLinks": ["acme/widget#246"]
+        "explicitLinks": ["acme/widget#246"],
+        "title": "Change 247"
       },
       "raw": {
         "id": 2400000247,
@@ -4807,7 +4901,8 @@
       "entities": ["acme/widget", "PR#246"],
       "content": {
         "body": "Change 246\n\nBody for 246, follows #245",
-        "explicitLinks": ["acme/widget#245"]
+        "explicitLinks": ["acme/widget#245"],
+        "title": "Change 246"
       },
       "raw": {
         "id": 2400000246,
@@ -4880,7 +4975,8 @@
       "entities": ["acme/widget", "PR#245"],
       "content": {
         "body": "Change 245\n\nBody for 245, follows #244",
-        "explicitLinks": ["acme/widget#244"]
+        "explicitLinks": ["acme/widget#244"],
+        "title": "Change 245"
       },
       "raw": {
         "id": 2400000245,
@@ -4943,7 +5039,8 @@
       "entities": ["acme/widget", "PR#244"],
       "content": {
         "body": "Change 244",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 244"
       },
       "raw": {
         "id": 2400000244,
@@ -4968,7 +5065,8 @@
       "entities": ["acme/widget", "PR#243"],
       "content": {
         "body": "Change 243\n\nBody for 243, follows #242",
-        "explicitLinks": ["acme/widget#242"]
+        "explicitLinks": ["acme/widget#242"],
+        "title": "Change 243"
       },
       "raw": {
         "id": 2400000243,
@@ -5027,7 +5125,8 @@
       "entities": ["acme/widget", "PR#242"],
       "content": {
         "body": "Change 242\n\nBody for 242, follows #241",
-        "explicitLinks": ["acme/widget#241"]
+        "explicitLinks": ["acme/widget#241"],
+        "title": "Change 242"
       },
       "raw": {
         "id": 2400000242,
@@ -5052,7 +5151,8 @@
       "entities": ["acme/widget", "PR#241"],
       "content": {
         "body": "Change 241\n\nBody for 241, follows #240",
-        "explicitLinks": ["acme/widget#240"]
+        "explicitLinks": ["acme/widget#240"],
+        "title": "Change 241"
       },
       "raw": {
         "id": 2400000241,
@@ -5077,7 +5177,8 @@
       "entities": ["acme/widget", "PR#240"],
       "content": {
         "body": "Change 240",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 240"
       },
       "raw": {
         "id": 2400000240,
@@ -5188,7 +5289,8 @@
       "entities": ["acme/widget", "PR#239"],
       "content": {
         "body": "Change 239\n\nBody for 239, follows #238",
-        "explicitLinks": ["acme/widget#238"]
+        "explicitLinks": ["acme/widget#238"],
+        "title": "Change 239"
       },
       "raw": {
         "id": 2400000239,
@@ -5213,7 +5315,8 @@
       "entities": ["acme/widget", "PR#238"],
       "content": {
         "body": "Change 238\n\nBody for 238, follows #237",
-        "explicitLinks": ["acme/widget#237"]
+        "explicitLinks": ["acme/widget#237"],
+        "title": "Change 238"
       },
       "raw": {
         "id": 2400000238,
@@ -5269,7 +5372,8 @@
       "entities": ["acme/widget", "PR#237"],
       "content": {
         "body": "Change 237\n\nBody for 237, follows #236",
-        "explicitLinks": ["acme/widget#236"]
+        "explicitLinks": ["acme/widget#236"],
+        "title": "Change 237"
       },
       "raw": {
         "id": 2400000237,
@@ -5342,7 +5446,8 @@
       "entities": ["acme/widget", "PR#236"],
       "content": {
         "body": "Change 236",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 236"
       },
       "raw": {
         "id": 2400000236,
@@ -5367,7 +5472,8 @@
       "entities": ["acme/widget", "PR#235"],
       "content": {
         "body": "Change 235\n\nBody for 235, follows #234",
-        "explicitLinks": ["acme/widget#234"]
+        "explicitLinks": ["acme/widget#234"],
+        "title": "Change 235"
       },
       "raw": {
         "id": 2400000235,
@@ -5430,7 +5536,8 @@
       "entities": ["acme/widget", "PR#234"],
       "content": {
         "body": "Change 234\n\nBody for 234, follows #233",
-        "explicitLinks": ["acme/widget#233"]
+        "explicitLinks": ["acme/widget#233"],
+        "title": "Change 234"
       },
       "raw": {
         "id": 2400000234,
@@ -5503,7 +5610,8 @@
       "entities": ["acme/widget", "PR#233"],
       "content": {
         "body": "Change 233\n\nBody for 233, follows #232",
-        "explicitLinks": ["acme/widget#232"]
+        "explicitLinks": ["acme/widget#232"],
+        "title": "Change 233"
       },
       "raw": {
         "id": 2400000233,
@@ -5528,7 +5636,8 @@
       "entities": ["acme/widget", "PR#232"],
       "content": {
         "body": "Change 232",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 232"
       },
       "raw": {
         "id": 2400000232,
@@ -5546,7 +5655,8 @@
       "entities": ["acme/widget", "PR#231"],
       "content": {
         "body": "Change 231\n\nBody for 231, follows #230",
-        "explicitLinks": ["acme/widget#230"]
+        "explicitLinks": ["acme/widget#230"],
+        "title": "Change 231"
       },
       "raw": {
         "id": 2400000231,
@@ -5643,7 +5753,8 @@
       "entities": ["acme/widget", "PR#230"],
       "content": {
         "body": "Change 230\n\nBody for 230, follows #229",
-        "explicitLinks": ["acme/widget#229"]
+        "explicitLinks": ["acme/widget#229"],
+        "title": "Change 230"
       },
       "raw": {
         "id": 2400000230,
@@ -5706,7 +5817,8 @@
       "entities": ["acme/widget", "PR#229"],
       "content": {
         "body": "Change 229\n\nBody for 229, follows #228",
-        "explicitLinks": ["acme/widget#228"]
+        "explicitLinks": ["acme/widget#228"],
+        "title": "Change 229"
       },
       "raw": {
         "id": 2400000229,
@@ -5731,7 +5843,8 @@
       "entities": ["acme/widget", "PR#228"],
       "content": {
         "body": "Change 228",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 228"
       },
       "raw": {
         "id": 2400000228,
@@ -5804,7 +5917,8 @@
       "entities": ["acme/widget", "PR#227"],
       "content": {
         "body": "Change 227\n\nBody for 227, follows #226",
-        "explicitLinks": ["acme/widget#226"]
+        "explicitLinks": ["acme/widget#226"],
+        "title": "Change 227"
       },
       "raw": {
         "id": 2400000227,
@@ -5829,7 +5943,8 @@
       "entities": ["acme/widget", "PR#226"],
       "content": {
         "body": "Change 226\n\nBody for 226, follows #225",
-        "explicitLinks": ["acme/widget#225"]
+        "explicitLinks": ["acme/widget#225"],
+        "title": "Change 226"
       },
       "raw": {
         "id": 2400000226,
@@ -5854,7 +5969,8 @@
       "entities": ["acme/widget", "PR#225"],
       "content": {
         "body": "Change 225\n\nBody for 225, follows #224",
-        "explicitLinks": ["acme/widget#224"]
+        "explicitLinks": ["acme/widget#224"],
+        "title": "Change 225"
       },
       "raw": {
         "id": 2400000225,
@@ -5958,7 +6074,8 @@
       "entities": ["acme/widget", "PR#224"],
       "content": {
         "body": "Change 224",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 224"
       },
       "raw": {
         "id": 2400000224,
@@ -6014,7 +6131,8 @@
       "entities": ["acme/widget", "PR#223"],
       "content": {
         "body": "Change 223\n\nBody for 223, follows #222",
-        "explicitLinks": ["acme/widget#222"]
+        "explicitLinks": ["acme/widget#222"],
+        "title": "Change 223"
       },
       "raw": {
         "id": 2400000223,
@@ -6039,7 +6157,8 @@
       "entities": ["acme/widget", "PR#222"],
       "content": {
         "body": "Change 222\n\nBody for 222, follows #221",
-        "explicitLinks": ["acme/widget#221"]
+        "explicitLinks": ["acme/widget#221"],
+        "title": "Change 222"
       },
       "raw": {
         "id": 2400000222,
@@ -6112,7 +6231,8 @@
       "entities": ["acme/widget", "PR#221"],
       "content": {
         "body": "Change 221\n\nBody for 221, follows #220",
-        "explicitLinks": ["acme/widget#220"]
+        "explicitLinks": ["acme/widget#220"],
+        "title": "Change 221"
       },
       "raw": {
         "id": 2400000221,
@@ -6130,7 +6250,8 @@
       "entities": ["acme/widget", "PR#220"],
       "content": {
         "body": "Change 220",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 220"
       },
       "raw": {
         "id": 2400000220,
@@ -6186,7 +6307,8 @@
       "entities": ["acme/widget", "PR#219"],
       "content": {
         "body": "Change 219\n\nBody for 219, follows #218",
-        "explicitLinks": ["acme/widget#218"]
+        "explicitLinks": ["acme/widget#218"],
+        "title": "Change 219"
       },
       "raw": {
         "id": 2400000219,
@@ -6259,7 +6381,8 @@
       "entities": ["acme/widget", "PR#218"],
       "content": {
         "body": "Change 218\n\nBody for 218, follows #217",
-        "explicitLinks": ["acme/widget#217"]
+        "explicitLinks": ["acme/widget#217"],
+        "title": "Change 218"
       },
       "raw": {
         "id": 2400000218,
@@ -6284,7 +6407,8 @@
       "entities": ["acme/widget", "PR#217"],
       "content": {
         "body": "Change 217\n\nBody for 217, follows #216",
-        "explicitLinks": ["acme/widget#216"]
+        "explicitLinks": ["acme/widget#216"],
+        "title": "Change 217"
       },
       "raw": {
         "id": 2400000217,
@@ -6340,7 +6464,8 @@
       "entities": ["acme/widget", "PR#216"],
       "content": {
         "body": "Change 216",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 216"
       },
       "raw": {
         "id": 2400000216,
@@ -6413,7 +6538,8 @@
       "entities": ["acme/widget", "PR#215"],
       "content": {
         "body": "Change 215\n\nBody for 215, follows #214",
-        "explicitLinks": ["acme/widget#214"]
+        "explicitLinks": ["acme/widget#214"],
+        "title": "Change 215"
       },
       "raw": {
         "id": 2400000215,
@@ -6476,7 +6602,8 @@
       "entities": ["acme/widget", "PR#214"],
       "content": {
         "body": "Change 214\n\nBody for 214, follows #213",
-        "explicitLinks": ["acme/widget#213"]
+        "explicitLinks": ["acme/widget#213"],
+        "title": "Change 214"
       },
       "raw": {
         "id": 2400000214,
@@ -6501,7 +6628,8 @@
       "entities": ["acme/widget", "PR#213"],
       "content": {
         "body": "Change 213\n\nBody for 213, follows #212",
-        "explicitLinks": ["acme/widget#212"]
+        "explicitLinks": ["acme/widget#212"],
+        "title": "Change 213"
       },
       "raw": {
         "id": 2400000213,
@@ -6574,7 +6702,8 @@
       "entities": ["acme/widget", "PR#212"],
       "content": {
         "body": "Change 212",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 212"
       },
       "raw": {
         "id": 2400000212,
@@ -6599,7 +6728,8 @@
       "entities": ["acme/widget", "PR#211"],
       "content": {
         "body": "Change 211\n\nBody for 211, follows #210",
-        "explicitLinks": ["acme/widget#210"]
+        "explicitLinks": ["acme/widget#210"],
+        "title": "Change 211"
       },
       "raw": {
         "id": 2400000211,
@@ -6624,7 +6754,8 @@
       "entities": ["acme/widget", "PR#210"],
       "content": {
         "body": "Change 210\n\nBody for 210, follows #209",
-        "explicitLinks": ["acme/widget#209"]
+        "explicitLinks": ["acme/widget#209"],
+        "title": "Change 210"
       },
       "raw": {
         "id": 2400000210,
@@ -6721,7 +6852,8 @@
       "entities": ["acme/widget", "PR#209"],
       "content": {
         "body": "Change 209\n\nBody for 209, follows #208",
-        "explicitLinks": ["acme/widget#208"]
+        "explicitLinks": ["acme/widget#208"],
+        "title": "Change 209"
       },
       "raw": {
         "id": 2400000209,
@@ -6746,7 +6878,8 @@
       "entities": ["acme/widget", "PR#208"],
       "content": {
         "body": "Change 208",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 208"
       },
       "raw": {
         "id": 2400000208,
@@ -6771,7 +6904,8 @@
       "entities": ["acme/widget", "PR#207"],
       "content": {
         "body": "Change 207\n\nBody for 207, follows #206",
-        "explicitLinks": ["acme/widget#206"]
+        "explicitLinks": ["acme/widget#206"],
+        "title": "Change 207"
       },
       "raw": {
         "id": 2400000207,
@@ -6844,7 +6978,8 @@
       "entities": ["acme/widget", "PR#206"],
       "content": {
         "body": "Change 206\n\nBody for 206, follows #205",
-        "explicitLinks": ["acme/widget#205"]
+        "explicitLinks": ["acme/widget#205"],
+        "title": "Change 206"
       },
       "raw": {
         "id": 2400000206,
@@ -6869,7 +7004,8 @@
       "entities": ["acme/widget", "PR#205"],
       "content": {
         "body": "Change 205\n\nBody for 205, follows #204",
-        "explicitLinks": ["acme/widget#204"]
+        "explicitLinks": ["acme/widget#204"],
+        "title": "Change 205"
       },
       "raw": {
         "id": 2400000205,
@@ -6932,7 +7068,8 @@
       "entities": ["acme/widget", "PR#204"],
       "content": {
         "body": "Change 204",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 204"
       },
       "raw": {
         "id": 2400000204,
@@ -7005,7 +7142,8 @@
       "entities": ["acme/widget", "PR#203"],
       "content": {
         "body": "Change 203\n\nBody for 203, follows #202",
-        "explicitLinks": ["acme/widget#202"]
+        "explicitLinks": ["acme/widget#202"],
+        "title": "Change 203"
       },
       "raw": {
         "id": 2400000203,
@@ -7061,7 +7199,8 @@
       "entities": ["acme/widget", "PR#202"],
       "content": {
         "body": "Change 202\n\nBody for 202, follows #201",
-        "explicitLinks": ["acme/widget#201"]
+        "explicitLinks": ["acme/widget#201"],
+        "title": "Change 202"
       },
       "raw": {
         "id": 2400000202,
@@ -7086,7 +7225,8 @@
       "entities": ["acme/widget", "PR#201"],
       "content": {
         "body": "Change 201\n\nBody for 201, follows #200",
-        "explicitLinks": ["acme/widget#200"]
+        "explicitLinks": ["acme/widget#200"],
+        "title": "Change 201"
       },
       "raw": {
         "id": 2400000201,
@@ -7159,7 +7299,8 @@
       "entities": ["acme/widget", "PR#200"],
       "content": {
         "body": "Change 200",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 200"
       },
       "raw": {
         "id": 2400000200,
@@ -7222,7 +7363,8 @@
       "entities": ["acme/widget", "PR#199"],
       "content": {
         "body": "Change 199\n\nBody for 199, follows #198",
-        "explicitLinks": ["acme/widget#198"]
+        "explicitLinks": ["acme/widget#198"],
+        "title": "Change 199"
       },
       "raw": {
         "id": 2400000199,
@@ -7240,7 +7382,8 @@
       "entities": ["acme/widget", "PR#198"],
       "content": {
         "body": "Change 198\n\nBody for 198, follows #197",
-        "explicitLinks": ["acme/widget#197"]
+        "explicitLinks": ["acme/widget#197"],
+        "title": "Change 198"
       },
       "raw": {
         "id": 2400000198,
@@ -7313,7 +7456,8 @@
       "entities": ["acme/widget", "PR#197"],
       "content": {
         "body": "Change 197\n\nBody for 197, follows #196",
-        "explicitLinks": ["acme/widget#196"]
+        "explicitLinks": ["acme/widget#196"],
+        "title": "Change 197"
       },
       "raw": {
         "id": 2400000197,
@@ -7338,7 +7482,8 @@
       "entities": ["acme/widget", "PR#196"],
       "content": {
         "body": "Change 196",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 196"
       },
       "raw": {
         "id": 2400000196,
@@ -7394,7 +7539,8 @@
       "entities": ["acme/widget", "PR#195"],
       "content": {
         "body": "Change 195\n\nBody for 195, follows #194",
-        "explicitLinks": ["acme/widget#194"]
+        "explicitLinks": ["acme/widget#194"],
+        "title": "Change 195"
       },
       "raw": {
         "id": 2400000195,
@@ -7505,7 +7651,8 @@
       "entities": ["acme/widget", "PR#194"],
       "content": {
         "body": "Change 194\n\nBody for 194, follows #193",
-        "explicitLinks": ["acme/widget#193"]
+        "explicitLinks": ["acme/widget#193"],
+        "title": "Change 194"
       },
       "raw": {
         "id": 2400000194,
@@ -7530,7 +7677,8 @@
       "entities": ["acme/widget", "PR#193"],
       "content": {
         "body": "Change 193\n\nBody for 193, follows #192",
-        "explicitLinks": ["acme/widget#192"]
+        "explicitLinks": ["acme/widget#192"],
+        "title": "Change 193"
       },
       "raw": {
         "id": 2400000193,
@@ -7555,7 +7703,8 @@
       "entities": ["acme/widget", "PR#192"],
       "content": {
         "body": "Change 192",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 192"
       },
       "raw": {
         "id": 2400000192,
@@ -7621,7 +7770,8 @@
       "entities": ["acme/widget", "PR#191"],
       "content": {
         "body": "Change 191\n\nBody for 191, follows #190",
-        "explicitLinks": ["acme/widget#190"]
+        "explicitLinks": ["acme/widget#190"],
+        "title": "Change 191"
       },
       "raw": {
         "id": 2400000191,
@@ -7646,7 +7796,8 @@
       "entities": ["acme/widget", "PR#190"],
       "content": {
         "body": "Change 190\n\nBody for 190, follows #189",
-        "explicitLinks": ["acme/widget#189"]
+        "explicitLinks": ["acme/widget#189"],
+        "title": "Change 190"
       },
       "raw": {
         "id": 2400000190,
@@ -7709,7 +7860,8 @@
       "entities": ["acme/widget", "PR#189"],
       "content": {
         "body": "Change 189\n\nBody for 189, follows #188",
-        "explicitLinks": ["acme/widget#188"]
+        "explicitLinks": ["acme/widget#188"],
+        "title": "Change 189"
       },
       "raw": {
         "id": 2400000189,
@@ -7813,7 +7965,8 @@
       "entities": ["acme/widget", "PR#188"],
       "content": {
         "body": "Change 188",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 188"
       },
       "raw": {
         "id": 2400000188,
@@ -7831,7 +7984,8 @@
       "entities": ["acme/widget", "PR#187"],
       "content": {
         "body": "Change 187\n\nBody for 187, follows #186",
-        "explicitLinks": ["acme/widget#186"]
+        "explicitLinks": ["acme/widget#186"],
+        "title": "Change 187"
       },
       "raw": {
         "id": 2400000187,
@@ -7856,7 +8010,8 @@
       "entities": ["acme/widget", "PR#186"],
       "content": {
         "body": "Change 186\n\nBody for 186, follows #185",
-        "explicitLinks": ["acme/widget#185"]
+        "explicitLinks": ["acme/widget#185"],
+        "title": "Change 186"
       },
       "raw": {
         "id": 2400000186,
@@ -7929,7 +8084,8 @@
       "entities": ["acme/widget", "PR#185"],
       "content": {
         "body": "Change 185\n\nBody for 185, follows #184",
-        "explicitLinks": ["acme/widget#184"]
+        "explicitLinks": ["acme/widget#184"],
+        "title": "Change 185"
       },
       "raw": {
         "id": 2400000185,
@@ -7992,7 +8148,8 @@
       "entities": ["acme/widget", "PR#184"],
       "content": {
         "body": "Change 184",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 184"
       },
       "raw": {
         "id": 2400000184,
@@ -8017,7 +8174,8 @@
       "entities": ["acme/widget", "PR#183"],
       "content": {
         "body": "Change 183\n\nBody for 183, follows #182",
-        "explicitLinks": ["acme/widget#182"]
+        "explicitLinks": ["acme/widget#182"],
+        "title": "Change 183"
       },
       "raw": {
         "id": 2400000183,
@@ -8090,7 +8248,8 @@
       "entities": ["acme/widget", "PR#182"],
       "content": {
         "body": "Change 182\n\nBody for 182, follows #181",
-        "explicitLinks": ["acme/widget#181"]
+        "explicitLinks": ["acme/widget#181"],
+        "title": "Change 182"
       },
       "raw": {
         "id": 2400000182,
@@ -8146,7 +8305,8 @@
       "entities": ["acme/widget", "PR#181"],
       "content": {
         "body": "Change 181\n\nBody for 181, follows #180",
-        "explicitLinks": ["acme/widget#180"]
+        "explicitLinks": ["acme/widget#180"],
+        "title": "Change 181"
       },
       "raw": {
         "id": 2400000181,
@@ -8171,7 +8331,8 @@
       "entities": ["acme/widget", "PR#180"],
       "content": {
         "body": "Change 180",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 180"
       },
       "raw": {
         "id": 2400000180,
@@ -8282,7 +8443,8 @@
       "entities": ["acme/widget", "PR#179"],
       "content": {
         "body": "Change 179\n\nBody for 179, follows #178",
-        "explicitLinks": ["acme/widget#178"]
+        "explicitLinks": ["acme/widget#178"],
+        "title": "Change 179"
       },
       "raw": {
         "id": 2400000179,
@@ -8307,7 +8469,8 @@
       "entities": ["acme/widget", "PR#178"],
       "content": {
         "body": "Change 178\n\nBody for 178, follows #177",
-        "explicitLinks": ["acme/widget#177"]
+        "explicitLinks": ["acme/widget#177"],
+        "title": "Change 178"
       },
       "raw": {
         "id": 2400000178,
@@ -8332,7 +8495,8 @@
       "entities": ["acme/widget", "PR#177"],
       "content": {
         "body": "Change 177\n\nBody for 177, follows #176",
-        "explicitLinks": ["acme/widget#176"]
+        "explicitLinks": ["acme/widget#176"],
+        "title": "Change 177"
       },
       "raw": {
         "id": 2400000177,
@@ -8391,7 +8555,8 @@
       "entities": ["acme/widget", "PR#176"],
       "content": {
         "body": "Change 176",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 176"
       },
       "raw": {
         "id": 2400000176,
@@ -8416,7 +8581,8 @@
       "entities": ["acme/widget", "PR#175"],
       "content": {
         "body": "Change 175\n\nBody for 175, follows #174",
-        "explicitLinks": ["acme/widget#174"]
+        "explicitLinks": ["acme/widget#174"],
+        "title": "Change 175"
       },
       "raw": {
         "id": 2400000175,
@@ -8479,7 +8645,8 @@
       "entities": ["acme/widget", "PR#174"],
       "content": {
         "body": "Change 174\n\nBody for 174, follows #173",
-        "explicitLinks": ["acme/widget#173"]
+        "explicitLinks": ["acme/widget#173"],
+        "title": "Change 174"
       },
       "raw": {
         "id": 2400000174,
@@ -8552,7 +8719,8 @@
       "entities": ["acme/widget", "PR#173"],
       "content": {
         "body": "Change 173\n\nBody for 173, follows #172",
-        "explicitLinks": ["acme/widget#172"]
+        "explicitLinks": ["acme/widget#172"],
+        "title": "Change 173"
       },
       "raw": {
         "id": 2400000173,
@@ -8577,7 +8745,8 @@
       "entities": ["acme/widget", "PR#172"],
       "content": {
         "body": "Change 172",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 172"
       },
       "raw": {
         "id": 2400000172,
@@ -8602,7 +8771,8 @@
       "entities": ["acme/widget", "PR#171"],
       "content": {
         "body": "Change 171\n\nBody for 171, follows #170",
-        "explicitLinks": ["acme/widget#170"]
+        "explicitLinks": ["acme/widget#170"],
+        "title": "Change 171"
       },
       "raw": {
         "id": 2400000171,
@@ -8675,7 +8845,8 @@
       "entities": ["acme/widget", "PR#170"],
       "content": {
         "body": "Change 170\n\nBody for 170, follows #169",
-        "explicitLinks": ["acme/widget#169"]
+        "explicitLinks": ["acme/widget#169"],
+        "title": "Change 170"
       },
       "raw": {
         "id": 2400000170,
@@ -8738,7 +8909,8 @@
       "entities": ["acme/widget", "PR#169"],
       "content": {
         "body": "Change 169\n\nBody for 169, follows #168",
-        "explicitLinks": ["acme/widget#168"]
+        "explicitLinks": ["acme/widget#168"],
+        "title": "Change 169"
       },
       "raw": {
         "id": 2400000169,
@@ -8763,7 +8935,8 @@
       "entities": ["acme/widget", "PR#168"],
       "content": {
         "body": "Change 168",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 168"
       },
       "raw": {
         "id": 2400000168,
@@ -8867,7 +9040,8 @@
       "entities": ["acme/widget", "PR#167"],
       "content": {
         "body": "Change 167\n\nBody for 167, follows #166",
-        "explicitLinks": ["acme/widget#166"]
+        "explicitLinks": ["acme/widget#166"],
+        "title": "Change 167"
       },
       "raw": {
         "id": 2400000167,
@@ -8892,7 +9066,8 @@
       "entities": ["acme/widget", "PR#166"],
       "content": {
         "body": "Change 166\n\nBody for 166, follows #165",
-        "explicitLinks": ["acme/widget#165"]
+        "explicitLinks": ["acme/widget#165"],
+        "title": "Change 166"
       },
       "raw": {
         "id": 2400000166,
@@ -8910,7 +9085,8 @@
       "entities": ["acme/widget", "PR#165"],
       "content": {
         "body": "Change 165\n\nBody for 165, follows #164",
-        "explicitLinks": ["acme/widget#164"]
+        "explicitLinks": ["acme/widget#164"],
+        "title": "Change 165"
       },
       "raw": {
         "id": 2400000165,
@@ -9014,7 +9190,8 @@
       "entities": ["acme/widget", "PR#164"],
       "content": {
         "body": "Change 164",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 164"
       },
       "raw": {
         "id": 2400000164,
@@ -9039,7 +9216,8 @@
       "entities": ["acme/widget", "PR#163"],
       "content": {
         "body": "Change 163\n\nBody for 163, follows #162",
-        "explicitLinks": ["acme/widget#162"]
+        "explicitLinks": ["acme/widget#162"],
+        "title": "Change 163"
       },
       "raw": {
         "id": 2400000163,
@@ -9064,7 +9242,8 @@
       "entities": ["acme/widget", "PR#162"],
       "content": {
         "body": "Change 162\n\nBody for 162, follows #161",
-        "explicitLinks": ["acme/widget#161"]
+        "explicitLinks": ["acme/widget#161"],
+        "title": "Change 162"
       },
       "raw": {
         "id": 2400000162,
@@ -9137,7 +9316,8 @@
       "entities": ["acme/widget", "PR#161"],
       "content": {
         "body": "Change 161\n\nBody for 161, follows #160",
-        "explicitLinks": ["acme/widget#160"]
+        "explicitLinks": ["acme/widget#160"],
+        "title": "Change 161"
       },
       "raw": {
         "id": 2400000161,
@@ -9193,7 +9373,8 @@
       "entities": ["acme/widget", "PR#160"],
       "content": {
         "body": "Change 160",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 160"
       },
       "raw": {
         "id": 2400000160,
@@ -9256,7 +9437,8 @@
       "entities": ["acme/widget", "PR#159"],
       "content": {
         "body": "Change 159\n\nBody for 159, follows #158",
-        "explicitLinks": ["acme/widget#158"]
+        "explicitLinks": ["acme/widget#158"],
+        "title": "Change 159"
       },
       "raw": {
         "id": 2400000159,
@@ -9322,7 +9504,8 @@
       "entities": ["acme/widget", "PR#158"],
       "content": {
         "body": "Change 158\n\nBody for 158, follows #157",
-        "explicitLinks": ["acme/widget#157"]
+        "explicitLinks": ["acme/widget#157"],
+        "title": "Change 158"
       },
       "raw": {
         "id": 2400000158,
@@ -9347,7 +9530,8 @@
       "entities": ["acme/widget", "PR#157"],
       "content": {
         "body": "Change 157\n\nBody for 157, follows #156",
-        "explicitLinks": ["acme/widget#156"]
+        "explicitLinks": ["acme/widget#156"],
+        "title": "Change 157"
       },
       "raw": {
         "id": 2400000157,
@@ -9372,7 +9556,8 @@
       "entities": ["acme/widget", "PR#156"],
       "content": {
         "body": "Change 156",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 156"
       },
       "raw": {
         "id": 2400000156,
@@ -9445,7 +9630,8 @@
       "entities": ["acme/widget", "PR#155"],
       "content": {
         "body": "Change 155\n\nBody for 155, follows #154",
-        "explicitLinks": ["acme/widget#154"]
+        "explicitLinks": ["acme/widget#154"],
+        "title": "Change 155"
       },
       "raw": {
         "id": 2400000155,
@@ -9501,7 +9687,8 @@
       "entities": ["acme/widget", "PR#154"],
       "content": {
         "body": "Change 154\n\nBody for 154, follows #153",
-        "explicitLinks": ["acme/widget#153"]
+        "explicitLinks": ["acme/widget#153"],
+        "title": "Change 154"
       },
       "raw": {
         "id": 2400000154,
@@ -9550,7 +9737,8 @@
       "entities": ["acme/widget", "PR#153"],
       "content": {
         "body": "Change 153\n\nBody for 153, follows #152",
-        "explicitLinks": ["acme/widget#152"]
+        "explicitLinks": ["acme/widget#152"],
+        "title": "Change 153"
       },
       "raw": {
         "id": 2400000153,
@@ -9623,7 +9811,8 @@
       "entities": ["acme/widget", "PR#152"],
       "content": {
         "body": "Change 152",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 152"
       },
       "raw": {
         "id": 2400000152,
@@ -9648,7 +9837,8 @@
       "entities": ["acme/widget", "PR#151"],
       "content": {
         "body": "Change 151\n\nBody for 151, follows #150",
-        "explicitLinks": ["acme/widget#150"]
+        "explicitLinks": ["acme/widget#150"],
+        "title": "Change 151"
       },
       "raw": {
         "id": 2400000151,
@@ -9673,7 +9863,8 @@
       "entities": ["acme/widget", "PR#150"],
       "content": {
         "body": "Change 150\n\nBody for 150, follows #149",
-        "explicitLinks": ["acme/widget#149"]
+        "explicitLinks": ["acme/widget#149"],
+        "title": "Change 150"
       },
       "raw": {
         "id": 2400000150,
@@ -9784,7 +9975,8 @@
       "entities": ["acme/widget", "PR#149"],
       "content": {
         "body": "Change 149\n\nBody for 149, follows #148",
-        "explicitLinks": ["acme/widget#148"]
+        "explicitLinks": ["acme/widget#148"],
+        "title": "Change 149"
       },
       "raw": {
         "id": 2400000149,
@@ -9809,7 +10001,8 @@
       "entities": ["acme/widget", "PR#148"],
       "content": {
         "body": "Change 148",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 148"
       },
       "raw": {
         "id": 2400000148,
@@ -9834,7 +10027,8 @@
       "entities": ["acme/widget", "PR#147"],
       "content": {
         "body": "Change 147\n\nBody for 147, follows #146",
-        "explicitLinks": ["acme/widget#146"]
+        "explicitLinks": ["acme/widget#146"],
+        "title": "Change 147"
       },
       "raw": {
         "id": 2400000147,
@@ -9938,7 +10132,8 @@
       "entities": ["acme/widget", "PR#146"],
       "content": {
         "body": "Change 146\n\nBody for 146, follows #145",
-        "explicitLinks": ["acme/widget#145"]
+        "explicitLinks": ["acme/widget#145"],
+        "title": "Change 146"
       },
       "raw": {
         "id": 2400000146,
@@ -9963,7 +10158,8 @@
       "entities": ["acme/widget", "PR#145"],
       "content": {
         "body": "Change 145\n\nBody for 145, follows #144",
-        "explicitLinks": ["acme/widget#144"]
+        "explicitLinks": ["acme/widget#144"],
+        "title": "Change 145"
       },
       "raw": {
         "id": 2400000145,
@@ -10026,7 +10222,8 @@
       "entities": ["acme/widget", "PR#144"],
       "content": {
         "body": "Change 144",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 144"
       },
       "raw": {
         "id": 2400000144,
@@ -10085,7 +10282,8 @@
       "entities": ["acme/widget", "PR#143"],
       "content": {
         "body": "Change 143\n\nBody for 143, follows #142",
-        "explicitLinks": ["acme/widget#142"]
+        "explicitLinks": ["acme/widget#142"],
+        "title": "Change 143"
       },
       "raw": {
         "id": 2400000143,
@@ -10110,7 +10308,8 @@
       "entities": ["acme/widget", "PR#142"],
       "content": {
         "body": "Change 142\n\nBody for 142, follows #141",
-        "explicitLinks": ["acme/widget#141"]
+        "explicitLinks": ["acme/widget#141"],
+        "title": "Change 142"
       },
       "raw": {
         "id": 2400000142,
@@ -10135,7 +10334,8 @@
       "entities": ["acme/widget", "PR#141"],
       "content": {
         "body": "Change 141\n\nBody for 141, follows #140",
-        "explicitLinks": ["acme/widget#140"]
+        "explicitLinks": ["acme/widget#140"],
+        "title": "Change 141"
       },
       "raw": {
         "id": 2400000141,
@@ -10208,7 +10408,8 @@
       "entities": ["acme/widget", "PR#140"],
       "content": {
         "body": "Change 140",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 140"
       },
       "raw": {
         "id": 2400000140,
@@ -10271,7 +10472,8 @@
       "entities": ["acme/widget", "PR#139"],
       "content": {
         "body": "Change 139\n\nBody for 139, follows #138",
-        "explicitLinks": ["acme/widget#138"]
+        "explicitLinks": ["acme/widget#138"],
+        "title": "Change 139"
       },
       "raw": {
         "id": 2400000139,
@@ -10296,7 +10498,8 @@
       "entities": ["acme/widget", "PR#138"],
       "content": {
         "body": "Change 138\n\nBody for 138, follows #137",
-        "explicitLinks": ["acme/widget#137"]
+        "explicitLinks": ["acme/widget#137"],
+        "title": "Change 138"
       },
       "raw": {
         "id": 2400000138,
@@ -10369,7 +10572,8 @@
       "entities": ["acme/widget", "PR#137"],
       "content": {
         "body": "Change 137\n\nBody for 137, follows #136",
-        "explicitLinks": ["acme/widget#136"]
+        "explicitLinks": ["acme/widget#136"],
+        "title": "Change 137"
       },
       "raw": {
         "id": 2400000137,
@@ -10394,7 +10598,8 @@
       "entities": ["acme/widget", "PR#136"],
       "content": {
         "body": "Change 136",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 136"
       },
       "raw": {
         "id": 2400000136,
@@ -10419,7 +10624,8 @@
       "entities": ["acme/widget", "PR#135"],
       "content": {
         "body": "Change 135\n\nBody for 135, follows #134",
-        "explicitLinks": ["acme/widget#134"]
+        "explicitLinks": ["acme/widget#134"],
+        "title": "Change 135"
       },
       "raw": {
         "id": 2400000135,
@@ -10530,7 +10736,8 @@
       "entities": ["acme/widget", "PR#134"],
       "content": {
         "body": "Change 134\n\nBody for 134, follows #133",
-        "explicitLinks": ["acme/widget#133"]
+        "explicitLinks": ["acme/widget#133"],
+        "title": "Change 134"
       },
       "raw": {
         "id": 2400000134,
@@ -10555,7 +10762,8 @@
       "entities": ["acme/widget", "PR#133"],
       "content": {
         "body": "Change 133\n\nBody for 133, follows #132",
-        "explicitLinks": ["acme/widget#132"]
+        "explicitLinks": ["acme/widget#132"],
+        "title": "Change 133"
       },
       "raw": {
         "id": 2400000133,
@@ -10604,7 +10812,8 @@
       "entities": ["acme/widget", "PR#132"],
       "content": {
         "body": "Change 132",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 132"
       },
       "raw": {
         "id": 2400000132,
@@ -10677,7 +10886,8 @@
       "entities": ["acme/widget", "PR#131"],
       "content": {
         "body": "Change 131\n\nBody for 131, follows #130",
-        "explicitLinks": ["acme/widget#130"]
+        "explicitLinks": ["acme/widget#130"],
+        "title": "Change 131"
       },
       "raw": {
         "id": 2400000131,
@@ -10702,7 +10912,8 @@
       "entities": ["acme/widget", "PR#130"],
       "content": {
         "body": "Change 130\n\nBody for 130, follows #129",
-        "explicitLinks": ["acme/widget#129"]
+        "explicitLinks": ["acme/widget#129"],
+        "title": "Change 130"
       },
       "raw": {
         "id": 2400000130,
@@ -10765,7 +10976,8 @@
       "entities": ["acme/widget", "PR#129"],
       "content": {
         "body": "Change 129\n\nBody for 129, follows #128",
-        "explicitLinks": ["acme/widget#128"]
+        "explicitLinks": ["acme/widget#128"],
+        "title": "Change 129"
       },
       "raw": {
         "id": 2400000129,
@@ -10838,7 +11050,8 @@
       "entities": ["acme/widget", "PR#128"],
       "content": {
         "body": "Change 128",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 128"
       },
       "raw": {
         "id": 2400000128,
@@ -10863,7 +11076,8 @@
       "entities": ["acme/widget", "PR#127"],
       "content": {
         "body": "Change 127\n\nBody for 127, follows #126",
-        "explicitLinks": ["acme/widget#126"]
+        "explicitLinks": ["acme/widget#126"],
+        "title": "Change 127"
       },
       "raw": {
         "id": 2400000127,
@@ -10888,7 +11102,8 @@
       "entities": ["acme/widget", "PR#126"],
       "content": {
         "body": "Change 126\n\nBody for 126, follows #125",
-        "explicitLinks": ["acme/widget#125"]
+        "explicitLinks": ["acme/widget#125"],
+        "title": "Change 126"
       },
       "raw": {
         "id": 2400000126,
@@ -10985,7 +11200,8 @@
       "entities": ["acme/widget", "PR#125"],
       "content": {
         "body": "Change 125\n\nBody for 125, follows #124",
-        "explicitLinks": ["acme/widget#124"]
+        "explicitLinks": ["acme/widget#124"],
+        "title": "Change 125"
       },
       "raw": {
         "id": 2400000125,
@@ -11048,7 +11264,8 @@
       "entities": ["acme/widget", "PR#124"],
       "content": {
         "body": "Change 124",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 124"
       },
       "raw": {
         "id": 2400000124,
@@ -11073,7 +11290,8 @@
       "entities": ["acme/widget", "PR#123"],
       "content": {
         "body": "Change 123\n\nBody for 123, follows #122",
-        "explicitLinks": ["acme/widget#122"]
+        "explicitLinks": ["acme/widget#122"],
+        "title": "Change 123"
       },
       "raw": {
         "id": 2400000123,
@@ -11146,7 +11364,8 @@
       "entities": ["acme/widget", "PR#122"],
       "content": {
         "body": "Change 122\n\nBody for 122, follows #121",
-        "explicitLinks": ["acme/widget#121"]
+        "explicitLinks": ["acme/widget#121"],
+        "title": "Change 122"
       },
       "raw": {
         "id": 2400000122,
@@ -11164,7 +11383,8 @@
       "entities": ["acme/widget", "PR#121"],
       "content": {
         "body": "Change 121\n\nBody for 121, follows #120",
-        "explicitLinks": ["acme/widget#120"]
+        "explicitLinks": ["acme/widget#120"],
+        "title": "Change 121"
       },
       "raw": {
         "id": 2400000121,
@@ -11189,7 +11409,8 @@
       "entities": ["acme/widget", "PR#120"],
       "content": {
         "body": "Change 120",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 120"
       },
       "raw": {
         "id": 2400000120,
@@ -11300,7 +11521,8 @@
       "entities": ["acme/widget", "PR#119"],
       "content": {
         "body": "Change 119\n\nBody for 119, follows #118",
-        "explicitLinks": ["acme/widget#118"]
+        "explicitLinks": ["acme/widget#118"],
+        "title": "Change 119"
       },
       "raw": {
         "id": 2400000119,
@@ -11356,7 +11578,8 @@
       "entities": ["acme/widget", "PR#118"],
       "content": {
         "body": "Change 118\n\nBody for 118, follows #117",
-        "explicitLinks": ["acme/widget#117"]
+        "explicitLinks": ["acme/widget#117"],
+        "title": "Change 118"
       },
       "raw": {
         "id": 2400000118,
@@ -11381,7 +11604,8 @@
       "entities": ["acme/widget", "PR#117"],
       "content": {
         "body": "Change 117\n\nBody for 117, follows #116",
-        "explicitLinks": ["acme/widget#116"]
+        "explicitLinks": ["acme/widget#116"],
+        "title": "Change 117"
       },
       "raw": {
         "id": 2400000117,
@@ -11454,7 +11678,8 @@
       "entities": ["acme/widget", "PR#116"],
       "content": {
         "body": "Change 116",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 116"
       },
       "raw": {
         "id": 2400000116,
@@ -11479,7 +11704,8 @@
       "entities": ["acme/widget", "PR#115"],
       "content": {
         "body": "Change 115\n\nBody for 115, follows #114",
-        "explicitLinks": ["acme/widget#114"]
+        "explicitLinks": ["acme/widget#114"],
+        "title": "Change 115"
       },
       "raw": {
         "id": 2400000115,
@@ -11542,7 +11768,8 @@
       "entities": ["acme/widget", "PR#114"],
       "content": {
         "body": "Change 114\n\nBody for 114, follows #113",
-        "explicitLinks": ["acme/widget#113"]
+        "explicitLinks": ["acme/widget#113"],
+        "title": "Change 114"
       },
       "raw": {
         "id": 2400000114,
@@ -11615,7 +11842,8 @@
       "entities": ["acme/widget", "PR#113"],
       "content": {
         "body": "Change 113\n\nBody for 113, follows #112",
-        "explicitLinks": ["acme/widget#112"]
+        "explicitLinks": ["acme/widget#112"],
+        "title": "Change 113"
       },
       "raw": {
         "id": 2400000113,
@@ -11640,7 +11868,8 @@
       "entities": ["acme/widget", "PR#112"],
       "content": {
         "body": "Change 112",
-        "explicitLinks": []
+        "explicitLinks": [],
+        "title": "Change 112"
       },
       "raw": {
         "id": 2400000112,
@@ -11696,7 +11925,8 @@
       "entities": ["acme/widget", "PR#111"],
       "content": {
         "body": "Change 111\n\nBody for 111, follows #110",
-        "explicitLinks": ["acme/widget#110"]
+        "explicitLinks": ["acme/widget#110"],
+        "title": "Change 111"
       },
       "raw": {
         "id": 2400000111,

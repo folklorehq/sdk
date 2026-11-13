@@ -252,7 +252,8 @@
           ],
           "content": {
             "body": "Fix the auth bug",
-            "explicitLinks": []
+            "explicitLinks": [],
+            "title": "Fix the auth bug"
           },
           "raw": {
             "entity": "issue",
@@ -281,7 +282,8 @@
           ],
           "content": {
             "body": "Fix the auth bug\n\nAuth is broken on mobile.",
-            "explicitLinks": []
+            "explicitLinks": [],
+            "title": "Fix the auth bug"
           },
           "raw": {
             "entity": "issue",
@@ -312,7 +314,8 @@
             "body": "Fix the auth bug\n\nAuth is broken. See https://linear.app/acme/issue/ENG-43/refactor-login",
             "explicitLinks": [
               "ENG-43"
-            ]
+            ],
+            "title": "Fix the auth bug"
           },
           "raw": {
             "entity": "issue",

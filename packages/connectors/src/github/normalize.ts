@@ -25,6 +25,10 @@ export function pullRequestContainerId(repo: GitHubRepo, pullNumber: number): st
   return githubItemKey(repo.full_name, pullNumber);
 }
 
+function hasText(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '';
+}
+
 function metric(key: FactMetricKey, value: number): NormalizedMetric {
   return { key, value, unit: FACT_METRIC_UNITS[key] };
 }
@@ -108,6 +112,7 @@ export function normalizePullRequest(
       content: {
         body: [pr.title, pr.body ?? ''].filter(Boolean).join('\n\n'),
         explicitLinks: extractExplicitLinks(pr.body ?? '', repo.full_name),
+        ...(hasText(pr.title) ? { title: pr.title } : {}),
       },
       raw: { id: pr.id, number: pr.number },
     },

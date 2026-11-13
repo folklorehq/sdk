@@ -42,6 +42,8 @@ export interface NormalizedResource {
 export interface NormalizedContent {
   body: string;
   explicitLinks: string[];
+  /** A record's own title field; only the title-bearing record types set it. */
+  title?: string;
 }
 
 /** Content-free numeric upstream signal — only scalars; never a path/filename/label. */

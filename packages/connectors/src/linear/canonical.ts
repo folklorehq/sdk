@@ -24,7 +24,7 @@ interface LinearFactBase {
 
 export type LinearFactInput = LinearFactBase &
   (
-    | { readonly body: string; readonly transition?: undefined }
+    | { readonly body: string; readonly title?: string; readonly transition?: undefined }
     | { readonly transition: NormalizedTransition; readonly body?: undefined }
   );
 
@@ -85,6 +85,10 @@ export function issueEntities(
   return entities;
 }
 
+function hasText(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '';
+}
+
 /** Every Linear fact is built here so a logical event serialises to the same bytes on every path. */
 export function linearFact(input: LinearFactInput): NormalizedFact {
   return {
@@ -103,6 +107,7 @@ export function linearFact(input: LinearFactInput): NormalizedFact {
           content: {
             body: input.body,
             explicitLinks: canonicalLinkKeys(extractExplicitLinks(input.body)),
+            ...(hasText(input.title) ? { title: input.title } : {}),
           },
         }
       : { transition: input.transition }),

@@ -24,7 +24,8 @@
           ],
           "content": {
             "body": "Fix the auth bug\n\nAuth is broken on mobile.",
-            "explicitLinks": []
+            "explicitLinks": [],
+            "title": "Fix the auth bug"
           },
           "raw": {
             "entity": "issue",
@@ -53,7 +54,8 @@
           ],
           "content": {
             "body": "Fix the auth bug\n\nAuth is broken on mobile.",
-            "explicitLinks": []
+            "explicitLinks": [],
+            "title": "Fix the auth bug"
           },
           "raw": {
             "entity": "issue",
@@ -82,7 +84,8 @@
           ],
           "content": {
             "body": "Fix the auth bug\n\nAuth is broken on mobile.",
-            "explicitLinks": []
+            "explicitLinks": [],
+            "title": "Fix the auth bug"
           },
           "raw": {
             "entity": "issue",

@@ -76,6 +76,7 @@ export function normalizeLinearPulledIssue(
         occurredAt: edit.createdAt,
         authorId: edit.actorId,
         body: issueBody(issue.title, issue.description),
+        title: issue.title,
       }),
     );
   } else if (inWindow(issue.createdAt, bounds)) {
@@ -86,6 +87,7 @@ export function normalizeLinearPulledIssue(
         occurredAt: issue.createdAt,
         authorId: issue.creator?.id ?? null,
         body: issueBody(issue.title, issue.description),
+        title: issue.title,
       }),
     );
   }

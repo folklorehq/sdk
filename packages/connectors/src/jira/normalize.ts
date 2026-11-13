@@ -47,10 +47,16 @@ function issueBody(issue: JiraIssue): string {
   return [issue.fields.summary, adfToText(issue.fields.description)].filter(Boolean).join('\n\n');
 }
 
+function issueTitle(issue: JiraIssue): string | undefined {
+  const { summary } = issue.fields;
+  return typeof summary === 'string' && summary.trim() !== '' ? summary : undefined;
+}
+
 function normalizeIssueCreated(event: JiraIssueEvent, occurredAt: Date): NormalizedRecords {
   const { issue } = event;
   const containerId = jiraIssueContainerId(issue);
   const body = issueBody(issue);
+  const title = issueTitle(issue);
   return {
     containers: [
       {
@@ -70,7 +76,11 @@ function normalizeIssueCreated(event: JiraIssueEvent, occurredAt: Date): Normali
         containerRefs: [containerId],
         sourceThreadId: containerId,
         entities: [containerId],
-        content: { body, explicitLinks: extractExplicitLinks(body) },
+        content: {
+          body,
+          explicitLinks: extractExplicitLinks(body),
+          ...(title === undefined ? {} : { title }),
+        },
         raw: event,
       },
     ],
@@ -113,6 +123,7 @@ function normalizeIssueEdited(event: JiraIssueEvent, occurredAt: Date): Normaliz
   const { issue } = event;
   const containerId = jiraIssueContainerId(issue);
   const body = issueBody(issue);
+  const title = issueTitle(issue);
   return {
     containers: [],
     facts: [
@@ -125,7 +136,11 @@ function normalizeIssueEdited(event: JiraIssueEvent, occurredAt: Date): Normaliz
         containerRefs: [containerId],
         sourceThreadId: containerId,
         entities: [containerId],
-        content: { body, explicitLinks: extractExplicitLinks(body) },
+        content: {
+          body,
+          explicitLinks: extractExplicitLinks(body),
+          ...(title === undefined ? {} : { title }),
+        },
         raw: event,
       },
     ],
