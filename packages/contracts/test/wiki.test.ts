@@ -609,6 +609,12 @@ describe('wiki publication wire contracts', () => {
       wikiPublishRequestSchema.safeParse({ ...request, expectedRevisionId: 'head' }).success,
     ).toBe(false);
     expect(wikiPublishRequestSchema.safeParse({ ...request, title: '   ' }).success).toBe(false);
+    for (const title of ['a\uD800b', 'a\uDC00b', 'a\uD83D']) {
+      expect(wikiPublishRequestSchema.safeParse({ ...request, title }).success).toBe(false);
+    }
+    expect(
+      wikiPublishRequestSchema.safeParse({ ...request, title: 'Plan \u{1F680}' }).success,
+    ).toBe(true);
     expect(wikiPublishRequestSchema.safeParse({ ...request, title: 'x'.repeat(241) }).success).toBe(
       false,
     );
