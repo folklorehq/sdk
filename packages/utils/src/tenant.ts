@@ -132,6 +132,7 @@ export function workspaceOrigin(
 }
 
 export const MCP_RESOURCE_PATH = '/mcp';
+export const MCP_PROTECTED_RESOURCE_METADATA_PATH = `/.well-known/oauth-protected-resource${MCP_RESOURCE_PATH}`;
 
 const MCP_RESOURCE_RE = /^https:\/\/([^/?#@:\\]+)\/mcp$/;
 
