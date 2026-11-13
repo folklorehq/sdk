@@ -45,6 +45,8 @@ export const TelemetryEvent = {
   WikiViewed: 'wiki.viewed',
   ReviewActioned: 'review.actioned',
   ReviewSnippetsDegraded: 'review.snippets_degraded',
+  TeamOwnerSuggestionDecided: 'team_owner_suggestion.decided',
+  TeamOwnerSuggestionDecideFailed: 'team_owner_suggestion.decide_failed',
   FactIngested: 'fact.ingested',
   FactScored: 'fact.scored',
   FactPromoted: 'fact.promoted',
@@ -291,6 +293,16 @@ type ProductEvents = {
     orgId: string;
     sourceKind: string;
     reason: 'conflict' | 'invalid' | 'unavailable';
+  };
+  'team_owner_suggestion.decided': {
+    orgId: string;
+    themeId: string;
+    teamId: string;
+    decision: 'confirmed' | 'dismissed';
+  };
+  'team_owner_suggestion.decide_failed': {
+    orgId: string;
+    reason: 'changed' | 'forbidden' | 'widens_own_read';
   };
   'source.sync_paused': { orgId: string; sourceKind: string };
   'source.sync_resumed': { orgId: string; sourceKind: string };

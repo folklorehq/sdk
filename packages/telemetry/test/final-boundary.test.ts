@@ -54,6 +54,13 @@ const VALID_SERVER_EVENT_FIXTURES = {
     removedCount: 1,
   },
   'source.scope_change_failed': { orgId: ORGANIZATION_ID, sourceKind: 'slack', reason: 'conflict' },
+  'team_owner_suggestion.decided': {
+    orgId: ORGANIZATION_ID,
+    themeId: ORGANIZATION_ID,
+    teamId: ORGANIZATION_ID,
+    decision: 'confirmed',
+  },
+  'team_owner_suggestion.decide_failed': { orgId: ORGANIZATION_ID, reason: 'changed' },
   'source.sync_paused': { orgId: ORGANIZATION_ID, sourceKind: 'slack' },
   'source.sync_resumed': { orgId: ORGANIZATION_ID, sourceKind: 'slack' },
   'source.sync_pause_failed': { orgId: ORGANIZATION_ID, sourceKind: 'slack', reason: 'conflict' },

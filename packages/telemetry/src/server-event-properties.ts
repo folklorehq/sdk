@@ -237,6 +237,16 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     sourceKind,
     reason: literal('conflict', 'invalid', 'unavailable'),
   }),
+  'team_owner_suggestion.decided': propertyContract({
+    ...orgId,
+    themeId: uuid,
+    teamId: uuid,
+    decision: literal('confirmed', 'dismissed'),
+  }),
+  'team_owner_suggestion.decide_failed': propertyContract({
+    ...orgId,
+    reason: literal('changed', 'forbidden', 'widens_own_read'),
+  }),
   'source.sync_paused': propertyContract({ ...orgId, sourceKind }),
   'source.sync_resumed': propertyContract({ ...orgId, sourceKind }),
   'source.sync_pause_failed': propertyContract({

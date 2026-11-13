@@ -35,3 +35,23 @@ export const ownerSuggestionSchema = z.discriminatedUnion('state', [
 ]);
 
 export type OwnerSuggestion = z.infer<typeof ownerSuggestionSchema>;
+
+export const TEAM_SUGGESTION_MIN_COUNTED_FACTS = 5;
+export const TEAM_SUGGESTION_MIN_SHARE = 0.5;
+
+export const teamOwnerSuggestionSchema = z.discriminatedUnion('state', [
+  z.object({ state: z.literal('none') }).strict(),
+  z
+    .object({
+      state: z.literal('claimable'),
+      teamId: z.string().uuid(),
+      teamName: z.string(),
+      scopedFacts: z.number().int().positive(),
+      countedFacts: z.number().int().positive(),
+      canConfirm: z.boolean(),
+      canDismiss: z.boolean(),
+    })
+    .strict(),
+]);
+
+export type TeamOwnerSuggestion = z.infer<typeof teamOwnerSuggestionSchema>;
