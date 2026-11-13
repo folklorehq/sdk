@@ -9,6 +9,8 @@ import {
 const MICROS_PER_MTOK_DIVISOR = 1_000_000n;
 const TOKEN_PRICE_CLASSES = ['input', 'output', 'cacheWrite', 'cacheRead'] as const;
 export const CACHE_WRITE_1H_INPUT_MULTIPLIER = 2n;
+// One cent: a logged daily cost total rounds up to this, so sub-cent precision never reaches a log.
+export const USAGE_LOG_COST_BUCKET_MICROS = 10_000;
 
 export interface PricedUsage {
   readonly model: string;

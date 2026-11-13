@@ -393,6 +393,11 @@ export const tokenUsageSchema = z
   .strict();
 export type TokenUsage = z.infer<typeof tokenUsageSchema>;
 
+/** Calls that reached a provider; a cache replay is free and not counted. */
+export function paidCallsOf(entry: Pick<TokenUsage, 'calls' | 'cachedCalls'>): number {
+  return Math.max(0, entry.calls - entry.cachedCalls);
+}
+
 // `.strict()` above must never cost a synthesis result: the enclave and the worker deploy
 // separately, so an enclave that ships a new usage field first would otherwise fail the whole
 // message and lose the article. Falling back to no telemetry is the recoverable half.

@@ -4,6 +4,11 @@ export function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
 }
 
+/** The smallest multiple of `step` that is at least `value`; `step` must be a positive integer. */
+export function roundUpTo(value: number, step: number): number {
+  return Math.ceil(value / step) * step;
+}
+
 /** Cosine similarity between two equal-length vectors; 0 if empty, unequal-length, or zero-magnitude. */
 export function cosine(a: number[], b: number[]): number {
   if (a.length !== b.length || a.length === 0) return 0;

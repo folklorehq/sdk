@@ -192,6 +192,7 @@ export const SAFE_LOG_FIELDS = Object.freeze([
   'startOffsetMs',
   'status',
   'statusCode',
+  'surface',
   'teamAudiencesCreated',
   'teams',
   'themeKind',

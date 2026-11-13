@@ -107,6 +107,12 @@ export const SAFE_LOG_REBUILD_CLASSES: ReadonlySet<string> = new Set([
   'partial',
   'unknown',
 ]);
+// Mirrors ASK_USAGE_SURFACES (core cannot import contracts; a leak-guard test pins equality).
+export const SAFE_LOG_USAGE_SURFACES: ReadonlySet<string> = new Set([
+  'ask',
+  'agent',
+  'page_rewrite',
+]);
 const SAFE_LOG_DECISION_MODES: ReadonlySet<string> = new Set(['shadow', 'jev']);
 const NON_NEGATIVE_INTEGER_FIELDS: ReadonlySet<string> = new Set([
   'abstained',
@@ -333,6 +339,7 @@ function isSafeLogValue(key: string, value: unknown): boolean {
   if (key === 'role') return SAFE_LOG_ROLES.has(value);
   if (key === 'purpose') return SAFE_LOG_PURPOSES.has(value);
   if (key === 'rebuildClass') return SAFE_LOG_REBUILD_CLASSES.has(value);
+  if (key === 'surface') return SAFE_LOG_USAGE_SURFACES.has(value);
   if (key === 'requestId') return SAFE_LOG_REQUEST_ID_PATTERN.test(value);
   if (
     key === 'orgId' ||

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
-import { clamp01, cosine, jaccard, mean, median } from '../src/math.js';
+import { clamp01, cosine, jaccard, mean, median, roundUpTo } from '../src/math.js';
 
 describe('clamp01', () => {
   it('clamps below 0, above 1, and passes through in-range', () => {
@@ -58,5 +58,19 @@ describe('jaccard', () => {
 
   it('treats inputs as sets and computes intersection over union', () => {
     expect(jaccard(['a', 'a', 'b'], ['b', 'c'])).toBeCloseTo(1 / 3, 8);
+  });
+});
+
+describe('roundUpTo', () => {
+  it.each([
+    [0, 10_000, 0],
+    [1, 10_000, 10_000],
+    [9_999, 10_000, 10_000],
+    [10_000, 10_000, 10_000],
+    [10_001, 10_000, 20_000],
+    [12_001, 10_000, 20_000],
+    [7, 1, 7],
+  ])('rounds %i up to a multiple of %i, %i', (value, step, expected) => {
+    expect(roundUpTo(value, step)).toBe(expected);
   });
 });

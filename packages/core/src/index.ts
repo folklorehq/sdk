@@ -33,6 +33,7 @@ export {
   SAFE_LOG_PURPOSES,
   SAFE_LOG_REBUILD_CLASSES,
   SAFE_LOG_SIGNUP_STAGES,
+  SAFE_LOG_USAGE_SURFACES,
   isFailureCodeSlug,
   type SafeLogRejectionReason,
   type SafeLogContextSnapshot,

@@ -123,6 +123,16 @@ describe('checkSafeLogContext', () => {
     expect(checkSafeLogContext({ purpose: null })).toBeNull();
   });
 
+  it('accepts only the usage surfaces as a surface', () => {
+    for (const surface of ['ask', 'agent', 'page_rewrite']) {
+      expect(checkSafeLogContext({ surface }), surface).toBeNull();
+    }
+    for (const surface of ['Ask', 'page_rewrite_v2', 'customer prose', '/v1/answer', '']) {
+      expect(checkSafeLogContext({ surface }), surface).toBe('invalid_context_value');
+    }
+    expect(checkSafeLogContext({ surface: null })).toBeNull();
+  });
+
   it('accepts the deferral fields and a bare reason code only', () => {
     expect(
       checkSafeLogContext({ deferrals: 1, reason: 'provider_outage', usageEntries: 2 }),
