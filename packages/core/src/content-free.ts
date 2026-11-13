@@ -319,6 +319,7 @@ function isPlainRecord(value: unknown): value is Record<PropertyKey, unknown> {
 
 function isSafeLogValue(key: string, value: unknown): boolean {
   if (key === 'warm') return typeof value === 'boolean';
+  if (key === 'capacityPaced') return value === true;
   if (NON_NEGATIVE_INTEGER_FIELDS.has(key)) {
     return typeof value === 'number' && Number.isInteger(value) && value >= 0;
   }

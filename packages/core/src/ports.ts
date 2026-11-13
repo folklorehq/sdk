@@ -33,6 +33,7 @@ export const SAFE_LOG_FIELDS = Object.freeze([
   'cachedCalls',
   'calls',
   'candidates',
+  'capacityPaced',
   'ceilingMicros',
   'chatsDeleted',
   'checkFlagged',

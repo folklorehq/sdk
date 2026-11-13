@@ -444,3 +444,15 @@ describe('signup timing fields', () => {
     expect(checkSafeLogContext({ retries: 3, warm: false })).toBeNull();
   });
 });
+
+describe('capacityPaced', () => {
+  it('accepts only the boolean true, which marks a workspace capacity basis', () => {
+    expect(
+      checkSafeLogContext({ orgId: '11111111-1111-4111-8111-111111111111', capacityPaced: true }),
+    ).toBeNull();
+  });
+
+  it.each([false, 1, 'true', null])('refuses %j', (capacityPaced) => {
+    expect(checkSafeLogContext({ capacityPaced })).toBe('invalid_context_value');
+  });
+});
