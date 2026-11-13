@@ -48,6 +48,20 @@ export function clipText(value: string, max: number, suffix = ''): string {
   return `${value.slice(0, isHighSurrogate ? room - 1 : room)}${suffix}`;
 }
 
+const UTF8_CONTINUATION_MASK = 0xc0;
+const UTF8_CONTINUATION_BITS = 0x80;
+const utf8Encoder = new TextEncoder();
+const utf8Decoder = new TextDecoder();
+
+/** At most `maxBytes` of UTF-8, cut on a code point boundary. */
+export function clipUtf8Bytes(value: string, maxBytes: number): string {
+  const bytes = utf8Encoder.encode(value);
+  if (bytes.length <= maxBytes) return value;
+  let end = maxBytes;
+  while (end > 0 && ((bytes[end] ?? 0) & UTF8_CONTINUATION_MASK) === UTF8_CONTINUATION_BITS) end--;
+  return utf8Decoder.decode(bytes.subarray(0, end));
+}
+
 /** Zero-width and word-joiner characters, as escapes for use inside a regular expression class. */
 export const INVISIBLE_CHARACTER_CLASS = '\\u200B-\\u200D\\u2060\\uFEFF';
 const INVISIBLE_CHARACTERS = new RegExp(`[${INVISIBLE_CHARACTER_CLASS}]`);

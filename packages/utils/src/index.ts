@@ -20,6 +20,7 @@ export {
   collapseWhitespace,
   truncate,
   clipText,
+  clipUtf8Bytes,
   INVISIBLE_CHARACTER_CLASS,
   hasInvisibleCharacter,
   stripInvisibleCharacters,
