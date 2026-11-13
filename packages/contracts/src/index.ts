@@ -51,6 +51,7 @@ export * from './recovery-key-binding.js';
 export * from './review.js';
 export * from './rollout.js';
 export * from './sealed-content.js';
+export * from './sealed-titles.js';
 export * from './search.js';
 export * from './sensitivity.js';
 export * from './session-delivery.js';

@@ -825,8 +825,8 @@ packages:
   '@posthog/core@1.67.2':
     resolution: {integrity: sha512-FcDdAm3L2UKxA2NWCxwG8KKgZ4QjGBl7f9WASLlCVPeKgXI0FeguSq81x0f2htEB37itKbUwLkNFgA3FV4b7iQ==}
 
-  '@posthog/types@1.424.1':
-    resolution: {integrity: sha512-p82S3QPoyewUdzLVNvGsbowUe8qds15ij/7lKXav17vccuR2bioCVaizNZw+u9WgsaY1DmEycsD1dNS5nlqjLA==}
+  '@posthog/types@1.425.0':
+    resolution: {integrity: sha512-VaAlT5cl2wQ8mRkC3agp32YqI1HCZyeDE9qc5cziXgtbqK8kGeodhqZpJgSIPz0wAl3yRtKN4yOL+d7wxDRPww==}
 
   '@rollup/rollup-android-arm-eabi@4.68.2':
     resolution: {integrity: sha512-ItKrNMkEL3hy85kLBXwB0+M6CWWVI8vr7RV+Eb7oDlQIMXLaiEhGfdaj5jAUadYn2v3nwzAhIRl/nLyjAqV9vQ==}
@@ -2234,9 +2234,9 @@ snapshots:
 
   '@posthog/core@1.67.2':
     dependencies:
-      '@posthog/types': 1.424.1
+      '@posthog/types': 1.425.0
 
-  '@posthog/types@1.424.1': {}
+  '@posthog/types@1.425.0': {}
 
   '@rollup/rollup-android-arm-eabi@4.68.2':
     optional: true
