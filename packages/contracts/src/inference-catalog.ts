@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 import { deepFreeze } from '@folklore/utils/deep-freeze';
-import type { InferenceEffort, InferencePurpose } from './inference-routing.js';
+import type {
+  InferenceEffort,
+  InferencePurpose,
+  InferenceReasoningJudgePurpose,
+} from './inference-routing.js';
 
 export const INFERENCE_PROVIDER_IDS = ['anthropic', 'phala', 'openai', 'typesafe'] as const;
 export type InferenceProviderId = (typeof INFERENCE_PROVIDER_IDS)[number];
@@ -117,6 +121,12 @@ const TYPESAFE_ROW = {
 } as const;
 
 const OPUS_TIMEOUTS_MS = { interactive: 40_000, small: 120_000, medium: 300_000, large: 480_000 };
+// Sized to each purpose's output cap at about 50 tokens a second: 6,144 tokens for a citation batch, 3,072 for the others.
+const REASONING_JUDGE_TIMEOUTS_MS = {
+  citation_check: 180_000,
+  theme_merge: 120_000,
+  association_judge: 120_000,
+} as const satisfies Record<InferenceReasoningJudgePurpose, number>;
 const KIMI_K3_PRICES = {
   input: 3_000_000,
   output: 15_000_000,
@@ -155,6 +165,7 @@ const CATALOG_ROWS = {
       wiki_critique: 420_000,
       wiki_page_check: 420_000,
       wiki_article_check: 420_000,
+      ...REASONING_JUDGE_TIMEOUTS_MS,
     },
     wireModel: 'claude-sonnet-5-5',
     contextWindowTokens: 1_000_000,

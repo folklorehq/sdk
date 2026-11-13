@@ -133,6 +133,18 @@ export const isInferenceCheckPurpose = (
 ): purpose is InferenceCheckPurpose =>
   (INFERENCE_CHECK_PURPOSES as readonly InferencePurpose[]).includes(purpose);
 
+// Sonnet judges that run with adaptive thinking; neither writers nor checkers, so no checker rule reads them.
+export const INFERENCE_REASONING_JUDGE_PURPOSES = Object.freeze([
+  'citation_check',
+  'theme_merge',
+  'association_judge',
+] as const satisfies readonly InferencePurpose[]);
+export type InferenceReasoningJudgePurpose = (typeof INFERENCE_REASONING_JUDGE_PURPOSES)[number];
+export const isInferenceReasoningJudgePurpose = (
+  purpose: InferencePurpose,
+): purpose is InferenceReasoningJudgePurpose =>
+  (INFERENCE_REASONING_JUDGE_PURPOSES as readonly InferencePurpose[]).includes(purpose);
+
 export interface InferenceCheckerRule {
   readonly reads: ReadonlySet<InferencePurpose>;
   readonly alwaysReads?: ReadonlySet<InferencePurpose>;
