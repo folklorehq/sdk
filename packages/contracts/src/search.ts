@@ -42,8 +42,13 @@ export const answerRequestSchema = z
   .strict();
 export type AnswerRequest = z.infer<typeof answerRequestSchema>;
 
-/** Why an answer abstained: no audience-visible fact matched, the audience lens held none while something outside it matched, or the model's answer cited none of the facts. */
-export const abstainReasonSchema = z.enum(['no_context', 'no_citations', 'outside_lens']);
+/** Why an answer abstained: no fact matched, the lens held none, the answer cited none, or the workspace's question capacity was spent so only sources were returned. */
+export const abstainReasonSchema = z.enum([
+  'no_context',
+  'no_citations',
+  'outside_lens',
+  'capacity',
+]);
 export type AbstainReason = z.infer<typeof abstainReasonSchema>;
 
 const answerBaseSchema = z.object({

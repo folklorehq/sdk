@@ -6,6 +6,7 @@ import {
   formatShortDate,
   utcDayKey,
   utcDayStart,
+  utcMonthRange,
 } from '../src/time.js';
 
 const NOW = Date.parse('2026-10-02T12:00:00.000Z');
@@ -278,5 +279,17 @@ describe('utcDayKey', () => {
 
   it('ignores the offset the instant was written in', () => {
     expect(utcDayKey(new Date('2026-10-15T09:30:00+14:00'))).toBe('2026-10-14');
+  });
+});
+
+describe('utcMonthRange', () => {
+  it.each([
+    ['2026-10-28T20:30:00.000Z', '2026-10-01', '2026-11-01'],
+    ['2026-12-31T23:59:59.999Z', '2026-12-01', '2027-01-01'],
+    ['2026-11-01T00:00:00.000Z', '2026-11-01', '2026-12-01'],
+    ['2026-11-01T01:00:00+02:00', '2026-10-01', '2026-11-01'],
+    ['2026-10-31T20:00:00-08:00', '2026-11-01', '2026-12-01'],
+  ])('puts %s in the half-open range [%s, %s)', (at, from, toExclusive) => {
+    expect(utcMonthRange(new Date(at))).toEqual({ from, toExclusive });
   });
 });

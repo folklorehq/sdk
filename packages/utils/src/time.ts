@@ -85,3 +85,16 @@ const UTC_DAY_KEY_LENGTH = 10;
 export function utcDayKey(at: Date): string {
   return at.toISOString().slice(0, UTC_DAY_KEY_LENGTH);
 }
+
+/** The UTC calendar month of the instant as a half-open instant range, [start, end). */
+export function utcMonthBounds(at: Date): { start: Date; end: Date } {
+  const year = at.getUTCFullYear();
+  const month = at.getUTCMonth();
+  return { start: new Date(Date.UTC(year, month, 1)), end: new Date(Date.UTC(year, month + 1, 1)) };
+}
+
+/** The UTC calendar month of the instant as a half-open range of day keys. */
+export function utcMonthRange(at: Date): { from: string; toExclusive: string } {
+  const { start, end } = utcMonthBounds(at);
+  return { from: utcDayKey(start), toExclusive: utcDayKey(end) };
+}
