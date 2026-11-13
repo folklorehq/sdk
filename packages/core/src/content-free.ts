@@ -127,6 +127,7 @@ const NON_NEGATIVE_INTEGER_FIELDS: ReadonlySet<string> = new Set([
   'secondsSinceActive',
   'secondsSinceOrgCreated',
   'skippedContainers',
+  'teamAudiencesCreated',
   'teams',
   'tierlessRefs',
   'todayFlagged',
