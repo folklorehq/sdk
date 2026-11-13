@@ -31,6 +31,7 @@ export {
   DECISION_SITE_NAMES,
   SAFE_LOG_DECISION_SITES,
   SAFE_LOG_PURPOSES,
+  SAFE_LOG_REBUILD_CLASSES,
   SAFE_LOG_SIGNUP_STAGES,
   isFailureCodeSlug,
   type SafeLogRejectionReason,

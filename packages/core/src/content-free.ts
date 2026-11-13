@@ -101,11 +101,18 @@ export const DECISION_SITE_NAMES = [
   'theme_disposition',
 ] as const;
 export const SAFE_LOG_DECISION_SITES: ReadonlySet<string> = new Set(DECISION_SITE_NAMES);
+export const SAFE_LOG_REBUILD_CLASSES: ReadonlySet<string> = new Set([
+  'first',
+  'full',
+  'partial',
+  'unknown',
+]);
 const SAFE_LOG_DECISION_MODES: ReadonlySet<string> = new Set(['shadow', 'jev']);
 const NON_NEGATIVE_INTEGER_FIELDS: ReadonlySet<string> = new Set([
   'abstained',
   'adminsWithoutMembership',
   'agreed',
+  'audiencePages',
   'departments',
   'disagreed',
   'distinctFacts',
@@ -324,6 +331,7 @@ function isSafeLogValue(key: string, value: unknown): boolean {
   if (key === 'decisionMode') return SAFE_LOG_DECISION_MODES.has(value);
   if (key === 'role') return SAFE_LOG_ROLES.has(value);
   if (key === 'purpose') return SAFE_LOG_PURPOSES.has(value);
+  if (key === 'rebuildClass') return SAFE_LOG_REBUILD_CLASSES.has(value);
   if (key === 'requestId') return SAFE_LOG_REQUEST_ID_PATTERN.test(value);
   if (
     key === 'orgId' ||
