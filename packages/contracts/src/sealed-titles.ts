@@ -2,6 +2,7 @@
 export const SEALED_TITLE_KINDS = ['theme_name', 'publication_title'] as const;
 export type SealedTitleKind = (typeof SEALED_TITLE_KINDS)[number];
 
+export const THEME_NAME_KIND = 'theme_name' satisfies SealedTitleKind;
 export const PUBLICATION_TITLE_KIND = 'publication_title' satisfies SealedTitleKind;
 
 export const SEALED_TITLE_PLACEHOLDER = 'Untitled';

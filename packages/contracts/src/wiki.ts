@@ -496,6 +496,57 @@ export const wikiPublishResponseSchema = z
   .strict();
 export type WikiPublishResponse = z.infer<typeof wikiPublishResponseSchema>;
 
+export const AUTHORED_PAGES_PATH = '/api/v1/pages';
+export const AUTHORED_PAGE_DRAFTS_MAX = 50;
+export const AUTHORED_PAGES_PER_ORG_MAX = 5_000;
+export const AUTHORED_PAGES_PER_AUTHOR_MAX = 500;
+export const AUTHORED_PAGE_BOUND_REASONS = [
+  'hourly_limit',
+  'draft_limit',
+  'author_page_limit',
+  'page_limit',
+] as const;
+export type AuthoredPageBoundReason = (typeof AUTHORED_PAGE_BOUND_REASONS)[number];
+
+export const authoredPageCreateRequestSchema = z
+  .object({
+    teamId: z.string().uuid(),
+    title: z.string().trim().min(1).max(WIKI_PUBLICATION_TITLE_MAX_LENGTH),
+  })
+  .strict();
+export type AuthoredPageCreateRequest = z.infer<typeof authoredPageCreateRequestSchema>;
+
+export const authoredPageCreateResponseSchema = z
+  .object({ themeId: z.string().uuid(), pageId: z.string().uuid() })
+  .strict();
+export type AuthoredPageCreateResponse = z.infer<typeof authoredPageCreateResponseSchema>;
+
+export const authoredPagePlacesResponseSchema = z
+  .object({
+    places: z.array(
+      z.object({ kind: z.literal('team'), teamId: z.string().uuid(), name: z.string() }).strict(),
+    ),
+  })
+  .strict();
+export type AuthoredPagePlacesResponse = z.infer<typeof authoredPagePlacesResponseSchema>;
+
+export const authoredPageDraftsResponseSchema = z
+  .object({
+    drafts: z
+      .array(
+        z
+          .object({
+            themeId: z.string().uuid(),
+            title: z.string().max(WIKI_PUBLICATION_TITLE_MAX_LENGTH),
+            teamId: z.string().uuid(),
+          })
+          .strict(),
+      )
+      .max(AUTHORED_PAGE_DRAFTS_MAX),
+  })
+  .strict();
+export type AuthoredPageDraftsResponse = z.infer<typeof authoredPageDraftsResponseSchema>;
+
 export const wikiPageVisibilitySchema = z.discriminatedUnion('withheld', [
   z.object({ withheld: z.literal('none') }).strict(),
   z.object({ withheld: z.literal('some'), hiddenBlockCount: z.number().int().positive() }).strict(),

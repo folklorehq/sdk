@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
+// A removed job or mode moves to RETIRED_AUDIT_ACTIONS so the member-readable activity log keeps old rows.
 export const DATA_CORRECTION_JOBS = [
   'link_referenced_containers',
   'rescore_facts',

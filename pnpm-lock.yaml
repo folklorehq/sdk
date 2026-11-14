@@ -331,7 +331,7 @@ importers:
         version: link:../errors
       posthog-node:
         specifier: ^5.39.1
-        version: 5.73.0
+        version: 5.73.1
     devDependencies:
       '@folklore/tsconfig':
         specifier: workspace:*
@@ -1622,8 +1622,8 @@ packages:
     resolution: {integrity: sha512-RVHEU9/Pp1Fnjr/MpAJsZoADukCKhfIi15OunEYiGktIkYLkPVvC1sioWolGDS7XByMTx9m/IGbro0Js13zhnQ==}
     engines: {node: ^10 || ^12 || >=14}
 
-  posthog-node@5.73.0:
-    resolution: {integrity: sha512-OH5PZA2GVftiHPwTCA31fy2E33sWW/o2f+ubxi3/ugPEEYzq+/Fw4h2igVpa+RThw1oYrmzgOHCOFdSkh2SzOQ==}
+  posthog-node@5.73.1:
+    resolution: {integrity: sha512-Fznjod4zWWxjJnR5rgbWqyxKcsD8K/duv8rXBS1wzBwFRn6Tiu+UATbGP2OouSebci7RKpU59aqjM3g2DQ0Lbw==}
     engines: {node: ^20.20.0 || >=22.22.0}
     peerDependencies:
       '@opentelemetry/api': ^1.2.0
@@ -3068,7 +3068,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.2
 
-  posthog-node@5.73.0:
+  posthog-node@5.73.1:
     dependencies:
       '@posthog/core': 1.67.3
 
