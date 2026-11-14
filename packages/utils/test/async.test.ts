@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { abortAfter, primaryRejection } from '../src/async.js';
+import { abortAfter, isAbortOf, primaryRejection, sleep } from '../src/async.js';
 
 const TIMEOUT_MS = 1_000;
 
@@ -12,7 +12,7 @@ describe('abortAfter', () => {
     vi.useRealTimers();
   });
 
-  it('aborts with a TimeoutError once the timer elapses', () => {
+  it('aborts with a TimeoutError once the timer elapses, which isAbortOf names and a signalled sleep ends on', async () => {
     const controller = new AbortController();
     abortAfter(controller, TIMEOUT_MS);
     vi.advanceTimersByTime(TIMEOUT_MS - 1);
@@ -20,6 +20,17 @@ describe('abortAfter', () => {
     vi.advanceTimersByTime(1);
     expect(controller.signal.reason).toBeInstanceOf(DOMException);
     expect(controller.signal.reason).toMatchObject({ name: 'TimeoutError' });
+    expect(isAbortOf(controller.signal.reason, controller.signal)).toBe(true);
+    expect(isAbortOf(new DOMException('x', 'AbortError'), controller.signal)).toBe(true);
+    expect(isAbortOf(new Error('boom'), controller.signal)).toBe(false);
+    expect(isAbortOf(controller.signal.reason, new AbortController().signal)).toBe(false);
+
+    await expect(sleep(TIMEOUT_MS, controller.signal)).rejects.toBe(controller.signal.reason);
+    const live = new AbortController();
+    const waiting = sleep(TIMEOUT_MS, live.signal);
+    live.abort();
+    await expect(waiting).rejects.toBe(live.signal.reason);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('never aborts once the caller clears the timer', () => {

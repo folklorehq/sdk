@@ -82,7 +82,14 @@ export {
   type PartitionedClaims,
   type SourceIdentityClaim,
 } from './identity-claims.js';
-export { abortAfter, mapWithConcurrency, primaryRejection, timeLimited, sleep } from './async.js';
+export {
+  abortAfter,
+  isAbortOf,
+  mapWithConcurrency,
+  primaryRejection,
+  timeLimited,
+  sleep,
+} from './async.js';
 export { parseJsonFence, extractJsonObject, isRecord } from './json.js';
 export { ingestWebhookUrl } from './ingest.js';
 export { isAllowedRecallMeetingUrl } from './recall/meeting-host.js';

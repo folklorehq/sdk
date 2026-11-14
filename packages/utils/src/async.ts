@@ -1,7 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
-/** Resolves after `ms` — used to pace sequential external calls under a rate limit. */
-export async function sleep(ms: number): Promise<void> {
-  await new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** Resolves after `ms`, used to pace sequential external calls under a rate limit; an abort rejects with its reason and clears the timer. */
+export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const onAbort = (): void => {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 /** Race `promise` against a timer — rejects after `ms` if the promise hasn't settled. */
@@ -25,6 +36,14 @@ export function abortAfter(controller: AbortController, ms: number): ReturnType<
     () => controller.abort(new DOMException('request timed out', REQUEST_TIMEOUT_ERROR)),
     ms,
   );
+}
+
+const ABORT_ERROR = 'AbortError';
+
+/** True when `error` is what the aborted `signal` produced: its own reason or an AbortError; any other failure is not the abort. */
+export function isAbortOf(error: unknown, signal: AbortSignal | undefined): boolean {
+  if (signal?.aborted !== true) return false;
+  return error === signal.reason || (error instanceof Error && error.name === ABORT_ERROR);
 }
 
 /** Map `items` through `fn` with at most `limit` in flight, preserving input order. */
