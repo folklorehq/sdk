@@ -1915,6 +1915,7 @@ type EnclaveSynthesisRequest = {
   shadowArms?: ('R' | 'B')[];
   // SB-8b adds collectOnly to the enclave's SynthesisConsumer request interface.
   collectOnly?: true;
+  discardBatch?: true;
 };
 
 type _KnowledgeSkeletonPinned = Expect<Equal<KnowledgeSkeleton, EnclaveKnowledgeSkeleton>>;
@@ -1964,6 +1965,7 @@ type EnclaveWikiSynthesisResult = {
   shadowArticles?: WikiShadowArticle[];
   qualityScores?: ClaudeQualityScores[];
   untaggedCalls?: number;
+  refusedBatchResults?: number;
   decisionTally?: DecisionTally[] | undefined;
 };
 

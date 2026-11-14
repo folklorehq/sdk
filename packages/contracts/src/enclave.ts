@@ -546,6 +546,7 @@ export const wikiSynthesisResultSchema = z
     shadowArticles: z.array(wikiShadowArticleSchema).optional().catch(undefined),
     qualityScores: z.array(claudeQualityScoresSchema).optional().catch(undefined),
     untaggedCalls: z.number().int().nonnegative().optional(),
+    refusedBatchResults: z.number().int().positive().optional(),
   })
   .strict();
 export type WikiSynthesisResult = z.infer<typeof wikiSynthesisResultSchema>;
@@ -561,6 +562,7 @@ export const wikiSynthesisDeferredSchema = z
     reason: z.enum(INFERENCE_DEFERRAL_REASONS),
     tokenUsage: z.array(tokenUsageSchema),
     openBatches: z.number().int().nonnegative().optional(),
+    refusedBatchResults: z.number().int().positive().optional(),
   })
   .strict();
 export type WikiSynthesisDeferred = z.infer<typeof wikiSynthesisDeferredSchema>;
@@ -923,6 +925,8 @@ export const synthesisRequestSchema = z.object({
     .optional(),
   // Set on a brake-exempt batch collection: the enclave collects or defers batch_pending, never runs synchronously or submits, so the claim spends nothing.
   collectOnly: z.literal(true).optional(),
+  // Set with collectOnly on an obsoleted batch row that must not run: the enclave cancels and erases the row's batch and never runs the page work.
+  discardBatch: z.literal(true).optional(),
 });
 export type SynthesisRequest = z.infer<typeof synthesisRequestSchema>;
 
