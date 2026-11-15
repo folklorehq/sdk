@@ -497,6 +497,9 @@ export const wikiPublishResponseSchema = z
 export type WikiPublishResponse = z.infer<typeof wikiPublishResponseSchema>;
 
 export const AUTHORED_PAGES_PATH = '/api/v1/pages';
+export const AUTHORED_PAGE_PLACES_SUFFIX = '/places';
+export const AUTHORED_PAGE_DRAFTS_SUFFIX = '/drafts';
+export const AUTHORED_PAGE_DISCARD_SUFFIX = '/discard';
 export const AUTHORED_PAGE_DRAFTS_MAX = 50;
 export const AUTHORED_PAGES_PER_ORG_MAX = 5_000;
 export const AUTHORED_PAGES_PER_AUTHOR_MAX = 500;

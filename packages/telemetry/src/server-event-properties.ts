@@ -24,6 +24,9 @@ import {
   WIKI_CITE_PICKER_STEPS,
   WIKI_LINK_PICKER_STEPS,
   WIKI_LINK_PICKER_TARGETS,
+  WIKI_DRAFT_DISCARD_STEPS,
+  WIKI_PAGE_CREATE_ORIGINS,
+  WIKI_PAGE_CREATE_STEPS,
   CLIENT_ERROR_NAMES,
   DECISION_TELEMETRY_MODES,
   DECISION_TELEMETRY_SITES,
@@ -621,6 +624,15 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     eventSchemaVersion: schemaVersion1,
     step: oneOf(WIKI_LINK_PICKER_STEPS),
     target: oneOf(WIKI_LINK_PICKER_TARGETS),
+  }),
+  'wiki.page_create': propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    step: oneOf(WIKI_PAGE_CREATE_STEPS),
+    origin: oneOf(WIKI_PAGE_CREATE_ORIGINS),
+  }),
+  'wiki.draft_discard': propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    step: oneOf(WIKI_DRAFT_DISCARD_STEPS),
   }),
   sign_in_completed: propertyContract({}),
   client_error: propertyContract({

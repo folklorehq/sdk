@@ -611,6 +611,8 @@ export const BrowserTelemetryEvent = {
   SourceSettingsViewed: 'source.settings_viewed',
   WikiCitePicker: 'wiki.cite_picker',
   WikiLinkPicker: 'wiki.link_picker',
+  WikiPageCreate: 'wiki.page_create',
+  WikiDraftDiscard: 'wiki.draft_discard',
   SignInCompleted: 'sign_in_completed',
   ClientError: 'client_error',
   PageViewed: 'page_viewed',
@@ -783,6 +785,39 @@ export const WIKI_LINK_PICKER_TARGETS: ReadonlySet<string> = new Set(
   WIKI_LINK_PICKER_TARGET_VALUES,
 );
 
+const WIKI_PAGE_CREATE_STEP_VALUES = [
+  'opened',
+  'created',
+  'invalid_title',
+  'not_allowed',
+  'rate_limited',
+  'hourly_limit',
+  'draft_limit',
+  'author_page_limit',
+  'page_limit',
+  'failed',
+  'dismissed',
+] as const;
+const WIKI_PAGE_CREATE_ORIGIN_VALUES = ['sidebar', 'shortcut', 'team_space'] as const;
+export type WikiPageCreateStep = (typeof WIKI_PAGE_CREATE_STEP_VALUES)[number];
+export type WikiPageCreateOrigin = (typeof WIKI_PAGE_CREATE_ORIGIN_VALUES)[number];
+export const WIKI_PAGE_CREATE_STEPS: ReadonlySet<string> = new Set(WIKI_PAGE_CREATE_STEP_VALUES);
+export const WIKI_PAGE_CREATE_ORIGINS: ReadonlySet<string> = new Set(
+  WIKI_PAGE_CREATE_ORIGIN_VALUES,
+);
+
+const WIKI_DRAFT_DISCARD_STEP_VALUES = [
+  'confirmed',
+  'discarded',
+  'not_found',
+  'failed',
+  'cancelled',
+] as const;
+export type WikiDraftDiscardStep = (typeof WIKI_DRAFT_DISCARD_STEP_VALUES)[number];
+export const WIKI_DRAFT_DISCARD_STEPS: ReadonlySet<string> = new Set(
+  WIKI_DRAFT_DISCARD_STEP_VALUES,
+);
+
 type BrowserEvents = {
   'wiki.toolbar_action': { eventSchemaVersion: 1; action: WikiToolbarAction };
   'wiki.cite_picker': {
@@ -795,6 +830,12 @@ type BrowserEvents = {
     step: WikiLinkPickerStep;
     target: WikiLinkPickerTarget;
   };
+  'wiki.page_create': {
+    eventSchemaVersion: 1;
+    step: WikiPageCreateStep;
+    origin: WikiPageCreateOrigin;
+  };
+  'wiki.draft_discard': { eventSchemaVersion: 1; step: WikiDraftDiscardStep };
   'source.connect_started': { eventSchemaVersion: 1; sourceKind: BrowserSourceKind };
   'source.connect_failed': {
     eventSchemaVersion: 1;
@@ -872,6 +913,8 @@ const BROWSER_EVENT_PROPERTY_KEYS: Record<BrowserTelemetryEventName, readonly st
   'source.settings_viewed': ['eventSchemaVersion', 'sourceKind'],
   'wiki.cite_picker': ['eventSchemaVersion', 'step', 'origin'],
   'wiki.link_picker': ['eventSchemaVersion', 'step', 'target'],
+  'wiki.page_create': ['eventSchemaVersion', 'step', 'origin'],
+  'wiki.draft_discard': ['eventSchemaVersion', 'step'],
   sign_in_completed: [],
   client_error: ['origin', 'errorName'],
   page_viewed: ['eventSchemaVersion', 'page'],
@@ -887,6 +930,8 @@ const BROWSER_EVENT_SURFACES: Record<BrowserTelemetryEventName, readonly Browser
   'source.settings_viewed': ['console'],
   'wiki.cite_picker': ['box'],
   'wiki.link_picker': ['box'],
+  'wiki.page_create': ['box'],
+  'wiki.draft_discard': ['box'],
   sign_in_completed: ['console', 'operator', 'box'],
   client_error: ['console', 'operator', 'box'],
   page_viewed: ['web'],
@@ -969,6 +1014,13 @@ export function isBrowserTelemetryProperty(
   if (event === BrowserTelemetryEvent.WikiLinkPicker) {
     const allowed = key === 'step' ? WIKI_LINK_PICKER_STEPS : WIKI_LINK_PICKER_TARGETS;
     return (key === 'step' || key === 'target') && typeof value === 'string' && allowed.has(value);
+  }
+  if (event === BrowserTelemetryEvent.WikiPageCreate) {
+    const allowed = key === 'step' ? WIKI_PAGE_CREATE_STEPS : WIKI_PAGE_CREATE_ORIGINS;
+    return (key === 'step' || key === 'origin') && typeof value === 'string' && allowed.has(value);
+  }
+  if (event === BrowserTelemetryEvent.WikiDraftDiscard) {
+    return key === 'step' && typeof value === 'string' && WIKI_DRAFT_DISCARD_STEPS.has(value);
   }
   if (key === 'origin') {
     return (

@@ -28,6 +28,8 @@ it('keeps browser event properties closed and flat', () => {
     | 'source.settings_viewed'
     | 'wiki.cite_picker'
     | 'wiki.link_picker'
+    | 'wiki.page_create'
+    | 'wiki.draft_discard'
     | 'sign_in_completed'
     | 'client_error'
     | 'page_viewed'
@@ -54,6 +56,26 @@ it('keeps browser event properties closed and flat', () => {
       | 'google_calendar'
       | 'microsoft365_calendar'
       | (typeof FIRSTPARTY_SLOT_TELEMETRY_KINDS)[number];
+  }>();
+  expectTypeOf<TelemetryEventMap['wiki.page_create']>().toEqualTypeOf<{
+    eventSchemaVersion: 1;
+    step:
+      | 'opened'
+      | 'created'
+      | 'invalid_title'
+      | 'not_allowed'
+      | 'rate_limited'
+      | 'hourly_limit'
+      | 'draft_limit'
+      | 'author_page_limit'
+      | 'page_limit'
+      | 'failed'
+      | 'dismissed';
+    origin: 'sidebar' | 'shortcut' | 'team_space';
+  }>();
+  expectTypeOf<TelemetryEventMap['wiki.draft_discard']>().toEqualTypeOf<{
+    eventSchemaVersion: 1;
+    step: 'confirmed' | 'discarded' | 'not_found' | 'failed' | 'cancelled';
   }>();
   expectTypeOf<TelemetryEventMap['sign_in_completed']>().toEqualTypeOf<Record<string, never>>();
   expectTypeOf<TelemetryEventMap['client_error']>().toEqualTypeOf<{
@@ -87,6 +109,21 @@ it('keeps browser event properties closed and flat', () => {
   };
   expect([unknownEvent, unknownProperty, nestedValue, arbitraryReason]).toHaveLength(4);
   expect([arbitraryOrigin]).toHaveLength(1);
+
+  const create = { eventSchemaVersion: 1, step: 'page_limit', origin: 'team_space' };
+  expect(areBrowserTelemetryPropertiesValid('wiki.page_create', create)).toBe(true);
+  expect(
+    areBrowserTelemetryPropertiesValid('wiki.draft_discard', {
+      eventSchemaVersion: 1,
+      step: 'discarded',
+    }),
+  ).toBe(true);
+  expect(
+    areBrowserTelemetryPropertiesValid('wiki.page_create', {
+      ...create,
+      origin: 'https://acme.example/x',
+    }),
+  ).toBe(false);
 });
 
 it('rejects inherited and unknown browser event names at runtime', () => {
@@ -168,6 +205,8 @@ describe('isBrowserEventAllowedFrom', () => {
     'wiki.toolbar_action': ['box'],
     'wiki.cite_picker': ['box'],
     'wiki.link_picker': ['box'],
+    'wiki.page_create': ['box'],
+    'wiki.draft_discard': ['box'],
   };
 
   it.each(

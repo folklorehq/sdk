@@ -42,20 +42,15 @@ describe('NoopTelemetryClient', () => {
 });
 
 describe('createTelemetryClient', () => {
-  it('returns NoopTelemetryClient when POSTHOG_API_KEY is absent', () => {
+  it('picks the client by whether POSTHOG_API_KEY is set', async () => {
     const original = process.env['POSTHOG_API_KEY'];
     delete process.env['POSTHOG_API_KEY'];
-    const client = createTelemetryClient();
-    expect(client).toBeInstanceOf(NoopTelemetryClient);
+    expect(createTelemetryClient()).toBeInstanceOf(NoopTelemetryClient);
     if (original !== undefined) process.env['POSTHOG_API_KEY'] = original;
-  });
-
-  it('returns PostHogTelemetryClient when POSTHOG_API_KEY is present', async () => {
     process.env['POSTHOG_API_KEY'] = 'phc_test';
     const { createTelemetryClient: create, PostHogTelemetryClient } =
       await import('../src/index.js');
-    const client = create();
-    expect(client).toBeInstanceOf(PostHogTelemetryClient);
+    expect(create()).toBeInstanceOf(PostHogTelemetryClient);
     delete process.env['POSTHOG_API_KEY'];
   });
 });
