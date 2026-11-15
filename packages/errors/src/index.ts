@@ -30,6 +30,7 @@ export {
   IdentityLinkRequiredError,
   RateLimitError,
   ConcurrencyLimitError,
+  FreePlanLimitError,
   ExternalServiceError,
   ConnectorSpecError,
   TransportStatusError,

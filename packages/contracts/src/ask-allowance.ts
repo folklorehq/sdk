@@ -17,3 +17,5 @@ export const ASK_LANES = ['normal', 'reduced', 'slow'] as const;
 export type AskLane = (typeof ASK_LANES)[number];
 export const ASK_LANE_SCOPES = ['user', 'workspace'] as const;
 export type AskLaneScope = (typeof ASK_LANE_SCOPES)[number];
+
+export const ASK_SPEND_CAP_REACHED_CODE = 'ask_spend_cap_reached';

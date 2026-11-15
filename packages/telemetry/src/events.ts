@@ -39,6 +39,10 @@ export const TelemetryEvent = {
   BetaInviteCreated: 'beta_invite.created',
   BetaInviteAccepted: 'beta_invite.accepted',
   DirectoryImported: 'directory.imported',
+  PlanFreeLimitReached: 'plan.free_limit_reached',
+  PlanFreeRefused: 'plan.free_refused',
+  PlanChanged: 'plan.changed',
+  PlanUpgradeRequested: 'plan.upgrade_requested',
   SubscriptionCreated: 'subscription.created',
   SubscriptionStatusChanged: 'subscription.status_changed',
   SubscriptionSeatsChanged: 'subscription.seats_changed',
@@ -105,6 +109,23 @@ export const TelemetryEvent = {
   FirstpartyConnectorRefused: 'firstparty_connector.refused',
   AgentAccessProjectionTruncated: 'agent_access.projection_truncated',
 } as const;
+
+// The control plane passes the contract's free-plan limit kinds and plan tiers, which must stay assignable to these.
+export const FREE_PLAN_TELEMETRY_LIMITS = [
+  'members',
+  'connectors',
+  'personal_sources',
+  'audiences',
+  'questions',
+] as const;
+export const FREE_PLAN_TELEMETRY_REFUSALS = [
+  'personal_email',
+  'domain_taken',
+  'over_limit',
+  'disabled',
+  'full',
+] as const;
+export const PLAN_TELEMETRY_TIERS = ['team', 'business', 'enterprise', 'free'] as const;
 
 // Telemetry imports nothing from contracts (the private agent-access module stays out of the SDK mirror); the control-plane vocabulary test pins these to it.
 export const AGENT_ACCESS_TELEMETRY_MODES = ['off', 'answers', 'answers_and_pages'] as const;
@@ -361,6 +382,17 @@ type ProductEvents = {
     peopleCount: number;
     groupCount: number;
   };
+  'plan.free_limit_reached': { orgId: string; limit: (typeof FREE_PLAN_TELEMETRY_LIMITS)[number] };
+  'plan.free_refused': {
+    reason: (typeof FREE_PLAN_TELEMETRY_REFUSALS)[number];
+    orgId?: string;
+  };
+  'plan.changed': {
+    orgId: string;
+    from: (typeof PLAN_TELEMETRY_TIERS)[number];
+    to: (typeof PLAN_TELEMETRY_TIERS)[number];
+  };
+  'plan.upgrade_requested': { orgId: string };
   'subscription.created': { orgId: string; status: string };
   'subscription.status_changed': { orgId: string; status: string };
   'subscription.seats_changed': { orgId: string; seats: number };

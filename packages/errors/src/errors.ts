@@ -218,6 +218,13 @@ export class ConcurrencyLimitError extends AppError {
   }
 }
 
+/** A free-plan rule refuses the action (409); `code` is one of the free-plan codes in @folklore/contracts. */
+export class FreePlanLimitError extends AppError {
+  constructor(message: string, code: string, options: AppErrorOptions = {}) {
+    super(message, { ...options, code, category: 'conflict' });
+  }
+}
+
 /** An upstream source/integration call failed (Slack, GitHub, ...). */
 export class ExternalServiceError extends AppError {
   constructor(message: string, options: AppErrorOptions = {}) {
