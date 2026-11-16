@@ -218,6 +218,7 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   'org.created': propertyContract(
     { orgId: uuid, plan: literal('trial', 'beta', 'growth', 'business', 'enterprise') },
     {
+      planTier: literal(...PLAN_TELEMETRY_TIERS),
       region: literal('us-east-1'),
       tier: literal('dev', 'staging', 'startup', 'growth', 'enterprise', 'shared', 'dedicated'),
       processingTier: literal('shared', 'dedicated'),

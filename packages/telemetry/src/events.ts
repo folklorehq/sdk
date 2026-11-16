@@ -283,6 +283,7 @@ type ProductEvents = {
   'org.created': {
     orgId: string;
     plan: string;
+    planTier?: (typeof PLAN_TELEMETRY_TIERS)[number];
     region?: string;
     tier?: string;
     processingTier?: string;
