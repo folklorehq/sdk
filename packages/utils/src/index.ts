@@ -16,6 +16,7 @@ export { safeHref } from './safe-href.js';
 export { toVectorLiteral } from './vector.js';
 export { normalizePersonName, personName } from './person-name.js';
 export { isRoleMailbox } from './role-mailbox.js';
+export { canonicalEmail } from './email.js';
 export {
   collapseWhitespace,
   truncate,
