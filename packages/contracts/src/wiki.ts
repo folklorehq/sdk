@@ -659,7 +659,6 @@ export const wikiStubResponseSchema = z
   .strict();
 export type WikiStubResponse = z.infer<typeof wikiStubResponseSchema>;
 
-// UNWIRED: the box does not parse this until SA9b
 export const wikiNotifyReadyResponseSchema = z
   .object({ state: wikiStubStateSchema, notifyReady: z.boolean() })
   .strict();
