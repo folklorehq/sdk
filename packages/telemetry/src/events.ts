@@ -652,6 +652,7 @@ export const BrowserTelemetryEvent = {
   CtaClicked: 'cta_clicked',
   RouteViewed: 'route_viewed',
   OnboardingStepViewed: 'onboarding_step_viewed',
+  OnboardingWorkspaceOpened: 'onboarding_workspace_opened',
   WikiToolbarAction: 'wiki.toolbar_action',
 } as const;
 
@@ -690,6 +691,13 @@ export type ClientErrorName = (typeof CLIENT_ERROR_NAMES)[number];
 
 export const ONBOARDING_STEPS = ['sources', 'roster', 'teams', 'invite', 'done'] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
+
+export const ONBOARDING_WORKSPACE_PLACEMENTS = ['done_step', 'build_card'] as const;
+export type OnboardingWorkspacePlacement = (typeof ONBOARDING_WORKSPACE_PLACEMENTS)[number];
+
+const ONBOARDING_WORKSPACE_PLACEMENT_SET: ReadonlySet<string> = new Set(
+  ONBOARDING_WORKSPACE_PLACEMENTS,
+);
 
 export const WIKI_TOOLBAR_ACTIONS = [
   'block_type',
@@ -882,6 +890,7 @@ type BrowserEvents = {
   cta_clicked: { eventSchemaVersion: 1; cta: string; page: string };
   route_viewed: { eventSchemaVersion: 1; surface: RouteViewSurface; routeTemplate: string };
   onboarding_step_viewed: { eventSchemaVersion: 1; step: OnboardingStep };
+  onboarding_workspace_opened: { eventSchemaVersion: 1; placement: OnboardingWorkspacePlacement };
 };
 
 export type BrowserEventProperties<K extends BrowserTelemetryEventName> = K extends 'route_viewed'
@@ -954,6 +963,7 @@ const BROWSER_EVENT_PROPERTY_KEYS: Record<BrowserTelemetryEventName, readonly st
   cta_clicked: ['eventSchemaVersion', 'cta', 'page'],
   route_viewed: ['eventSchemaVersion', 'routeTemplate'],
   onboarding_step_viewed: ['eventSchemaVersion', 'step'],
+  onboarding_workspace_opened: ['eventSchemaVersion', 'placement'],
   'wiki.toolbar_action': ['eventSchemaVersion', 'action'],
 };
 
@@ -971,6 +981,7 @@ const BROWSER_EVENT_SURFACES: Record<BrowserTelemetryEventName, readonly Browser
   cta_clicked: ['web'],
   route_viewed: ROUTE_VIEW_SURFACES,
   onboarding_step_viewed: ['console'],
+  onboarding_workspace_opened: ['console'],
   'wiki.toolbar_action': ['box'],
 };
 
@@ -1067,6 +1078,13 @@ export function isBrowserTelemetryProperty(
       event === BrowserTelemetryEvent.ClientError &&
       typeof value === 'string' &&
       CLIENT_ERROR_NAME_SET.has(value)
+    );
+  }
+  if (key === 'placement') {
+    return (
+      event === BrowserTelemetryEvent.OnboardingWorkspaceOpened &&
+      typeof value === 'string' &&
+      ONBOARDING_WORKSPACE_PLACEMENT_SET.has(value)
     );
   }
   if (key === 'action') {

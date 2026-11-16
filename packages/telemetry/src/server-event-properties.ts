@@ -37,6 +37,7 @@ import {
   FIRSTPARTY_SLOT_TELEMETRY_KINDS,
   IDENTITY_LINK_TELEMETRY_KINDS,
   ONBOARDING_STEPS,
+  ONBOARDING_WORKSPACE_PLACEMENTS,
   PERSONAL_SOURCE_CONNECT_TELEMETRY_FAILURES,
   PLAN_TELEMETRY_TIERS,
   PERSONAL_SOURCE_MODE_TELEMETRY_FAILURES,
@@ -674,6 +675,10 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   onboarding_step_viewed: propertyContract({
     eventSchemaVersion: schemaVersion1,
     step: literal(...ONBOARDING_STEPS),
+  }),
+  onboarding_workspace_opened: propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    placement: literal(...ONBOARDING_WORKSPACE_PLACEMENTS),
   }),
   'wiki.toolbar_action': propertyContract({
     eventSchemaVersion: schemaVersion1,

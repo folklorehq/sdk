@@ -337,6 +337,7 @@ const VALID_RELAYED_EVENT_FIXTURES = {
   cta_clicked: { eventSchemaVersion: 1, cta: 'hero_get_started', page: '/' },
   route_viewed: { eventSchemaVersion: 1, surface: 'console', routeTemplate: '/members' },
   onboarding_step_viewed: { eventSchemaVersion: 1, step: 'sources' },
+  onboarding_workspace_opened: { eventSchemaVersion: 1, placement: 'done_step' },
   'wiki.toolbar_action': { eventSchemaVersion: 1, action: 'bold' },
 } satisfies { [K in BrowserTelemetryEventName]: TelemetryEventMap[K] };
 

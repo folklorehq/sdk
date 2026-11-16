@@ -36,6 +36,7 @@ it('keeps browser event properties closed and flat', () => {
     | 'cta_clicked'
     | 'route_viewed'
     | 'onboarding_step_viewed'
+    | 'onboarding_workspace_opened'
     | 'wiki.toolbar_action'
   >();
   expectTypeOf<TelemetryEventMap['source.connect_started']>().toEqualTypeOf<{
@@ -197,6 +198,7 @@ describe('isBrowserEventAllowedFrom', () => {
     cta_clicked: ['web'],
     route_viewed: ['console', 'operator', 'box'],
     onboarding_step_viewed: ['console'],
+    onboarding_workspace_opened: ['console'],
     sign_in_completed: ['console', 'operator', 'box'],
     client_error: ['console', 'operator', 'box'],
     'source.connect_started': ['console', 'box'],
