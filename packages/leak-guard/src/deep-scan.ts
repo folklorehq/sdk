@@ -6,6 +6,8 @@ const PREVIEW_RADIUS = 24;
 const BASE64_RUN = /[A-Za-z0-9+/=]{12,}/g;
 const BASE64URL_RUN = /[A-Za-z0-9\-_]{12,}/g;
 const HEX_RUN = /[0-9a-fA-F]{12,}/g;
+// Each %XX run decodes as raw bytes (invalid UTF-8 becomes U+FFFD), so a stray '%' or byte never hides the rest.
+const PERCENT_ESCAPE_RUN = /(?:%[0-9a-fA-F]{2})+/g;
 
 export type SentinelEncoding =
   | 'raw'
@@ -188,8 +190,10 @@ function scanDecodedRuns(s: string, path: string, needle: string, out: SentinelS
     if (d.includes(needle)) hit('hex-decoded');
   }
   if (s.includes('%')) {
-    const decoded = safeDecode(() => decodeURIComponent(s));
-    if (decoded && decoded !== s && decoded.includes(needle)) hit('url-decoded');
+    const decoded = s.replace(PERCENT_ESCAPE_RUN, (run) =>
+      Buffer.from(run.replaceAll('%', ''), 'hex').toString('utf8'),
+    );
+    if (decoded !== s && decoded.includes(needle)) hit('url-decoded');
   }
 }
 
