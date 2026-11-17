@@ -19,7 +19,7 @@ import {
 } from './inference-routing.js';
 import { FIRSTPARTY_OAUTH_SECRET_CIPHERTEXT_BASE64 } from './connectors/firstparty/firstparty-oauth-secret.js';
 import { firstpartyDefinitionEnvelopeSchema } from './connectors/firstparty/firstparty-signing.js';
-import { FIRSTPARTY_SLOT_KINDS } from './connectors/firstparty/firstparty-slot-kinds.js';
+import { FIRSTPARTY_MAX_LIVE_CONNECTORS } from './connectors/firstparty/firstparty-source-key.js';
 
 export {
   sealedContentEnvelopeV1Schema,
@@ -2088,7 +2088,7 @@ export const firstpartyConnectorFeedSchema = z
           })
           .strict(),
       )
-      .max(FIRSTPARTY_SLOT_KINDS.length),
+      .max(FIRSTPARTY_MAX_LIVE_CONNECTORS),
   })
   .strict();
 export type FirstpartyConnectorFeed = z.infer<typeof firstpartyConnectorFeedSchema>;

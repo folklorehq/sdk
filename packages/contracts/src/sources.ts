@@ -5,12 +5,15 @@ import {
   FIRSTPARTY_MAX_API_HOSTS,
   FIRSTPARTY_MAX_DISPLAY_NAME_LENGTH,
 } from './connectors/firstparty/firstparty-definition.js';
-import { FIRSTPARTY_SLOT_KINDS } from './connectors/firstparty/firstparty-slot-kinds.js';
+import {
+  FIRSTPARTY_MAX_LIVE_CONNECTORS,
+  firstpartySourceKeySchema,
+} from './connectors/firstparty/firstparty-source-key.js';
 import { hostSchema } from './connectors/manifest.js';
 
 export const firstpartyCatalogEntrySchema = z
   .object({
-    kind: z.enum(FIRSTPARTY_SLOT_KINDS),
+    kind: firstpartySourceKeySchema,
     displayName: z.string().min(1).max(FIRSTPARTY_MAX_DISPLAY_NAME_LENGTH),
     iconKey: z.enum(FIRSTPARTY_ICON_KEYS).nullable(),
     hosts: z
@@ -28,7 +31,10 @@ export type FirstpartyCatalogEntry = z.infer<typeof firstpartyCatalogEntrySchema
 export const sourceCatalogResponseSchema = z
   .object({
     enabledKinds: z.array(z.string()),
-    firstparty: z.array(firstpartyCatalogEntrySchema).max(FIRSTPARTY_SLOT_KINDS.length).optional(),
+    firstparty: z
+      .array(firstpartyCatalogEntrySchema)
+      .max(FIRSTPARTY_MAX_LIVE_CONNECTORS)
+      .optional(),
   })
   .strict();
 

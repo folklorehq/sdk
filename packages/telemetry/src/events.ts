@@ -106,6 +106,8 @@ export const TelemetryEvent = {
   FirstpartyConnectorDraftSaved: 'firstparty_connector.draft_saved',
   FirstpartyConnectorPublished: 'firstparty_connector.published',
   FirstpartyConnectorUnpublished: 'firstparty_connector.unpublished',
+  FirstpartyConnectorCreated: 'firstparty_connector.created',
+  FirstpartyConnectorAvailabilityChanged: 'firstparty_connector.availability_changed',
   FirstpartyConnectorRefused: 'firstparty_connector.refused',
   AgentAccessProjectionTruncated: 'agent_access.projection_truncated',
 } as const;
@@ -269,7 +271,7 @@ export const IDENTITY_LINK_TELEMETRY_KINDS = [
 type IdentityLinkTelemetryKind = (typeof IDENTITY_LINK_TELEMETRY_KINDS)[number];
 type PersonalSourceTelemetryKind = (typeof PERSONAL_SOURCE_TELEMETRY_KINDS)[number];
 type AgentAccessAgent = (typeof AGENT_ACCESS_TELEMETRY_AGENTS)[number];
-type FirstpartySlotTelemetryKind = (typeof FIRSTPARTY_SLOT_TELEMETRY_KINDS)[number];
+type FirstpartySlotTelemetryKey = `firstparty_${number}`;
 
 export type InvitePresetLabel = 'admin' | 'member' | 'custom';
 export type InviteRevocationCause =
@@ -427,15 +429,20 @@ type ProductEvents = {
     reason: (typeof AGENT_ACCESS_TELEMETRY_REVOCATIONS)[number];
     count: number;
   };
-  'firstparty_connector.draft_saved': { slot: FirstpartySlotTelemetryKind; revision: number };
+  'firstparty_connector.draft_saved': { slot: FirstpartySlotTelemetryKey; revision: number };
   'firstparty_connector.published': {
-    slot: FirstpartySlotTelemetryKind;
+    slot: FirstpartySlotTelemetryKey;
     revision: number;
     reconnectReason?: (typeof FIRSTPARTY_RECONNECT_TELEMETRY_REASONS)[number];
   };
-  'firstparty_connector.unpublished': { slot: FirstpartySlotTelemetryKind };
+  'firstparty_connector.unpublished': { slot: FirstpartySlotTelemetryKey };
+  'firstparty_connector.created': { slot: FirstpartySlotTelemetryKey };
+  'firstparty_connector.availability_changed': {
+    slot: FirstpartySlotTelemetryKey;
+    available: boolean;
+  };
   'firstparty_connector.refused': {
-    slot: FirstpartySlotTelemetryKind;
+    slot: FirstpartySlotTelemetryKey;
     code: (typeof FIRSTPARTY_REFUSAL_CODES)[number];
   };
 };
@@ -733,28 +740,7 @@ export type RouteViewSurface = (typeof ROUTE_VIEW_SURFACES)[number];
 const CLIENT_ERROR_NAME_SET: ReadonlySet<string> = new Set(CLIENT_ERROR_NAMES);
 const OTHER_CLIENT_ERROR_NAME: ClientErrorName = 'other';
 
-export const FIRSTPARTY_SLOT_TELEMETRY_KINDS = [
-  'firstparty_1',
-  'firstparty_2',
-  'firstparty_3',
-  'firstparty_4',
-  'firstparty_5',
-  'firstparty_6',
-  'firstparty_7',
-  'firstparty_8',
-  'firstparty_9',
-  'firstparty_10',
-  'firstparty_11',
-  'firstparty_12',
-  'firstparty_13',
-  'firstparty_14',
-  'firstparty_15',
-  'firstparty_16',
-  'firstparty_17',
-  'firstparty_18',
-  'firstparty_19',
-  'firstparty_20',
-] as const;
+export const FIRSTPARTY_SLOT_TELEMETRY_PATTERN = /^firstparty_[1-9][0-9]{0,3}$/;
 
 export const FIRSTPARTY_REFUSAL_CODES = [
   'firstparty_definition_invalid',
@@ -768,6 +754,9 @@ export const FIRSTPARTY_REFUSAL_CODES = [
   'firstparty_signer_unavailable',
   'firstparty_pool_unsupported',
   'firstparty_not_found',
+  'firstparty_instances_exhausted',
+  'firstparty_live_cap_reached',
+  'firstparty_not_live',
 ] as const;
 
 export const FIRSTPARTY_RECONNECT_TELEMETRY_REASONS = [
@@ -790,7 +779,7 @@ export type BrowserSourceKind =
   | 'microsoft365_mail'
   | 'google_calendar'
   | 'microsoft365_calendar'
-  | (typeof FIRSTPARTY_SLOT_TELEMETRY_KINDS)[number];
+  | 'firstparty';
 
 type BrowserSourceConnectFailure =
   | 'cancelled'
@@ -931,7 +920,7 @@ const BROWSER_SOURCE_KINDS = new Set<BrowserSourceKind>([
   'microsoft365_mail',
   'google_calendar',
   'microsoft365_calendar',
-  ...FIRSTPARTY_SLOT_TELEMETRY_KINDS,
+  'firstparty',
 ]);
 
 export const BROWSER_SOURCE_CONNECT_FAILURES = new Set<BrowserSourceConnectFailure>([

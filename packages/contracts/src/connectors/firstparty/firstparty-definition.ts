@@ -10,7 +10,7 @@ import { noUnsafeCharacters } from '../custom/custom-definition.js';
 import { hostSchema, httpsHostUrlSchema } from '../manifest.js';
 import { resourceScopeUnitSchema } from '../resource-scope.js';
 import { connectorSpecSchema } from '../stream-spec.js';
-import { FIRSTPARTY_CONTAINER_LABEL, FIRSTPARTY_SLOT_KINDS } from './firstparty-slot-kinds.js';
+import { FIRSTPARTY_CONTAINER_LABEL, firstpartySourceKeySchema } from './firstparty-source-key.js';
 
 export const FIRSTPARTY_DEFINITION_VERSION = 1;
 export const FIRSTPARTY_MAX_STREAMS = 8;
@@ -73,7 +73,7 @@ export const firstpartyAuthSchema = z.discriminatedUnion('mode', [
 const baseDefinitionSchema = z
   .object({
     definitionVersion: z.literal(FIRSTPARTY_DEFINITION_VERSION),
-    slot: z.enum(FIRSTPARTY_SLOT_KINDS),
+    slot: firstpartySourceKeySchema,
     displayName: z
       .string()
       .min(1)

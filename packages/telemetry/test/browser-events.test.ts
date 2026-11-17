@@ -5,7 +5,6 @@ import {
   BROWSER_SURFACES,
   CLIENT_ERROR_NAMES,
   clientErrorName,
-  FIRSTPARTY_SLOT_TELEMETRY_KINDS,
   isBrowserEventAllowedFrom,
   isBrowserTelemetryProperty,
   isBrowserTelemetryEvent,
@@ -56,7 +55,7 @@ it('keeps browser event properties closed and flat', () => {
       | 'microsoft365_mail'
       | 'google_calendar'
       | 'microsoft365_calendar'
-      | (typeof FIRSTPARTY_SLOT_TELEMETRY_KINDS)[number];
+      | 'firstparty';
   }>();
   expectTypeOf<TelemetryEventMap['wiki.page_create']>().toEqualTypeOf<{
     eventSchemaVersion: 1;
@@ -145,29 +144,21 @@ it('keeps client error properties content-free at runtime', () => {
 });
 
 describe('clientErrorName', () => {
-  it('keeps the name of a listed Error', () => {
+  it('keeps the name of a listed Error, including one assigned to a platform Error', () => {
     expect(clientErrorName(new TypeError('customer content'))).toBe('TypeError');
     expect(clientErrorName(new DOMException('customer content', 'AbortError'))).toBe('AbortError');
+    const chunk = new Error('Loading chunk 7 failed');
+    chunk.name = 'ChunkLoadError';
+    expect(clientErrorName(chunk)).toBe('ChunkLoadError');
   });
 
-  it('maps a custom Error subclass to other, even one that reuses a listed name', () => {
+  it('maps a custom Error subclass or a forged name to other, even one that reuses a listed name', () => {
     class NetworkError extends Error {}
 
     expect(clientErrorName(new (class Foo extends Error {})())).toBe('other');
     expect(clientErrorName(new NetworkError('customer content'))).toBe('other');
-  });
-
-  it('keeps a listed name assigned to a platform Error, as bundlers do for ChunkLoadError', () => {
-    const chunk = new Error('Loading chunk 7 failed');
-    chunk.name = 'ChunkLoadError';
-
-    expect(clientErrorName(chunk)).toBe('ChunkLoadError');
-  });
-
-  it('maps an Error with a forged name to other', () => {
     const forged = new Error('x');
     forged.name = 'Project Zephyr';
-
     expect(clientErrorName(forged)).toBe('other');
   });
 
@@ -258,9 +249,6 @@ describe('catalog-backed browser events', () => {
         step: 'sources',
       }),
     ).toBe(false);
-  });
-
-  it('refuses the per-key check for catalog keys without a catalog', () => {
     expect(isBrowserTelemetryProperty('page_viewed', 'page', '/pricing')).toBe(false);
     expect(isBrowserTelemetryProperty('cta_clicked', 'cta', 'hero_get_started')).toBe(false);
     expect(isBrowserTelemetryProperty('route_viewed', 'routeTemplate', '/members')).toBe(false);

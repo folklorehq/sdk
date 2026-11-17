@@ -296,12 +296,14 @@ export class CustomConnectorError extends AppError {
 export type ConnectorPolicyErrorCode =
   | 'instance_allocation_contended'
   | 'instance_ordinals_exhausted'
-  | 'kind_not_multi_instance';
+  | 'kind_not_multi_instance'
+  | 'kind_fleet_scoped';
 
 const CONNECTOR_POLICY_CATEGORY: Readonly<Record<ConnectorPolicyErrorCode, ErrorCategory>> = {
   instance_allocation_contended: 'conflict',
   instance_ordinals_exhausted: 'conflict',
   kind_not_multi_instance: 'validation',
+  kind_fleet_scoped: 'validation',
 };
 
 /** The message is the code; never an org id or a kind. Limit refusals are 'conflict', as FreePlanLimitError. */
@@ -323,7 +325,10 @@ export type FirstpartyConnectorErrorCode =
   | 'firstparty_oauth_key_unavailable'
   | 'firstparty_signer_unavailable'
   | 'firstparty_pool_unsupported'
-  | 'firstparty_not_found';
+  | 'firstparty_not_found'
+  | 'firstparty_instances_exhausted'
+  | 'firstparty_live_cap_reached'
+  | 'firstparty_not_live';
 
 const FIRSTPARTY_CATEGORY: Readonly<Record<FirstpartyConnectorErrorCode, ErrorCategory>> = {
   firstparty_definition_invalid: 'validation',
@@ -333,6 +338,9 @@ const FIRSTPARTY_CATEGORY: Readonly<Record<FirstpartyConnectorErrorCode, ErrorCa
   firstparty_stale_revision: 'conflict',
   firstparty_surface_frozen: 'conflict',
   firstparty_oauth_secret_missing: 'conflict',
+  firstparty_instances_exhausted: 'conflict',
+  firstparty_live_cap_reached: 'conflict',
+  firstparty_not_live: 'conflict',
   firstparty_oauth_key_unavailable: 'unavailable',
   firstparty_signer_unavailable: 'unavailable',
   firstparty_pool_unsupported: 'unavailable',

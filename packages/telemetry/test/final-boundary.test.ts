@@ -146,6 +146,8 @@ const VALID_SERVER_EVENT_FIXTURES = {
     reconnectReason: 'streams_changed',
   },
   'firstparty_connector.unpublished': { slot: 'firstparty_1' },
+  'firstparty_connector.created': { slot: 'firstparty_1' },
+  'firstparty_connector.availability_changed': { slot: 'firstparty_1', available: true },
   'firstparty_connector.refused': { slot: 'firstparty_1', code: 'firstparty_surface_frozen' },
   'beta_invite.created': {},
   'beta_invite.accepted': { betaInviteId: ORGANIZATION_ID },
@@ -670,6 +672,13 @@ describe('PostHogTelemetryClient final boundary', () => {
     ['a resource id', 'source.sync_pause_failed', { resourceId: 'C123' }],
     ['an audience name', 'audience.created', { name: 'Project Zephyr' }],
     ['a free-text reason', 'audience.change_refused', { reason: 'Project Zephyr is taken' }],
+    ['a zero-padded slot', 'firstparty_connector.unpublished', { slot: 'firstparty_03' }],
+    [
+      'free text after a slot',
+      'firstparty_connector.draft_saved',
+      { slot: 'firstparty_3 Project Zephyr' },
+    ],
+    ['an instance key as the source kind', 'source.connected', { sourceKind: 'firstparty_3' }],
   ] as const)('rejects %s on %s', (_case, event, override) => {
     const { client, captured } = recordingClient();
 

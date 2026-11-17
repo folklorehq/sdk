@@ -34,7 +34,7 @@ import {
   FREE_PLAN_TELEMETRY_LIMITS,
   FREE_PLAN_TELEMETRY_REFUSALS,
   FIRSTPARTY_RECONNECT_TELEMETRY_REASONS,
-  FIRSTPARTY_SLOT_TELEMETRY_KINDS,
+  FIRSTPARTY_SLOT_TELEMETRY_PATTERN,
   IDENTITY_LINK_TELEMETRY_KINDS,
   ONBOARDING_STEPS,
   ONBOARDING_WORKSPACE_PLACEMENTS,
@@ -79,7 +79,7 @@ const SOURCE_KINDS = new Set([
   'msteams',
   'sharepoint',
   'azure_devops',
-  ...FIRSTPARTY_SLOT_TELEMETRY_KINDS,
+  'firstparty',
 ]);
 const INFERENCE_MODELS = new Set([
   'moonshotai/kimi-k3',
@@ -158,7 +158,7 @@ const httpStatus: PropertyValidator = isHttpStatus;
 const browserSourceKind: PropertyValidator = (value) =>
   typeof value === 'string' && isBrowserSourceKind(value);
 const sourceKind = oneOf(SOURCE_KINDS);
-const firstpartySlot = literal(...FIRSTPARTY_SLOT_TELEMETRY_KINDS);
+const firstpartySlot = matches(FIRSTPARTY_SLOT_TELEMETRY_PATTERN);
 const personalSourceKind = oneOf(new Set<string>(PERSONAL_SOURCE_TELEMETRY_KINDS));
 const identityLinkKind = oneOf(new Set<string>(IDENTITY_LINK_TELEMETRY_KINDS));
 const model = oneOf(INFERENCE_MODELS);
@@ -345,6 +345,11 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     { reconnectReason: literal(...FIRSTPARTY_RECONNECT_TELEMETRY_REASONS) },
   ),
   'firstparty_connector.unpublished': propertyContract({ slot: firstpartySlot }),
+  'firstparty_connector.created': propertyContract({ slot: firstpartySlot }),
+  'firstparty_connector.availability_changed': propertyContract({
+    slot: firstpartySlot,
+    available: bool,
+  }),
   'firstparty_connector.refused': propertyContract({
     slot: firstpartySlot,
     code: literal(...FIRSTPARTY_REFUSAL_CODES),

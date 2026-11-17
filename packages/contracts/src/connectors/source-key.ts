@@ -4,6 +4,10 @@ import type { ManifestKind } from './index.js';
 import type { ConnectorManifest } from './manifest.js';
 import { PRIVATE_CONNECTOR_MANIFESTS } from './private-registry.js';
 import { PUBLIC_CONNECTOR_MANIFESTS } from './public-registry.js';
+import {
+  firstpartySourceKeySchema,
+  type FirstpartySourceKey,
+} from './firstparty/firstparty-source-key.js';
 
 export const SOURCE_KEY_MAX_INSTANCE = 9999;
 
@@ -15,7 +19,7 @@ export type SingleFactSourceKind = Exclude<
   ManyKind
 >;
 export type CustomSourceKey = `custom_${number}`;
-export type FactSourceKey = SingleFactSourceKind | CustomSourceKey;
+export type FactSourceKey = SingleFactSourceKind | CustomSourceKey | FirstpartySourceKey;
 
 export interface ParsedSourceKey {
   readonly kind: ManifestKind;
@@ -69,4 +73,5 @@ const SINGLE_FACT_SOURCE_KINDS = MANIFESTS.filter(
 export const factSourceKeySchema = z.union([
   z.enum(SINGLE_FACT_SOURCE_KINDS),
   customSourceKeySchema,
+  firstpartySourceKeySchema,
 ]);

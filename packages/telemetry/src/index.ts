@@ -32,6 +32,7 @@ export {
   CLIENT_ERROR_NAMES,
   clientErrorName,
   FIRSTPARTY_REFUSAL_CODES,
+  FIRSTPARTY_SLOT_TELEMETRY_PATTERN,
   isBrowserEventAllowedFrom,
   isBrowserTelemetryEvent,
   TelemetryEvent,

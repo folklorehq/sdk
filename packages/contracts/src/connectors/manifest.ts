@@ -282,6 +282,9 @@ export const connectorIdentitySchema = z
 // UNWIRED: no caller until customer-defined connectors are wired. Sealed data, never a provider the enclave links members through.
 export const customConnectorIdentitySchema = z.null();
 
+export const instanceScopeSchema = z.enum(['org', 'fleet']);
+export type InstanceScope = z.infer<typeof instanceScopeSchema>;
+
 export const connectorManifestSchema = z
   .object({
     manifestVersion: z.literal(CONNECTOR_MANIFEST_VERSION),
@@ -309,6 +312,7 @@ export const connectorManifestSchema = z
     settings: connectorSettingsSchema,
     containerLabels: z.array(containerLabelNameSchema).readonly().optional(),
     instances: z.literal('many').optional(),
+    instanceScope: instanceScopeSchema.optional(),
     resourceScope: z.object({ unit: resourceScopeUnitSchema }).strict().optional(),
     identity: connectorIdentitySchema.optional(),
   })
@@ -373,6 +377,10 @@ export const connectorManifestSchema = z
   .refine((m) => (m.resourceScope !== undefined) === (m.settings === 'resource_scope'), {
     message: 'resourceScope is declared if and only if settings is resource_scope',
     path: ['resourceScope'],
+  })
+  .refine((m) => (m.instances === 'many') === (m.instanceScope !== undefined), {
+    message: 'instanceScope is declared if and only if instances is many',
+    path: ['instanceScope'],
   })
   .refine(
     (m) =>

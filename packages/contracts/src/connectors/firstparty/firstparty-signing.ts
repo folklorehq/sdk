@@ -4,13 +4,13 @@ import { utf8ToBytes } from '@noble/hashes/utils.js';
 import { z } from 'zod';
 import { sha256Hex } from './firstparty-digest.js';
 import { firstpartyDefinitionSchema, type FirstpartyDefinition } from './firstparty-definition.js';
-import { FIRSTPARTY_SLOT_KINDS } from './firstparty-slot-kinds.js';
+import { firstpartySourceKeySchema } from './firstparty-source-key.js';
 
 export const FIRSTPARTY_DEFINITION_SIGNING_DOMAIN = 'folklore.firstparty-connector.v1';
 
 export const firstpartyDefinitionEnvelopeSchema = z
   .object({
-    slot: z.enum(FIRSTPARTY_SLOT_KINDS),
+    slot: firstpartySourceKeySchema,
     definitionId: z.string().uuid(),
     revision: z.number().int().min(1),
     definition: firstpartyDefinitionSchema,
