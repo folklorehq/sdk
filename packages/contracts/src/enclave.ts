@@ -1666,6 +1666,19 @@ export type SealedOAuthCredentialPersistence = z.infer<
   typeof sealedOAuthCredentialPersistenceSchema
 >;
 
+export const OAUTH_REFRESH_OUTCOMES = [
+  'success',
+  'unsupported_connector',
+  'no_connection',
+  'unbound_connection',
+  'token_mismatch',
+  'attestation_unavailable',
+  'provider_rejected',
+  'provider_error',
+  'stale_write',
+  'persist_failed',
+] as const;
+
 export const oauthRefreshMetadataUpdateSchema = z
   .object({
     deploymentId: z.string().uuid(),
@@ -1678,18 +1691,7 @@ export const oauthRefreshMetadataUpdateSchema = z
     priorRefreshCiphertextSha256: z.string().regex(/^[a-f0-9]{64}$/),
     nextAccessCiphertextSha256: z.string().regex(/^[a-f0-9]{64}$/),
     nextRefreshCiphertextSha256: z.string().regex(/^[a-f0-9]{64}$/),
-    outcome: z.enum([
-      'success',
-      'unsupported_connector',
-      'no_connection',
-      'unbound_connection',
-      'token_mismatch',
-      'attestation_unavailable',
-      'provider_rejected',
-      'provider_error',
-      'stale_write',
-      'persist_failed',
-    ]),
+    outcome: z.enum(OAUTH_REFRESH_OUTCOMES),
   })
   .strict();
 export type OAuthRefreshMetadataUpdate = z.infer<typeof oauthRefreshMetadataUpdateSchema>;

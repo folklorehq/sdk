@@ -2,6 +2,7 @@
 export { LinearConnector } from './LinearConnector.js';
 export { LinearGraphqlClient } from './LinearGraphqlClient.js';
 export type { LinearApiClient } from './client.js';
+export { LINEAR_REQUEST_ERROR_CODES, LinearRequestError } from './client.js';
 export {
   linearCycleContainerId,
   linearFactKeys,

@@ -42,10 +42,13 @@ export class LinearRateLimitedError extends Error {
   }
 }
 
-export type LinearRequestErrorCode =
-  | 'linear_unauthorized'
-  | 'linear_graphql_error'
-  | 'linear_cursor_invalid';
+export const LINEAR_REQUEST_ERROR_CODES = [
+  'linear_unauthorized',
+  'linear_graphql_error',
+  'linear_cursor_invalid',
+] as const;
+
+export type LinearRequestErrorCode = (typeof LINEAR_REQUEST_ERROR_CODES)[number];
 
 export class LinearRequestError extends Error {
   constructor(
