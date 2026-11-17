@@ -81,12 +81,22 @@ async function loadRules() {
   return [...BASE_RULES, ...PRIVATE_RULES];
 }
 
+// The repo's `git ls-files` was ~57% of execFileSync's 1 MiB default on 2026-11-17; past it the scan dies.
+const LISTING_MAX_BYTES = 64 * 1024 * 1024;
+
 function trackedFiles(scanRoot) {
   if (scanRoot === DEFAULT_REPO_ROOT) {
-    const out = execFileSync('git', ['ls-files'], { cwd: scanRoot, encoding: 'utf8' });
+    const out = execFileSync('git', ['ls-files'], {
+      cwd: scanRoot,
+      encoding: 'utf8',
+      maxBuffer: LISTING_MAX_BYTES,
+    });
     return out.split('\n').filter(Boolean);
   }
-  const out = execFileSync('find', [scanRoot, '-type', 'f'], { encoding: 'utf8' });
+  const out = execFileSync('find', [scanRoot, '-type', 'f'], {
+    encoding: 'utf8',
+    maxBuffer: LISTING_MAX_BYTES,
+  });
   return out
     .split('\n')
     .filter(Boolean)
