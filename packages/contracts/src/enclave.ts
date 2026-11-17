@@ -19,7 +19,11 @@ import {
 } from './inference-routing.js';
 import { FIRSTPARTY_OAUTH_SECRET_CIPHERTEXT_BASE64 } from './connectors/firstparty/firstparty-oauth-secret.js';
 import { firstpartyDefinitionEnvelopeSchema } from './connectors/firstparty/firstparty-signing.js';
-import { FIRSTPARTY_MAX_LIVE_CONNECTORS } from './connectors/firstparty/firstparty-source-key.js';
+import { FIRSTPARTY_MAX_API_HOSTS } from './connectors/firstparty/firstparty-definition.js';
+import {
+  FIRSTPARTY_MAX_LIVE_CONNECTORS,
+  firstpartySourceKeySchema,
+} from './connectors/firstparty/firstparty-source-key.js';
 
 export {
   sealedContentEnvelopeV1Schema,
@@ -2092,3 +2096,20 @@ export const firstpartyConnectorFeedSchema = z
   })
   .strict();
 export type FirstpartyConnectorFeed = z.infer<typeof firstpartyConnectorFeedSchema>;
+
+export const EGRESS_GRANT_HEADER = 'x-folklore-egress-grant';
+export const EGRESS_GRANT_TTL_SECONDS = 86_400;
+const egressGrantSchema = z
+  .object({
+    hostSha256: z.string().regex(/^[0-9a-f]{64}$/),
+    grant: z.string().min(1).max(1024),
+    exp: z.number().int().positive(),
+  })
+  .strict();
+export const firstpartyEgressGrantRequestSchema = z
+  .object({ key: firstpartySourceKeySchema })
+  .strict();
+export const firstpartyEgressGrantResponseSchema = z
+  .object({ grants: z.array(egressGrantSchema).max(FIRSTPARTY_MAX_API_HOSTS + 1) })
+  .strict();
+export type FirstpartyEgressGrantResponse = z.infer<typeof firstpartyEgressGrantResponseSchema>;
