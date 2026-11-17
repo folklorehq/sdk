@@ -63,7 +63,7 @@ export class LinearConnector extends BaseConnector {
     return teams.map((team) => ({
       externalId: team.id,
       resourceType: 'team',
-      isPublic: !team.private,
+      isPublic: team.private === false,
       displayName: team.name,
     }));
   }

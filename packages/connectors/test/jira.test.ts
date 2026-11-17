@@ -350,12 +350,14 @@ describe('Jira resources', () => {
     client.listProjects = async () => [
       { id: '1', key: 'PROJ', name: 'Platform' },
       { id: '2', key: 'OPS', name: 'Operations', isPrivate: true },
+      { id: '3', key: 'OPEN', name: 'Open', isPrivate: false },
     ];
     const connector = new JiraConnector({ logger: new PinoLogger({ level: 'silent' }) }, client);
 
     expect(await connector.listResources()).toEqual([
-      { externalId: 'PROJ', resourceType: 'project', isPublic: true, displayName: 'Platform' },
+      { externalId: 'PROJ', resourceType: 'project', isPublic: false, displayName: 'Platform' },
       { externalId: 'OPS', resourceType: 'project', isPublic: false, displayName: 'Operations' },
+      { externalId: 'OPEN', resourceType: 'project', isPublic: true, displayName: 'Open' },
     ]);
   });
 });

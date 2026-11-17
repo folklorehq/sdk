@@ -5,6 +5,7 @@ import { PinoLogger } from '@folklore/logger';
 import { LinearRequestError } from '../src/linear/client.js';
 import { LinearConnector } from '../src/linear/LinearConnector.js';
 import { normalizeLinearPulledIssue } from '../src/linear/normalize.js';
+import type { LinearTeamNode } from '../src/linear/types.js';
 import { FakeLinearApi } from './doubles/linear/FakeLinearApi.js';
 import { issueNode } from './fixtures/linear.js';
 
@@ -19,12 +20,14 @@ describe('LinearConnector.listResources', () => {
       { id: 'team-1', name: 'Engineering', private: false },
       { id: 'team-2', name: 'Security', private: true },
       { id: 'team-3', name: 'Design', private: false },
+      { id: 'team-4', name: 'Legacy' } as LinearTeamNode,
     ];
 
     await expect(connectorFor(fake).listResources()).resolves.toEqual([
       { externalId: 'team-1', resourceType: 'team', isPublic: true, displayName: 'Engineering' },
       { externalId: 'team-2', resourceType: 'team', isPublic: false, displayName: 'Security' },
       { externalId: 'team-3', resourceType: 'team', isPublic: true, displayName: 'Design' },
+      { externalId: 'team-4', resourceType: 'team', isPublic: false, displayName: 'Legacy' },
     ]);
   });
 

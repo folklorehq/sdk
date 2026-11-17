@@ -84,7 +84,7 @@ export function repoToResource(repo: GitHubRepo): NormalizedResource {
   return {
     externalId: String(repo.id),
     resourceType: 'repository',
-    isPublic: !repo.private,
+    isPublic: repo.private === false,
     displayName: repo.full_name,
   };
 }

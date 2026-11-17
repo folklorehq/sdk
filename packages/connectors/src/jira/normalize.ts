@@ -198,7 +198,7 @@ export function projectToResource(project: {
   return {
     externalId: project.key,
     resourceType: 'project',
-    isPublic: !project.isPrivate,
+    isPublic: project.isPrivate === false,
     displayName: project.name,
   };
 }
