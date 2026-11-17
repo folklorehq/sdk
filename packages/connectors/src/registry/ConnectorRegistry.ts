@@ -18,7 +18,6 @@ export interface PullConnectorDeps {
   exportedPageIds?: ReadonlySet<string>;
   // UNWIRED: no connector reads the body mode yet.
   documentBodies?: DocumentBodyMode;
-  // UNWIRED: the enclave supplies a transport once spec kinds are switched on.
   connectorTransport?: ConnectorTransport;
   // UNWIRED: the enclave runtime supplies the connection's secret parts later.
   secrets?: readonly string[];

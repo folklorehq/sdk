@@ -41,6 +41,8 @@ export {
   type ConnectorPolicyErrorCode,
   FirstpartyConnectorError,
   type FirstpartyConnectorErrorCode,
+  FirstpartyFeedError,
+  type FirstpartyFeedErrorCode,
   ThemeRequestTooLargeError,
   ServiceUnavailableError,
   EncryptionContextMismatchError,

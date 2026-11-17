@@ -247,6 +247,7 @@ export const identitySpecSchema = z
   })
   .strict();
 
+export type IdentitySpec = z.infer<typeof identitySpecSchema>;
 export type StreamSpec = z.infer<typeof streamSpecSchema>;
 
 function duplicateNameIssues(streams: readonly StreamSpec[], ctx: z.RefinementCtx): void {

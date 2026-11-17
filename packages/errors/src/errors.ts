@@ -355,6 +355,34 @@ export class FirstpartyConnectorError extends AppError {
   }
 }
 
+export type FirstpartyFeedErrorCode =
+  | 'firstparty_feed_pin_missing'
+  | 'firstparty_feed_unavailable'
+  | 'firstparty_feed_too_large'
+  | 'firstparty_feed_invalid'
+  | 'firstparty_feed_too_many'
+  | 'firstparty_feed_duplicate_key'
+  | 'firstparty_feed_slot_mismatch'
+  | 'firstparty_feed_signature_invalid';
+
+const FIRSTPARTY_FEED_CATEGORY: Readonly<Record<FirstpartyFeedErrorCode, ErrorCategory>> = {
+  firstparty_feed_pin_missing: 'unavailable',
+  firstparty_feed_unavailable: 'unavailable',
+  firstparty_feed_too_large: 'validation',
+  firstparty_feed_invalid: 'validation',
+  firstparty_feed_too_many: 'validation',
+  firstparty_feed_duplicate_key: 'validation',
+  firstparty_feed_slot_mismatch: 'validation',
+  firstparty_feed_signature_invalid: 'validation',
+};
+
+/** The message is the code; never a cause, URL, key material or body. */
+export class FirstpartyFeedError extends AppError {
+  constructor(code: FirstpartyFeedErrorCode) {
+    super(code, { code, category: FIRSTPARTY_FEED_CATEGORY[code] });
+  }
+}
+
 /** Carries a status only: never a URL, header or body. */
 export class TransportStatusError extends AppError {
   constructor(readonly status: number) {

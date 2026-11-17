@@ -38,7 +38,6 @@ export interface SpecConnectorInput {
   readonly now?: () => Date;
 }
 
-// UNWIRED: no kind is registered as a spec until the enclave transport supplies one.
 export class SpecConnector extends BaseConnector {
   readonly kind: string;
   private readonly now: () => Date;
