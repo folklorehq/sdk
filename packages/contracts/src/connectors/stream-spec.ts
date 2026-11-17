@@ -2,6 +2,11 @@
 import { z } from 'zod';
 import { containerLabelSchema } from './container-labels.js';
 import {
+  factDefinitionIssues,
+  factDefinitionObjectSchema,
+  transitionTypeSchema,
+} from './fact-definition.js';
+import {
   headerNameSchema,
   hostSchema,
   jsonPointerSchema,
@@ -78,39 +83,42 @@ const sensitivitySchema = z
     namesPointers: z.array(jsonPointerSchema).max(4).readonly(),
   })
   .strict();
-const transitionTypeSchema = z.enum(['opened', 'closed', 'merged', 'reopened', 'cancelled']);
-
-export const factMappingSchema = z.discriminatedUnion('shape', [
-  z
-    .object({
-      shape: z.literal('item'),
-      containerLabel: containerLabelSchema,
-      idPointer: jsonPointerSchema,
-      titlePointer: jsonPointerSchema,
-      bodyPointer: jsonPointerSchema.nullable(),
-      authorIdPointer: jsonPointerSchema,
-      createdAtPointer: jsonPointerSchema,
-      updatedAtPointer: jsonPointerSchema,
-      status: z
-        .object({ pointer: jsonPointerSchema, map: z.record(transitionTypeSchema) })
-        .strict()
-        .nullable(),
-      sensitivity: sensitivitySchema,
-    })
-    .strict(),
-  z
-    .object({
-      shape: z.literal('comment'),
-      parentIdPointer: jsonPointerSchema,
-      idPointer: jsonPointerSchema,
-      bodyPointer: jsonPointerSchema,
-      authorIdPointer: jsonPointerSchema,
-      createdAtPointer: jsonPointerSchema,
-      sensitivity: sensitivitySchema,
-    })
-    .strict(),
-  z.object({ shape: z.literal('calendar_event'), namespace: z.enum(['gcal']) }).strict(),
-]);
+export const factMappingSchema = z
+  .discriminatedUnion('shape', [
+    z
+      .object({
+        shape: z.literal('item'),
+        containerLabel: containerLabelSchema,
+        idPointer: jsonPointerSchema,
+        titlePointer: jsonPointerSchema,
+        bodyPointer: jsonPointerSchema.nullable(),
+        authorIdPointer: jsonPointerSchema,
+        createdAtPointer: jsonPointerSchema,
+        updatedAtPointer: jsonPointerSchema,
+        status: z
+          .object({ pointer: jsonPointerSchema, map: z.record(transitionTypeSchema) })
+          .strict()
+          .nullable(),
+        sensitivity: sensitivitySchema,
+      })
+      .strict(),
+    z
+      .object({
+        shape: z.literal('comment'),
+        parentIdPointer: jsonPointerSchema,
+        idPointer: jsonPointerSchema,
+        bodyPointer: jsonPointerSchema,
+        authorIdPointer: jsonPointerSchema,
+        createdAtPointer: jsonPointerSchema,
+        sensitivity: sensitivitySchema,
+      })
+      .strict(),
+    z.object({ shape: z.literal('calendar_event'), namespace: z.enum(['gcal']) }).strict(),
+    factDefinitionObjectSchema,
+  ])
+  .superRefine((mapping, ctx) => {
+    if (mapping.shape === 'fact') factDefinitionIssues(mapping, ctx);
+  });
 
 export const paginatorSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('none') }).strict(),
@@ -189,6 +197,20 @@ function sendsBody(stream: z.infer<typeof streamShapeSchema>): boolean {
   return stream.request.body !== undefined || paging === 'body' || stream.cursor?.in === 'body';
 }
 
+function cursorOutsideMapping(stream: z.infer<typeof streamShapeSchema>): boolean {
+  const { mapping, cursor } = stream;
+  if (mapping?.shape !== 'fact' || cursor?.source !== 'record_max') return false;
+  return ![mapping.updatedAt?.pointer, mapping.createdAt.pointer].includes(cursor.pointer);
+}
+
+function opaqueFactCursor(stream: z.infer<typeof streamShapeSchema>): boolean {
+  return (
+    stream.mapping?.shape === 'fact' &&
+    stream.cursor?.source === 'record_max' &&
+    stream.cursor.format === 'opaque'
+  );
+}
+
 export const streamSpecSchema = streamShapeSchema.superRefine((stream, ctx) => {
   // A followed URL is only ever fetched with GET, so a POST body is never re-sent to it.
   if (
@@ -199,6 +221,12 @@ export const streamSpecSchema = streamShapeSchema.superRefine((stream, ctx) => {
   }
   if (stream.request.method === 'GET' && sendsBody(stream)) {
     ctx.addIssue({ code: 'custom', message: 'a GET request has no body to carry a parameter' });
+  }
+  if (cursorOutsideMapping(stream)) {
+    ctx.addIssue({ code: 'custom', message: 'a record_max cursor must read a declared timestamp' });
+  }
+  if (opaqueFactCursor(stream)) {
+    ctx.addIssue({ code: 'custom', message: 'a record_max cursor on a fact needs a time format' });
   }
   const bound = new Set(Object.keys(stream.parent?.bind ?? {}));
   for (const template of requestTemplates(stream.request)) {
@@ -253,13 +281,34 @@ function unmappedLeafIssues(streams: readonly StreamSpec[], ctx: z.RefinementCtx
   }
 }
 
+type StreamMapping = StreamSpec['mapping'];
+
+const isFactItem = (mapping: StreamMapping | undefined): boolean =>
+  mapping?.shape === 'fact' && mapping.role === 'item';
+
+function parentFitsComment(mapping: StreamMapping, parent: StreamMapping | undefined): boolean {
+  if (mapping?.shape === 'comment') return parent?.shape === 'item';
+  return mapping?.shape === 'fact' && mapping.role === 'comment' ? isFactItem(parent) : true;
+}
+
 function commentParentIssues(streams: readonly StreamSpec[], ctx: z.RefinementCtx): void {
   const byName = new Map(streams.map((stream) => [stream.name, stream]));
   for (const stream of streams) {
-    if (stream.mapping?.shape !== 'comment') continue;
     const parent = stream.parent ? byName.get(stream.parent.stream) : undefined;
-    if (parent?.mapping?.shape !== 'item') {
+    if (!parentFitsComment(stream.mapping, parent?.mapping)) {
       ctx.addIssue({ code: 'custom', message: 'a comment stream needs an item parent' });
+    }
+  }
+}
+
+function parentBindIssues(streams: readonly StreamSpec[], ctx: z.RefinementCtx): void {
+  const byName = new Map(streams.map((stream) => [stream.name, stream]));
+  for (const stream of streams) {
+    const parentMapping = stream.parent ? byName.get(stream.parent.stream)?.mapping : undefined;
+    if (parentMapping?.shape !== 'fact') continue;
+    const bound = Object.values(stream.parent?.bind ?? {});
+    if (bound.some((pointer) => pointer !== parentMapping.id.pointer)) {
+      ctx.addIssue({ code: 'custom', message: 'a parent binding must read the parent id' });
     }
   }
 }
@@ -291,6 +340,7 @@ export const connectorSpecSchema = z
     parentOrderIssues(spec.streams, ctx);
     unmappedLeafIssues(spec.streams, ctx);
     commentParentIssues(spec.streams, ctx);
+    parentBindIssues(spec.streams, ctx);
     dropsParamsIssues(spec.streams, ctx);
   });
 

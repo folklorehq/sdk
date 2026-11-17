@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import {
   connectorSpecSchema,
+  parseSourceKey,
   specHostsWithin,
   type ConnectorManifest,
   type ConnectorSpec,
+  type FactMapping,
   type SpecStreamState,
   type StreamSpec,
 } from '@folklore/contracts';
@@ -32,6 +34,7 @@ export interface SpecConnectorInput {
   readonly transport: ConnectorTransport;
   readonly shapes: ShapeAdapters;
   readonly externalTenantId?: string;
+  readonly secrets: readonly string[];
   readonly now?: () => Date;
 }
 
@@ -79,7 +82,7 @@ export class SpecConnector extends BaseConnector {
 
   private assertRunnable(): void {
     const { spec, manifest, shapes } = this.input;
-    if (spec.kind !== manifest.kind || !connectorSpecSchema.safeParse(spec).success) {
+    if (this.specKind() !== manifest.kind || !connectorSpecSchema.safeParse(spec).success) {
       throw new ConnectorSpecError('spec_invalid');
     }
     if (!specHostsWithin(spec, manifest)) throw new ConnectorSpecError('egress_host_refused');
@@ -88,6 +91,13 @@ export class SpecConnector extends BaseConnector {
         throw new ConnectorSpecError('spec_shape_missing');
       }
     }
+  }
+
+  // A multi-instance kind is only ever addressed by an instance key, never by its bare name.
+  private specKind(): string | null {
+    const { spec, manifest } = this.input;
+    const bare = manifest.instances === 'many' ? null : spec.kind;
+    return parseSourceKey(spec.kind)?.kind ?? bare;
   }
 
   private runEnv(options: PullOptions | undefined): SpecRunEnv {
@@ -99,6 +109,7 @@ export class SpecConnector extends BaseConnector {
       externalTenantId: this.input.externalTenantId ?? null,
       since: options?.since?.toISOString(),
       now: this.now,
+      secrets: this.input.secrets,
       guard: (operation, run) => this.call(operation, run),
     };
   }
@@ -119,30 +130,46 @@ export class SpecConnector extends BaseConnector {
     const { streams } = this.input.spec;
     const byName = new Map<string, SpecStreamRun>();
     const roots: SpecStreamRun[] = [];
-    for (const stream of streams) {
-      const member = new SpecStreamRun(stream, env, run, this.parentLabelOf(stream));
+    streams.forEach((stream, index) => {
+      const parentMapping = this.parentMappingOf(stream);
+      const member = new SpecStreamRun(
+        stream,
+        env,
+        run,
+        this.parentLabelOf(parentMapping),
+        parentMapping,
+        index,
+      );
       byName.set(stream.name, member);
       const parent = stream.parent ? byName.get(stream.parent.stream) : undefined;
       if (parent) parent.addChild(member);
       else roots.push(member);
-    }
+    });
     return roots;
   }
 
-  private parentLabelOf(stream: StreamSpec) {
+  private parentMappingOf(stream: StreamSpec): FactMapping | null {
     const parent = this.input.spec.streams.find(
       (candidate) => candidate.name === stream.parent?.stream,
     );
-    return parent?.mapping?.shape === 'item' ? parent.mapping.containerLabel : null;
+    return parent?.mapping ?? null;
+  }
+
+  private parentLabelOf(parentMapping: FactMapping | null) {
+    return parentMapping?.shape === 'item' || parentMapping?.shape === 'fact'
+      ? parentMapping.containerLabel
+      : null;
   }
 
   private result(run: SpecRunState): PullResult {
     const first = this.input.spec.streams[0];
     if (run.stopped && first) run.patch(first.name, { w: run.window });
     else run.commit();
+    const outcomes = run.outcomeTotals();
     return {
       facts: run.facts,
       containers: run.containers,
+      ...(outcomes.length > 0 ? { outcomes } : {}),
       cursor: { value: writeSpecCursor(this.input.spec, run.allStates()) },
       hasMore: run.stopped,
     };

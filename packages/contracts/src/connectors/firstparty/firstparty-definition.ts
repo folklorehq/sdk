@@ -124,7 +124,10 @@ function violatedCodes(definition: BaseDefinition): string[] {
     ['firstparty_stream_auth_mismatch', spec.streams.some((s) => s.auth !== 'bearer')],
     ['firstparty_authorize_host_mismatch', hostDiffers(auth.authorizeUrl, hosts.authorize)],
     ['firstparty_token_host_mismatch', hostDiffers(auth.tokenUrl, hosts.token)],
-    ['firstparty_shape_refused', mappings.some((m) => m.shape === 'calendar_event')],
+    [
+      'firstparty_shape_refused',
+      mappings.some((m) => m.shape === 'calendar_event' || m.shape === 'fact'),
+    ],
     [
       'firstparty_label_refused',
       mappings.some((m) => m.shape === 'item' && isOtherLabel(m.containerLabel)),

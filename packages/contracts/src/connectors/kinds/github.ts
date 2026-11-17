@@ -35,8 +35,17 @@ export const githubManifest = {
   webhook: {
     routing: 'payload',
     registration: 'app_wide',
-    signature: 'github',
+    verifier: {
+      scheme: 'hmac_body',
+      algorithm: 'sha256',
+      header: 'x-hub-signature-256',
+      prefix: 'sha256=',
+      encoding: 'hex',
+    },
     tenantKey: 'github_installation',
+    eventType: { from: 'header', name: 'x-github-event' },
+    deliveryId: null,
+    handshake: null,
   },
   pull: {
     cadenceMinutes: 15,

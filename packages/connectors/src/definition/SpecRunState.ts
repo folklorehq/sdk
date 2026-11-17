@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { SpecStreamState } from '@folklore/contracts';
-import type { NormalizedContainer, NormalizedFact, NormalizedRecords } from '../normalized.js';
+import type { FactOutcomeCode, SpecStreamState } from '@folklore/contracts';
+import type { PullOutcomeTotal } from '../connector.js';
+import type { NormalizedContainer, NormalizedFact } from '../normalized.js';
+import type { ShapeRecords } from './shape-adapters.js';
 import { emptyStreamState } from './spec-cursor.js';
 
 export const SPEC_PAGE_CAP = 1000;
@@ -15,6 +17,7 @@ interface RunSnapshot {
   readonly factCount: number;
   readonly containerCount: number;
   readonly maxima: ReadonlyMap<string, string | null>;
+  readonly outcomes: ReadonlyMap<number, ReadonlyMap<FactOutcomeCode, number>>;
 }
 
 export class SpecRunState {
@@ -24,6 +27,7 @@ export class SpecRunState {
   private readonly states: Map<string, SpecStreamState>;
   private readonly gone = new Set<string>();
   private readonly pages = new Map<string, number>();
+  private outcomes = new Map<number, ReadonlyMap<FactOutcomeCode, number>>();
   private fetches = 0;
 
   constructor(
@@ -46,9 +50,23 @@ export class SpecRunState {
     return this.states;
   }
 
-  append(records: NormalizedRecords): void {
+  append(records: ShapeRecords, stream: number): void {
     this.facts.push(...records.facts);
     this.containers.push(...records.containers);
+    for (const code of records.outcomes ?? []) this.countOutcome(stream, code);
+  }
+
+  // UNWIRED: no reader exists yet for these totals.
+  outcomeTotals(): readonly PullOutcomeTotal[] {
+    return [...this.outcomes]
+      .sort(([left], [right]) => left - right)
+      .flatMap(([stream, counts]) => [...counts].map(([code, count]) => ({ stream, code, count })));
+  }
+
+  private countOutcome(stream: number, code: FactOutcomeCode): void {
+    const counts = new Map(this.outcomes.get(stream));
+    counts.set(code, (counts.get(code) ?? 0) + 1);
+    this.outcomes.set(stream, counts);
   }
 
   countFetch(stream: string): void {
@@ -75,12 +93,14 @@ export class SpecRunState {
       factCount: this.facts.length,
       containerCount: this.containers.length,
       maxima: new Map(names.map((name) => [name, this.state(name).m])),
+      outcomes: new Map(this.outcomes),
     };
   }
 
   restore(snapshot: RunSnapshot): void {
     this.facts.length = snapshot.factCount;
     this.containers.length = snapshot.containerCount;
+    this.outcomes = new Map(snapshot.outcomes);
     for (const [name, m] of snapshot.maxima) this.patch(name, { m });
   }
 

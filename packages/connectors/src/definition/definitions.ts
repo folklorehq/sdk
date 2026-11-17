@@ -68,6 +68,8 @@ function specConnectorFor(
   deps: PullConnectorDeps,
 ): SpecConnector {
   if (!deps.connectorTransport) throw new ConnectorSpecError('spec_transport_missing');
+  const secrets = deps.secrets ?? (hasFactStream(spec) ? null : []);
+  if (secrets === null) throw new ConnectorSpecError('spec_secrets_missing');
   return new SpecConnector(
     { logger: deps.logger },
     {
@@ -75,7 +77,12 @@ function specConnectorFor(
       manifest,
       transport: deps.connectorTransport,
       shapes,
+      secrets,
       ...(deps.externalTenantId ? { externalTenantId: deps.externalTenantId } : {}),
     },
   );
+}
+
+function hasFactStream(spec: ConnectorSpec): boolean {
+  return spec.streams.some((stream) => stream.mapping?.shape === 'fact');
 }

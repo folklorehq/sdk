@@ -11,6 +11,7 @@ const CTX: ShapeContext = {
   since: undefined,
   parentContainerLabel: null,
   now: () => NOW,
+  secrets: [],
 };
 
 function mappingWith(change: Record<string, unknown> = {}): FactMapping {
@@ -106,27 +107,18 @@ describe('ItemShape', () => {
       expect(transition?.sensitivityHints).toEqual({ names: [], restrictedScope: true });
     });
 
-    it('emits no transition for an unmapped status', () => {
+    it('emits no transition for an unmapped, absent or inherited status', () => {
       const out = run(record({ status: 'blocked' }), withStatus);
       expect(out.facts.every((f) => f.kind === 'content')).toBe(true);
-    });
-
-    it('emits no transition when the status value is absent or inherited', () => {
       expect(run(record(), withStatus).facts).toHaveLength(1);
       expect(run(record({ status: 'constructor' }), withStatus).facts).toHaveLength(1);
     });
   });
 
-  it('skips a record with a missing or empty id', () => {
+  it('skips a record with a missing or empty id, stringifies a numeric id and tolerates no author', () => {
     expect(run(record({ id: undefined }))).toEqual({ containers: [], facts: [] });
     expect(run(record({ id: '' }))).toEqual({ containers: [], facts: [] });
-  });
-
-  it('stringifies a numeric id', () => {
     expect(run(record({ id: 42 })).facts[0]?.sourceFactId).toBe('example:unknown:created:42');
-  });
-
-  it('leaves authors empty when the author is absent', () => {
     expect(run(record({ author: undefined })).facts[0]?.authors).toEqual([]);
   });
 

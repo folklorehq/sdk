@@ -26,6 +26,7 @@ export interface SpecRunEnv {
   readonly externalTenantId: string | null;
   readonly since: string | undefined;
   readonly now: () => Date;
+  readonly secrets: readonly string[];
   readonly guard: <T>(operation: string, run: () => Promise<T>) => Promise<T>;
 }
 

@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { canonicalJson } from '@folklore/utils/canonical-json-pure';
 import { resolveJsonPointer } from '@folklore/utils/json-pointer';
+import { declaredFields } from '../fact-definition.js';
 import type { CustomDefinition } from './custom-definition.js';
 import { PAGING_PARAM_NAMES } from './read-semantics.js';
 
 export type CustomRevisionClass = 'narrower' | 'equivalent' | 'wider';
 
 export interface RevisionEvidence {
-  // Records the repair dry run read, by stream index; a changed pointer is judged on these alone.
-  readonly freshSamples: ReadonlyMap<number, readonly unknown[]>;
   // Whole responses the dry run received, by stream index; a changed record selector is judged on these.
   readonly freshResponses: ReadonlyMap<number, readonly unknown[]>;
 }
@@ -22,21 +21,13 @@ export class CustomRevisionError extends Error {
   }
 }
 
-export type EquivalenceEvidence = 'sample_values' | 'selector_overlap' | 'paging';
+export type EquivalenceEvidence = 'selector_overlap' | 'paging';
 
 export interface EquivalentPath {
   readonly pattern: string;
   readonly evidence: EquivalenceEvidence;
 }
 
-const SAMPLE_VALUE_FIELDS = [
-  'titlePointer',
-  'bodyPointer',
-  'authorIdPointer',
-  'createdAtPointer',
-  'updatedAtPointer',
-  'status/pointer',
-] as const;
 // The paginator type and the followed-URL pointers are left out: they change where a request goes.
 const PAGINATOR_FIELDS = [
   'param',
@@ -48,18 +39,13 @@ const PAGINATOR_FIELDS = [
   'limit',
 ] as const;
 const MAPPED_ROOTS = ['/source/spec/streams/*', '/source/export'] as const;
+const MAPPING_ROOTS = MAPPED_ROOTS.map((root) => `${root}/mapping`);
 
 // Anything not listed here is wider. A trailing ** also matches the path itself.
 export const EQUIVALENT_PATHS: readonly EquivalentPath[] = [
-  ...MAPPED_ROOTS.flatMap((root) => [
-    ...SAMPLE_VALUE_FIELDS.map(
-      (field): EquivalentPath => ({
-        pattern: `${root}/mapping/${field}`,
-        evidence: 'sample_values',
-      }),
-    ),
-    { pattern: `${root}/recordSelector`, evidence: 'selector_overlap' } satisfies EquivalentPath,
-  ]),
+  ...MAPPED_ROOTS.map(
+    (root): EquivalentPath => ({ pattern: `${root}/recordSelector`, evidence: 'selector_overlap' }),
+  ),
   ...PAGINATOR_FIELDS.map(
     (field): EquivalentPath => ({
       pattern: `/source/spec/streams/*/paginator/${field}`,
@@ -70,9 +56,19 @@ export const EQUIVALENT_PATHS: readonly EquivalentPath[] = [
 ];
 
 const MIN_SAMPLE_RECORDS = 3;
-const MIN_DISTINCT_VALUES = 2;
 const LIMIT_FIELDS: ReadonlySet<string> = new Set(['initialPullRecords', 'dailyRecords']);
-const SCOPE_TAIL = ['mapping', 'sensitivity', 'restrictedScope'] as const;
+// Title and body are left out: their text carries the sensitivity markers for what remains.
+const OPTIONAL_SLOTS = ['author', 'updatedAt', 'status'] as const;
+const RECORD_CURSOR_PATTERNS = ['cursor', 'cursor/pointer', 'cursor/source'].map(
+  (tail) => `/source/spec/streams/*/${tail}`,
+);
+const OPTIONAL_SLOT_PATHS = MAPPING_ROOTS.flatMap((root) =>
+  OPTIONAL_SLOTS.map((slot) => `${root}/${slot}`),
+);
+const ATOMIC_TAILS: readonly Segments[] = [
+  ['mapping', 'sensitivity'],
+  ['mapping', 'attributes'],
+];
 const WILDCARD = '*';
 const REST_WILDCARD = '**';
 
@@ -149,7 +145,7 @@ class JsonPathDiff {
   }
 
   private isAtomic(path: Segments): boolean {
-    return endsWith(path, SCOPE_TAIL);
+    return ATOMIC_TAILS.some((tail) => endsWith(path, tail));
   }
 }
 
@@ -164,23 +160,6 @@ class SampleEvidence {
     private readonly next: CustomDefinition,
     private readonly evidence: RevisionEvidence,
   ) {}
-
-  samplesAgree(change: PathChange): boolean {
-    const { prev: prevPointer, next: nextPointer } = change;
-    if (typeof prevPointer !== 'string' || typeof nextPointer !== 'string') return false;
-    const records = this.evidence.freshSamples.get(this.streamIndex(change.path)) ?? [];
-    const substantive = new Set<string>();
-    let usable = 0;
-    for (const record of records) {
-      const left = resolveJsonPointer(record, prevPointer);
-      const right = resolveJsonPointer(record, nextPointer);
-      if (!this.sameOptional(left, right)) return false;
-      if (!this.isSubstantive(left)) continue;
-      usable += 1;
-      substantive.add(canonicalJson(left));
-    }
-    return usable >= MIN_SAMPLE_RECORDS && substantive.size >= MIN_DISTINCT_VALUES;
-  }
 
   selectorKeepsRecords(change: PathChange): boolean {
     const { prev: prevSelector, next: nextSelector } = change;
@@ -199,11 +178,22 @@ class SampleEvidence {
   pagingAllowed(change: PathChange): boolean {
     const index = this.streamIndex(change.path);
     const streams = [this.streamOf(this.prev, index), this.streamOf(this.next, index)];
-    return streams.every(
-      (stream) =>
-        stream !== undefined &&
-        stream.request.method === 'GET' &&
-        this.pagingNames(stream).every((name) => PAGING_PARAM_NAMES.has(name.toLowerCase())),
+    return (
+      streams.every(
+        (stream) =>
+          stream !== undefined &&
+          stream.request.method === 'GET' &&
+          this.pagingNames(stream).every((name) => PAGING_PARAM_NAMES.has(name.toLowerCase())),
+      ) && !this.readsUnmappedRecords(change, streams[1])
+    );
+  }
+
+  // An unmapped stream is never projected, so a cursor pointer on it reads raw, unguarded records.
+  private readsUnmappedRecords(change: PathChange, next: CustomStream | undefined): boolean {
+    return (
+      next?.mapping === null &&
+      next.cursor?.source === 'record_max' &&
+      RECORD_CURSOR_PATTERNS.some((pattern) => pathMatches(pattern, change.path))
     );
   }
 
@@ -234,7 +224,7 @@ class SampleEvidence {
 
   private idPointer(definition: CustomDefinition, index: number): string | null {
     const mapping = this.mappingOf(definition, index);
-    return mapping !== null && 'idPointer' in mapping ? mapping.idPointer : null;
+    return mapping?.shape === 'fact' ? mapping.id.pointer : null;
   }
 
   private selectedById(
@@ -279,45 +269,16 @@ class SampleEvidence {
 
   private pointerFields(mapping: ReturnType<SampleEvidence['mappingOf']>): Map<string, string> {
     const fields = new Map<string, string>();
-    if (mapping === null) return fields;
-    for (const [field, value] of Object.entries(mapping)) {
-      if (field.endsWith('Pointer') && typeof value === 'string') fields.set(field, value);
+    if (mapping?.shape !== 'fact') return fields;
+    for (const { slot, field } of declaredFields(mapping)) {
+      fields.set(`${slot}.${fields.size}`, field.pointer);
     }
-    if ('status' in mapping && mapping.status !== null)
-      fields.set('status', mapping.status.pointer);
-    if ('sensitivity' in mapping) this.addSensitivityPointers(fields, mapping.sensitivity);
     return fields;
-  }
-
-  // A record must not read as public through one selector and restricted through the other.
-  private addSensitivityPointers(
-    fields: Map<string, string>,
-    sensitivity: {
-      restrictedScope: { mode: string; pointer?: string };
-      namesPointers: readonly string[];
-    },
-  ): void {
-    const scope = sensitivity.restrictedScope;
-    if (scope.mode === 'public_when' && scope.pointer !== undefined) {
-      fields.set('sensitivity.scope', scope.pointer);
-    }
-    sensitivity.namesPointers.forEach((pointer, index) => {
-      fields.set(`sensitivity.names.${index}`, pointer);
-    });
   }
 
   private sameOptional(left: unknown, right: unknown): boolean {
     if (left === undefined || right === undefined) return left === right;
     return sameValue(left, right);
-  }
-
-  // A constant, empty or falsy value would match any pointer that also resolves to nothing useful.
-  private isSubstantive(value: unknown): boolean {
-    if (typeof value === 'string') return value.trim() !== '';
-    if (typeof value === 'number') return Number.isFinite(value) && value !== 0;
-    if (typeof value === 'boolean') return value;
-    if (Array.isArray(value)) return value.length > 0;
-    return isRecord(value) && Object.keys(value).length > 0;
   }
 }
 
@@ -343,7 +304,7 @@ class RevisionClassifier {
 
   private assertSameIdentity(): void {
     const same =
-      this.prev.slot === this.next.slot &&
+      this.prev.sourceKey === this.next.sourceKey &&
       this.prev.definitionId === this.next.definitionId &&
       this.prev.source.type === this.next.source.type &&
       sameValue(this.prev.hosts, this.next.hosts) &&
@@ -358,7 +319,12 @@ class RevisionClassifier {
 
   private isNarrowing(change: PathChange): boolean {
     return (
-      this.isStreamRemoval(change) || this.isLoweredLimit(change) || this.isTightenedScope(change)
+      this.isStreamRemoval(change) ||
+      this.isLoweredLimit(change) ||
+      this.isRemovedOptionalField(change) ||
+      this.isRemovedAttribute(change) ||
+      this.isRaisedGuard(change) ||
+      this.isNarrowedSensitivity(change)
     );
   }
 
@@ -384,16 +350,51 @@ class RevisionClassifier {
     );
   }
 
-  private isTightenedScope({ path, kind, prev, next }: PathChange): boolean {
-    if (kind !== 'changed' || !endsWith(path, SCOPE_TAIL) || !isRecord(prev) || !isRecord(next)) {
-      return false;
-    }
-    if (prev['mode'] !== 'public_when') return false;
-    if (next['mode'] === 'always') return true;
+  private isRemovedOptionalField({ path, kind, prev, next }: PathChange): boolean {
+    if (kind !== 'changed' || next !== null || !isRecord(prev)) return false;
+    if (!OPTIONAL_SLOT_PATHS.some((pattern) => pathMatches(pattern, path))) return false;
+    const field = path.at(-1) === 'status' ? prev['field'] : prev;
+    return isRecord(field) && field['required'] === false;
+  }
+
+  private isRemovedAttribute({ path, kind, prev, next }: PathChange): boolean {
     return (
-      next['mode'] === 'public_when' &&
-      next['pointer'] === prev['pointer'] &&
-      this.isSubset(next['publicValues'], prev['publicValues'])
+      kind === 'changed' &&
+      MAPPING_ROOTS.some((root) => pathMatches(`${root}/attributes`, path)) &&
+      Array.isArray(prev) &&
+      Array.isArray(next) &&
+      next.length < prev.length &&
+      this.isSubset(next, prev)
+    );
+  }
+
+  private isRaisedGuard({ path, kind, prev, next }: PathChange): boolean {
+    return (
+      kind === 'changed' &&
+      MAPPING_ROOTS.some((root) => pathMatches(`${root}/guards/onSensitiveValue`, path)) &&
+      prev === 'redact' &&
+      next === 'drop_record'
+    );
+  }
+
+  private isNarrowedSensitivity({ path, kind, prev, next }: PathChange): boolean {
+    return (
+      kind === 'changed' &&
+      MAPPING_ROOTS.some((root) => pathMatches(`${root}/sensitivity`, path)) &&
+      isRecord(prev) &&
+      isRecord(next) &&
+      next['mode'] === 'always' &&
+      this.isSameSet(next['names'], prev['names'])
+    );
+  }
+
+  private isSameSet(left: unknown, right: unknown): boolean {
+    return (
+      Array.isArray(left) &&
+      Array.isArray(right) &&
+      left.length === right.length &&
+      this.isSubset(left, right) &&
+      this.isSubset(right, left)
     );
   }
 
@@ -401,7 +402,7 @@ class RevisionClassifier {
     return (
       Array.isArray(candidate) &&
       Array.isArray(whole) &&
-      candidate.every((value) => whole.includes(value))
+      candidate.every((value) => whole.some((other) => sameValue(value, other)))
     );
   }
 
@@ -410,9 +411,7 @@ class RevisionClassifier {
     if (allowed === undefined) return false;
     if (allowed.evidence === 'paging') return this.evidence.pagingAllowed(change);
     if (change.kind !== 'changed') return false;
-    return allowed.evidence === 'sample_values'
-      ? this.evidence.samplesAgree(change)
-      : this.evidence.selectorKeepsRecords(change);
+    return this.evidence.selectorKeepsRecords(change);
   }
 }
 

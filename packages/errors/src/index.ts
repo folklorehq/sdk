@@ -37,6 +37,8 @@ export {
   type ConnectorSpecErrorCode,
   CustomConnectorError,
   type CustomConnectorErrorCode,
+  ConnectorPolicyError,
+  type ConnectorPolicyErrorCode,
   FirstpartyConnectorError,
   type FirstpartyConnectorErrorCode,
   ThemeRequestTooLargeError,

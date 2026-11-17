@@ -14,7 +14,13 @@ import { GENERIC_SHAPE_ADAPTERS } from '../../src/definition/generic-shapes.js';
 import type { ShapeAdapter, ShapeAdapters } from '../../src/definition/shape-adapters.js';
 import { SpecConnector } from '../../src/definition/SpecConnector.js';
 import { FixtureTransport, type FixtureReply } from '../doubles/definition/FixtureTransport.js';
-import { FIXTURE_MANIFEST, spec, stream } from './fixtures/streams.js';
+import {
+  FACT_COMMENT_MAPPING,
+  FACT_ITEM_MAPPING,
+  FIXTURE_MANIFEST,
+  spec,
+  stream,
+} from './fixtures/streams.js';
 
 const NOW = new Date('2026-10-27T12:00:00.000Z');
 const WINDOW_END = '2026-10-27T12:00:00.000Z';
@@ -68,6 +74,7 @@ function connector(
       manifest: FIXTURE_MANIFEST,
       transport,
       shapes: options.shapes ?? GENERIC_SHAPE_ADAPTERS,
+      secrets: [],
       now: () => NOW,
       ...(options.externalTenantId ? { externalTenantId: options.externalTenantId } : {}),
     },
@@ -500,6 +507,56 @@ describe('SpecConnector parent streams', () => {
     expect(transport.requests.map((r) => r.url.pathname)).toEqual([
       '/v1/projects',
       '/v1/projects/p1/tasks',
+    ]);
+  });
+
+  it('runs a fact definition end to end, counts rejected records, and never lets one move a cursor or feed a child', async () => {
+    const items = stream({
+      mapping: FACT_ITEM_MAPPING,
+      cursor: {
+        source: 'record_max',
+        pointer: '/updated',
+        param: 'since',
+        in: 'query',
+        format: 'iso8601',
+        onGone: 'fail',
+        dropsParams: [],
+      },
+    });
+    const comments = stream({
+      name: 'comments',
+      request: { path: '/v1/items/{parent.id}/comments' },
+      parent: { stream: 'items', bind: { id: '/id' } },
+      mapping: FACT_COMMENT_MAPPING,
+    });
+    const reply = (request: { url: URL }) => {
+      const { pathname } = request.url;
+      if (pathname === '/v1/items') {
+        const rejected = item('t2', { title: { bad: 1 }, updated: '2026-09-01T00:00:00.000Z' });
+        return { body: { items: [item('t1'), rejected] } };
+      }
+      const created = '2026-08-02T00:00:00.000Z';
+      const first = [
+        { id: 'c1', text: 'ok', created },
+        { id: 'c2', text: { bad: 1 }, created },
+      ];
+      return { body: { items: pathname === '/v1/items/t1/comments' ? first : [] } };
+    };
+    const transport = new FixtureTransport(reply);
+    const result = await connector(spec(items, comments), transport).pull({ value: null });
+    expect(result.facts.map((f) => f.sourceFactId)).toEqual([
+      'example:unknown:created:items:t1',
+      'example:comment:comments:c1',
+    ]);
+    expect(result.facts[1]?.containerRefs).toEqual(['example:unknown:items:t1']);
+    expect(transport.requests.map((r) => r.url.pathname)).toEqual([
+      '/v1/items',
+      '/v1/items/t1/comments',
+    ]);
+    expect(envelopeStates(result.cursor.value)['items']?.c).toBe('2026-08-01T00:00:00.000Z');
+    expect(result.outcomes).toEqual([
+      { stream: 0, code: 'wrong_type', count: 1 },
+      { stream: 1, code: 'wrong_type', count: 1 },
     ]);
   });
 

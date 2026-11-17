@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { ContainerLabel, StreamSpec } from '@folklore/contracts';
+import type { ContainerLabel, FactMapping, StreamSpec } from '@folklore/contracts';
 import { ConnectorSpecError, TransportStatusError } from '@folklore/errors';
 import { resolveJsonPointer } from '@folklore/utils';
 import { cursorText, isGreaterCursor } from './cursor-values.js';
@@ -45,6 +45,8 @@ export class SpecStreamRun {
     private readonly env: SpecRunEnv,
     private readonly run: SpecRunState,
     private readonly parentLabel: ContainerLabel | null,
+    private readonly parentMapping: FactMapping | null,
+    private readonly index: number,
   ) {
     this.fetcher = new SpecPageFetcher(stream, env);
   }
@@ -169,9 +171,12 @@ export class SpecStreamRun {
   ): Promise<boolean> {
     for (let index = position.index; index < page.records.length; index += 1) {
       const record = page.records[index];
-      this.observeRecord(record);
-      if (index !== position.skipEmitAt) this.emit(record, binding?.record);
-      await this.walkChildren(record);
+      const resumed = index === position.skipEmitAt;
+      const accepted = this.emit(record, binding?.record, !resumed);
+      if (accepted) {
+        this.observeRecord(record);
+        await this.walkChildren(record);
+      }
       if (this.shouldPauseAfter(page, index)) this.run.stopped = true;
       if (this.run.stopped) {
         this.run.patch(this.name, { p: token, i: index });
@@ -230,24 +235,29 @@ export class SpecStreamRun {
     }
   }
 
-  private emit(record: unknown, parent: unknown): void {
+  // A resumed record was stored by the run that paused on it; it is judged again, not stored again.
+  private emit(record: unknown, parent: unknown, store: boolean): boolean {
     const mapping = this.stream.mapping;
-    if (mapping === null) return;
+    if (mapping === null) return true;
     const adapter = this.env.shapes[shapeAdapterKey(mapping)];
     if (!adapter) throw new ConnectorSpecError('spec_shape_missing');
-    this.run.append(
-      adapter.toRecords(
-        record,
-        mapping,
-        {
-          kind: this.env.kind,
-          since: this.env.since,
-          parentContainerLabel: this.parentLabel,
-          now: this.env.now,
-        },
-        parent,
-      ),
+    const records = adapter.toRecords(
+      record,
+      mapping,
+      {
+        kind: this.env.kind,
+        since: this.env.since,
+        parentContainerLabel: this.parentLabel,
+        parentMapping: this.parentMapping,
+        streamName: this.stream.name,
+        parentStreamName: this.stream.parent?.stream ?? null,
+        now: this.env.now,
+        secrets: this.env.secrets,
+      },
+      parent,
     );
+    if (store) this.run.append(records, this.index);
+    return records.rejected !== true;
   }
 }
 

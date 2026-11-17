@@ -10,15 +10,10 @@ import {
   paramNameSchema,
   RESERVED_PARAM_NAMES,
 } from '../stream-spec.js';
-import { CUSTOM_SLOT_KINDS } from './custom-slot-kinds.js';
+import { customSourceKeySchema } from '../source-key.js';
 import { isFramingHeader, isMethodOverrideHeader } from './read-semantics.js';
 
-export {
-  CUSTOM_CONTAINER_LABEL,
-  CUSTOM_SLOT_KINDS,
-  isCustomSlotKind,
-  type CustomSlotKind,
-} from './custom-slot-kinds.js';
+export { CUSTOM_CONTAINER_LABEL } from './custom-container-label.js';
 
 export const CUSTOM_DEFINITION_VERSION = 1;
 export const CUSTOM_MAX_STREAMS = 8;
@@ -283,7 +278,7 @@ export const customDefinitionSchema = z
   .object({
     definitionVersion: z.literal(CUSTOM_DEFINITION_VERSION),
     definitionId: z.string().uuid(),
-    slot: z.enum(CUSTOM_SLOT_KINDS),
+    sourceKey: customSourceKeySchema,
     revision: z.number().int().min(1),
     displayName: z
       .string()
@@ -319,6 +314,8 @@ export type CustomViolationCode =
   | 'custom_post_without_read_decision'
   | 'custom_post_read_decision_dangling'
   | 'custom_shape_refused'
+  | 'custom_mapping_not_fact'
+  | 'custom_pointer_refused'
   | 'custom_label_refused'
   | 'custom_stream_count'
   | 'custom_exchange_host_mismatch'

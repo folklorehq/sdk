@@ -40,8 +40,17 @@ export const intercomManifest = {
   webhook: {
     routing: 'payload',
     registration: 'per_connection',
-    signature: 'intercom',
+    verifier: {
+      scheme: 'hmac_body',
+      algorithm: 'sha1',
+      header: 'x-hub-signature',
+      prefix: 'sha1=',
+      encoding: 'hex',
+    },
     tenantKey: 'intercom_workspace',
+    eventType: { from: 'header', name: 'x-intercom-topic' },
+    deliveryId: null,
+    handshake: { type: 'builtin', id: 'intercom_ping' },
   },
   pull: {
     cadenceMinutes: 15,

@@ -77,21 +77,71 @@ export const connectorAuthSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('inherits'), from: kindNameSchema }).strict(),
 ]);
 
-export const webhookSignatureSchema = z.enum([
-  'github',
-  'slack',
-  'linear',
-  'intercom',
-  'jira',
-  'confluence',
-  'notion',
-  'meeting',
-  'svix',
+// Framing headers are classified by the custom-definition checker, so they stay out of this shared set and are refused separately for identity lookups.
+export const FORBIDDEN_HEADER =
+  /^(?:authorization|proxy-[a-z-]*|cookie|host|x-forwarded-[a-z-]*|forwarded|x-real-ip|expect)$/i;
+
+export const headerNameSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9-]{1,64}$/)
+  .refine((name) => !FORBIDDEN_HEADER.test(name), 'header is owned by the runtime');
+
+export const jsonPointerSchema = z.string().regex(/^(\/[^/~]*(~[01][^/~]*)*)*$/);
+
+// The edge lower-cases header names before lookup, so a mixed-case name could never match.
+const webhookHeaderNameSchema = headerNameSchema.refine((name) => name === name.toLowerCase());
+
+export const webhookBuiltinVerifierSchema = z.enum([
+  'atlassian_connect_jwt',
   'google_channel_token',
   'graph_client_state',
-  'zoom',
   'ses_sns',
+  'zoom_or_recall',
 ]);
+
+export const webhookVerifierSchema = z.discriminatedUnion('scheme', [
+  z
+    .object({
+      scheme: z.literal('hmac_body'),
+      algorithm: z.enum(['sha256', 'sha1']),
+      header: webhookHeaderNameSchema,
+      prefix: z.enum(['sha256=', 'sha1=']).nullable(),
+      encoding: z.enum(['hex', 'base64']),
+    })
+    .strict(),
+  z
+    .object({
+      scheme: z.literal('hmac_timestamped'),
+      header: webhookHeaderNameSchema,
+      timestampHeader: webhookHeaderNameSchema,
+      toleranceSeconds: z.number().int().min(1).max(300),
+    })
+    .strict(),
+  z.object({ scheme: z.literal('svix') }).strict(),
+  z.object({ scheme: z.literal('builtin'), id: webhookBuiltinVerifierSchema }).strict(),
+]);
+
+export const webhookSelectorSchema = z
+  .discriminatedUnion('from', [
+    z.object({ from: z.literal('header'), name: webhookHeaderNameSchema }).strict(),
+    z.object({ from: z.literal('body'), pointer: jsonPointerSchema }).strict(),
+  ])
+  .nullable();
+
+export const webhookHandshakeSchema = z
+  .object({
+    type: z.literal('builtin'),
+    id: z.enum([
+      'slack_url_verification',
+      'notion_verification',
+      'zoom_url_validation',
+      'intercom_ping',
+      'graph_validation',
+      'drive_sync',
+    ]),
+  })
+  .strict()
+  .nullable();
 
 export const webhookTenantKeySchema = z.enum([
   'github_installation',
@@ -106,10 +156,53 @@ export const connectorWebhookSchema = z
   .object({
     routing: z.enum(['payload', 'url']),
     registration: z.enum(['app_wide', 'per_connection', 'customer_configured', 'platform']),
-    signature: webhookSignatureSchema,
+    verifier: webhookVerifierSchema,
     tenantKey: webhookTenantKeySchema.nullable(),
+    eventType: webhookSelectorSchema,
+    deliveryId: webhookSelectorSchema,
+    handshake: webhookHandshakeSchema,
   })
   .strict();
+
+export type WebhookVerifier = z.infer<typeof webhookVerifierSchema>;
+export type WebhookSelector = z.infer<typeof webhookSelectorSchema>;
+export type ConnectorWebhook = z.infer<typeof connectorWebhookSchema>;
+
+export const webhookEventTypeSchema = z.string().regex(/^[A-Za-z0-9_.:-]{1,64}$/);
+
+// These keep their payload extractors and handshakes; every other declarative kind is URL-routed.
+export const CODE_ROUTED_WEBHOOK_KINDS = Object.freeze([
+  'github',
+  'slack',
+  'notion',
+  'intercom',
+  'jira',
+] as const);
+
+// A positive set: a scheme added later is not declarative until it is listed here.
+const DECLARATIVE_SCHEMES: ReadonlySet<WebhookVerifier['scheme']> = new Set([
+  'hmac_body',
+  'hmac_timestamped',
+  'svix',
+]);
+
+export function isDeclarativeWebhook(webhook: ConnectorWebhook): boolean {
+  return DECLARATIVE_SCHEMES.has(webhook.verifier.scheme);
+}
+
+function verifierHeaders(verifier: WebhookVerifier): string[] {
+  if (verifier.scheme === 'hmac_body') return [verifier.header];
+  if (verifier.scheme === 'hmac_timestamped') return [verifier.header, verifier.timestampHeader];
+  return [];
+}
+
+// A selected value leaves the edge in plaintext, so it may never be the signature itself.
+function selectsSignatureHeader(webhook: ConnectorWebhook): boolean {
+  const signed = verifierHeaders(webhook.verifier);
+  return [webhook.eventType, webhook.deliveryId].some(
+    (selector) => selector?.from === 'header' && signed.includes(selector.name),
+  );
+}
 
 export const connectorPullSchema = z
   .object({
@@ -137,17 +230,6 @@ export const connectorUiSchema = z
   .refine((ui) => !ui.connectable || (ui.description !== null && ui.scopePreview.length > 0), {
     message: 'a connectable kind needs a description and a scope preview',
   });
-
-// Framing headers are classified by the custom-definition checker, so they stay out of this shared set and are refused separately for identity lookups.
-export const FORBIDDEN_HEADER =
-  /^(?:authorization|proxy-[a-z-]*|cookie|host|x-forwarded-[a-z-]*|forwarded|x-real-ip|expect)$/i;
-
-export const headerNameSchema = z
-  .string()
-  .regex(/^[A-Za-z0-9-]{1,64}$/)
-  .refine((name) => !FORBIDDEN_HEADER.test(name), 'header is owned by the runtime');
-
-export const jsonPointerSchema = z.string().regex(/^(\/[^/~]*(~[01][^/~]*)*)*$/);
 
 export const identityLookupSchema = z
   .object({
@@ -226,6 +308,7 @@ export const connectorManifestSchema = z
     pull: connectorPullSchema.nullable(),
     settings: connectorSettingsSchema,
     containerLabels: z.array(containerLabelNameSchema).readonly().optional(),
+    instances: z.literal('many').optional(),
     resourceScope: z.object({ unit: resourceScopeUnitSchema }).strict().optional(),
     identity: connectorIdentitySchema.optional(),
   })
@@ -266,6 +349,26 @@ export const connectorManifestSchema = z
         message: 'no OAuth client to use',
       });
     }
+  })
+  .superRefine((manifest, ctx) => {
+    const webhook = manifest.webhook;
+    if (!webhook || !isDeclarativeWebhook(webhook)) return;
+    if (selectsSignatureHeader(webhook)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['webhook'],
+        message: 'a selector names the signature header',
+      });
+    }
+    if ((CODE_ROUTED_WEBHOOK_KINDS as readonly string[]).includes(manifest.kind)) return;
+    if (webhook.routing === 'url' && webhook.tenantKey === null && webhook.handshake === null) {
+      return;
+    }
+    ctx.addIssue({
+      code: 'custom',
+      path: ['webhook'],
+      message: 'a declarative webhook is URL-routed with no tenant key and no handshake',
+    });
   })
   .refine((m) => (m.resourceScope !== undefined) === (m.settings === 'resource_scope'), {
     message: 'resourceScope is declared if and only if settings is resource_scope',

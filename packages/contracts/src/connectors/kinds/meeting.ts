@@ -24,8 +24,17 @@ export const meetingManifest = {
   webhook: {
     routing: 'url',
     registration: 'customer_configured',
-    signature: 'meeting',
+    verifier: {
+      scheme: 'hmac_body',
+      algorithm: 'sha256',
+      header: 'x-meeting-signature',
+      prefix: 'sha256=',
+      encoding: 'hex',
+    },
     tenantKey: null,
+    eventType: { from: 'header', name: 'x-meeting-event' },
+    deliveryId: null,
+    handshake: null,
   },
   pull: null,
   settings: 'none',

@@ -11,6 +11,7 @@ const CTX: ShapeContext = {
   since: undefined,
   parentContainerLabel: 'github_pr',
   now: () => NOW,
+  secrets: [],
 };
 
 function mappingWith(change: Record<string, unknown> = {}): FactMapping {

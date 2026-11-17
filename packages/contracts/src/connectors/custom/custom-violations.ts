@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { recordPointerSchema } from '../fact-definition.js';
 import {
   CUSTOM_CONTAINER_LABEL,
   CUSTOM_MAX_STREAMS,
@@ -21,7 +22,8 @@ type PostRead = ApiSource['postReads'][number];
 type CustomMapping = NonNullable<CustomStream['mapping']>;
 
 const TENANT_TOKEN = '{connection.externalTenantId}';
-const ALLOWED_SHAPES: ReadonlySet<string> = new Set(['item', 'comment']);
+const ALLOWED_SHAPES: ReadonlySet<string> = new Set(['item', 'comment', 'fact']);
+const LEGACY_SHAPES: ReadonlySet<string> = new Set(['item', 'comment']);
 
 class CustomDefinitionRules {
   constructor(private readonly definition: CustomDefinition) {}
@@ -37,6 +39,8 @@ class CustomDefinitionRules {
       ['custom_post_without_read_decision', () => this.postWithoutReadDecision()],
       ['custom_post_read_decision_dangling', () => this.postReadDecisionDangling()],
       ['custom_shape_refused', () => this.shapeRefused()],
+      ['custom_mapping_not_fact', () => this.mappingNotFact()],
+      ['custom_pointer_refused', () => this.pointerRefused()],
       ['custom_label_refused', () => this.labelRefused()],
       ['custom_stream_count', () => this.streamCount()],
       ['custom_exchange_host_mismatch', () => this.exchangeHostMismatch()],
@@ -74,7 +78,7 @@ class CustomDefinitionRules {
   }
 
   private specKindMismatch(): boolean {
-    return this.apiSource !== null && this.apiSource.spec.kind !== this.definition.slot;
+    return this.apiSource !== null && this.apiSource.spec.kind !== this.definition.sourceKey;
   }
 
   private identityForbidden(): boolean {
@@ -136,14 +140,62 @@ class CustomDefinitionRules {
     return hasReadVerb(path.split('/').filter(Boolean).at(-1) ?? '');
   }
 
+  // An export has no parent record, so a comment mapping on it could never emit.
   private shapeRefused(): boolean {
-    return this.mappings.some((mapping) => !ALLOWED_SHAPES.has(mapping.shape));
+    const source = this.definition.source;
+    const exportComment =
+      source.type === 'export' &&
+      source.export.mapping.shape === 'fact' &&
+      source.export.mapping.role === 'comment';
+    return exportComment || this.mappings.some((mapping) => !ALLOWED_SHAPES.has(mapping.shape));
+  }
+
+  private mappingNotFact(): boolean {
+    return this.mappings.some((mapping) => LEGACY_SHAPES.has(mapping.shape));
+  }
+
+  // A stream with no mapping is never projected, so the pointers it reads must pass the field rules; envelope pointers may not enter the records.
+  private pointerRefused(): boolean {
+    return this.streams.some(
+      (stream) =>
+        this.unprojectedPointers(stream).some(
+          (pointer) => !recordPointerSchema.safeParse(pointer).success,
+        ) || this.envelopePointers(stream).some((pointer) => this.readsRecords(pointer, stream)),
+    );
+  }
+
+  // Envelope values must come from outside the record array, where no projection guard runs.
+  private readsRecords(pointer: string, { recordSelector }: CustomStream): boolean {
+    return pointer === recordSelector || pointer.startsWith(`${recordSelector}/`);
+  }
+
+  private envelopePointers({ paginator, cursor }: CustomStream): string[] {
+    return [
+      ...('lastPagePointer' in paginator ? [paginator.lastPagePointer] : []),
+      ...('nextPointer' in paginator ? [paginator.nextPointer] : []),
+      ...('nextUrlPointer' in paginator ? [paginator.nextUrlPointer] : []),
+      ...(cursor?.source === 'response_final' ? [cursor.pointer] : []),
+    ];
+  }
+
+  private unprojectedPointers(stream: CustomStream): string[] {
+    const parentMapping = this.streams.find(
+      (other) => other.name === stream.parent?.stream,
+    )?.mapping;
+    const binds = stream.mapping === null || parentMapping === null;
+    const cursor = stream.mapping === null && stream.cursor?.source === 'record_max';
+    return [
+      ...(binds ? Object.values(stream.parent?.bind ?? {}) : []),
+      ...(cursor && stream.cursor ? [stream.cursor.pointer] : []),
+    ];
   }
 
   private labelRefused(): boolean {
     return this.mappings.some((mapping) => {
       const label: string =
-        mapping.shape === 'item' ? mapping.containerLabel : CUSTOM_CONTAINER_LABEL;
+        mapping.shape === 'item' || mapping.shape === 'fact'
+          ? (mapping.containerLabel ?? CUSTOM_CONTAINER_LABEL)
+          : CUSTOM_CONTAINER_LABEL;
       return label !== CUSTOM_CONTAINER_LABEL;
     });
   }
@@ -216,8 +268,9 @@ class CustomDefinitionRules {
   private deletionStreamInvalid(): boolean {
     const seen = new Set<number>();
     return (this.apiSource?.deletion ?? []).some((entry) => {
+      const mapping = this.streams[entry.stream]?.mapping;
       const invalid =
-        seen.has(entry.stream) || this.streams[entry.stream]?.mapping?.shape !== 'item';
+        seen.has(entry.stream) || mapping?.shape !== 'fact' || mapping.role !== 'item';
       seen.add(entry.stream);
       return invalid;
     });

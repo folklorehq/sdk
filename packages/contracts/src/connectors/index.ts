@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { ConnectorManifest } from './manifest.js';
 import type { ResourceScopeUnit } from './resource-scope.js';
+import { manifestForSourceKey, parseSourceKey } from './source-key.js';
 import { PRIVATE_CONNECTOR_MANIFESTS } from './private-registry.js';
 import { PUBLIC_CONNECTOR_MANIFESTS } from './public-registry.js';
 
 export * from './manifest.js';
 export * from './resource-scope.js';
 export * from './stream-spec.js';
+export * from './fact-definition.js';
 export * from './identity.js';
+export * from './source-key.js';
 export * from './provider-versions.js';
 export * from './custom/index.js';
 export * from './firstparty/index.js';
@@ -26,6 +29,14 @@ export const FACT_SOURCE_KINDS = CONNECTOR_MANIFESTS.filter((m) => m.emitsFacts)
   (m) => m.kind,
 ) as unknown as readonly [FactSourceKind, ...FactSourceKind[]];
 
+const isFactSourceKind = (kind: string): kind is FactSourceKind =>
+  (FACT_SOURCE_KINDS as readonly string[]).includes(kind);
+
+export function factSourceKindOf(key: string): FactSourceKind | null {
+  const kind = parseSourceKey(key)?.kind;
+  return kind !== undefined && isFactSourceKind(kind) ? kind : null;
+}
+
 export type MemberManifestKind = Extract<AnyManifest, { readonly audience: 'member' }>['kind'];
 
 // Widened first: the SDK registry holds only org kinds, so the narrow tuple type makes this comparison a type error there.
@@ -33,15 +44,14 @@ export const MEMBER_MANIFEST_KINDS = (CONNECTOR_MANIFESTS as readonly ConnectorM
   .filter((m) => m.audience === 'member')
   .map((m) => m.kind) as unknown as readonly [MemberManifestKind, ...MemberManifestKind[]];
 
-const ORG_MANIFESTS = (CONNECTOR_MANIFESTS as readonly ConnectorManifest[]).filter(
-  (m) => m.audience === 'org',
-);
-
 export function resourceScopeUnitFor(kind: string): ResourceScopeUnit | undefined {
-  return ORG_MANIFESTS.find((m) => m.kind === kind && m.settings === 'resource_scope')
-    ?.resourceScope?.unit;
+  const manifest = manifestForSourceKey(kind);
+  return manifest?.audience === 'org' && manifest.settings === 'resource_scope'
+    ? manifest.resourceScope?.unit
+    : undefined;
 }
 
 export function isPausableSourceKind(kind: string): boolean {
-  return ORG_MANIFESTS.some((m) => m.kind === kind && m.emitsFacts && m.pull !== null);
+  const manifest = manifestForSourceKey(kind);
+  return manifest?.audience === 'org' && manifest.emitsFacts && manifest.pull !== null;
 }

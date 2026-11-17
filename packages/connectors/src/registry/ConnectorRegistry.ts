@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { parseSourceKey } from '@folklore/contracts';
 import type { ConnectorTransport, Logger } from '@folklore/core';
 import type { Connector, ConnectorContext, WebhookEvent } from '../connector.js';
 import type { NormalizedRecords } from '../normalized.js';
@@ -19,6 +20,8 @@ export interface PullConnectorDeps {
   documentBodies?: DocumentBodyMode;
   // UNWIRED: the enclave supplies a transport once spec kinds are switched on.
   connectorTransport?: ConnectorTransport;
+  // UNWIRED: the enclave runtime supplies the connection's secret parts later.
+  secrets?: readonly string[];
 }
 
 export type WebhookConnectorFactory = (ctx: ConnectorContext) => Connector;
@@ -41,7 +44,7 @@ export class ConnectorRegistry {
   }
 
   normalizeWebhook(kind: string, event: WebhookEvent, ctx: ConnectorContext): NormalizedRecords {
-    const registration = this.byKind.get(kind);
+    const registration = this.registrationFor(kind);
     if (!registration?.createForWebhook) {
       return { facts: [], containers: [] };
     }
@@ -49,11 +52,15 @@ export class ConnectorRegistry {
   }
 
   createPullConnector(kind: string, deps: PullConnectorDeps): Connector | null {
-    const registration = this.byKind.get(kind);
+    const registration = this.registrationFor(kind);
     if (!registration?.createForPull) {
       return null;
     }
     return registration.createForPull(deps);
+  }
+
+  private registrationFor(key: string): ConnectorRegistration | undefined {
+    return this.byKind.get(parseSourceKey(key)?.kind ?? key);
   }
 
   listPullKinds(): string[] {

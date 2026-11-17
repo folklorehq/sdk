@@ -47,8 +47,16 @@ export const slackManifest = {
   webhook: {
     routing: 'payload',
     registration: 'per_connection',
-    signature: 'slack',
+    verifier: {
+      scheme: 'hmac_timestamped',
+      header: 'x-slack-signature',
+      timestampHeader: 'x-slack-request-timestamp',
+      toleranceSeconds: 300,
+    },
     tenantKey: 'slack_team',
+    eventType: { from: 'body', pointer: '/type' },
+    deliveryId: null,
+    handshake: { type: 'builtin', id: 'slack_url_verification' },
   },
   pull: {
     cadenceMinutes: 15,

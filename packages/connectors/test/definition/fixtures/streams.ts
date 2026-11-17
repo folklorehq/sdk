@@ -54,6 +54,39 @@ export const COMMENT_MAPPING: Json = {
   sensitivity: { restrictedScope: { mode: 'always' }, namesPointers: [] },
 };
 
+export const factField = (
+  pointer: string,
+  type = 'short_text',
+  required = false,
+  maxBytes = 256,
+): Json => ({ pointer, type, maxBytes, required });
+
+export const FACT_ITEM_MAPPING: Json = {
+  shape: 'fact',
+  role: 'item',
+  containerLabel: 'unknown',
+  id: factField('/id', 'short_text', true),
+  parentId: null,
+  title: factField('/title'),
+  body: factField('/body', 'long_text', false, 65_536),
+  author: factField('/author'),
+  createdAt: factField('/created', 'timestamp'),
+  updatedAt: factField('/updated', 'timestamp'),
+  status: null,
+  attributes: [],
+  sensitivity: { mode: 'always', names: [] },
+  guards: { onSensitiveValue: 'redact' },
+};
+
+export const FACT_COMMENT_MAPPING: Json = {
+  ...FACT_ITEM_MAPPING,
+  role: 'comment',
+  containerLabel: null,
+  title: null,
+  body: factField('/text', 'long_text', false, 65_536),
+  updatedAt: null,
+};
+
 export function stream(overrides: Json = {}): StreamSpec {
   const { request, ...rest } = overrides;
   return streamSpecSchema.parse({

@@ -43,8 +43,17 @@ export const notionManifest = {
   webhook: {
     routing: 'payload',
     registration: 'per_connection',
-    signature: 'notion',
+    verifier: {
+      scheme: 'hmac_body',
+      algorithm: 'sha256',
+      header: 'x-notion-signature',
+      prefix: 'sha256=',
+      encoding: 'hex',
+    },
     tenantKey: 'notion_workspace',
+    eventType: { from: 'body', pointer: '/type' },
+    deliveryId: null,
+    handshake: { type: 'builtin', id: 'notion_verification' },
   },
   pull: {
     cadenceMinutes: 15,

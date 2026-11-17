@@ -49,8 +49,17 @@ export const jiraManifest = {
   webhook: {
     routing: 'url',
     registration: 'per_connection',
-    signature: 'jira',
+    verifier: {
+      scheme: 'hmac_body',
+      algorithm: 'sha256',
+      header: 'x-hub-signature',
+      prefix: 'sha256=',
+      encoding: 'hex',
+    },
     tenantKey: 'jwt_iss',
+    eventType: { from: 'body', pointer: '/webhookEvent' },
+    deliveryId: null,
+    handshake: null,
   },
   pull: {
     cadenceMinutes: 15,

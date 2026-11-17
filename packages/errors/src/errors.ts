@@ -244,6 +244,7 @@ export type ConnectorSpecErrorCode =
   | 'spec_transport_missing'
   | 'spec_manifest_missing'
   | 'spec_shape_missing'
+  | 'spec_secrets_missing'
   | 'spec_cursor_too_long'
   | 'spec_response_not_json'
   | 'spec_response_too_large'
@@ -289,6 +290,24 @@ export type CustomConnectorErrorCode =
 export class CustomConnectorError extends AppError {
   constructor(code: CustomConnectorErrorCode) {
     super(code, { code, category: 'internal' });
+  }
+}
+
+export type ConnectorPolicyErrorCode =
+  | 'instance_allocation_contended'
+  | 'instance_ordinals_exhausted'
+  | 'kind_not_multi_instance';
+
+const CONNECTOR_POLICY_CATEGORY: Readonly<Record<ConnectorPolicyErrorCode, ErrorCategory>> = {
+  instance_allocation_contended: 'conflict',
+  instance_ordinals_exhausted: 'conflict',
+  kind_not_multi_instance: 'validation',
+};
+
+/** The message is the code; never an org id or a kind. Limit refusals are 'conflict', as FreePlanLimitError. */
+export class ConnectorPolicyError extends AppError {
+  constructor(code: ConnectorPolicyErrorCode) {
+    super(code, { code, category: CONNECTOR_POLICY_CATEGORY[code] });
   }
 }
 

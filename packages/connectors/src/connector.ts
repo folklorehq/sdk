@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import type { FactOutcomeCode } from '@folklore/contracts';
 import type { Logger } from '@folklore/core';
 import type { NormalizedRecords, NormalizedResource } from './normalized.js';
 import type { PullStats } from './PullStatsCounter.js';
@@ -26,7 +27,15 @@ export interface WebhookEvent {
   payload: unknown;
 }
 
+export interface PullOutcomeTotal {
+  readonly stream: number;
+  readonly code: FactOutcomeCode;
+  readonly count: number;
+}
+
 export interface PullResult extends NormalizedRecords {
+  /** Rejected records by stream index and closed code for this pull; the breakdown is content, so it never reaches logs or operators. */
+  outcomes?: readonly PullOutcomeTotal[];
   /** Cursor to pass to the next `pull()`. */
   cursor: SyncCursor;
   hasMore: boolean;
