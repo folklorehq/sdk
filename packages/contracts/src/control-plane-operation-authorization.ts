@@ -13,6 +13,9 @@ export const CONTROL_PLANE_BASIS_KINDS = [
   'pool_boot_manifest_mint',
   'shared_tenant_provision',
   'pool_destroy',
+  // Initial operations: no predecessor, so the signature is their only authorization.
+  'tenant_slot_build',
+  'shared_tenant_destroy',
 ] as const;
 
 const PREIMAGE_SCHEMA = 'ControlPlaneOperationAuthorizationPreimageV1' as const;
