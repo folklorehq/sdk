@@ -117,6 +117,8 @@ const SAFE_LOG_DECISION_MODES: ReadonlySet<string> = new Set(['shadow', 'jev']);
 const NON_NEGATIVE_INTEGER_FIELDS: ReadonlySet<string> = new Set([
   'abstained',
   'adminsWithoutMembership',
+  'aggregateChildrenMax',
+  'aggregates',
   'agreed',
   'audiencePages',
   'departments',
@@ -134,6 +136,8 @@ const NON_NEGATIVE_INTEGER_FIELDS: ReadonlySet<string> = new Set([
   'membershipsRemoved',
   'membershipsWritten',
   'raised',
+  'rejectedJoins',
+  'rejectedLinks',
   'releaseNumber',
   'retired',
   'retries',
@@ -144,6 +148,8 @@ const NON_NEGATIVE_INTEGER_FIELDS: ReadonlySet<string> = new Set([
   'teams',
   'tierlessRefs',
   'todayFlagged',
+  'topicMembersMax',
+  'topics',
   'unaudited',
 ]);
 const SAFE_LOG_SIGNUP_STAGE_SET: ReadonlySet<string> = new Set(SAFE_LOG_SIGNUP_STAGES);
