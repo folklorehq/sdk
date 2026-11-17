@@ -125,8 +125,9 @@ function scanFile(scanRoot, path, rules) {
   let source;
   try {
     source = readFileSync(abs, 'utf8');
-  } catch {
-    return [];
+  } catch (error) {
+    // A file the scan cannot read is unscanned, never clean; the path is metadata, not content.
+    throw new Error(`leak_scan_unreadable_file: ${path} (${error?.code ?? 'unknown'})`);
   }
   const findings = [];
   const lines = source.split('\n');
