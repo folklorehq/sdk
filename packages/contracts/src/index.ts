@@ -31,6 +31,7 @@ export * from './inference-routing-parameters.js';
 export * from './inference-routing-validator.js';
 export * from './inference-trust.js';
 export * from './intercom.js';
+export * from './keyed-place-ref.js';
 export * from './me.js';
 export * from './member-identity-links.js';
 export * from './metrics.js';

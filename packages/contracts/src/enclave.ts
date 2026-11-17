@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { KEYED_PLACE_REF_PATTERN } from '@folklore/utils/place-keys';
 import { z } from 'zod';
+import { keyedPlaceRefSchema } from './keyed-place-ref.js';
 import { MEMBER_MANIFEST_KINDS } from './connectors/index.js';
 import { containerLabelSchema } from './connectors/container-labels.js';
 import { DECISION_SITES, decisionSiteSchema } from './decision-sites.js';
@@ -54,7 +54,7 @@ export type FactKind = z.infer<typeof factKindSchema>;
 
 export { containerLabelSchema, type ContainerLabel } from './connectors/container-labels.js';
 
-export const keyedPlaceRefSchema = z.string().regex(KEYED_PLACE_REF_PATTERN);
+export { keyedPlaceRefSchema };
 
 export const containerSeedSchema = z
   .object({
