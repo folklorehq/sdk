@@ -99,6 +99,15 @@ export const webhookBuiltinVerifierSchema = z.enum([
   'zoom_or_recall',
 ]);
 
+// SQS FIFO deduplicates for a fixed five minutes; a delivery admitted for twice its tolerance must fit inside it.
+export const FIFO_DEDUP_INTERVAL_SECONDS = 300;
+
+export const webhookToleranceSecondsSchema = z
+  .number()
+  .int()
+  .min(1)
+  .max(FIFO_DEDUP_INTERVAL_SECONDS);
+
 export const webhookVerifierSchema = z.discriminatedUnion('scheme', [
   z
     .object({
@@ -114,7 +123,7 @@ export const webhookVerifierSchema = z.discriminatedUnion('scheme', [
       scheme: z.literal('hmac_timestamped'),
       header: webhookHeaderNameSchema,
       timestampHeader: webhookHeaderNameSchema,
-      toleranceSeconds: z.number().int().min(1).max(300),
+      toleranceSeconds: webhookToleranceSecondsSchema,
     })
     .strict(),
   z.object({ scheme: z.literal('svix') }).strict(),
@@ -152,21 +161,48 @@ export const webhookTenantKeySchema = z.enum([
   'zoom_account',
 ]);
 
+export const webhookTimestampUnitSchema = z.enum(['ms', 's']);
+
+export const webhookFreshnessSchema = z
+  .object({
+    from: z.literal('body'),
+    pointer: jsonPointerSchema,
+    unit: webhookTimestampUnitSchema,
+    toleranceSeconds: webhookToleranceSecondsSchema,
+  })
+  .strict();
+
+export const webhookBodyTenantKeySchema = z
+  .object({ from: z.literal('body'), pointer: jsonPointerSchema })
+  .strict();
+
+// Kinds whose external tenant id the enclave reads from the provider's identity response with the issued token.
+export const TOKEN_PROVEN_TENANT_KINDS = Object.freeze([
+  'slack',
+  'linear',
+  'intercom',
+  'jira',
+] as const);
+
 export const connectorWebhookSchema = z
   .object({
     routing: z.enum(['payload', 'url']),
     registration: z.enum(['app_wide', 'per_connection', 'customer_configured', 'platform']),
     verifier: webhookVerifierSchema,
-    tenantKey: webhookTenantKeySchema.nullable(),
+    tenantKey: z.union([webhookTenantKeySchema, webhookBodyTenantKeySchema]).nullable(),
     eventType: webhookSelectorSchema,
     deliveryId: webhookSelectorSchema,
     handshake: webhookHandshakeSchema,
+    freshness: webhookFreshnessSchema.optional(),
   })
   .strict();
 
 export type WebhookVerifier = z.infer<typeof webhookVerifierSchema>;
 export type WebhookSelector = z.infer<typeof webhookSelectorSchema>;
 export type ConnectorWebhook = z.infer<typeof connectorWebhookSchema>;
+export type WebhookTimestampUnit = z.infer<typeof webhookTimestampUnitSchema>;
+export type WebhookFreshness = z.infer<typeof webhookFreshnessSchema>;
+export type WebhookBodyTenantKey = z.infer<typeof webhookBodyTenantKeySchema>;
 
 export const webhookEventTypeSchema = z.string().regex(/^[A-Za-z0-9_.:-]{1,64}$/);
 
@@ -190,6 +226,13 @@ export function isDeclarativeWebhook(webhook: ConnectorWebhook): boolean {
   return DECLARATIVE_SCHEMES.has(webhook.verifier.scheme);
 }
 
+// UNWIRED: no shipped kind declares a body tenant key yet.
+export function bodyTenantKey(webhook: ConnectorWebhook): WebhookBodyTenantKey | null {
+  return typeof webhook.tenantKey === 'object' && webhook.tenantKey !== null
+    ? webhook.tenantKey
+    : null;
+}
+
 function verifierHeaders(verifier: WebhookVerifier): string[] {
   if (verifier.scheme === 'hmac_body') return [verifier.header];
   if (verifier.scheme === 'hmac_timestamped') return [verifier.header, verifier.timestampHeader];
@@ -202,6 +245,34 @@ function selectsSignatureHeader(webhook: ConnectorWebhook): boolean {
   return [webhook.eventType, webhook.deliveryId].some(
     (selector) => selector?.from === 'header' && signed.includes(selector.name),
   );
+}
+
+function isUrlRoutedWithoutTenantKey(webhook: ConnectorWebhook): boolean {
+  return webhook.routing === 'url' && webhook.tenantKey === null && webhook.handshake === null;
+}
+
+function isTokenProvenPayloadRouted(kind: string, webhook: ConnectorWebhook): boolean {
+  const { freshness } = webhook;
+  return (
+    webhook.routing === 'payload' &&
+    webhook.registration === 'app_wide' &&
+    bodyTenantKey(webhook) !== null &&
+    webhook.handshake === null &&
+    freshness !== undefined &&
+    2 * freshness.toleranceSeconds < FIFO_DEDUP_INTERVAL_SECONDS &&
+    webhook.deliveryId !== null &&
+    (TOKEN_PROVEN_TENANT_KINDS as readonly string[]).includes(kind)
+  );
+}
+
+function declarativeRoutingIssue(kind: string, webhook: ConnectorWebhook): string | null {
+  if ((CODE_ROUTED_WEBHOOK_KINDS as readonly string[]).includes(kind)) {
+    return bodyTenantKey(webhook) === null ? null : 'a code-routed kind keeps its enum tenant key';
+  }
+  if (isUrlRoutedWithoutTenantKey(webhook) || isTokenProvenPayloadRouted(kind, webhook)) {
+    return null;
+  }
+  return 'a declarative webhook is URL-routed with no tenant key, or app-wide payload-routed with a token-proven body tenant key, freshness inside the dedup window and a delivery id';
 }
 
 export const connectorPullSchema = z
@@ -356,7 +427,17 @@ export const connectorManifestSchema = z
   })
   .superRefine((manifest, ctx) => {
     const webhook = manifest.webhook;
-    if (!webhook || !isDeclarativeWebhook(webhook)) return;
+    if (!webhook) return;
+    if (!isDeclarativeWebhook(webhook)) {
+      if (bodyTenantKey(webhook) !== null) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['webhook'],
+          message: 'a token-proven body tenant key requires a declarative verifier',
+        });
+      }
+      return;
+    }
     if (selectsSignatureHeader(webhook)) {
       ctx.addIssue({
         code: 'custom',
@@ -364,15 +445,8 @@ export const connectorManifestSchema = z
         message: 'a selector names the signature header',
       });
     }
-    if ((CODE_ROUTED_WEBHOOK_KINDS as readonly string[]).includes(manifest.kind)) return;
-    if (webhook.routing === 'url' && webhook.tenantKey === null && webhook.handshake === null) {
-      return;
-    }
-    ctx.addIssue({
-      code: 'custom',
-      path: ['webhook'],
-      message: 'a declarative webhook is URL-routed with no tenant key and no handshake',
-    });
+    const issue = declarativeRoutingIssue(manifest.kind, webhook);
+    if (issue !== null) ctx.addIssue({ code: 'custom', path: ['webhook'], message: issue });
   })
   .refine((m) => (m.resourceScope !== undefined) === (m.settings === 'resource_scope'), {
     message: 'resourceScope is declared if and only if settings is resource_scope',
