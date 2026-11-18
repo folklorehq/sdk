@@ -5,7 +5,7 @@ import { detectSensitive, type SensitiveSpan } from './sensitive-value-detectors
 
 export type SensitiveAction = FactDefinition['guards']['onSensitiveValue'];
 
-export type GuardVerdict =
+type GuardVerdict =
   | { readonly kind: 'clean'; readonly value: FactScalar }
   | { readonly kind: 'redacted'; readonly value: FactScalar }
   | { readonly kind: 'rejected'; readonly reason: FactOutcomeCode };

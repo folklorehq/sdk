@@ -10,7 +10,7 @@ import { FactGuards, REDACTION, type SensitiveAction } from './FactGuards.js';
 
 export type FactScalar = string | number | boolean;
 
-export type Projection =
+type Projection =
   | {
       readonly ok: true;
       readonly values: ReadonlyMap<string, FactScalar>;

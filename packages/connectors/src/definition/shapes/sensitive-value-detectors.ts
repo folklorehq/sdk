@@ -12,7 +12,7 @@ export interface SensitiveSpan {
   readonly kind: SensitiveClass;
 }
 
-export interface DetectionOptions {
+interface DetectionOptions {
   readonly cards: boolean;
 }
 
