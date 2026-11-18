@@ -226,7 +226,6 @@ export function isDeclarativeWebhook(webhook: ConnectorWebhook): boolean {
   return DECLARATIVE_SCHEMES.has(webhook.verifier.scheme);
 }
 
-// UNWIRED: no shipped kind declares a body tenant key yet.
 export function bodyTenantKey(webhook: ConnectorWebhook): WebhookBodyTenantKey | null {
   return typeof webhook.tenantKey === 'object' && webhook.tenantKey !== null
     ? webhook.tenantKey

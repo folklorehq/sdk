@@ -36,7 +36,22 @@ export const linearManifest = {
     apiHosts: ['api.linear.app'],
     cdnSuffixes: [],
   },
-  webhook: null,
+  webhook: {
+    routing: 'payload',
+    registration: 'app_wide',
+    verifier: {
+      scheme: 'hmac_body',
+      algorithm: 'sha256',
+      header: 'linear-signature',
+      prefix: null,
+      encoding: 'hex',
+    },
+    tenantKey: { from: 'body', pointer: '/organizationId' },
+    eventType: { from: 'body', pointer: '/type' },
+    deliveryId: { from: 'header', name: 'linear-delivery' },
+    handshake: null,
+    freshness: { from: 'body', pointer: '/webhookTimestamp', unit: 'ms', toleranceSeconds: 60 },
+  },
   pull: {
     cadenceMinutes: 15,
     documentBodies: false,

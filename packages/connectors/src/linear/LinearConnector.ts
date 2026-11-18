@@ -114,7 +114,7 @@ export class LinearConnector extends BaseConnector {
     };
   }
 
-  // Not yet wired: Linear is pull-only, so a webhook delivery produces no records.
+  // Not yet wired: webhook deliveries produce no records until the webhook normalizer ships.
   normalizeWebhook(): NormalizedRecords {
     return { facts: [], containers: [] };
   }
