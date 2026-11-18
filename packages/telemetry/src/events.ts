@@ -210,6 +210,7 @@ export const AUDIENCE_ADMIN_TELEMETRY_REFUSALS = [
   'limit_reached',
   'ceiling_not_available',
   'person_not_eligible',
+  'access_not_confirmed',
 ] as const;
 
 // Same rule: a closed copy of @folklore/wiki's AUDIENCE_MEMBERSHIP_READERS, which the box API passes through the report port.

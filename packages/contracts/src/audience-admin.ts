@@ -17,8 +17,10 @@ export const AUDIENCE_ADMIN_REFUSALS = [
   'limit_reached',
   'ceiling_not_available',
   'person_not_eligible',
+  'access_not_confirmed',
 ] as const;
 export type AudienceAdminRefusal = (typeof AUDIENCE_ADMIN_REFUSALS)[number];
+export const ACCESS_NOT_CONFIRMED = 'access_not_confirmed' satisfies AudienceAdminRefusal;
 
 export const audienceKindSchema = z.enum(['everyone', 'new_hires', 'custom', 'synced']);
 export type AudienceKind = z.infer<typeof audienceKindSchema>;
