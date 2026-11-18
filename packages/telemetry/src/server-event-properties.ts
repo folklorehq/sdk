@@ -293,7 +293,6 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     ...orgId,
     mode: literal(...AGENT_ACCESS_TELEMETRY_MODES),
     maxSensitivity: literal(...AGENT_ACCESS_TELEMETRY_SENSITIVITIES),
-    allowedAgentCount: count,
     widening: bool,
   }),
   'agent_access.policy_write_refused': propertyContract({

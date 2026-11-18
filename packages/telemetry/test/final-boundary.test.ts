@@ -104,7 +104,6 @@ const VALID_SERVER_EVENT_FIXTURES = {
     orgId: ORGANIZATION_ID,
     mode: 'answers',
     maxSensitivity: 'restricted',
-    allowedAgentCount: 1,
     widening: true,
   },
   'agent_access.policy_write_refused': { orgId: ORGANIZATION_ID, reason: 'revision_conflict' },
@@ -836,7 +835,6 @@ describe('PostHogTelemetryClient final boundary', () => {
   it.each([
     ['an unknown mode', 'agent_access.policy_changed', { mode: 'pages' }],
     ['an unknown ceiling', 'agent_access.policy_changed', { maxSensitivity: 'secret' }],
-    ['a negative agent count', 'agent_access.policy_changed', { allowedAgentCount: -1 }],
     ['an extra email key', 'agent_access.policy_changed', { email: 'dana@acme.com' }],
     ['a free-text reason', 'agent_access.policy_write_refused', { reason: 'You are not an admin' }],
     ['an extra agent key', 'agent_access.policy_write_refused', { agent: 'cursor' }],

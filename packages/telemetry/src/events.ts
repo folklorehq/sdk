@@ -407,7 +407,6 @@ type ProductEvents = {
     orgId: string;
     mode: (typeof AGENT_ACCESS_TELEMETRY_MODES)[number];
     maxSensitivity: (typeof AGENT_ACCESS_TELEMETRY_SENSITIVITIES)[number];
-    allowedAgentCount: number;
     widening: boolean;
   };
   'agent_access.policy_write_refused': {
