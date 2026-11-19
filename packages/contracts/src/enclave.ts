@@ -1685,6 +1685,7 @@ export const OAUTH_REFRESH_OUTCOMES = [
   'provider_error',
   'stale_write',
   'persist_failed',
+  'identity_ineligible',
 ] as const;
 
 export const oauthRefreshMetadataUpdateSchema = z
