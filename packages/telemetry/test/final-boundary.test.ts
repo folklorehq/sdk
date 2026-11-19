@@ -168,6 +168,7 @@ const VALID_SERVER_EVENT_FIXTURES = {
     audience: 'all-members',
     blockCount: 1,
   },
+  'wiki.blocks_stale': { orgId: ORGANIZATION_ID, count: 1 },
   'review.actioned': { orgId: ORGANIZATION_ID, action: 'assign' },
   'review.snippets_degraded': { orgId: ORGANIZATION_ID },
   'fact.ingested': { orgId: ORGANIZATION_ID, sourceKind: 'github' },

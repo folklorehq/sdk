@@ -47,6 +47,7 @@ export const TelemetryEvent = {
   SubscriptionStatusChanged: 'subscription.status_changed',
   SubscriptionSeatsChanged: 'subscription.seats_changed',
   WikiViewed: 'wiki.viewed',
+  WikiBlocksStale: 'wiki.blocks_stale',
   ReviewActioned: 'review.actioned',
   ReviewSnippetsDegraded: 'review.snippets_degraded',
   TeamOwnerSuggestionDecided: 'team_owner_suggestion.decided',
@@ -401,6 +402,7 @@ type ProductEvents = {
   'subscription.status_changed': { orgId: string; status: string };
   'subscription.seats_changed': { orgId: string; seats: number };
   'wiki.viewed': { orgId: string; audience: string; blockCount: number };
+  'wiki.blocks_stale': { orgId: string; count: number };
   'review.actioned': { orgId: string; action: 'assign' | 'remove' };
   'theme.merge_reviewed': { orgId: string; action: 'approve' | 'reject' };
   'agent_access.policy_changed': {

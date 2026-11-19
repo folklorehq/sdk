@@ -442,6 +442,8 @@ export const wikiPageBlockSchema = z
     // promptHash is a random per-generation id; outputHash is the block's stored contentHash.
     promptHash: z.string().nullable(),
     outputHash: z.string().nullable(),
+    // UNWIRED (claim invalidation CI-2): no box reader until then; an instant only, omitted when not stale.
+    staleSince: z.string().datetime().nullable().optional(),
   })
   .strict();
 export type WikiPageBlock = z.infer<typeof wikiPageBlockSchema>;

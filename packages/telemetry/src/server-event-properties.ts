@@ -433,6 +433,7 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     audience: (value) => value === 'all-members' || uuid(value),
     blockCount: count,
   }),
+  'wiki.blocks_stale': propertyContract({ ...orgId, count }),
   'review.actioned': propertyContract({ ...orgId, action: literal('assign', 'remove') }),
   'review.snippets_degraded': orgOnly,
   'fact.ingested': propertyContract({ ...orgId, sourceKind }),

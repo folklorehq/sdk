@@ -148,6 +148,14 @@ export const SALIENT_FACT_SALIENCE: ReadonlySet<FactSalience> = new Set<FactSali
   'human',
 ]);
 
+// A newer fact of one of these classes makes a claim about its container stale (claim invalidation CI-1).
+export const SUPERSEDING_FACT_SALIENCE: ReadonlySet<FactSalience> = new Set<FactSalience>([
+  'decision',
+  'merge',
+  'issue_transition',
+  'deletion',
+]);
+
 export const FEED_FACT_SALIENCE: ReadonlySet<FactSalience> = new Set<FactSalience>([
   'decision',
   'incident',
