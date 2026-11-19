@@ -258,10 +258,13 @@ export type EncryptedBody = z.infer<typeof encryptedBodySchema>;
 export const encryptedBodyReadSchema = z.union([encryptedBodySchema, legacyEncryptedBodySchema]);
 export type EncryptedBodyRead = z.infer<typeof encryptedBodyReadSchema>;
 
+export const SECTION_KEY_PATTERN = /^(lead|s(?:[1-9]|1[0-6]))$/;
+
 export const encryptedBlockSchema = z
   .object({
     type: z.string(),
     sensitivityLevel: sensitivityLevelSchema,
+    sectionKey: z.string().regex(SECTION_KEY_PATTERN).optional(),
     audienceId: z.string().nullable(),
     factIds: z.array(z.string()),
     body: encryptedBodySchema,
@@ -538,6 +541,8 @@ export const wikiShadowArticleSchema = z.discriminatedUnion('outcome', [
 ]);
 export type WikiShadowArticle = z.infer<typeof wikiShadowArticleSchema>;
 
+export const PREVIOUS_PAGE_STATES_MAX = 8;
+
 export const wikiSynthesisResultSchema = z
   .object({
     type: z.literal('wiki_synthesis'),
@@ -554,6 +559,10 @@ export const wikiSynthesisResultSchema = z
     timeline: inferenceTimelineField,
     decisionTally: decisionTallyField,
     pageStates: z.array(wikiPageStateEnvelopeSchema).optional(),
+    deferredAudienceIds: z
+      .array(z.string().uuid().nullable())
+      .max(PREVIOUS_PAGE_STATES_MAX)
+      .optional(),
     // A shadow extra the worker cannot read costs the extra, never the production page.
     shadowArticles: z.array(wikiShadowArticleSchema).optional().catch(undefined),
     qualityScores: z.array(claudeQualityScoresSchema).optional().catch(undefined),
@@ -892,10 +901,10 @@ export const synthesisAudienceSchema = z.object({
     .array(z.string().max(SYNTHESIS_SOURCE_KIND_MAX_LENGTH))
     .max(SYNTHESIS_AUDIENCE_SOURCE_KINDS_MAX)
     .optional(),
+  keepOutline: z.literal(true).optional(),
 });
 export type SynthesisAudience = z.infer<typeof synthesisAudienceSchema>;
 
-export const PREVIOUS_PAGE_STATES_MAX = 8;
 export const SHADOW_ARMS_MAX = 2;
 
 export const WIKI_SYNTHESIS_GENERATIONS = ['article', 'sectioned'] as const;

@@ -67,9 +67,13 @@ const FROZEN: Record<string, string[]> = {
     'blocks[].body.orgId',
     'blocks[].factIds[]',
     'blocks[].promptHash',
+    // Pattern-bound to lead or s1 to s16 (SECTION_KEY_PATTERN): a position, never prose.
+    'blocks[].sectionKey',
     'blocks[].type',
     'citedFactIds[]',
     'decisionTally[].model',
+    // Audience ids (uuid or null) of pages the enclave deferred; ids only.
+    'deferredAudienceIds[]',
     'leaseToken',
     'orgId',
     'pageStates[].audienceId',
@@ -131,6 +135,7 @@ const FROZEN: Record<string, string[]> = {
     'blocks[].body.orgId',
     'blocks[].factIds[]',
     'blocks[].promptHash',
+    'blocks[].sectionKey',
     'blocks[].type',
     'citedFactIds[]',
     'decisionTally[].model',

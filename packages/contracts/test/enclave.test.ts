@@ -914,6 +914,31 @@ describe('wikiSynthesisResultSchema', () => {
     ).toThrow();
   });
 
+  it('accepts a section key on a block and rejects one outside lead and s1 to s16', () => {
+    const parse = (sectionKey: string) =>
+      wikiSynthesisResultSchema.safeParse({
+        type: 'wiki_synthesis',
+        requestId: 'req-1',
+        themeId: 'theme-1',
+        orgId: 'org-1',
+        leaseToken: 'lease-1',
+        articles: [],
+        blocks: [
+          {
+            type: 'section',
+            sectionKey,
+            sensitivityLevel: 'team_scoped',
+            audienceId: null,
+            factIds: [],
+            body: { format: 'esdk-v1', ciphertext: 'YmxvY2s=' },
+          },
+        ],
+        citedFactIds: [],
+      }).success;
+    expect(['lead', 's16'].map(parse)).toEqual([true, true]);
+    expect(['x1', 's17'].map(parse)).toEqual([false, false]);
+  });
+
   it('rejects unknown fields at the root and inside encrypted blocks', () => {
     const base = {
       type: 'wiki_synthesis',
@@ -1904,6 +1929,7 @@ type EnclaveSynthesisRequest = {
     publicEligible: boolean;
     maxSensitivity: SensitivityLevel;
     allowedSourceKinds?: string[];
+    keepOutline?: true;
   }[];
   newlyAssociatedFactIds: string[];
   inputTokenBudget: number;
@@ -1947,6 +1973,7 @@ type EnclaveWikiSynthesisResult = {
     sensitivityLevel: SensitivityLevel;
     audienceId: string | null;
     factIds: string[];
+    sectionKey?: string;
     body: EncryptedBodyRead;
     promptHash?: string;
   }[];
@@ -1962,6 +1989,7 @@ type EnclaveWikiSynthesisResult = {
   timeline?: InferenceTimeline | undefined;
   // Mirrors the enclave's SynthesisConsumer result shape.
   pageStates?: WikiPageStateEnvelope[];
+  deferredAudienceIds?: (string | null)[];
   shadowArticles?: WikiShadowArticle[];
   qualityScores?: ClaudeQualityScores[];
   untaggedCalls?: number;
