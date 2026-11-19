@@ -6,7 +6,7 @@ import {
   issueKey,
   issueKeyPrefix,
 } from '@folklore/utils';
-import type { NormalizedFact, NormalizedTransition } from '../normalized.js';
+import type { NormalizedContainer, NormalizedFact, NormalizedTransition } from '../normalized.js';
 import type { LinearIssueField } from './history.js';
 
 export type LinearEntityKind = 'issue' | 'comment' | 'project' | 'cycle';
@@ -42,6 +42,14 @@ export const linearFactKeys = {
   projectClosed: (id: string, ms: number) => `linear:project:closed:${id}:${ms}`,
   cycleCreated: (id: string) => `linear:cycle:created:${id}`,
   cycleClosed: (id: string, ms: number) => `linear:cycle:closed:${id}:${ms}`,
+  issueRemoved: (id: string, ms: number) => `linear:issue:removed:${id}:${ms}`,
+  commentRemoved: (id: string, ms: number) => `linear:comment:removed:${id}:${ms}`,
+  projectRemoved: (id: string, ms: number) => `linear:project:removed:${id}:${ms}`,
+  cycleRemoved: (id: string, ms: number) => `linear:cycle:removed:${id}:${ms}`,
+  issueRestored: (id: string, ms: number) => `linear:issue:restored:${id}:${ms}`,
+  projectRestored: (id: string, ms: number) => `linear:project:restored:${id}:${ms}`,
+  cycleRestored: (id: string, ms: number) => `linear:cycle:restored:${id}:${ms}`,
+  projectEdited: (id: string, ms: number) => `linear:project:edited:${id}:${ms}`,
 } as const;
 
 export function linearIssueContainerId(identifier: string): string | null {
@@ -53,6 +61,32 @@ export function linearIssueContainerId(identifier: string): string | null {
 export const linearProjectContainerId = (id: string): string => `linear:project:${id}`;
 
 export const linearCycleContainerId = (id: string): string => `linear:cycle:${id}`;
+
+export function linearIssueContainer(key: string, teamId: string): NormalizedContainer {
+  return {
+    sourceContainerId: key,
+    shape: 'stateful',
+    label: 'linear_issue',
+    resourceExternalId: teamId,
+  };
+}
+
+export function linearProjectContainer(id: string): NormalizedContainer {
+  return {
+    sourceContainerId: linearProjectContainerId(id),
+    shape: 'stateful',
+    label: 'linear_project',
+  };
+}
+
+export function linearCycleContainer(id: string, teamId: string): NormalizedContainer {
+  return {
+    sourceContainerId: linearCycleContainerId(id),
+    shape: 'stateful',
+    label: 'linear_cycle',
+    resourceExternalId: teamId,
+  };
+}
 
 export function issueBody(title: string, description: string | null | undefined): string {
   return [title, description].filter(Boolean).join('\n\n');

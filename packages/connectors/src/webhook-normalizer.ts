@@ -16,12 +16,11 @@ const noopLogger: Logger = {
   },
 };
 
-const webhookCtx = { logger: noopLogger };
-
 export function normalizeWebhookEvent(
   source: string,
   eventType: string,
   payload: unknown,
+  logger: Logger = noopLogger,
 ): NormalizedRecords {
-  return normalizeWithRegistry(source, eventType, payload, webhookCtx);
+  return normalizeWithRegistry(source, eventType, payload, { logger });
 }

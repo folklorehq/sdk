@@ -15,17 +15,4 @@ describe('Linear registry wiring', () => {
 
     expect(connector).toBeInstanceOf(LinearConnector);
   });
-
-  it('decodes any webhook delivery to no records', () => {
-    const records = getDefaultConnectorRegistry().normalizeWebhook(
-      'linear',
-      {
-        type: 'Issue',
-        payload: { type: 'Issue', action: 'create', data: { id: 'issue-1', title: 'Fix the bug' } },
-      },
-      { logger },
-    );
-
-    expect(records).toEqual({ facts: [], containers: [] });
-  });
 });

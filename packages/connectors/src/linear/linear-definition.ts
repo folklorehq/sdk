@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { LinearClient } from '@linear/sdk';
-import type { ConnectorDefinition } from '../definition/definitions.js';
+import { webhookOnly, type ConnectorDefinition } from '../definition/definitions.js';
 import type { PullConnectorDeps } from '../registry/ConnectorRegistry.js';
 import type { LinearApiClient } from './client.js';
 import { LinearConnector } from './LinearConnector.js';
@@ -19,4 +19,5 @@ export function linearPullConnector(
 export const linearDefinition = {
   kind: 'linear',
   createForPull: (deps) => linearPullConnector(deps),
+  createForWebhook: webhookOnly(LinearConnector),
 } satisfies ConnectorDefinition<'linear'>;

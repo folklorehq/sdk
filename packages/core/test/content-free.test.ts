@@ -24,6 +24,14 @@ describe('checkSafeLogContext', () => {
     expect(checkSafeLogContext({ requestId: '11111111-1111-4111-8111-111111111111' })).toBeNull();
   });
 
+  it.each([
+    [{ entityKind: 'issue', sourceKind: 'linear' }, null],
+    [{ entityKind: 'Fix the login bug' }, 'invalid_context_value'],
+    [{ sourceKind: 'acme_corp' }, 'invalid_context_value'],
+  ])('checks the closed entity and source kinds in %j', (context, expected) => {
+    expect(checkSafeLogContext(context)).toBe(expected);
+  });
+
   it('rejects an unbounded request ID', () => {
     expect(checkSafeLogContext({ requestId: 'customer content must not be logged' })).toBe(
       'invalid_context_value',

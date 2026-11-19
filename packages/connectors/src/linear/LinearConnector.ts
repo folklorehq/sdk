@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 import { BaseConnector } from '../BaseConnector.js';
-import type { ConnectorContext, PullOptions, PullResult, SyncCursor } from '../connector.js';
+import type {
+  ConnectorContext,
+  PullOptions,
+  PullResult,
+  SyncCursor,
+  WebhookEvent,
+} from '../connector.js';
 import type {
   NormalizedContainer,
   NormalizedFact,
@@ -24,6 +30,7 @@ import {
 } from './pull-cursor.js';
 import { readLinearStream, type LinearStreamResult } from './stream-reader.js';
 import type { LinearHistoryNode, LinearIssueNode, LinearPage, LinearTeamNode } from './types.js';
+import { normalizeLinearWebhook } from './webhook.js';
 
 const LINEAR_MAX_REQUESTS_PER_PULL = 200;
 const LINEAR_COMPLEXITY_HEADROOM = 20_000;
@@ -114,9 +121,15 @@ export class LinearConnector extends BaseConnector {
     };
   }
 
-  // Not yet wired: webhook deliveries produce no records until the webhook normalizer ships.
-  normalizeWebhook(): NormalizedRecords {
-    return { facts: [], containers: [] };
+  normalizeWebhook(event: WebhookEvent): NormalizedRecords {
+    const outcome = normalizeLinearWebhook(event.payload);
+    if (outcome.dropped !== null) {
+      this.logger.warn('linear_webhook_dropped', {
+        reason: outcome.dropped.reason,
+        entityKind: outcome.dropped.entity,
+      });
+    }
+    return outcome.records;
   }
 
   private async pullStream(

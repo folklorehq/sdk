@@ -2,13 +2,17 @@
 import type { NormalizedContainer, NormalizedFact, NormalizedRecords } from '../normalized.js';
 import {
   LINEAR_BOT_COMMENT_POLICY,
+  type LinearEntityKind,
   cycleBody,
   issueBody,
   issueEntities,
+  linearCycleContainer,
   linearCycleContainerId,
   linearFact,
   linearFactKeys,
+  linearIssueContainer,
   linearIssueContainerId,
+  linearProjectContainer,
   linearProjectContainerId,
   projectBody,
 } from './canonical.js';
@@ -26,23 +30,14 @@ export interface LinearEmitBounds {
   readonly floorMs: number;
 }
 
-const EMPTY: NormalizedRecords = { facts: [], containers: [] };
+export const EMPTY: NormalizedRecords = { facts: [], containers: [] };
 
-function ms(iso: string): number {
+export function ms(iso: string): number {
   return Date.parse(iso);
 }
 
 function inWindow(iso: string, bounds: LinearEmitBounds): boolean {
   return ms(iso) > bounds.emitAfterMs && ms(iso) >= bounds.floorMs;
-}
-
-function issueContainer(key: string, teamId: string): NormalizedContainer {
-  return {
-    sourceContainerId: key,
-    shape: 'stateful',
-    label: 'linear_issue',
-    resourceExternalId: teamId,
-  };
 }
 
 function recordsOf(container: NormalizedContainer, facts: NormalizedFact[]): NormalizedRecords {
@@ -118,7 +113,7 @@ export function normalizeLinearPulledIssue(
     );
   }
 
-  return recordsOf(issueContainer(key, issue.team.id), facts);
+  return recordsOf(linearIssueContainer(key, issue.team.id), facts);
 }
 
 export function normalizeLinearPulledComment(
@@ -171,7 +166,7 @@ export function normalizeLinearPulledComment(
     );
   }
 
-  return recordsOf(issueContainer(key, comment.issue.team.id), facts);
+  return recordsOf(linearIssueContainer(key, comment.issue.team.id), facts);
 }
 
 export function normalizeLinearPulledProject(
@@ -212,7 +207,7 @@ export function normalizeLinearPulledProject(
     );
   }
 
-  return recordsOf({ sourceContainerId: key, shape: 'stateful', label: 'linear_project' }, facts);
+  return recordsOf(linearProjectContainer(project.id), facts);
 }
 
 export function normalizeLinearPulledCycle(
@@ -252,13 +247,49 @@ export function normalizeLinearPulledCycle(
     );
   }
 
-  return recordsOf(
-    {
-      sourceContainerId: key,
-      shape: 'stateful',
-      label: 'linear_cycle',
-      resourceExternalId: cycle.team.id,
-    },
-    facts,
-  );
+  return recordsOf(linearCycleContainer(cycle.id, cycle.team.id), facts);
+}
+
+export interface LinearLifecycleEvent {
+  readonly transitionType: 'deleted' | 'restored';
+  readonly entityKind: LinearEntityKind;
+  readonly entityId: string;
+  readonly sourceFactId: string;
+  readonly container: NormalizedContainer;
+  readonly resourceExternalId?: string;
+  readonly occurredAt: string;
+}
+
+/** Removals and restores come only from deliveries: the pull sees neither. */
+export function normalizeLinearLifecycle(event: LinearLifecycleEvent): NormalizedRecords {
+  const containerId = event.container.sourceContainerId;
+  const hasIssueContainer = event.entityKind === 'issue' || event.entityKind === 'comment';
+  const fact = linearFact({
+    sourceFactId: event.sourceFactId,
+    entityKind: event.entityKind,
+    entityId: event.entityId,
+    occurredAt: event.occurredAt,
+    ...(event.resourceExternalId === undefined
+      ? {}
+      : { resourceExternalId: event.resourceExternalId }),
+    authorId: null,
+    containerRef: containerId,
+    entities: hasIssueContainer ? [containerId] : [],
+    transition: { transitionType: event.transitionType },
+  });
+  return { containers: [event.container], facts: [fact] };
+}
+
+export function normalizeLinearProjectEdit(project: LinearProjectNode): NormalizedRecords {
+  const fact = linearFact({
+    sourceFactId: linearFactKeys.projectEdited(project.id, ms(project.updatedAt)),
+    entityKind: 'project',
+    entityId: project.id,
+    occurredAt: project.updatedAt,
+    authorId: null,
+    containerRef: linearProjectContainerId(project.id),
+    entities: [],
+    body: projectBody(project.name, project.description, project.content),
+  });
+  return recordsOf(linearProjectContainer(project.id), [fact]);
 }

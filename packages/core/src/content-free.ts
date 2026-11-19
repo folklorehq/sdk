@@ -114,6 +114,41 @@ export const SAFE_LOG_USAGE_SURFACES: ReadonlySet<string> = new Set([
   'page_rewrite',
 ]);
 const SAFE_LOG_DECISION_MODES: ReadonlySet<string> = new Set(['shadow', 'jev']);
+const SAFE_LOG_ENTITY_KINDS: ReadonlySet<string> = new Set([
+  'issue',
+  'comment',
+  'project',
+  'cycle',
+  'other',
+]);
+// Mirrors the connector manifest kinds (core cannot import contracts; a leak-guard test pins coverage).
+export const SAFE_LOG_SOURCE_KINDS: ReadonlySet<string> = new Set([
+  'github',
+  'slack',
+  'notion',
+  'linear',
+  'jira',
+  'intercom',
+  'meeting',
+  'code',
+  'confluence',
+  'email',
+  'google_calendar',
+  'google_drive',
+  'gmail',
+  'microsoft365_calendar',
+  'microsoft365_mail',
+  'microsoft365',
+  'zoom_bot',
+  'zoom',
+  'msteams',
+  'figma',
+  'clickup',
+  'sharepoint',
+  'azure_devops',
+  'custom',
+  'firstparty',
+]);
 const NON_NEGATIVE_INTEGER_FIELDS: ReadonlySet<string> = new Set([
   'abstained',
   'adminsWithoutMembership',
@@ -342,6 +377,8 @@ function isSafeLogValue(key: string, value: unknown): boolean {
   if (CODE_VALUE_FIELDS.has(key)) return SAFE_LOG_EVENT_PATTERN.test(value);
   if (key === 'decisionSite') return SAFE_LOG_DECISION_SITES.has(value);
   if (key === 'decisionMode') return SAFE_LOG_DECISION_MODES.has(value);
+  if (key === 'entityKind') return SAFE_LOG_ENTITY_KINDS.has(value);
+  if (key === 'sourceKind') return SAFE_LOG_SOURCE_KINDS.has(value);
   if (key === 'role') return SAFE_LOG_ROLES.has(value);
   if (key === 'purpose') return SAFE_LOG_PURPOSES.has(value);
   if (key === 'rebuildClass') return SAFE_LOG_REBUILD_CLASSES.has(value);
