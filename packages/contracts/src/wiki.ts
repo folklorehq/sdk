@@ -552,6 +552,92 @@ export const authoredPageDraftsResponseSchema = z
   .strict();
 export type AuthoredPageDraftsResponse = z.infer<typeof authoredPageDraftsResponseSchema>;
 
+export const AUTHORED_PAGE_READERS_SUFFIX = '/readers';
+export const AUTHORED_PAGE_NARROWED_SUFFIX = '/narrowed';
+// The migration's CHECK repeats 100 (PC-5b); change both together.
+export const AUTHORED_PAGE_NAMED_READERS_MAX = 100;
+export const AUTHORED_PAGE_READER_CANDIDATES_MAX = 500;
+export const AUTHORED_PAGES_NARROWED_MAX = 50;
+export const AUTHORED_PAGE_READER_REFUSALS = [
+  'widen_not_allowed',
+  'reader_not_in_team',
+  'removes_self',
+  'stale_readers',
+  'reader_limit',
+] as const;
+export type AuthoredPageReaderRefusal = (typeof AUTHORED_PAGE_READER_REFUSALS)[number];
+export const AUTHORED_PAGE_READER_ROLES = ['author', 'named'] as const;
+
+/** `readerUserIds` names people only; the author is implicit and is stripped if sent. */
+const authoredPageReaderSetSchema = z
+  .object({
+    expectedRevision: z.number().int().min(0),
+    narrowed: z.boolean(),
+    readerUserIds: z.array(z.string().uuid()).max(AUTHORED_PAGE_NAMED_READERS_MAX),
+  })
+  .strict()
+  .refine((request) => request.narrowed || request.readerUserIds.length === 0)
+  .refine((request) => new Set(request.readerUserIds).size === request.readerUserIds.length);
+/** A lead who does not read the page adds themselves without seeing who else reads it, so there is no revision to send. */
+const authoredPageAddSelfSchema = z
+  .object({ expectedRevision: z.number().int().min(0).optional(), addSelf: z.literal(true) })
+  .strict();
+export const authoredPageReadersRequestSchema = z.union([
+  authoredPageReaderSetSchema,
+  authoredPageAddSelfSchema,
+]);
+export type AuthoredPageReadersRequest = z.infer<typeof authoredPageReadersRequestSchema>;
+
+const readerPersonSchema = z.object({ userId: z.string().uuid(), name: z.string() }).strict();
+export const authoredPageReadersResponseSchema = z
+  .object({
+    revision: z.number().int().min(0).nullable(),
+    narrowed: z.boolean(),
+    readerCount: z.number().int().min(0).nullable(),
+    canChange: z.boolean(),
+    canWiden: z.boolean(),
+    viewerReads: z.boolean(),
+    author: readerPersonSchema.nullable(),
+    readers: z
+      .array(readerPersonSchema.extend({ role: z.enum(AUTHORED_PAGE_READER_ROLES) }).strict())
+      .max(AUTHORED_PAGE_NAMED_READERS_MAX + 1),
+    candidates: z.array(readerPersonSchema).max(AUTHORED_PAGE_READER_CANDIDATES_MAX),
+    candidatesTruncated: z.boolean(),
+    changedAt: z.string().datetime().nullable(),
+    changedBy: z.string().nullable(),
+  })
+  .strict();
+export type AuthoredPageReadersResponse = z.infer<typeof authoredPageReadersResponseSchema>;
+
+export const authoredPageReadersWriteResponseSchema = z
+  .object({ revision: z.number().int().min(0) })
+  .strict();
+export type AuthoredPageReadersWriteResponse = z.infer<
+  typeof authoredPageReadersWriteResponseSchema
+>;
+
+export const authoredPageNarrowedQuerySchema = z.object({ teamId: z.string().uuid().optional() });
+export type AuthoredPageNarrowedQuery = z.infer<typeof authoredPageNarrowedQuerySchema>;
+
+export const authoredPageNarrowedResponseSchema = z
+  .object({
+    truncated: z.boolean(),
+    pages: z
+      .array(
+        z
+          .object({
+            themeId: z.string().uuid(),
+            teamId: z.string().uuid(),
+            title: z.string().max(WIKI_PUBLICATION_TITLE_MAX_LENGTH).nullable(),
+            viewerReads: z.boolean(),
+          })
+          .strict(),
+      )
+      .max(AUTHORED_PAGES_NARROWED_MAX),
+  })
+  .strict();
+export type AuthoredPageNarrowedResponse = z.infer<typeof authoredPageNarrowedResponseSchema>;
+
 export const wikiPageVisibilitySchema = z.discriminatedUnion('withheld', [
   z.object({ withheld: z.literal('none') }).strict(),
   z.object({ withheld: z.literal('some'), hiddenBlockCount: z.number().int().positive() }).strict(),
@@ -572,6 +658,7 @@ export const wikiPageResponseSchema = z
     renderedAt: z.string().datetime().nullable().optional(),
     visibility: wikiPageVisibilitySchema.optional(),
     sensitivity: sensitivityLevelSchema.optional(),
+    authored: z.boolean().optional(),
   })
   .strict()
   .superRefine((page, context) => {
