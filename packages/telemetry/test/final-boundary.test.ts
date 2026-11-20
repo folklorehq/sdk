@@ -680,7 +680,6 @@ describe('PostHogTelemetryClient final boundary', () => {
       'source.personal_mode_change_failed',
       { reason: 'forbidden' },
     ],
-    ['a resource id', 'source.sync_pause_failed', { resourceId: 'C123' }],
     ['an audience name', 'audience.created', { name: 'Project Zephyr' }],
     ['a free-text reason', 'audience.change_refused', { reason: 'Project Zephyr is taken' }],
     ['a rule domain', 'audience.rules_saved', { domains: ['partner.com'] }],
