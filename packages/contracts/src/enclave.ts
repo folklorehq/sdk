@@ -687,6 +687,11 @@ export type ReaderIntent = z.infer<typeof readerIntentSchema>;
 export type WhyDocument = z.infer<typeof whyDocumentSchema>;
 export type ThemeDispositionReply = z.infer<typeof themeDispositionReplySchema>;
 
+export const readerBriefSchema = z
+  .object({ role: readerRoleSchema, intent: readerIntentSchema, why: whyDocumentSchema })
+  .strict();
+export type ReaderBrief = z.infer<typeof readerBriefSchema>;
+
 export const synthesizedThemeSchema = z
   .object({
     themeId: z.string(),
@@ -936,6 +941,8 @@ export const synthesisRequestSchema = z.object({
   // Content-free graph neighborhood (ids/edges/weights/tags) the worker assembled from AGE;
   // the enclave hydrates it into a KnowledgeNeighborhood for the cross-wiki prompt block.
   knowledgeSkeleton: knowledgeSkeletonSchema.optional(),
+  // not yet wired: the enclave ignores it until the page outliner and writer read it (DW-9).
+  readerBrief: readerBriefSchema.optional(),
   generation: wikiSynthesisGenerationSchema.optional(),
   deliveryMode: z.enum(WIKI_DELIVERY_MODES).optional(),
   previousPageStates: z.array(wikiPageStateEnvelopeSchema).max(PREVIOUS_PAGE_STATES_MAX).optional(),

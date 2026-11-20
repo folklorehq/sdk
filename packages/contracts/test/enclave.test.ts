@@ -1428,6 +1428,13 @@ describe('synthesisRequestSchema', () => {
     });
   });
 
+  it('carries a valid reader brief', () => {
+    const readerBrief = { role: 'engineer', intent: 'understand_system', why: 'durable_reference' };
+    expect(synthesisRequestSchema.parse({ ...valid, readerBrief }).readerBrief).toEqual(
+      readerBrief,
+    );
+  });
+
   it('rejects a request missing the type discriminant', () => {
     const { type: _omit, ...withoutType } = valid;
     expect(() => synthesisRequestSchema.parse(withoutType)).toThrow();
@@ -1934,6 +1941,11 @@ type EnclaveSynthesisRequest = {
   newlyAssociatedFactIds: string[];
   inputTokenBudget: number;
   knowledgeSkeleton?: EnclaveKnowledgeSkeleton;
+  readerBrief?: {
+    role: 'engineer' | 'operator' | 'product' | 'leader' | 'new_member' | 'customer' | 'anyone';
+    intent: 'understand_system' | 'solve_problem' | 'make_decision' | 'perform_process';
+    why: 'durable_reference' | 'procedure' | 'decision_record' | 'none';
+  };
   generation?: 'article' | 'sectioned';
   deliveryMode?: 'batch' | 'sync';
   // Mirrors the enclave's SynthesisConsumer request shape.
