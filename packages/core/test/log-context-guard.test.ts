@@ -50,6 +50,8 @@ const VETTED_CONTEXT_SPREADS: Record<string, string> = {
     'attemptRefunded is a boolean and is present only for the provider deferral reasons.',
   'apps/control-plane-server/src/auth/source-oauth/handlers/SourceOAuthHandler.ts:source_oauth.submission_failed':
     'outcome is present only when isFailureCodeSlug accepts the enclave reason.',
+  'packages/wiki/src/access/directory/EntitlementProjectionService.ts:team_projection_pass':
+    'policyLockHeadroom is present only when measured, and the boundary admits only its four closed codes.',
 };
 
 // A code field (component/errorCode/error_type/outcome/operation/phase/route/status) is validated

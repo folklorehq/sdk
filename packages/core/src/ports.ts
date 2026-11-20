@@ -145,6 +145,7 @@ export const SAFE_LOG_FIELDS = Object.freeze([
   'pages',
   'percent',
   'phase',
+  'policyLockHeadroom',
   'policyOutcome',
   'port',
   'promptTokens',

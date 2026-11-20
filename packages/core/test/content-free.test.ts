@@ -139,6 +139,12 @@ describe('checkSafeLogContext', () => {
       expect(checkSafeLogContext({ surface }), surface).toBe('invalid_context_value');
     }
     expect(checkSafeLogContext({ surface: null })).toBeNull();
+    expect(checkSafeLogContext({ policyLockHeadroom: 'under_50' })).toBeNull();
+    for (const policyLockHeadroom of [50, null, '0_25', 'under_99']) {
+      expect(checkSafeLogContext({ policyLockHeadroom }), String(policyLockHeadroom)).toBe(
+        'invalid_context_value',
+      );
+    }
   });
 
   it('accepts the deferral fields and a bare reason code only', () => {

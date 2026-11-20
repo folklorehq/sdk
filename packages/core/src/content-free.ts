@@ -113,6 +113,14 @@ export const SAFE_LOG_USAGE_SURFACES: ReadonlySet<string> = new Set([
   'agent',
   'page_rewrite',
 ]);
+export const SAFE_LOG_LOCK_HEADROOM_CODES = [
+  'under_25',
+  'under_50',
+  'under_75',
+  'over_75',
+] as const;
+export type SafeLogLockHeadroomCode = (typeof SAFE_LOG_LOCK_HEADROOM_CODES)[number];
+const SAFE_LOG_LOCK_HEADROOM_CODE_SET: ReadonlySet<string> = new Set(SAFE_LOG_LOCK_HEADROOM_CODES);
 const SAFE_LOG_DECISION_MODES: ReadonlySet<string> = new Set(['shadow', 'jev']);
 const SAFE_LOG_ENTITY_KINDS: ReadonlySet<string> = new Set([
   'issue',
@@ -383,6 +391,9 @@ function isSafeLogValue(key: string, value: unknown): boolean {
     return typeof value === 'number' && Number.isInteger(value) && value >= 0;
   }
   if (key === 'stage') return typeof value === 'string' && SAFE_LOG_SIGNUP_STAGE_SET.has(value);
+  if (key === 'policyLockHeadroom') {
+    return typeof value === 'string' && SAFE_LOG_LOCK_HEADROOM_CODE_SET.has(value);
+  }
   if (value === null || typeof value === 'boolean') return true;
   if (typeof value === 'number') return Number.isFinite(value);
   if (typeof value !== 'string' || value.length > MAX_VALUE_LENGTH) return false;
