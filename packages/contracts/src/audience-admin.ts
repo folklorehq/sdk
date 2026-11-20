@@ -151,3 +151,11 @@ export const audienceRulesViewSchema = z
   .object({ lines: z.array(audienceRuleLineSchema), people: z.array(audiencePersonSchema) })
   .strict();
 export type AudienceRulesView = z.infer<typeof audienceRulesViewSchema>;
+export const audienceRulePreviewSchema = z
+  .object({
+    matches: z.number().int().nonnegative(),
+    members: z.number().int().nonnegative(),
+    pages: z.number().int().nonnegative(),
+  })
+  .strict();
+export type AudienceRulePreview = z.infer<typeof audienceRulePreviewSchema>;
