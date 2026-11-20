@@ -49,7 +49,13 @@ export const adminAudienceSchema = z
 export type AdminAudience = z.infer<typeof adminAudienceSchema>;
 
 export const adminAudienceListSchema = z
-  .object({ audiences: z.array(adminAudienceSchema), customLimit: z.number().int().positive() })
+  .object({
+    audiences: z.array(adminAudienceSchema),
+    customLimit: z.number().int().positive(),
+    // UNWIRED: the API sets neither field until DP-10h2 (gate EDGE-DP10H1-LIVE).
+    departmentMovesHeld: z.number().int().nonnegative().optional(),
+    heldMoveApprovalNoop: z.boolean().optional(),
+  })
   .strict();
 export type AdminAudienceList = z.infer<typeof adminAudienceListSchema>;
 
