@@ -8,6 +8,8 @@ export const CUSTOM_AUDIENCE_LIMIT = 5;
 export const CUSTOM_AUDIENCE_CEILINGS = ['public', 'team_scoped'] as const;
 export const AUDIENCE_MEMBERS_MAX = 1000;
 export const AUDIENCE_PEOPLE_RESULTS_MAX = 25;
+// 503 error code when an org's admin membership reads and saves are all in flight.
+export const AUDIENCE_MEMBERSHIP_BUSY_CODE = 'audience_membership_busy';
 export const AUDIENCE_PEOPLE_QUERY_MAX_LENGTH = 100;
 
 export const AUDIENCE_ADMIN_REFUSALS = [

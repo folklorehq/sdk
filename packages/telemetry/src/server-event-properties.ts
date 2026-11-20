@@ -17,6 +17,7 @@ import {
   AGENT_ACCESS_TELEMETRY_SENSITIVITIES,
   AGENT_ACCESS_TELEMETRY_WRITE_DENIALS,
   AUDIENCE_ADMIN_TELEMETRY_REFUSALS,
+  AUDIENCE_MEMBERSHIP_BUSY_READERS,
   AUDIENCE_MEMBERSHIP_TELEMETRY_READERS,
   BROWSER_CLIENT_ERROR_ORIGINS,
   BROWSER_SOURCE_CONNECT_FAILURES,
@@ -396,6 +397,10 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   'audience.membership_timeout': propertyContract({
     reader: literal(...AUDIENCE_MEMBERSHIP_TELEMETRY_READERS),
     count,
+  }),
+  'audience.membership_busy': propertyContract({
+    ...orgId,
+    reader: literal(...AUDIENCE_MEMBERSHIP_BUSY_READERS),
   }),
   'audience.change_refused': propertyContract({
     ...orgId,

@@ -37,6 +37,7 @@ export const TelemetryEvent = {
   AudienceChangeRefused: 'audience.change_refused',
   AudienceRulesSaved: 'audience.rules_saved',
   AudienceMembershipTimeout: 'audience.membership_timeout',
+  AudienceMembershipBusy: 'audience.membership_busy',
   BetaInviteCreated: 'beta_invite.created',
   BetaInviteAccepted: 'beta_invite.accepted',
   DirectoryImported: 'directory.imported',
@@ -237,6 +238,13 @@ export const AUDIENCE_MEMBERSHIP_TELEMETRY_READERS = [
 ] as const;
 export type AudienceMembershipTelemetryReader =
   (typeof AUDIENCE_MEMBERSHIP_TELEMETRY_READERS)[number];
+export const AUDIENCE_MEMBERSHIP_BUSY_READERS = [
+  'preview',
+  'admin_count',
+  'admin_members',
+  'rule_check',
+] as const;
+export type AudienceMembershipBusyReader = (typeof AUDIENCE_MEMBERSHIP_BUSY_READERS)[number];
 
 export const DECISION_TELEMETRY_SITES = DECISION_SITE_NAMES;
 export type DecisionTelemetrySite = (typeof DECISION_TELEMETRY_SITES)[number];
@@ -483,6 +491,7 @@ type OpsEvents = {
     durationMs: number;
   };
   'audience.membership_timeout': { reader: AudienceMembershipTelemetryReader; count: number };
+  'audience.membership_busy': { orgId: string; reader: AudienceMembershipBusyReader };
   'fact.ingested': { orgId: string; sourceKind: string };
   'fact.scored': {
     orgId: string;

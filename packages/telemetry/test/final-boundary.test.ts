@@ -110,6 +110,7 @@ const VALID_SERVER_EVENT_FIXTURES = {
     negatedConditions: 1,
   },
   'audience.membership_timeout': { reader: 'access', count: 1 },
+  'audience.membership_busy': { orgId: ORGANIZATION_ID, reader: 'preview' },
   'agent_access.policy_changed': {
     orgId: ORGANIZATION_ID,
     mode: 'answers',
