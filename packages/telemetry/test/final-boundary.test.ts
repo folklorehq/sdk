@@ -14,6 +14,7 @@ import {
 import { PostHogTelemetryClient } from '../src/PostHogTelemetryClient.js';
 
 const ORGANIZATION_ID = '11111111-1111-4111-8111-111111111111';
+const DERIVED_THEME_ID = 'a3f1c2d4-9b8e-0c7d-6e5f-4a3b2c1d0e9f';
 const ERROR_REPORT: ErrorReport = {
   error_type: 'internal_error',
   error_name: 'InternalError',
@@ -240,7 +241,7 @@ const VALID_SERVER_EVENT_FIXTURES = {
   'inference.receipt_verification_staged_off': { mode: 'commissioning' },
   'wiki.synthesized': {
     orgId: ORGANIZATION_ID,
-    themeId: ORGANIZATION_ID,
+    themeId: DERIVED_THEME_ID,
     audiences: 2,
     withdrawnAudiences: 1,
   },
@@ -697,6 +698,7 @@ describe('PostHogTelemetryClient final boundary', () => {
     ['withdrawn above audiences', { audiences: 1, withdrawnAudiences: 2 }],
     ['a blockId', { blockId: ORGANIZATION_ID }],
     ['no themeId', { themeId: undefined }],
+    ['an uppercase themeId', { themeId: DERIVED_THEME_ID.toUpperCase() }],
   ])('rejects a wiki.synthesized payload with %s', (_case, override) => {
     const { client, captured } = recordingClient();
 

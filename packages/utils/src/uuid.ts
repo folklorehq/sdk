@@ -6,6 +6,11 @@ export const RFC_UUID_PATTERN_SOURCE =
 const RFC_UUID_PATTERN = new RegExp(`^${RFC_UUID_PATTERN_SOURCE}$`, 'i');
 const LOWERCASE_RFC_UUID_PATTERN = new RegExp(`^${RFC_UUID_PATTERN_SOURCE}$`);
 
+// Any version or variant: the shape `deriveOrgScopedId` mints for theme ids.
+export const UUID_SHAPE_PATTERN_SOURCE =
+  '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+const LOWERCASE_UUID_SHAPE_PATTERN = new RegExp(`^${UUID_SHAPE_PATTERN_SOURCE}$`);
+
 /** True for a canonical-form RFC 9562 UUID of versions 1-8, in either case. */
 export function isRfcUuid(value: string): boolean {
   return RFC_UUID_PATTERN.test(value);
@@ -14,6 +19,11 @@ export function isRfcUuid(value: string): boolean {
 /** True for a canonical-form RFC 9562 UUID of versions 1-8 written in lowercase only. */
 export function isLowercaseRfcUuid(value: string): boolean {
   return LOWERCASE_RFC_UUID_PATTERN.test(value);
+}
+
+/** True for any lowercase 8-4-4-4-12 hex id, including `deriveOrgScopedId` theme ids. */
+export function isLowercaseUuidShape(value: string): boolean {
+  return LOWERCASE_UUID_SHAPE_PATTERN.test(value);
 }
 
 const UUID_VERSION_NIBBLE_INDEX = 14;

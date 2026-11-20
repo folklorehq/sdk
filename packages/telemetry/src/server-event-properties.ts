@@ -53,6 +53,8 @@ type PropertyValidator = (value: unknown) => boolean;
 type EventPropertiesValidator = (properties: Record<string, unknown>) => boolean;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// Theme ids come from deriveOrgScopedId, which sets no RFC version or variant bits; kept local like UUID_PATTERN so this boundary file stays self-contained.
+const THEME_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 // ACI's non-UUID fixture form has a fixed prefix and digits only, so it cannot encode prose.
 const ACI_SESSION_ID_PATTERN = /^sess-[0-9]{1,20}$/;
 const DECISION_MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
@@ -139,6 +141,8 @@ const UPSTREAM_RESULT_REASONS = new Set([
 ]);
 
 const uuid: PropertyValidator = (value) => typeof value === 'string' && UUID_PATTERN.test(value);
+const themeId: PropertyValidator = (value) =>
+  typeof value === 'string' && THEME_ID_PATTERN.test(value);
 const sessionId: PropertyValidator = (value) =>
   typeof value === 'string' && (UUID_PATTERN.test(value) || ACI_SESSION_ID_PATTERN.test(value));
 const bool: PropertyValidator = (value) => typeof value === 'boolean';
@@ -210,7 +214,7 @@ const richBlockCountFields = {
 
 const synthesizedContract = propertyContract({
   ...orgId,
-  themeId: uuid,
+  themeId,
   audiences: count,
   withdrawnAudiences: count,
 });
@@ -247,7 +251,7 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   }),
   'team_owner_suggestion.decided': propertyContract({
     ...orgId,
-    themeId: uuid,
+    themeId,
     teamId: uuid,
     decision: literal('confirmed', 'dismissed'),
   }),
@@ -554,7 +558,7 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   'wiki.first_page.ready': propertyContract({ ...orgId, secondsSinceFirstPull: count }),
   'wiki.rich_blocks.synthesized': propertyContract({
     ...orgId,
-    themeId: uuid,
+    themeId,
     ...richBlockCountFields,
   }),
   'wiki.critique.completed': (properties) => {
@@ -566,7 +570,7 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
         visualIssueCount: count,
         coverageOutcome: literal('clean', 'blocks_added', 'failed', 'skipped'),
       },
-      { themeId: uuid, teamId: uuid },
+      { themeId, teamId: uuid },
     );
     return base(properties) && 'themeId' in properties !== 'teamId' in properties;
   },
