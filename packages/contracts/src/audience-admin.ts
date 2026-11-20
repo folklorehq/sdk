@@ -18,6 +18,15 @@ export const AUDIENCE_ADMIN_REFUSALS = [
   'ceiling_not_available',
   'person_not_eligible',
   'access_not_confirmed',
+  'rule_type_not_offered',
+  'rule_operand_invalid',
+  'rule_linked_only_narrows',
+  'rule_operand_not_in_org',
+  'rule_audience_not_allowed',
+  'rule_cycle',
+  'rule_audience_nested',
+  'rule_too_slow',
+  'audience_named_by_team_doc',
 ] as const;
 export type AudienceAdminRefusal = (typeof AUDIENCE_ADMIN_REFUSALS)[number];
 export const ACCESS_NOT_CONFIRMED = 'access_not_confirmed' satisfies AudienceAdminRefusal;
@@ -74,3 +83,71 @@ export const audienceIdParamsSchema = z.object({ audienceId: z.string().uuid() }
 export const audienceMemberParamsSchema = z
   .object({ audienceId: z.string().uuid(), userId: z.string().uuid() })
   .strict();
+
+export const AUDIENCE_RULE_KINDS = [
+  'email_domain',
+  'person',
+  'in_audience',
+  'team',
+  'leads_team',
+  'workspace_role',
+  'joined',
+  'has_linked',
+] as const;
+export type AudienceRuleKind = (typeof AUDIENCE_RULE_KINDS)[number];
+// A kind is offered only once the tenant holds the data it reads.
+export const OFFERED_AUDIENCE_RULE_KINDS = [
+  'email_domain',
+  'person',
+  'in_audience',
+] as const satisfies readonly AudienceRuleKind[];
+export const AUDIENCE_RULE_OPERATORS = {
+  email_domain: ['is', 'is_not'],
+  person: ['is_one_of', 'is_not_one_of'],
+  in_audience: ['is_in', 'is_not_in'],
+  team: ['is', 'is_not', 'is_under', 'is_not_under'],
+  leads_team: ['any_team', 'team_is', 'team_is_under'],
+  workspace_role: ['is'],
+  joined: ['less_than_days', 'more_than_days', 'between'],
+  has_linked: ['any_of', 'all_of'],
+} as const satisfies Record<AudienceRuleKind, readonly string[]>;
+// A member can make these true themselves, so they only narrow a line.
+export const NARROWING_ONLY_RULE_KINDS = [
+  'has_linked',
+] as const satisfies readonly AudienceRuleKind[];
+export const GRANTING_RULE_OPERATORS = ['is', 'is_one_of', 'is_in'] as const;
+export const AUDIENCE_RULE_EFFECTS = ['include', 'except'] as const;
+// These bound one (user, audience) evaluation to 160 condition lookups; the table CHECK enforces the first three.
+export const AUDIENCE_RULE_LINES_MAX = 10;
+export const AUDIENCE_RULE_CONDITIONS_MAX = 4;
+export const AUDIENCE_RULE_OPERANDS_MAX = 50;
+export const AUDIENCE_RULE_TARGETS_MAX = 3;
+export const AUDIENCE_RULE_OPERAND_MAX_LENGTH = 253;
+const AUDIENCE_RULE_WORD_MAX_LENGTH = 32;
+
+export const audienceRuleConditionSchema = z
+  .object({
+    kind: z.string().min(1).max(AUDIENCE_RULE_WORD_MAX_LENGTH),
+    operator: z.string().min(1).max(AUDIENCE_RULE_WORD_MAX_LENGTH),
+    operands: z
+      .array(z.string().min(1).max(AUDIENCE_RULE_OPERAND_MAX_LENGTH))
+      .min(1)
+      .max(AUDIENCE_RULE_OPERANDS_MAX),
+  })
+  .strict();
+export type AudienceRuleCondition = z.infer<typeof audienceRuleConditionSchema>;
+export const audienceRuleLineSchema = z
+  .object({
+    effect: z.enum(AUDIENCE_RULE_EFFECTS),
+    conditions: z.array(audienceRuleConditionSchema).min(1).max(AUDIENCE_RULE_CONDITIONS_MAX),
+  })
+  .strict();
+export type AudienceRuleLine = z.infer<typeof audienceRuleLineSchema>;
+export const audienceRulesSchema = z
+  .object({ lines: z.array(audienceRuleLineSchema).max(AUDIENCE_RULE_LINES_MAX) })
+  .strict();
+export type AudienceRules = z.infer<typeof audienceRulesSchema>;
+export const audienceRulesViewSchema = z
+  .object({ lines: z.array(audienceRuleLineSchema), people: z.array(audiencePersonSchema) })
+  .strict();
+export type AudienceRulesView = z.infer<typeof audienceRulesViewSchema>;

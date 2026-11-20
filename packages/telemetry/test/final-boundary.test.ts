@@ -100,6 +100,15 @@ const VALID_SERVER_EVENT_FIXTURES = {
   'audience.updated': { orgId: ORGANIZATION_ID, renamed: true, ceilingChange: 'raised' },
   'audience.membership_changed': { orgId: ORGANIZATION_ID, change: 'added' },
   'audience.change_refused': { orgId: ORGANIZATION_ID, action: 'create', reason: 'name_taken' },
+  'audience.rules_saved': {
+    orgId: ORGANIZATION_ID,
+    includeLines: 1,
+    exceptLines: 1,
+    emailDomainConditions: 1,
+    personConditions: 1,
+    inAudienceConditions: 0,
+    negatedConditions: 1,
+  },
   'audience.membership_timeout': { reader: 'access', count: 1 },
   'agent_access.policy_changed': {
     orgId: ORGANIZATION_ID,
@@ -674,6 +683,7 @@ describe('PostHogTelemetryClient final boundary', () => {
     ['a resource id', 'source.sync_pause_failed', { resourceId: 'C123' }],
     ['an audience name', 'audience.created', { name: 'Project Zephyr' }],
     ['a free-text reason', 'audience.change_refused', { reason: 'Project Zephyr is taken' }],
+    ['a rule domain', 'audience.rules_saved', { domains: ['partner.com'] }],
     ['a zero-padded slot', 'firstparty_connector.unpublished', { slot: 'firstparty_03' }],
     [
       'free text after a slot',

@@ -399,8 +399,17 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   }),
   'audience.change_refused': propertyContract({
     ...orgId,
-    action: literal('create', 'update', 'add_member', 'remove_member'),
+    action: literal('create', 'update', 'add_member', 'remove_member', 'save_rules'),
     reason: literal(...AUDIENCE_ADMIN_TELEMETRY_REFUSALS),
+  }),
+  'audience.rules_saved': propertyContract({
+    ...orgId,
+    includeLines: count,
+    exceptLines: count,
+    emailDomainConditions: count,
+    personConditions: count,
+    inAudienceConditions: count,
+    negatedConditions: count,
   }),
   'beta_invite.created': propertyContract({}),
   'beta_invite.accepted': propertyContract({ betaInviteId: uuid }),

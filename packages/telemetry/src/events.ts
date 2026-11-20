@@ -35,6 +35,7 @@ export const TelemetryEvent = {
   AudienceUpdated: 'audience.updated',
   AudienceMembershipChanged: 'audience.membership_changed',
   AudienceChangeRefused: 'audience.change_refused',
+  AudienceRulesSaved: 'audience.rules_saved',
   AudienceMembershipTimeout: 'audience.membership_timeout',
   BetaInviteCreated: 'beta_invite.created',
   BetaInviteAccepted: 'beta_invite.accepted',
@@ -212,6 +213,15 @@ export const AUDIENCE_ADMIN_TELEMETRY_REFUSALS = [
   'ceiling_not_available',
   'person_not_eligible',
   'access_not_confirmed',
+  'rule_type_not_offered',
+  'rule_operand_invalid',
+  'rule_linked_only_narrows',
+  'rule_operand_not_in_org',
+  'rule_audience_not_allowed',
+  'rule_cycle',
+  'rule_audience_nested',
+  'rule_too_slow',
+  'audience_named_by_team_doc',
 ] as const;
 
 // Same rule: a closed copy of @folklore/wiki's AUDIENCE_MEMBERSHIP_READERS, which the box API passes through the report port.
@@ -376,8 +386,17 @@ type ProductEvents = {
   'audience.membership_changed': { orgId: string; change: 'added' | 'removed' };
   'audience.change_refused': {
     orgId: string;
-    action: 'create' | 'update' | 'add_member' | 'remove_member';
+    action: 'create' | 'update' | 'add_member' | 'remove_member' | 'save_rules';
     reason: (typeof AUDIENCE_ADMIN_TELEMETRY_REFUSALS)[number];
+  };
+  'audience.rules_saved': {
+    orgId: string;
+    includeLines: number;
+    exceptLines: number;
+    emailDomainConditions: number;
+    personConditions: number;
+    inAudienceConditions: number;
+    negatedConditions: number;
   };
   'beta_invite.created': Record<string, never>;
   'beta_invite.accepted': { betaInviteId: string };
