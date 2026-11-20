@@ -451,6 +451,7 @@ describe('signup timing fields', () => {
     'excludedRefs',
     'tierlessRefs',
     'skippedContainers',
+    'renumbered',
   ])('%s is a non-negative integer', (key) => {
     expect(checkSafeLogContext({ [key]: 42 })).toBeNull();
     for (const value of [-1, 0.5, '42', null]) {

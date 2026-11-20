@@ -156,6 +156,7 @@ export const SAFE_LOG_FIELDS = Object.freeze([
   'rejectedLinks',
   'releaseId',
   'releaseNumber',
+  'renumbered',
   'requestId',
   'required',
   'requestMaxMs',

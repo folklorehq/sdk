@@ -177,6 +177,7 @@ const NON_NEGATIVE_INTEGER_FIELDS: ReadonlySet<string> = new Set([
   'rejectedJoins',
   'rejectedLinks',
   'releaseNumber',
+  'renumbered',
   'retired',
   'retries',
   'secondsSinceActive',
