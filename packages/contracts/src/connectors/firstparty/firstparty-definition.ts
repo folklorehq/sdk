@@ -51,6 +51,13 @@ export const firstpartyTokenUrlSchema = httpsHostUrlSchema.refine(
   (url) => url.length <= MAX_TOKEN_URL_LENGTH && !/["\\]/.test(url),
 );
 
+export const firstpartyTokenEndpointAuthSchema = z.enum([
+  'client_secret_basic',
+  'client_secret_post',
+]);
+
+export type FirstpartyTokenEndpointAuth = z.infer<typeof firstpartyTokenEndpointAuthSchema>;
+
 // api_key_header and bearer_token wait for static credential entry; a one-member union keeps the discriminator.
 export const firstpartyAuthSchema = z.discriminatedUnion('mode', [
   z
@@ -61,7 +68,7 @@ export const firstpartyAuthSchema = z.discriminatedUnion('mode', [
       scopes: z.array(firstpartySafeAscii(MAX_VALUE_LENGTH)).max(MAX_SCOPES).readonly(),
       pkce: z.enum(['required', 'disabled']),
       clientId: firstpartySafeAscii(MAX_VALUE_LENGTH),
-      tokenEndpointAuth: z.enum(['client_secret_basic', 'client_secret_post']),
+      tokenEndpointAuth: firstpartyTokenEndpointAuthSchema,
       refresh: z.boolean(),
       extraAuthParams: z
         .record(z.enum(FIRSTPARTY_AUTHORIZE_PARAM_NAMES), firstpartySafeAscii(MAX_VALUE_LENGTH))

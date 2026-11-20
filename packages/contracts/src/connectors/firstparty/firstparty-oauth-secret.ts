@@ -2,7 +2,11 @@
 import { canonicalJson } from '@folklore/utils/canonical-json-pure';
 import { utf8ToBytes } from '@noble/hashes/utils.js';
 import { z } from 'zod';
-import { firstpartySafeAscii, firstpartyTokenUrlSchema } from './firstparty-definition.js';
+import {
+  firstpartySafeAscii,
+  firstpartyTokenEndpointAuthSchema,
+  firstpartyTokenUrlSchema,
+} from './firstparty-definition.js';
 import { firstpartySourceKeySchema } from './firstparty-source-key.js';
 
 // One RSA-4096 block, minus 2 * 32 bytes of SHA-256 OAEP overhead and 2 bytes of padding.
@@ -20,7 +24,7 @@ export const firstpartyOAuthSecretPlaintextSchema = z
     definitionId: z.string().uuid(),
     clientId: firstpartySafeAscii(MAX_CLIENT_ID_LENGTH),
     tokenUrl: firstpartyTokenUrlSchema,
-    tokenEndpointAuth: z.enum(['client_secret_basic', 'client_secret_post']),
+    tokenEndpointAuth: firstpartyTokenEndpointAuthSchema,
     secret: firstpartySafeAscii(MAX_SECRET_LENGTH),
   })
   .strict();
