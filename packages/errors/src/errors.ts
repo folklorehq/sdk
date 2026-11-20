@@ -84,6 +84,17 @@ export class TeamProjectionUnkeyedError extends AppError {
   }
 }
 
+/** The team pass committed; its department audience step was skipped, refused, or changed its held count. */
+export class AudiencePolicyFailedError extends AppError {
+  constructor(options: AppErrorOptions = {}) {
+    super('The department audience step did not apply', {
+      ...options,
+      code: 'audience_policy_failed',
+      category: 'unavailable',
+    });
+  }
+}
+
 /** The pool host has no recorded region, so it cannot be looked up. */
 export class HostLocationUnknownError extends AppError {
   constructor(options: AppErrorOptions = {}) {

@@ -16,6 +16,7 @@ export {
   HostInstanceMissingError,
   HostLocationUnknownError,
   TeamProjectionUnkeyedError,
+  AudiencePolicyFailedError,
   HostBusyError,
   LastSuperAdminError,
   StaffAccessChangedError,

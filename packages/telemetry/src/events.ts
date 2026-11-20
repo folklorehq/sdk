@@ -235,6 +235,7 @@ export const AUDIENCE_MEMBERSHIP_TELEMETRY_READERS = [
   'admin_members',
   'rule_check',
   'preview',
+  'policy_dry_run',
 ] as const;
 export type AudienceMembershipTelemetryReader =
   (typeof AUDIENCE_MEMBERSHIP_TELEMETRY_READERS)[number];
