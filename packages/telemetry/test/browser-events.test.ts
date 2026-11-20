@@ -29,6 +29,7 @@ it('keeps browser event properties closed and flat', () => {
     | 'wiki.link_picker'
     | 'wiki.page_create'
     | 'wiki.draft_discard'
+    | 'wiki.page_readers'
     | 'sign_in_completed'
     | 'client_error'
     | 'page_viewed'
@@ -77,6 +78,25 @@ it('keeps browser event properties closed and flat', () => {
     eventSchemaVersion: 1;
     step: 'confirmed' | 'discarded' | 'not_found' | 'failed' | 'cancelled';
   }>();
+  expectTypeOf<TelemetryEventMap['wiki.page_readers']>().toEqualTypeOf<{
+    eventSchemaVersion: 1;
+    step:
+      | 'opened'
+      | 'narrowed'
+      | 'widened'
+      | 'reset'
+      | 'unchanged'
+      | 'widen_not_allowed'
+      | 'reader_not_in_team'
+      | 'removes_self'
+      | 'stale_readers'
+      | 'no_readers'
+      | 'reader_limit'
+      | 'not_allowed'
+      | 'rate_limited'
+      | 'failed'
+      | 'dismissed';
+  }>();
   expectTypeOf<TelemetryEventMap['sign_in_completed']>().toEqualTypeOf<Record<string, never>>();
   expectTypeOf<TelemetryEventMap['client_error']>().toEqualTypeOf<{
     origin: 'error_boundary' | 'window_error' | 'unhandled_rejection';
@@ -118,6 +138,18 @@ it('keeps browser event properties closed and flat', () => {
       step: 'discarded',
     }),
   ).toBe(true);
+  expect(
+    areBrowserTelemetryPropertiesValid('wiki.page_readers', {
+      eventSchemaVersion: 1,
+      step: 'narrowed',
+    }),
+  ).toBe(true);
+  expect(
+    areBrowserTelemetryPropertiesValid('wiki.page_readers', {
+      eventSchemaVersion: 1,
+      step: 'Ada Lovelace',
+    }),
+  ).toBe(false);
   expect(
     areBrowserTelemetryPropertiesValid('wiki.page_create', {
       ...create,
@@ -200,6 +232,7 @@ describe('isBrowserEventAllowedFrom', () => {
     'wiki.link_picker': ['box'],
     'wiki.page_create': ['box'],
     'wiki.draft_discard': ['box'],
+    'wiki.page_readers': ['box'],
   };
 
   it.each(

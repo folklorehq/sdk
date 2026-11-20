@@ -655,6 +655,7 @@ export const BrowserTelemetryEvent = {
   WikiLinkPicker: 'wiki.link_picker',
   WikiPageCreate: 'wiki.page_create',
   WikiDraftDiscard: 'wiki.draft_discard',
+  WikiPageReaders: 'wiki.page_readers',
   SignInCompleted: 'sign_in_completed',
   ClientError: 'client_error',
   PageViewed: 'page_viewed',
@@ -850,6 +851,26 @@ export const WIKI_DRAFT_DISCARD_STEPS: ReadonlySet<string> = new Set(
   WIKI_DRAFT_DISCARD_STEP_VALUES,
 );
 
+const WIKI_PAGE_READERS_STEP_VALUES = [
+  'opened',
+  'narrowed',
+  'widened',
+  'reset',
+  'unchanged',
+  'widen_not_allowed',
+  'reader_not_in_team',
+  'removes_self',
+  'stale_readers',
+  'no_readers',
+  'reader_limit',
+  'not_allowed',
+  'rate_limited',
+  'failed',
+  'dismissed',
+] as const;
+export type WikiPageReadersStep = (typeof WIKI_PAGE_READERS_STEP_VALUES)[number];
+export const WIKI_PAGE_READERS_STEPS: ReadonlySet<string> = new Set(WIKI_PAGE_READERS_STEP_VALUES);
+
 type BrowserEvents = {
   'wiki.toolbar_action': { eventSchemaVersion: 1; action: WikiToolbarAction };
   'wiki.cite_picker': {
@@ -868,6 +889,7 @@ type BrowserEvents = {
     origin: WikiPageCreateOrigin;
   };
   'wiki.draft_discard': { eventSchemaVersion: 1; step: WikiDraftDiscardStep };
+  'wiki.page_readers': { eventSchemaVersion: 1; step: WikiPageReadersStep };
   'source.connect_started': { eventSchemaVersion: 1; sourceKind: BrowserSourceKind };
   'source.connect_failed': {
     eventSchemaVersion: 1;
@@ -948,6 +970,7 @@ const BROWSER_EVENT_PROPERTY_KEYS: Record<BrowserTelemetryEventName, readonly st
   'wiki.link_picker': ['eventSchemaVersion', 'step', 'target'],
   'wiki.page_create': ['eventSchemaVersion', 'step', 'origin'],
   'wiki.draft_discard': ['eventSchemaVersion', 'step'],
+  'wiki.page_readers': ['eventSchemaVersion', 'step'],
   sign_in_completed: [],
   client_error: ['origin', 'errorName'],
   page_viewed: ['eventSchemaVersion', 'page'],
@@ -966,6 +989,7 @@ const BROWSER_EVENT_SURFACES: Record<BrowserTelemetryEventName, readonly Browser
   'wiki.link_picker': ['box'],
   'wiki.page_create': ['box'],
   'wiki.draft_discard': ['box'],
+  'wiki.page_readers': ['box'],
   sign_in_completed: ['console', 'operator', 'box'],
   client_error: ['console', 'operator', 'box'],
   page_viewed: ['web'],
@@ -1056,6 +1080,9 @@ export function isBrowserTelemetryProperty(
   }
   if (event === BrowserTelemetryEvent.WikiDraftDiscard) {
     return key === 'step' && typeof value === 'string' && WIKI_DRAFT_DISCARD_STEPS.has(value);
+  }
+  if (event === BrowserTelemetryEvent.WikiPageReaders) {
+    return key === 'step' && typeof value === 'string' && WIKI_PAGE_READERS_STEPS.has(value);
   }
   if (key === 'origin') {
     return (

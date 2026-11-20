@@ -334,6 +334,7 @@ const VALID_RELAYED_EVENT_FIXTURES = {
   'wiki.link_picker': { eventSchemaVersion: 1, step: 'selected', target: 'page' },
   'wiki.page_create': { eventSchemaVersion: 1, step: 'page_limit', origin: 'sidebar' },
   'wiki.draft_discard': { eventSchemaVersion: 1, step: 'discarded' },
+  'wiki.page_readers': { eventSchemaVersion: 1, step: 'narrowed' },
   sign_in_completed: {},
   client_error: { origin: 'error_boundary', errorName: 'TypeError' },
   page_viewed: { eventSchemaVersion: 1, page: '/pricing' },

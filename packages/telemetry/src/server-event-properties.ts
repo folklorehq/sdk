@@ -25,6 +25,7 @@ import {
   WIKI_LINK_PICKER_STEPS,
   WIKI_LINK_PICKER_TARGETS,
   WIKI_DRAFT_DISCARD_STEPS,
+  WIKI_PAGE_READERS_STEPS,
   WIKI_PAGE_CREATE_ORIGINS,
   WIKI_PAGE_CREATE_STEPS,
   CLIENT_ERROR_NAMES,
@@ -661,6 +662,10 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
   'wiki.draft_discard': propertyContract({
     eventSchemaVersion: schemaVersion1,
     step: oneOf(WIKI_DRAFT_DISCARD_STEPS),
+  }),
+  'wiki.page_readers': propertyContract({
+    eventSchemaVersion: schemaVersion1,
+    step: oneOf(WIKI_PAGE_READERS_STEPS),
   }),
   sign_in_completed: propertyContract({}),
   client_error: propertyContract({

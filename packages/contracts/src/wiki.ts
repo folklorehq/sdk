@@ -563,6 +563,7 @@ export const AUTHORED_PAGE_READER_REFUSALS = [
   'reader_not_in_team',
   'removes_self',
   'stale_readers',
+  'no_readers',
   'reader_limit',
 ] as const;
 export type AuthoredPageReaderRefusal = (typeof AUTHORED_PAGE_READER_REFUSALS)[number];
