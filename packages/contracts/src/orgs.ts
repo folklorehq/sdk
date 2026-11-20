@@ -36,6 +36,11 @@ export type MembershipStatus = z.infer<typeof membershipStatusSchema>;
 export const teamVisibilitySchema = z.enum(['own', 'company', 'all']);
 export type TeamVisibility = z.infer<typeof teamVisibilitySchema>;
 
+// Anything other than the two open values reads as `own`, so an unknown value fails closed.
+export function teamAllowsOrgWidePages(visibility: string): boolean {
+  return visibility === 'company' || visibility === 'all';
+}
+
 export const accessGrantScopeSchema = z.enum(['full', 'public', 'partial']);
 export type AccessGrantScope = z.infer<typeof accessGrantScopeSchema>;
 

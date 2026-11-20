@@ -87,6 +87,7 @@ export const TelemetryEvent = {
   DeploymentCheckin: 'deployment.checkin',
   EnclaveEventLoopDelay: 'enclave.event_loop_delay',
   EnclaveMcpCalls: 'enclave.mcp_calls',
+  EnclaveTeamOnlyGate: 'enclave.team_only_gate',
   DirectoryTeamProjectionFailed: 'directory.team_projection_failed',
   DirectoryResponseRejected: 'directory.response_rejected',
   DirectoryNudgeRaised: 'directory.nudge_raised',
@@ -562,6 +563,18 @@ type OpsEvents = {
     unavailable: number;
     failed: number;
     projectionFailed: number;
+  };
+  'enclave.team_only_gate': {
+    orgId: string;
+    orphanOwnerPages: number;
+    memberlessOwnTeamPages: number;
+    projectedOpenTeams: number;
+    projectedOwnTeams: number;
+    ownTeamPages: number;
+    retiredTeamPages: number;
+    rosterConfirmedAge: 'never' | 'under_1d' | 'under_7d' | 'over_7d';
+    teamCountsMatch: boolean;
+    clean: boolean;
   };
   'wiki.synthesized': {
     orgId: string;

@@ -551,6 +551,18 @@ const SERVER_TELEMETRY_PROPERTY_VALIDATORS = {
     failed: count,
     projectionFailed: count,
   }),
+  'enclave.team_only_gate': propertyContract({
+    ...orgId,
+    orphanOwnerPages: count,
+    memberlessOwnTeamPages: count,
+    projectedOpenTeams: count,
+    projectedOwnTeams: count,
+    ownTeamPages: count,
+    retiredTeamPages: count,
+    rosterConfirmedAge: literal('never', 'under_1d', 'under_7d', 'over_7d'),
+    teamCountsMatch: bool,
+    clean: bool,
+  }),
   'agent_access.projection_truncated': propertyContract({ count }),
   'inference.model_rejected': propertyContract({ model: rejectedModel }),
   'inference.attestation_failed': propertyContract({
