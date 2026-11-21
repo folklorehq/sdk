@@ -33,7 +33,13 @@ export const AUDIENCE_ADMIN_REFUSALS = [
 export type AudienceAdminRefusal = (typeof AUDIENCE_ADMIN_REFUSALS)[number];
 export const ACCESS_NOT_CONFIRMED = 'access_not_confirmed' satisfies AudienceAdminRefusal;
 
-export const audienceKindSchema = z.enum(['everyone', 'new_hires', 'custom', 'synced']);
+export const audienceKindSchema = z.enum([
+  'everyone',
+  'new_hires',
+  'custom',
+  'synced',
+  'department',
+]);
 export type AudienceKind = z.infer<typeof audienceKindSchema>;
 
 export const adminAudienceSchema = z
