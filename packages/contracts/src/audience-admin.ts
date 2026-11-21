@@ -52,7 +52,6 @@ export const adminAudienceListSchema = z
   .object({
     audiences: z.array(adminAudienceSchema),
     customLimit: z.number().int().positive(),
-    // UNWIRED: the API sets neither field until DP-10h2 (gate EDGE-DP10H1-LIVE).
     departmentMovesHeld: z.number().int().nonnegative().optional(),
     heldMoveApprovalNoop: z.boolean().optional(),
   })
